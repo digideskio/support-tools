@@ -8,7 +8,7 @@
 // ==/UserScript==
 
 // Custom CSS
-var css = new Array();
+var css = ;
 function addStyle(style) {
     css[css.length] = style;
 }
