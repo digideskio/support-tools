@@ -14,3 +14,17 @@ Files modified for MongoDB integration:
  Maycat.java - database object
  HomeController.java - controller class
 
+
+## Instructions to open the project:
+
+- Open Spring Tool Suite (STS)
+- From top menu, click `File`, `Import`
+- Select `Maven`, `Existing Maven Projects`
+- Select the folder of the Project, this case `TsJee`
+- Change the `mongo.host` in `src/main/java/edu/babe/dedu/mongo.properites`
+
+## To Run the app:
+
+- Click the green play button to Run the _HomeController_
+- When the browser window opens inside STS
+	- Navigate to `http://localhost:8080/dedu/`
