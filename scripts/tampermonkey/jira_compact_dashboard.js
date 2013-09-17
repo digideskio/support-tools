@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name       MongoDB Jira - Compact Dashboard
 // @namespace  https://jira.mongodb.org/
-// @version    0.30
+// @version    0.40
 // @description  Moar compact Jira dashboard
 // @match      https://jira.mongodb.org/secure/Dashboard.jspa*
-// @copyright  2013, stennie@10gen.com
+// @match      https://jira.mongodb.org/browse/*
+// @copyright  2013, stennie@mongodb.com
 // ==/UserScript==
 
 // Custom CSS
@@ -13,22 +14,38 @@ function addStyle(style) {
     css[css.length] = style;
 }
 
-// Reduce height of masthead & logo strap from 90px to 30px
-addStyle(".aui-theme-default #header #logo a img { height: 30px; width:90px }");
-addStyle(".aui-theme-default #header .global { height: 30px }");
-addStyle("#announcement-banner { padding: 0px }");
+// Reclaim some space from header area
+addStyle(".aui-avatar-project img { width: 40px; height: 40px }");
+addStyle(".issue-header .issue-header-content .aui-page-header { padding: 0px }");
+addStyle(".issue-header .issue-header-content .command-bar { padding: 0px }");;
 
-// Highlight current dashboard tab
-addStyle("ul.tabs li.active strong { font-size:16px; background-color: lightgreen; }");
+// Add background colour to highlight warnings and CS info
+addStyle("#announcement-banner { padding: 5px; background-color: #ffffcc; }");
+addStyle("#watchersDialog { background-color: #9ec05a }");
+addStyle("div#reporter { color: #9ec05a }");
 
 // Change tabs from vertical to horizontal
 function useHorizontalTabs () {
     var dashBoard = document.getElementById("dashboard");
-    dashBoard.className = dashBoard.className.replace(/v-tabs/, 'h-tabs');
-    dashBoard.getElementsByTagName('ul')[0].className = 'horizontal tabs';
+    if (dashBoard) {
+        dashBoard.className = dashBoard.className.replace(/v-tabs/, 'h-tabs');
+        dashBoard.getElementsByTagName('ul')[0].className = 'horizontal tabs';
 
-    // Reclaim some vertical space
-    addStyle("#dashboard-content { margin-top: -15px }");
+        // Add horizontal tab style
+        addStyle("ul.horizontal{overflow:hidden;position:relative;top:1px;}");
+        addStyle("ul.horizontal li{float:left;margin:0 -1px 0 0;width:auto;white-space:nowrap;}");
+        addStyle("ul.horizontal li strong,ul.horizontal li.tab-title{padding:.2em .5em .1em;}");
+        addStyle("ul.horizontal li.first{margin-left:1em;}");
+        addStyle("ul.horizontal li.active{border-bottom-color:#fff;color:#000;text-decoration:underline}");
+
+        addStyle("ul.tabs { list-style-type: none; margin: 0; padding: 0; z-index: 5;}");
+
+        // Highlight current dashboard title
+        addStyle(".aui-page-header-main h1 { color: #9ec05a }");
+
+        // Reclaim some vertical space
+        addStyle("#dashboard-content { margin-top: -15px }");
+    }
 }
 
 // Append custom styles
