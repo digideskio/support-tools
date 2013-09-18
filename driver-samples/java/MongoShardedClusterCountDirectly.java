@@ -55,7 +55,6 @@ public class MongoShardedClusterCountDirectly {
         DBObject cmd = new BasicDBObject();
         cmd.put("listShards", 1);
         
-        // cmd.put("key", new BasicDBObject("userId", 1));
         CommandResult result = db.command(cmd);
         @SuppressWarnings({ "rawtypes", "unchecked" })
         List<BasicDBObject> shards = (List<BasicDBObject>)result.get("shards");
