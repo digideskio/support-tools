@@ -1,0 +1,22 @@
+ 110b0(69808): record len 1e00(7680) next 12eb0(77488) prev f2b0(62128) ext 2000(8192) 
+   110c0(69824): doc len 1de0(7648) end 12ea0(77472)
+     110c4(69828): type 0x7 name '_id' objectid 523ca875ac37df5f4b081ec8
+     110d5(69845): type 0x1 name 'number' double 1.700000
+     110e5(69861): type 0x2 name 'hello' len 6(6) 'world' strlen 6(6) 
+     110f6(69878): type 0x3 name 'empty' doc
+       110fd(69885): doc len 5(5) end 11102(69890)
+         11101(69889): type 0x0 END 
+     11102(69890): type 0x8 name 'false' boolean 0 
+     1110a(69898): type 0x4 name 'array' doc
+       11111(69905): doc len 1d80(7552) end 12e91(77457)
+         11115(69909): type 0x5 name '0' binary len 1d4c(7500) type 0x0 
+         12e69(77417): type 0x6 name '1' undefined
+         12e6c(77420): type 0x8 name '2' boolean 1 
+         12e70(77424): type 0x3 name '3' doc
+           12e73(77427): doc len b(11) end 12e7e(77438)
+             12e77(77431): type 0xa name 'nada' NULL 
+             12e7d(77437): type 0x0 END 
+         12e7e(77438): type 0xb name '4' regexp '^hello world$' '' 
+         12e90(77456): type 0x0 END 
+     12e91(77457): type 0x9 name 'date' date 0
+     12e9f(77471): type 0x0 END 

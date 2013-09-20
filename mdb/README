@@ -1,0 +1,67 @@
+NAME
+    md - simple tool to dump parts of mongo databases to debug corruption
+         issues
+
+SYNOPSIS
+    md -c[lnpi[b]] dbpath database collection
+    md -x[lnp[b]] filename offset
+    md -r[b] filename offset
+    md -b filename offset
+
+DESCRIPTION
+
+    md understands a subset of MongoDB and BSON data formats and is able to parse, partially
+    validate, and print such data from entire database directories or from specified locations
+    within specified database files. In addition it provides detailed information about the location
+    within each file where the parsed information is found, including the location where corruption
+    is detected, aiding in identifying the cause of the corruption.
+    
+    Operation is controlled by a set of flags specified in the first argument, as follows:
+
+    c If the c flag is specified you must specify a dbpath, database name, and collection name.  md
+      prints information from the .ns file for the given collection in the database at the specified
+      dbpath. This includes the collection information from the ns file, and the list of extent
+      headers for this collection. If in addition the l, n, p, or i flags are specified, the record
+      headers within each extent are traversed, parsed, verified, and printed, as detailed below. If
+      the b flag is also specified, the BSON content of each record is parsed, verified, and
+      printed.
+
+    l The records within the extent(s) are traversed from the beginning of the extent to the end,
+      following the "length" field of the record headers. This is the most useful record traversal
+      mode for database corruption debugging because in this mode, when corruption is detected, md
+      attempts to resync and continue by finding the next apparently valid record header in the
+      extent.
+
+    n The records within the extent(s) are traversed following the "next" pointers in the record
+      headers. In this mode when record header corruption is detected no recovery is possible so md
+      exits.
+
+    p The records within the extent(s) are traversed following the "prev" pointers in the record
+      headers. In this mode when record header corruption is detected no recovery is possible so md
+      exits.
+
+    i The records in the collection are enumerated following the _id index. Not implemented yet.
+
+    x If the x flag is specified you must specify a database filename and an offset (in hex) within
+      that file that corresponds to the beginning of an extent. The extent header is printed.  If in
+      addition the l, n, or p flags are specified, the record headers within the extent are parsed,
+      verified, and printed, as detailed above. If the b flag is also specified, the BSON content of
+      each record is parsed, verified, and printed.
+
+    r If the r flag is specified you must specify a database filename and an offset (in hex) within
+      that file that corresponds to the beginning of a record. The record header is printed.  If the
+      b flag is also specified, the BSON content of the record is parsed, verified, and printed.
+
+    b If the b flag is specified in combination with other flags, the BSON contents of any records
+      traversed are parsed, verified, and printed, as described above. If the b flag is specified
+      without any other flags, you must specify a database filename and an offset (in hex) within
+      that file that corresponds to the beginning of BSON document.
+
+OUTPUT
+    See test.sh for examples of commands, and look in test-expected/ for examples of output for
+    each of the commands.
+
+NOTE
+    This is by no means production code, either in terms of code quality or testing. It started out
+    as a quick hack to debug a particular corrupted database, and has been hammered on a bit to give
+    it some generality in hopes that it my be useful for debugging other corrupted databases.

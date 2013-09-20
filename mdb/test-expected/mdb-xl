@@ -1,0 +1,12 @@
+ 2000(8192): extent magic 41424344 me 0:2000 next ffffffff:0 prev ffffffff:0 ns test.small len 1e000 first 0:20b0 last 0:12eb0 
+   20b0(8368): record len 1e00(7680) next 3eb0(16048) prev ffffffff(-1) ext 2000(8192) 
+   3eb0(16048): record len 1e00(7680) next 5cb0(23728) prev 20b0(8368) ext 2000(8192) 
+   5cb0(23728): record len 1e00(7680) next 7ab0(31408) prev 3eb0(16048) ext 2000(8192) 
+   7ab0(31408): record len 1e00(7680) next 98b0(39088) prev 5cb0(23728) ext 2000(8192) 
+   98b0(39088): record len 1e00(7680) next b6b0(46768) prev 7ab0(31408) ext 2000(8192) 
+   b6b0(46768): record len 1e00(7680) next d4b0(54448) prev 98b0(39088) ext 2000(8192) 
+   d4b0(54448): record len 1e00(7680) next f2b0(62128) prev b6b0(46768) ext 2000(8192) 
+   f2b0(62128): record len 1e00(7680) next 110b0(69808) prev d4b0(54448) ext 2000(8192) 
+   110b0(69808): record len 1e00(7680) next 12eb0(77488) prev f2b0(62128) ext 2000(8192) 
+   12eb0(77488): record len 1e00(7680) next ffffffff(-1) prev 110b0(69808) ext 2000(8192) 
+   14cb0(85168): record len b350(45904) next ffffffff(-1) prev 0(0) ext 2000(8192) 
