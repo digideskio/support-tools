@@ -1,6 +1,5 @@
 NAME
-    md - simple tool to dump parts of mongo databases to debug corruption
-         issues
+    md - simple tool to dump parts of mongo databases to debug corruption issues
 
 SYNOPSIS
     md -c[lnpi[b]] dbpath database collection
