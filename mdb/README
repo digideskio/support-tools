@@ -17,7 +17,8 @@ DESCRIPTION
     found, including the location where corruption is detected, aiding
     in identifying the cause of the corruption.
     
-    Operation is controlled by a set of flags specified in the first argument, as follows:
+    Operation is controlled by a set of flags specified in the first
+    argument, as follows:
 
     c If the c flag is specified you must specify a dbpath, database
       name, and collection name.  mdb prints information from the .ns

@@ -272,11 +272,11 @@ typedef struct {
     int len;
     uint32_t ext;
     uint32_t next, prev;
-} rec;
+} record;
 
 void
 validate_record() {
-    rec* r = (rec*)(base+at);
+    record* r = (record*)(base+at);
     if (curr_ext && r->ext!=curr_ext) error = "BAD EXT";    
     // xxx sanity check next, prev, len
 }
@@ -286,7 +286,7 @@ print_record() {
 
     // print record
     print_start();
-    rec* r = (rec*)(base+at);
+    record* r = (record*)(base+at);
     printf("record len %x(%d) next %x(%d) prev %x(%d) ext %x(%d) ",
            r->len, r->len, r->next, r->next, r->prev, r->prev, r->ext, r->ext);
     validate_record();
@@ -296,7 +296,7 @@ print_record() {
 
     // print doc if requested
     if (print_bson_flag) {
-        at += sizeof(rec);
+        at += sizeof(record);
         indent += 2;
         print_doc();
         indent -= 2;
@@ -312,10 +312,10 @@ print_record() {
 typedef struct {
     uint32_t f;
     uint32_t off;
-} loc;
+} diskloc;
 
 void
-print_loc(char* n, loc l) {
+print_diskloc(char* n, diskloc l) {
     printf("%s %x:%x ", n, l.f, l.off);
 }
 
@@ -328,32 +328,32 @@ print_loc(char* n, loc l) {
 
 typedef struct {
     unsigned magic;
-    loc loc;
-    loc next, prev;
+    diskloc loc;
+    diskloc next, prev;
     char ns[MAX_NS_LEN];
     uint32_t len;
-    loc first, last;
-} ext;
+    diskloc first, last;
+} extent;
 
 
 void
 print_extent() {
 
     // the extent
-    ext* x = (ext*)(base+at);
+    extent* x = (extent*)(base+at);
     uint32_t end = at + x->len;
     curr_ext = at; // for error checking
 
     // print header
     print_start();
     printf("extent magic %x ", x->magic);
-    print_loc("me", x->loc);
-    print_loc("next", x->next);
-    print_loc("prev", x->prev);
+    print_diskloc("me", x->loc);
+    print_diskloc("next", x->next);
+    print_diskloc("prev", x->prev);
     printf("ns %s ", x->ns);
     printf("len %x ", x->len);
-    print_loc("first", x->first);
-    print_loc("last", x->last);
+    print_diskloc("first", x->first);
+    print_diskloc("last", x->last);
     print_finish();
 
     indent += 2;
@@ -361,7 +361,7 @@ print_extent() {
     if (print_record_flag) {
 
         // first record, based on chosen traversal order
-        if (print_record_flag==LENGTHS) at += sizeof(ext);
+        if (print_record_flag==LENGTHS) at += sizeof(extent);
         else if (print_record_flag==FORWARD) at = x->first.off;
         else if (print_record_flag==REVERSE) at = x->last.off;
         
@@ -369,7 +369,7 @@ print_extent() {
             
             // print it
             int start = at;
-            rec* r = (rec*)(base+at);
+            record* r = (record*)(base+at);
             print_record();
             
             if (!error) {
@@ -414,9 +414,9 @@ print_extent() {
 typedef struct {
     uint32_t hash;
     char name[MAX_NS_LEN];
-    loc first;
-    loc last;
-    loc del;
+    diskloc first;
+    diskloc last;
+    diskloc del;
 } namespace;
 
 
@@ -449,17 +449,17 @@ print_collection(char* path, char* db, char* name) {
 
         // ns info
         printf("ns %s ", ns->name);
-        print_loc("first", ns->first);
-        print_loc("last", ns->last);
+        print_diskloc("first", ns->first);
+        print_diskloc("last", ns->last);
         print_finish();
 
         // traverse extents
-        loc next;
-        for (loc l = ns->first; l.f != 0xFFFFFFFF; l = next) {
+        diskloc next;
+        for (diskloc l = ns->first; l.f != 0xFFFFFFFF; l = next) {
             snprintf(fn, sizeof(fn), "%s/%s.%d", path, db, l.f);
             base = map_file(fn);
             at = l.off;
-            next = ((ext*)(base+at))->next;
+            next = ((extent*)(base+at))->next;
             print_extent();
         }
 
@@ -477,7 +477,7 @@ main(int argc, char* argv[]) {
 
     // usage
     if (argc < 2)
-        err_exit("usage: md -cxrfvb ...");
+        err_exit("usage: md -cxlnpirb ...");
 
     // what to print
     for (char* c = argv[1]; *c; c++) {
@@ -495,7 +495,7 @@ main(int argc, char* argv[]) {
     if (print_collection_flag) {
 
         if (argc < 4)
-            err_exit("usage: md -c[rfv[b]] path db ns");
+            err_exit("usage: md -c[lnpi[b]] path db ns");
 
         char* path = argv[2];
         char* db = argv[3];
@@ -505,7 +505,7 @@ main(int argc, char* argv[]) {
     } else {
 
         if (argc < 2)
-            err_exit("usage: md -[x][rfv][b] fn [off]");
+            err_exit("usage: md -[xr][lnp][b] fn off]");
 
         char* fn = argv[2];
         if (argc > 2) at = strtol(argv[3], NULL, 16);
