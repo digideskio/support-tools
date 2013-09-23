@@ -13,8 +13,11 @@ function test_one() {
     exp=test-expected/mdb$2
     act=test-actual/mdb$2
     $* >$act
-    diff $exp $act
-    echo pass $*
+    if diff $exp $act; then
+        echo pass $*
+    else
+        echo FAIL $*
+    fi
 }
 
 function test_all() {
