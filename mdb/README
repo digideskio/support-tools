@@ -2,7 +2,7 @@ NAME
     mdb - simple tool to dump parts of mongo databases to debug corruption issues
 
 SYNOPSIS
-    mdb -c[lnpi[b]] dbpath database collection
+    mdb -c[lnpi[b]] dbpath database [collection]
     mdb -x[lnp[b]] filename offset
     mdb -r[b] filename offset
     mdb -b filename offset
@@ -20,16 +20,17 @@ DESCRIPTION
     Operation is controlled by a set of flags specified in the first
     argument, as follows:
 
-    c If the c flag is specified you must specify a dbpath, database
-      name, and collection name.  mdb prints information from the .ns
-      file for the given collection in the database at the specified
-      dbpath. This includes the collection information from the .ns
-      file, and the list of extent headers for this collection. If in
-      addition the l, n, p, or i flags are specified, the record
-      headers within each extent are traversed, parsed, verified, and
-      printed, as detailed below. If the b flag is also specified,
-      the BSON content of each record is parsed, verified, and
-      printed.
+    c If the c flag is specified you must specify a dbpath, and
+      database name, and you may specify a collection name.  mdb
+      prints information from the .ns file for the given collection
+      (or for all collections if you don't specify a collection) in
+      the database at the specified dbpath. This includes the
+      collection information from the .ns file, and the list of extent
+      headers for this collection. If in addition the l, n, p, or i
+      flags are specified, the record headers within each extent are
+      traversed, parsed, verified, and printed, as detailed below. If
+      the b flag is also specified, the BSON content of each record is
+      parsed, verified, and printed.
 
     l The records within the extent(s) are traversed from the
       beginning of the extent to the end, following the "length" field

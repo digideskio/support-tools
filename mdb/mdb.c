@@ -118,6 +118,15 @@ print_uint32() {
 }
 
 
+uint64_t
+print_uint64() {
+    long long int v = *(int*)(base+at);
+    at += sizeof(long long int);
+    printf("%llx(%lld) ", v, v);
+    return v;
+}
+
+
 char*
 print_cstring() {
     char* v = (char*)(base+at);
@@ -188,12 +197,18 @@ print_doc() {
     int start = at;
     printf("doc len ");
     int len = print_uint32();
-    if (len==(uint32_t)0xEEEEEEEE) {
-        printf("DELETED");
-        return;
-    }
     int end = start + len;
-    printf("end %x(%d)", end, end);
+    int deleted = 0;
+    if (len==(uint32_t)0xEEEEEEEE) {
+        deleted = 1;
+        printf("DELETED");
+        if (0) {
+            printf("\n");
+            return;
+        }
+    } else {
+        printf("end %x(%d)", end, end);
+    }
     print_finish();
     indent += 2;
     while (at < end) {
@@ -201,7 +216,8 @@ print_doc() {
         printf("type ");
         int type = print_uint8();
         if (type==0) {
-            if (at!=end) error = "DOC LEN ERROR";
+            if (at!=end && !deleted)
+                error = "DOC LEN ERROR";
             printf("END ");
             print_finish();
             break;
@@ -253,12 +269,18 @@ print_doc() {
             printf("int ");
             print_uint32();
             print_finish();
+        } else if (type==0x12) {
+            printf("int64 ");
+            print_uint64();
+            print_finish();
         } else {
             error = "UNKNOWN TYPE";
             print_finish();
         }
         //if (error /* XXX and fail early */) break;
     }
+    if (deleted)
+        error = NULL;
     indent -= 2;
 }
 
@@ -361,9 +383,13 @@ print_extent() {
     if (print_record_flag) {
 
         // first record, based on chosen traversal order
-        if (print_record_flag==LENGTHS) at += sizeof(extent);
-        else if (print_record_flag==FORWARD) at = x->first.off;
-        else if (print_record_flag==REVERSE) at = x->last.off;
+        if (print_record_flag==LENGTHS) {
+            at += sizeof(extent);
+        } else if (print_record_flag==FORWARD) {
+            at = x->first.f==0xFFFFFFFF? end : x->first.off;
+        } else if (print_record_flag==REVERSE) {
+            at = x->last.f==0xFFFFFFFF? end : x->last.off;            
+        }
         
         while (at < end) {
             
@@ -421,6 +447,32 @@ typedef struct {
 
 
 void
+print_ns(char* path, char* db, namespace* ns) {
+
+    // ns info
+    printf("ns %s ", ns->name);
+    print_diskloc("first", ns->first);
+    print_diskloc("last", ns->last);
+    print_finish();
+    
+    // traverse extents
+    diskloc next;
+    int n_extents = 0;
+    unsigned int sz_extents = 0;
+    for (diskloc l = ns->first; l.f != 0xFFFFFFFF; l = next) {
+        char fn[5000];
+        snprintf(fn, sizeof(fn), "%s/%s.%d", path, db, l.f);
+        base = map_file(fn);
+        at = l.off;
+        n_extents += 1;
+        sz_extents += ((extent*)(base+at))->len;
+        next = ((extent*)(base+at))->next;
+        print_extent();
+    }
+    //printf("%d extents, %x(%d) bytes\n", n_extents, sz_extents, sz_extents);
+}
+
+void
 print_collection(char* path, char* db, char* name) {
 
     // open namespace file
@@ -430,40 +482,28 @@ print_collection(char* path, char* db, char* name) {
     if (fd < 0) err_exit(fn);
 
     // find collection
-    namespace *ns = NULL;
-    char buf[NS_ENTRY_SIZE];
     char full[1000]; // xxx
-    snprintf(full, sizeof(full), "%s.%s", db, name);
+    if (name)
+        snprintf(full, sizeof(full), "%s.%s", db, name);
+    int found = 0;
     for (;;) {
+        char buf[NS_ENTRY_SIZE];
         int n = read(fd, buf, sizeof(buf));
         if (n < sizeof(buf))
             break;
-        ns = (namespace*)buf;
-        if (strcmp(ns->name, full)==0)
-            break;
-        else
-            ns = NULL;
+        namespace *ns = (namespace*)buf;
+        if (name) {
+            if (strcmp(ns->name, full) == 0) {
+                print_ns(path, db, ns);
+                found = 1;
+            }
+        } else if (*ns->name && !strstr(ns->name,".$")/*xxx*/) {
+            printf("hi\n");
+            print_ns(path, db, ns);
+        }
     }
 
-    if (ns) {
-
-        // ns info
-        printf("ns %s ", ns->name);
-        print_diskloc("first", ns->first);
-        print_diskloc("last", ns->last);
-        print_finish();
-
-        // traverse extents
-        diskloc next;
-        for (diskloc l = ns->first; l.f != 0xFFFFFFFF; l = next) {
-            snprintf(fn, sizeof(fn), "%s/%s.%d", path, db, l.f);
-            base = map_file(fn);
-            at = l.off;
-            next = ((extent*)(base+at))->next;
-            print_extent();
-        }
-
-    } else {
+    if (name && !found) {
         err_exit("ns not found");
     }
 }
@@ -477,7 +517,7 @@ main(int argc, char* argv[]) {
 
     // usage
     if (argc < 2)
-        err_exit("usage: md -cxlnpirb ...");
+        err_exit("usage: mdb -cxlnpirb ...");
 
     // what to print
     for (char* c = argv[1]; *c; c++) {
@@ -494,18 +534,18 @@ main(int argc, char* argv[]) {
 
     if (print_collection_flag) {
 
-        if (argc < 4)
-            err_exit("usage: md -c[lnpi[b]] path db ns");
+        if (argc < 3)
+            err_exit("usage: mdb -c[lnpi[b]] path db [ns]");
 
         char* path = argv[2];
         char* db = argv[3];
-        char* ns = argv[4];
+        char* ns = argc<4? NULL : argv[4];
         print_collection(argv[2], argv[3], argv[4]);
 
     } else {
 
         if (argc < 2)
-            err_exit("usage: md -[xr][lnp][b] fn off]");
+            err_exit("usage: mdb -[xr][lnp][b] fn off]");
 
         char* fn = argv[2];
         if (argc > 2) at = strtol(argv[3], NULL, 16);
