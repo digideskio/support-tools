@@ -3,7 +3,7 @@ NAME
 
 SYNOPSIS
     mdb -c[lnpi[b]] dbpath database [collection]
-    mdb -x[lnp[b]] filename offset
+    mdb -x[lnp[b]] filename [offset]
     mdb -r[b] filename offset
     mdb -b filename offset
 
@@ -54,12 +54,14 @@ DESCRIPTION
       _id index. Not implemented yet.
 
     x If the x flag is specified you must specify a database filename
-      and an offset (in hex) within that file that corresponds to the
-      beginning of an extent. The extent header is printed.  If in
-      addition the l, n, or p flags are specified, the record headers
-      within the extent are parsed, verified, and printed, as detailed
-      above. If the b flag is also specified, the BSON content of each
-      record is parsed, verified, and printed.
+      and you may specify an offset (in hex) within that file that
+      corresponds to the beginning of an extent; if you don't specify
+      an offset all extents within the file are printed. For each
+      extent The extent header is printed.  If in addition the l, n,
+      or p flags are specified, the record headers within the extent
+      are parsed, verified, and printed, as detailed above. If the b
+      flag is also specified, the BSON content of each record is
+      parsed, verified, and printed.
 
     r If the r flag is specified you must specify a database filename
       and an offset (in hex) within that file that corresponds to the

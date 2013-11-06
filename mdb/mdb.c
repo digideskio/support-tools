@@ -28,6 +28,8 @@ err_exit(char* msg) {
 // utility to map a file
 //
 
+size_t file_len = 0;
+
 void*
 map_file(char* fn) {
     int fd = open(fn, O_RDWR);
@@ -35,8 +37,8 @@ map_file(char* fn) {
     struct stat buf;
     int rc = fstat(fd, &buf);
     if (rc<0) err_exit("fstat");
-    size_t len = buf.st_size;
-    void* base = mmap(0, len, PROT_READ, MAP_SHARED, fd, 0);
+    file_len = buf.st_size;
+    void* base = mmap(0, file_len, PROT_READ, MAP_SHARED, fd, 0);
     if (base==MAP_FAILED) err_exit("mmap");
     return base;
 }
@@ -430,6 +432,19 @@ print_extent() {
     indent -= 2;
 }
 
+void
+print_extents() {
+    at = 0x2000; // xxx check
+    while (at < file_len) {
+        extent* x = (extent*)(base+at);
+        if (x->len==0)
+            break;
+        size_t next_ext = at + x->len;
+        print_extent();
+        fflush(stdout);
+        at = next_ext;
+    }
+}
 
 //
 // collection
@@ -471,6 +486,7 @@ print_ns(char* path, char* db, namespace* ns) {
     }
     //printf("%d extents, %x(%d) bytes\n", n_extents, sz_extents, sz_extents);
 }
+
 
 void
 print_collection(char* path, char* db, char* name) {
@@ -545,17 +561,22 @@ main(int argc, char* argv[]) {
     } else {
 
         if (argc < 2)
-            err_exit("usage: mdb -[xr][lnp][b] fn off]");
+            err_exit("usage: mdb -[xr][lnp][b] fn off");
 
         char* fn = argv[2];
-        if (argc > 2) at = strtol(argv[3], NULL, 16);
+        if (argc > 3) at = strtol(argv[3], NULL, 16);
+
+        fflush(stdout);
 
         // map the file
         base = map_file(fn);
 
         // do requested op at requested offset
         if (print_extent_flag) {
-            print_extent();
+            if (at==0)
+                print_extents();
+            else
+                print_extent();
         } else if (print_record_flag) {
             print_record();
         } else if (print_bson_flag) {
