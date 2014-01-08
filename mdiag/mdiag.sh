@@ -65,6 +65,10 @@ msection proc/limits <<EOF
 for i in \`pgrep mongo\`; do echo "PID: \$i"; cat /proc/\$i/cmdline; echo; echo "Limits:"; cat /proc/\$i/limits; echo; done
 EOF
 
+msection proc/fds <<EOF
+for i in \`pgrep mongo\`; do echo "PID: \$i"; ls -la /proc/\$i/fd /proc/\$i/fdinfo; echo; echo "fdinfo:"; cat /proc/\$i/fdinfo/*; echo; done
+EOF
+
 msection smartctl <<EOF
 /usr/sbin/smartctl --scan | sed -e "s/#.*$//" | while read i; do /usr/sbin/smartctl --all \$i; done
 EOF
