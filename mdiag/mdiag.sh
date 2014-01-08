@@ -38,8 +38,9 @@ msection date date
 msection whoami whoami
 msection uname uname -a
 msection blockdev /sbin/blockdev --report
-msection glibc ls -l /lib/libc.so* /lib/*/libc.so*
-msection glibc2 /lib/libc.so*
+msection glibc ls -l /lib*/libc.so* /lib/*/libc.so*
+msection glibc2 /lib*/libc.so*
+msection glibc3 /lib/*/libc.so*
 msection lsb lsb_release -a
 msection sysctl /sbin/sysctl -a
 msection ifconfig /sbin/ifconfig -a
