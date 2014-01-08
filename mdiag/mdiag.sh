@@ -87,8 +87,8 @@ cat <<EOF
 
 ==============================================================
 MongoDB Diagnostic information has been recorded in: $diagfile
-Please attach the contents of $diagfile to the Jira ticket
-${1+    https://jira.mongodb.org/browse/$1}
+Please attach the contents of $diagfile to the Jira ticket${1+ at:
+    https://jira.mongodb.org/browse/$1}
 ==============================================================
 
 EOF
