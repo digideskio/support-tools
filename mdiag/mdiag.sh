@@ -1,7 +1,5 @@
 #!/bin/sh
 
-case="CS-00000"
-
 diagfile="/tmp/mdiag-`hostname`.txt"
 
 msection() {
@@ -89,8 +87,8 @@ cat <<EOF
 
 ==============================================================
 MongoDB Diagnostic information has been recorded in: $diagfile
-Please attach the contents of $diagfile to the Jira ticket at:
-    https://jira.mongodb.org/browse/$case
+Please attach the contents of $diagfile to the Jira ticket
+${1+    https://jira.mongodb.org/browse/$1}
 ==============================================================
 
 EOF
