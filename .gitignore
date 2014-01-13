@@ -25,6 +25,10 @@
 *.sql
 *.sqlite
 
+# Ide files
+######################
+*/.idea/*
+
 # OS generated files #
 ######################
 .DS_Store
@@ -34,6 +38,7 @@
 .Trashes
 Icon?
 ehthumbs.db
+Thumbs.db
 Thumbs.db
 
 driver-samples/java/*.jar
