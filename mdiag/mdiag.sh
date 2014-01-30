@@ -72,13 +72,7 @@ msection ulimit ulimit -a
 msection df-h df -h
 msection df-k df -k
 msection mount mount
-msection mounts cat /proc/mounts
-msection mountinfo cat /proc/self/mountinfo
-msection cpuinfo cat /proc/cpuinfo
-msection meminfo cat /proc/meminfo
-msection swaps cat /proc/swaps
-msection modules cat /proc/modules
-msection vmstat cat /proc/vmstat
+msection procinfo getfiles /proc/mounts /proc/self/mountinfo /proc/cpuinfo /proc/meminfo /proc/swaps /proc/modules /proc/vmstat
 msection top top -b -n 10
 msection iostat iostat -xtm 5 10
 msection rpcinfo /usr/sbin/rpcinfo -p
