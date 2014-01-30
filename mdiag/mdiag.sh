@@ -25,6 +25,21 @@ printeach() {
 	done
 }
 
+getfiles() {
+	if [ $# -eq 0 ]; then
+		while read i; do
+			getfiles "$i"
+		done
+	else
+		for f; do
+			ls -l "$f"
+			echo "--> start $f <--"
+			cat "$f"
+			echo "--> end $f <--"
+		done
+	fi
+}
+
 echo "========================="
 echo "MongoDB Diagnostic Report"
 echo "========================="
