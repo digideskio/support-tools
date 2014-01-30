@@ -19,6 +19,12 @@ msection() {
 	) >> "$diagfile" 2>&1
 }
 
+printeach() {
+	for i; do
+		echo "$i"
+	done
+}
+
 echo "========================="
 echo "MongoDB Diagnostic Report"
 echo "========================="
@@ -32,6 +38,7 @@ echo "MongoDB Diagnostic Report"
 echo "========================="
 ) > "$diagfile" 2>&1
 
+msection args printeach "$@"
 msection date date
 msection whoami whoami
 msection uname uname -a
