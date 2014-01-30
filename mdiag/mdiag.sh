@@ -96,15 +96,15 @@ msection smartctl <<EOF
 EOF
 
 msection nr_requests <<EOF
-for d in \`find /sys -name nr_requests\`; do echo \$d; cat \$d; done
+find /sys -name nr_requests | getfiles
 EOF
 
 msection read_ahead_kb <<EOF
-for d in \`find /sys -name read_ahead_kb\`; do echo \$d; cat \$d; done
+find /sys -name read_ahead_kb | getfiles
 EOF
 
 msection scheduler <<EOF
-for d in \`find /sys -name scheduler\`; do echo \$d; cat \$d; done
+find /sys -name scheduler | getfiles
 EOF
 
 
