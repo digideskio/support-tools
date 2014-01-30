@@ -76,7 +76,7 @@ msection procinfo getfiles /proc/mounts /proc/self/mountinfo /proc/cpuinfo /proc
 msection top top -b -n 10
 msection iostat iostat -xtm 5 10
 msection rpcinfo /usr/sbin/rpcinfo -p
-msection scsidevices cat /sys/bus/scsi/devices/*/model
+msection scsidevices getfiles /sys/bus/scsi/devices/*/model
 
 msection proc/limits <<EOF
 for i in \`pgrep mongo\`; do echo "PID: \$i"; cat /proc/\$i/cmdline; echo; echo "Limits:"; cat /proc/\$i/limits; echo; done
