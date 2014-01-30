@@ -32,6 +32,7 @@ getfiles() {
 		done
 	else
 		for f; do
+			echo ""
 			ls -l "$f"
 			echo "--> start $f <--"
 			cat "$f"
