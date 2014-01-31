@@ -100,6 +100,11 @@ msection iostat iostat -xtm 5 10
 msection rpcinfo rpcinfo -p
 msection scsidevices getfiles /sys/bus/scsi/devices/*/model
 
+msection timezone_config getfiles /etc/timezone /etc/sysconfig/clock
+msection timedatectl timedatectl
+msection localtime ls -l /etc/localtime
+msection localtime_matches find /usr/share/zoneinfo -type f -exec cmp -s \{\} /etc/localtime \; -print
+
 msection dmsetup dmsetup ls
 msection device_mapper ls -laR /dev/mapper /dev/dm-*
 
