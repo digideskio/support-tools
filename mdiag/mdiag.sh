@@ -75,6 +75,7 @@ msection glibc3 /lib/*/libc.so*
 msection ld.so.conf getfiles /etc/ld.so.conf /etc/ld.so.conf.d/*
 msection lsb lsb_release -a
 msection sysctl sysctl -a
+msection sysctl.conf getfiles /etc/sysctl.conf /etc/sysctl.d/*
 msection ifconfig ifconfig -a
 msection route route -n
 msection iptables iptables -L -v -n
