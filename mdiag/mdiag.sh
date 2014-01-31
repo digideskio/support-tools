@@ -70,8 +70,7 @@ msection distro getfiles /etc/*release /etc/*version
 msection uname uname -a
 msection blockdev blockdev --report
 msection glibc ls -l /lib*/libc.so* /lib/*/libc.so*
-msection glibc2 /lib*/libc.so*
-msection glibc3 /lib/*/libc.so*
+msection glibc2 /lib*/libc.so* '||' /lib/*/libc.so*
 msection ld.so.conf getfiles /etc/ld.so.conf /etc/ld.so.conf.d/*
 msection lsb lsb_release -a
 msection sysctl sysctl -a
