@@ -78,6 +78,11 @@ msection iostat iostat -xtm 5 10
 msection rpcinfo /usr/sbin/rpcinfo -p
 msection scsidevices getfiles /sys/bus/scsi/devices/*/model
 
+msection transparent_hugepage <<EOF
+ls -lR /sys/kernel/mm/*transparent_hugepage
+find /sys/kernel/mm/*transparent_hugepage -type f | getfiles
+EOF
+
 msection proc/limits <<EOF
 for i in \`pgrep mongo\`; do echo "PID: \$i"; cat /proc/\$i/cmdline; echo; echo "Limits:"; cat /proc/\$i/limits; echo; done
 EOF
