@@ -41,6 +41,8 @@ getfiles() {
 	fi
 }
 
+PATH="$PATH${PATH+:}/usr/sbin:/sbin:/usr/bin:/bin"
+
 echo "========================="
 echo "MongoDB Diagnostic Report"
 echo "========================="
@@ -57,15 +59,16 @@ echo "========================="
 msection args printeach "$@"
 msection date date
 msection whoami whoami
+msection path echo "$PATH"
 msection uname uname -a
-msection blockdev /sbin/blockdev --report
+msection blockdev blockdev --report
 msection glibc ls -l /lib*/libc.so* /lib/*/libc.so*
 msection glibc2 /lib*/libc.so*
 msection glibc3 /lib/*/libc.so*
 msection lsb lsb_release -a
-msection sysctl /sbin/sysctl -a
-msection ifconfig /sbin/ifconfig -a
-msection route /sbin/route -n
+msection sysctl sysctl -a
+msection ifconfig ifconfig -a
+msection route route -n
 msection dmesg dmesg
 msection lspci lspci -vvv
 msection ulimit ulimit -a
@@ -75,7 +78,7 @@ msection mount mount
 msection procinfo getfiles /proc/mounts /proc/self/mountinfo /proc/cpuinfo /proc/meminfo /proc/swaps /proc/modules /proc/vmstat
 msection top top -b -n 10
 msection iostat iostat -xtm 5 10
-msection rpcinfo /usr/sbin/rpcinfo -p
+msection rpcinfo rpcinfo -p
 msection scsidevices getfiles /sys/bus/scsi/devices/*/model
 
 msection dmsetup dmsetup ls
@@ -103,7 +106,7 @@ for i in \`pgrep mongo\`; do echo "PID: \$i"; ls -la /proc/\$i/fd /proc/\$i/fdin
 EOF
 
 msection smartctl <<EOF
-/usr/sbin/smartctl --scan | sed -e "s/#.*$//" | while read i; do /usr/sbin/smartctl --all \$i; done
+smartctl --scan | sed -e "s/#.*$//" | while read i; do smartctl --all \$i; done
 EOF
 
 msection nr_requests <<EOF
