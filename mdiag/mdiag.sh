@@ -76,6 +76,17 @@ msection lsb lsb_release -a
 msection sysctl sysctl -a
 msection ifconfig ifconfig -a
 msection route route -n
+msection iptables iptables -L -v -n
+msection iptables_nat iptables -t nat -L -v -n
+msection ip_link ip link
+msection ip_addr ip addr
+msection ip_route ip route
+msection ip_rule ip rule
+msection hosts getfiles /etc/hosts
+msection host.conf getfiles /etc/host.conf
+msection resolv getfiles /etc/resolv.conf
+msection nsswitch getfiles /etc/nsswitch.conf
+msection networks getfiles /etc/networks
 msection dmesg dmesg
 msection lspci lspci -vvv
 msection ulimit ulimit -a
