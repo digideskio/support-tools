@@ -56,6 +56,8 @@ echo "MongoDB Diagnostic Report"
 echo "========================="
 ) > "$diagfile" 2>&1
 
+shopt -s nullglob > "$diagfile" 2>&1
+
 msection args printeach "$@"
 msection date date
 msection whoami whoami
