@@ -119,8 +119,8 @@ msection sensors sensors
 msection mcelog mcelog
 
 msection transparent_hugepage <<EOF
-ls -lR /sys/kernel/mm/*transparent_hugepage
-find /sys/kernel/mm/*transparent_hugepage -type f | getfiles
+ls -lR /sys/kernel/mm/{redhat_,}transparent_hugepage
+find /sys/kernel/mm/{redhat_,}transparent_hugepage -type f | getfiles
 EOF
 
 msection proc/limits <<EOF
