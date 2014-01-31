@@ -78,6 +78,13 @@ msection iostat iostat -xtm 5 10
 msection rpcinfo /usr/sbin/rpcinfo -p
 msection scsidevices getfiles /sys/bus/scsi/devices/*/model
 
+msection dmsetup dmsetup ls
+msection device_mapper ls -laR /dev/mapper /dev/dm-*
+
+msection lvm_pvs pvs -v
+msection lvm_vgs vgs -v
+msection lvm_lvs lvs -v
+
 msection transparent_hugepage <<EOF
 ls -lR /sys/kernel/mm/*transparent_hugepage
 find /sys/kernel/mm/*transparent_hugepage -type f | getfiles
