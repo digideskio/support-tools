@@ -123,6 +123,10 @@ msection proc/fds <<EOF
 for i in \`pgrep mongo\`; do echo "PID: \$i"; ls -la /proc/\$i/fd /proc/\$i/fdinfo; echo; echo "fdinfo:"; cat /proc/\$i/fdinfo/*; echo; done
 EOF
 
+msection proc/smaps <<EOF
+for i in \`pgrep mongo\`; do echo "PID: \$i"; ls -la /proc/\$i/smaps; cat /proc/\$i/smaps; echo; done
+EOF
+
 msection smartctl <<EOF
 smartctl --scan | sed -e "s/#.*$//" | while read i; do smartctl --all \$i; done
 EOF
