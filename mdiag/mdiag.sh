@@ -64,6 +64,7 @@ msection ld_library_path echo "$LD_LIBRARY_PATH"
 msection ld_preload echo "$LD_PRELOAD"
 msection pythonpath echo "$PYTHONPATH"
 msection pythonhome echo "$PYTHONHOME"
+msection distro getfiles /etc/*release /etc/*version
 msection uname uname -a
 msection blockdev blockdev --report
 msection glibc ls -l /lib*/libc.so* /lib/*/libc.so*
