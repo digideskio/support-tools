@@ -92,6 +92,7 @@ msection networks getfiles /etc/networks
 msection dmesg dmesg
 msection lspci lspci -vvv
 msection ulimit ulimit -a
+msection limits.conf getfiles /etc/security/limits.conf /etc/security/limits.d/*
 msection fstab getfiles /etc/fstab
 msection df-h df -h
 msection df-k df -k
