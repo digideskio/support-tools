@@ -90,6 +90,7 @@ msection networks getfiles /etc/networks
 msection dmesg dmesg
 msection lspci lspci -vvv
 msection ulimit ulimit -a
+msection fstab getfiles /etc/fstab
 msection df-h df -h
 msection df-k df -k
 msection mount mount
