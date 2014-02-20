@@ -83,6 +83,7 @@ msection ip_link ip link
 msection ip_addr ip addr
 msection ip_route ip route
 msection ip_rule ip rule
+msection keepalive cat /proc/sys/net/ipv4/tcp_keepalive_time
 msection hosts getfiles /etc/hosts
 msection host.conf getfiles /etc/host.conf
 msection resolv getfiles /etc/resolv.conf
@@ -101,6 +102,7 @@ msection top top -b -n 10
 msection iostat iostat -xtm 5 10
 msection rpcinfo rpcinfo -p
 msection scsidevices getfiles /sys/bus/scsi/devices/*/model
+msection selinux sestatus
 
 msection timezone_config getfiles /etc/timezone /etc/sysconfig/clock
 msection timedatectl timedatectl
