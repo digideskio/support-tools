@@ -17,6 +17,41 @@ See also [XGENTOOLS-658](https://jira.mongodb.org/browse/XGENTOOLS-658).
 FAQs
 ----
 
+* ulimits
+
+  * Be careful - the `ulimit` section contains the limits that applied to the shell in which the user ran mdiag
+  * This *might not* be the same as what currently applies to `mongod`!
+  * Instead, check the `proc/limits` section later in the output, and/or the `limits.conf` section
+
+
+* What should I look for with respect to Transparent Hugepages (THP)?
+
+  * If setting in `/sys/kernel/mm/transparent_hugepage/enabled` or
+    `/sys/kernel/mm/redhat_transparent_hugepage/enabled` is `[always]`
+  * Non-zero values in any of the following (or their
+    `/sys/kernel/mm/redhat_transparent_hugepage` counterparts):
+    * `/sys/kernel/mm/transparent_hugepage/khugepaged/pages_collapsed`
+    * `/sys/kernel/mm/transparent_hugepage/khugepaged/full_scans`
+  * Large cumulative CPU time for the `khugepaged` process in the `top` output
+	* This indicates that `khugepaged` is spending (wasting) time coalescing
+	  regular 4KB pages into 2MB Hugepages (which requires scanning the whole
+	  page table looking for contiguous pages), and then splitting them up
+	  again when they need to be paged out to disk
+  * Non-zero values of the following entries in `/proc/vmstat`:
+    * `nr_anon_transparent_hugepages`
+    * `thp_fault_alloc`
+    * `thp_fault_fallback`
+    * `thp_collapse_alloc`
+    * `thp_collapse_alloc_failed`
+    * `thp_split`
+  * Non-zero values of the following entries in `/proc/meminfo`:
+    * `AnonHugePages`
+	* Note: *NOT* the `HugePages*:` entries in `/proc/meminfo`
+      * These are red herrings and completely irrelevant: they refer to "regular" Hugepages, not Transparent Hugepages
+  * See also: [DOCS-2131](https://jira.mongodb.org/browse/DOCS-2131)
+  * See also: [Why THP doesn't play nicely with MongoDB (from HELP-352)](https://jira.mongodb.org/browse/HELP-352?focusedCommentId=493507&page=com.atlassian.jira.plugin.system.issuetabpanels:comment-tabpanel#comment-493507)
+
+
 * Customer asks: "What does this mdiag script do?"
 
   Sample answer:
