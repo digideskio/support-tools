@@ -148,8 +148,12 @@ lsfiles -R /sys/kernel/mm/{redhat_,}transparent_hugepage
 find /sys/kernel/mm/{redhat_,}transparent_hugepage -type f | getstdinfiles
 EOF
 
+msection proc/cmdline <<EOF
+for i in \`pgrep mongo\`; do echo "PID: \$i"; lsfiles /proc/\$i/cmdline; echo "--> begin cmdline <--"; xargs -n1 -0 < /proc/\$i/cmdline; echo "--> end cmdline <--"; echo; done
+EOF
+
 msection proc/limits <<EOF
-for i in \`pgrep mongo\`; do echo "PID: \$i"; getfiles /proc/\$i/cmdline; echo; echo "Limits:"; getfiles /proc/\$i/limits; echo; done
+for i in \`pgrep mongo\`; do echo "PID: \$i"; getfiles /proc/\$i/limits; echo; done
 EOF
 
 msection proc/fds <<EOF
