@@ -3,10 +3,10 @@
 diagfile="/tmp/mdiag-`hostname`.txt"
 
 msection() {
-	echo -n .
+	name="$1"
+	shift
+	echo -n "Gathering $name info... "
 	(
-		name="$1"
-		shift
 		echo ""
 		echo ""
 		echo "=========== start $name ==========="
@@ -17,6 +17,7 @@ msection() {
 		fi
 		echo "============ end $name ============"
 	) >> "$diagfile" 2>&1
+	echo "done"
 }
 
 printeach() {
@@ -182,7 +183,6 @@ EOF
 
 
 cat <<EOF
-
 
 ==============================================================
 MongoDB Diagnostic information has been recorded in: $diagfile
