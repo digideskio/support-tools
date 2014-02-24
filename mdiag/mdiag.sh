@@ -41,6 +41,30 @@ getstdinfiles() {
 	done
 }
 
+lsfiles() {
+	somefiles=
+	restfiles=
+	for f; do
+		if [ "x$restfiles" = "x" ]; then
+			case "$f" in
+				--) restfiles=y ;;
+				-*) ;;
+				*)
+					somefiles=y
+					break
+					;;
+			esac
+		else
+			somefiles=y
+			break
+		fi
+	done
+	if [ "x$somefiles" != "x" ]; then
+		ls -la "$@"
+	fi
+}
+
+
 PATH="$PATH${PATH+:}/usr/sbin:/sbin:/usr/bin:/bin"
 
 echo "========================="
@@ -69,7 +93,7 @@ msection pythonhome echo "$PYTHONHOME"
 msection distro getfiles /etc/*release /etc/*version
 msection uname uname -a
 msection blockdev blockdev --report
-msection glibc ls -l /lib*/libc.so* /lib/*/libc.so*
+msection glibc lsfiles /lib*/libc.so* /lib/*/libc.so*
 msection glibc2 /lib*/libc.so* '||' /lib/*/libc.so*
 msection ld.so.conf getfiles /etc/ld.so.conf /etc/ld.so.conf.d/*
 msection lsb lsb_release -a
@@ -105,11 +129,11 @@ msection selinux sestatus
 
 msection timezone_config getfiles /etc/timezone /etc/sysconfig/clock
 msection timedatectl timedatectl
-msection localtime ls -l /etc/localtime
+msection localtime lsfiles /etc/localtime
 msection localtime_matches find /usr/share/zoneinfo -type f -exec cmp -s \{\} /etc/localtime \; -print
 
 msection dmsetup dmsetup ls
-msection device_mapper ls -laR /dev/mapper /dev/dm-*
+msection device_mapper lsfiles -R /dev/mapper /dev/dm-*
 
 msection lvm_pvs pvs -v
 msection lvm_vgs vgs -v
@@ -120,7 +144,7 @@ msection sensors sensors
 msection mcelog mcelog
 
 msection transparent_hugepage <<EOF
-ls -lR /sys/kernel/mm/{redhat_,}transparent_hugepage
+lsfiles -R /sys/kernel/mm/{redhat_,}transparent_hugepage
 find /sys/kernel/mm/{redhat_,}transparent_hugepage -type f | getstdinfiles
 EOF
 
@@ -129,11 +153,11 @@ for i in \`pgrep mongo\`; do echo "PID: \$i"; cat /proc/\$i/cmdline; echo; echo 
 EOF
 
 msection proc/fds <<EOF
-for i in \`pgrep mongo\`; do echo "PID: \$i"; ls -la /proc/\$i/fd /proc/\$i/fdinfo; echo; echo "fdinfo:"; cat /proc/\$i/fdinfo/*; echo; done
+for i in \`pgrep mongo\`; do echo "PID: \$i"; lsfiles /proc/\$i/fd /proc/\$i/fdinfo; echo; echo "fdinfo:"; cat /proc/\$i/fdinfo/*; echo; done
 EOF
 
 msection proc/smaps <<EOF
-for i in \`pgrep mongo\`; do echo "PID: \$i"; ls -la /proc/\$i/smaps; cat /proc/\$i/smaps; echo; done
+for i in \`pgrep mongo\`; do echo "PID: \$i"; lsfiles /proc/\$i/smaps; cat /proc/\$i/smaps; echo; done
 EOF
 
 msection smartctl <<EOF
