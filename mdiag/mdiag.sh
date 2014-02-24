@@ -149,15 +149,15 @@ find /sys/kernel/mm/{redhat_,}transparent_hugepage -type f | getstdinfiles
 EOF
 
 msection proc/limits <<EOF
-for i in \`pgrep mongo\`; do echo "PID: \$i"; cat /proc/\$i/cmdline; echo; echo "Limits:"; cat /proc/\$i/limits; echo; done
+for i in \`pgrep mongo\`; do echo "PID: \$i"; getfiles /proc/\$i/cmdline; echo; echo "Limits:"; getfiles /proc/\$i/limits; echo; done
 EOF
 
 msection proc/fds <<EOF
-for i in \`pgrep mongo\`; do echo "PID: \$i"; lsfiles /proc/\$i/fd /proc/\$i/fdinfo; echo; echo "fdinfo:"; cat /proc/\$i/fdinfo/*; echo; done
+for i in \`pgrep mongo\`; do echo "PID: \$i"; lsfiles /proc/\$i/fd /proc/\$i/fdinfo; echo; echo "fdinfo:"; getfiles /proc/\$i/fdinfo/*; echo; done
 EOF
 
 msection proc/smaps <<EOF
-for i in \`pgrep mongo\`; do echo "PID: \$i"; lsfiles /proc/\$i/smaps; cat /proc/\$i/smaps; echo; done
+for i in \`pgrep mongo\`; do echo "PID: \$i"; getfiles /proc/\$i/smaps; echo; done
 EOF
 
 msection smartctl <<EOF
