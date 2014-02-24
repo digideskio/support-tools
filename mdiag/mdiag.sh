@@ -26,19 +26,19 @@ printeach() {
 }
 
 getfiles() {
-	if [ $# -eq 0 ]; then
-		while read i; do
-			getfiles "$i"
-		done
-	else
-		for f; do
-			echo ""
-			ls -l "$f"
-			echo "--> start $f <--"
-			cat "$f"
-			echo "--> end $f <--"
-		done
-	fi
+	for f; do
+		echo ""
+		ls -l "$f"
+		echo "--> start $f <--"
+		cat "$f"
+		echo "--> end $f <--"
+	done
+}
+
+getstdinfiles() {
+	while read i; do
+		getfiles "$i"
+	done
 }
 
 PATH="$PATH${PATH+:}/usr/sbin:/sbin:/usr/bin:/bin"
@@ -121,7 +121,7 @@ msection mcelog mcelog
 
 msection transparent_hugepage <<EOF
 ls -lR /sys/kernel/mm/{redhat_,}transparent_hugepage
-find /sys/kernel/mm/{redhat_,}transparent_hugepage -type f | getfiles
+find /sys/kernel/mm/{redhat_,}transparent_hugepage -type f | getstdinfiles
 EOF
 
 msection proc/limits <<EOF
@@ -141,15 +141,15 @@ smartctl --scan | sed -e "s/#.*$//" | while read i; do smartctl --all \$i; done
 EOF
 
 msection nr_requests <<EOF
-find /sys -name nr_requests | getfiles
+find /sys -name nr_requests | getstdinfiles
 EOF
 
 msection read_ahead_kb <<EOF
-find /sys -name read_ahead_kb | getfiles
+find /sys -name read_ahead_kb | getstdinfiles
 EOF
 
 msection scheduler <<EOF
-find /sys -name scheduler | getfiles
+find /sys -name scheduler | getstdinfiles
 EOF
 
 
