@@ -8,7 +8,10 @@ it to the Jira ticket), and have them run it with the command-line:
 
     sudo bash mdiag.sh CS-12345
 
-(substituting an appropriate ticket number/id).
+(substituting an appropriate ticket number/id).  It is not necessary to `chmod` the script.
+
+Please note that the script is undergoing continual development, so check this repo to make sure
+that the latest version is being given to users.
 
 See also [XGENTOOLS-658](https://jira.mongodb.org/browse/XGENTOOLS-658).
 
