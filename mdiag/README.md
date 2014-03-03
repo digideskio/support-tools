@@ -3,7 +3,8 @@ mdiag
 
 Script to give to users/customers, to gather a wide variety of system-level diagnostic information.
 
-Latest version: [mdiag.sh](https://raw.github.com/10gen/support-tools/master/mdiag/mdiag.sh)  ([Changelog](https://github.com/10gen/support-tools/commits/master/mdiag/mdiag.sh))
+**Downloads:**
+* **Latest version:** [mdiag.sh](https://raw.github.com/10gen/support-tools/master/mdiag/mdiag.sh)  ([Changelog](https://github.com/10gen/support-tools/commits/master/mdiag/mdiag.sh))
 
 To deploy this to a customer/user on a case, give them the `mdiag.sh` script (eg. attach
 it to the Jira ticket), and have them run it with the command-line:
@@ -20,7 +21,7 @@ See also:
 * [MMSP-537](https://jira.mongodb.org/browse/MMSP-537)
 * [SERVER-12698](https://jira.mongodb.org/browse/SERVER-12698)
 
-- Owner: [Kevin Pulo](mailto:kevin.pulo@mongodb.com)
+Owner: [Kevin Pulo](mailto:kevin.pulo@mongodb.com)
 
 FAQs
 ----
