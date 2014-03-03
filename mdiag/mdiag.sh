@@ -71,6 +71,10 @@ PATH="$PATH${PATH+:}/usr/sbin:/sbin:/usr/bin:/bin"
 echo "========================="
 echo "MongoDB Diagnostic Report"
 echo "========================="
+if [ "$1" ]; then
+	echo
+	echo "Ticket: https://jira.mongodb.org/browse/$1"
+fi
 echo 
 echo "Please wait while diagnostic information is gathered"
 echo "into the $diagfile file..."
