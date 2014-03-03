@@ -15,7 +15,10 @@ it to the Jira ticket), and have them run it with the command-line:
 Please note that the script is undergoing continual development, so check this repo to make sure
 that the latest version is being given to users.
 
-See also [XGENTOOLS-658](https://jira.mongodb.org/browse/XGENTOOLS-658).
+See also:
+* [XGENTOOLS-658](https://jira.mongodb.org/browse/XGENTOOLS-658)
+* [MMSP-537](https://jira.mongodb.org/browse/MMSP-537)
+* [SERVER-12698](https://jira.mongodb.org/browse/SERVER-12698)
 
 - Owner: [Kevin Pulo](mailto:kevin.pulo@mongodb.com)
 
