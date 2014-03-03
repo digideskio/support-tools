@@ -17,7 +17,7 @@ that the latest version is being given to users.
 
 See also [XGENTOOLS-658](https://jira.mongodb.org/browse/XGENTOOLS-658).
 
-- Owner: [Kevin Pulo](mailto:kevin.pulo@@mongodb.com) ?
+- Owner: [Kevin Pulo](mailto:kevin.pulo@mongodb.com)
 
 FAQs
 ----
