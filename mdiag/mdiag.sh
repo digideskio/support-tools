@@ -72,7 +72,12 @@ echo "========================="
 echo "MongoDB Diagnostic Report"
 echo "========================="
 echo 
-echo "Please wait while diagnostic information is gathered..."
+echo "Please wait while diagnostic information is gathered"
+echo "into the $diagfile file..."
+echo
+echo "If the display remains stuck for more than 5 minutes,"
+echo "please press Control-C."
+echo
 
 [ -e "$diagfile" ] && mv -f "$diagfile" "$diagfile.old"
 (
