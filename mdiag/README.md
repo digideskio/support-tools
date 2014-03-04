@@ -11,7 +11,12 @@ it to the Jira ticket), and have them run it with the command-line:
 
     sudo bash mdiag.sh CS-12345
 
-(substituting an appropriate ticket number/id).  It is not necessary to `chmod` the script.
+(substituting an appropriate ticket number/id).
+
+Do ***not*** link to the file in the github repository, as this is a private repo that only MongoDB
+employees can access.
+
+It is not necessary to `chmod` the script.
 
 Please note that the script is undergoing continual development, so check this repo to make sure
 that the latest version is being given to users.
