@@ -176,6 +176,10 @@ msection proc/smaps <<EOF
 for i in \`pgrep mongo\`; do echo "PID: \$i"; getfiles /proc/\$i/smaps; echo; done
 EOF
 
+msection proc/numa_maps <<EOF
+for i in \`pgrep mongo\`; do echo "PID: \$i"; getfiles /proc/\$i/numa_maps; echo; done
+EOF
+
 msection smartctl <<EOF
 smartctl --scan | sed -e "s/#.*$//" | while read i; do smartctl --all \$i; done
 EOF
