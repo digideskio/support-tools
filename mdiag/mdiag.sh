@@ -103,6 +103,7 @@ msection pythonhome echo "$PYTHONHOME"
 msection distro getfiles /etc/*release /etc/*version
 msection uname uname -a
 msection blockdev blockdev --report
+msection lsblk lsblk
 msection glibc lsfiles /lib*/libc.so* /lib/*/libc.so*
 msection glibc2 /lib*/libc.so* '||' /lib/*/libc.so*
 msection ld.so.conf getfiles /etc/ld.so.conf /etc/ld.so.conf.d/*
