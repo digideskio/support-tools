@@ -103,12 +103,15 @@ msection pythonhome echo "$PYTHONHOME"
 msection distro getfiles /etc/*release /etc/*version
 msection uname uname -a
 msection blockdev blockdev --report
+msection lsblk lsblk
+msection mdstat getfiles /proc/mdstat
 msection glibc lsfiles /lib*/libc.so* /lib/*/libc.so*
 msection glibc2 /lib*/libc.so* '||' /lib/*/libc.so*
 msection ld.so.conf getfiles /etc/ld.so.conf /etc/ld.so.conf.d/*
 msection lsb lsb_release -a
 msection sysctl sysctl -a
 msection sysctl.conf getfiles /etc/sysctl.conf /etc/sysctl.d/*
+msection rc.local getfiles /etc/rc.local
 msection ifconfig ifconfig -a
 msection route route -n
 msection iptables iptables -L -v -n
@@ -130,7 +133,7 @@ msection fstab getfiles /etc/fstab
 msection df-h df -h
 msection df-k df -k
 msection mount mount
-msection procinfo getfiles /proc/mounts /proc/self/mountinfo /proc/cpuinfo /proc/meminfo /proc/swaps /proc/modules /proc/vmstat
+msection procinfo getfiles /proc/mounts /proc/self/mountinfo /proc/cpuinfo /proc/meminfo /proc/zoneinfo /proc/swaps /proc/modules /proc/vmstat
 msection top top -b -n 10
 msection iostat iostat -xtm 5 10
 msection rpcinfo rpcinfo -p
@@ -172,6 +175,14 @@ EOF
 
 msection proc/smaps <<EOF
 for i in \`pgrep mongo\`; do echo "PID: \$i"; getfiles /proc/\$i/smaps; echo; done
+EOF
+
+msection proc/numa_maps <<EOF
+for i in \`pgrep mongo\`; do echo "PID: \$i"; getfiles /proc/\$i/numa_maps; echo; done
+EOF
+
+msection proc/mounts <<EOF
+for i in \`pgrep mongo\`; do echo "PID: \$i"; getfiles /proc/\$i/mounts /proc/\$i/mountinfo; echo; done
 EOF
 
 msection smartctl <<EOF
