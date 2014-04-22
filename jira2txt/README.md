@@ -7,7 +7,7 @@ specified field values in table format.
 
 The script has two modes to query for tickets, by key directly, or via the JIRA query language.
 
-##### 1. Querying by key(s)
+##### Querying by key(s)
 
 Usage examples:
 
@@ -25,7 +25,7 @@ Usage examples:
 >     SERVER-12345    Validate write command documents in the server
 >     ```
 
-<br>
+<br> 
 
 > Query for multiple keys, short version
 > 
@@ -43,12 +43,12 @@ Usage examples:
 >     SERVER-4455     replSetGetStatus errmsg isn't being set correctly for self
 >     ```
 
-##### 2. Querying via JQL (Jira Query Language)
+##### Querying via JQL (Jira Query Language)
 
-Usage examples:
+Usage example:
 
 
-> Query for all SERVER tickets closed for version 2.6.1
+> Query for the 10 SERVER tickets fixed for version 2.6.1 with highest priority
 > 
 >     ```
 >     python jira2txt.py --query 'project=SERVER and fixVersion="2.6.1" order by priority DESC' --limit 10
@@ -72,3 +72,27 @@ Usage examples:
 >     ```
 
 <br>
+
+##### Specifying fields
+
+Usage example: 
+
+> Query for the 5 most recently created SERVER tickets assigned to a user and print the priorty, planned fixVersion 
+> and components.
+> 
+>     ```
+>     python jira2txt.py -q 'project=SERVER and assignee=thomasr order by created DESC' -l 5 --fields key priority 
+>     fixVersions components
+>     ```
+> 
+> would print out the following:
+> 
+>     ```
+>     KEY             PRIORITY        FIXVERSIONS                 COMPONENTS
+>     
+>     SERVER-13654    Major - P3      debugging with submitter    Replication/Pairing
+>     SERVER-13605    Blocker - P1    debugging with submitter    Write Ops
+>     SERVER-13574    Major - P3      debugging with submitter    Concurrency, Performance, Querying
+>     SERVER-13568    Major - P3      debugging with submitter    Geo
+>     SERVER-13526    Major - P3      debugging with submitter    Sharding
+>     ```
