@@ -9,11 +9,13 @@ All you need for this script to run is the Python `jira` module, which you can i
 
     sudo pip install jira
 
-If you are using [`virtualenv`](http://www.virtualenv.org/en/latest/) you don't need to `sudo`.
+(If you are using [`virtualenv`](http://www.virtualenv.org/en/latest/) you don't need to `sudo`.)
+
+Then download [`jira2txt.py`]() and put it somewhere in your `PATH`. 
 
 ### Usage
 
-The script has two modes to query for tickets, by key directly, or via the JIRA query language.
+The script has two modes to query for tickets, by key directly (`-k`), or via the JIRA query language (`-q`).
 
 #### Querying by key(s)
 
@@ -74,7 +76,7 @@ Usage example:
 
 Usage example: 
 
-> Query for the 5 most recently created SERVER tickets assigned to a user and print the priorty, planned fixVersion 
+> Query for the 5 most recently created SERVER tickets assigned to a user and print the priority, fixVersions
 > and components.
 > 
 >     python jira2txt.py -q 'project=SERVER and assignee=thomasr order by created DESC' -l 5 --fields key priority 
