@@ -7,7 +7,7 @@ specified field values in table format.
 
 The script has two modes to query for tickets, by key directly, or via the JIRA query language.
 
-##### Querying by key(s)
+#### Querying by key(s)
 
 Usage examples:
 
@@ -35,7 +35,7 @@ Usage examples:
 >     SERVER-9998     mongod crash
 >     SERVER-4455     replSetGetStatus errmsg isn't being set correctly for self
 
-##### Querying via JQL (Jira Query Language)
+#### Querying via JQL (Jira Query Language)
 
 Usage example:
 
@@ -62,7 +62,7 @@ Usage example:
 
 <br>
 
-##### Specifying fields
+#### Specifying fields
 
 Usage example: 
 
