@@ -1,6 +1,6 @@
 # jira2txt
 
-A small Python script to query the `mongod.org` JIRA instance for certain keys and to print out the
+A small Python script to query the mongodb.org JIRA instance for certain keys and to print out the
 specified field values in table format.
 
 ### Usage
