@@ -11,7 +11,7 @@ All you need for this script to run is the Python `jira` module, which you can i
 
 (If you are using [`virtualenv`](http://www.virtualenv.org/en/latest/) you don't need to `sudo`.)
 
-Then download [`jira2txt.py`]() and put it somewhere in your `PATH`. 
+Then download [`jira2txt.py`](https://github.com/10gen/support-tools/raw/master/jira2txt/jira2txt.py) and put it somewhere in your `PATH`. 
 
 ### Usage
 
