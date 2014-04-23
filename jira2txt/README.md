@@ -13,35 +13,27 @@ Usage examples:
 
 > Query for single key
 > 
->     ```
 >     python jira2txt.py --key SERVER-12345
->     ```
 > 
 > would print the following output:
 > 
->     ```
 >     KEY             SUMMARY
 >     
 >     SERVER-12345    Validate write command documents in the server
->     ```
 
 <br> 
 
 > Query for multiple keys, short version
 > 
->     ```
 >     python jira2txt.py -k SERVER-12345 SERVER-9998 SERVER-4455
->     ```
 > 
 > would print the following output:
 > 
->     ```
 >     KEY             SUMMARY
->     
+>         
 >     SERVER-12345    Validate write command documents in the server
 >     SERVER-9998     mongod crash
 >     SERVER-4455     replSetGetStatus errmsg isn't being set correctly for self
->     ```
 
 ##### Querying via JQL (Jira Query Language)
 
@@ -50,13 +42,10 @@ Usage example:
 
 > Query for the 10 SERVER tickets fixed for version 2.6.1 with highest priority
 > 
->     ```
 >     python jira2txt.py --query 'project=SERVER and fixVersion="2.6.1" order by priority DESC' --limit 10
->     ```
 > 
 > would print the following output:
 > 
->     ```
 >     KEY             SUMMARY
 >     
 >     SERVER-13495    Concurrent GETMORE and KILLCURSORS operations can cause race condition and server crash
@@ -80,14 +69,11 @@ Usage example:
 > Query for the 5 most recently created SERVER tickets assigned to a user and print the priorty, planned fixVersion 
 > and components.
 > 
->     ```
 >     python jira2txt.py -q 'project=SERVER and assignee=thomasr order by created DESC' -l 5 --fields key priority 
 >     fixVersions components
->     ```
 > 
 > would print out the following:
 > 
->     ```
 >     KEY             PRIORITY        FIXVERSIONS                 COMPONENTS
 >     
 >     SERVER-13654    Major - P3      debugging with submitter    Replication/Pairing
@@ -95,4 +81,3 @@ Usage example:
 >     SERVER-13574    Major - P3      debugging with submitter    Concurrency, Performance, Querying
 >     SERVER-13568    Major - P3      debugging with submitter    Geo
 >     SERVER-13526    Major - P3      debugging with submitter    Sharding
->     ```
