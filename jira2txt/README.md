@@ -3,6 +3,14 @@
 A small Python script to query the mongodb.org JIRA instance for certain keys and to print out the
 specified field values in table format.
 
+### Installation
+
+All you need for this script to run is the Python `jira` module, which you can install with:
+
+    sudo pip install jira
+
+If you are using [`virtualenv`](http://www.virtualenv.org/en/latest/) you don't need to `sudo`.
+
 ### Usage
 
 The script has two modes to query for tickets, by key directly, or via the JIRA query language.
