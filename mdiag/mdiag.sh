@@ -152,6 +152,12 @@ msection lvm_pvs pvs -v
 msection lvm_vgs vgs -v
 msection lvm_lvs lvs -v
 
+msection mdadm_detail mdadm --detail --scan
+msection mdadm_proc cat /proc/mdstat
+msection mdadm_md <<EOF
+for i in `ls /dev/md`; do mdadm --detail /dev/md/$i; done
+EOF
+
 msection dmidecode dmidecode --type memory
 msection sensors sensors
 msection mcelog mcelog
