@@ -167,6 +167,15 @@ lsfiles -R /sys/kernel/mm/{redhat_,}transparent_hugepage
 find /sys/kernel/mm/{redhat_,}transparent_hugepage -type f | getstdinfiles
 EOF
 
+msection mongo_summary <<EOF
+ps aux | grep mongo
+EOF
+
+msection mongo_setup_files <<EOF
+#this doesn't handle relative paths
+ps aux | grep mongo | awk -F "-f " '{print $2}' | xargs -n1 cat
+EOF
+
 msection proc/cmdline <<EOF
 for i in \`pgrep mongo\`; do echo "PID: \$i"; lsfiles /proc/\$i/cmdline; echo "--> begin cmdline <--"; xargs -n1 -0 < /proc/\$i/cmdline; echo "--> end cmdline <--"; echo; done
 EOF
