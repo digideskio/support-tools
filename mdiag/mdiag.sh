@@ -168,7 +168,7 @@ find /sys/kernel/mm/{redhat_,}transparent_hugepage -type f | getstdinfiles
 EOF
 
 msection mongo_summary <<EOF
-ps aux | grep mongo
+ps aux | grep mongo | grep -v "grep mongo"
 EOF
 
 msection mongo_setup_files <<EOF
