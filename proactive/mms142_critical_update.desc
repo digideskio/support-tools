@@ -1,26 +1,26 @@
 Hello,
 
-My name is <<NAME>> and I am a member of the Proactive Technical Support team
-here at MongoDB, Inc. Proactive Support is a new initiative to identify issues
+My name is <<NAME>> and I am a member of the Proactive Technical Support team\
+here at MongoDB, Inc. Proactive Support is a new initiative to identify issues\
 in your MongoDB deployment before they become problematic.
 
-We have identified a bug introduced in the 1.4.0 release of OnPrem MMS that
-impacts users backing up MongoDB 2.6 replica sets and sharded clusters. This
-issue affects deployments that include user or custom role definitions and can
+We have identified a bug introduced in the 1.4.0 release of OnPrem MMS that\
+impacts users backing up MongoDB 2.6 replica sets and sharded clusters. This\
+issue affects deployments that include user or custom role definitions and can\
 result in the loss of these definitions on restore.
 
 MMS 1.4.2 contains the fix for this bug and is available now at:
 http://www.mongodb.com/subscription/downloads/mms
 
-After updating you should perform a new initial sync to ensure the role
+After updating you should perform a new initial sync to ensure the role\
 definitions are included in the backup.
 
-This release additionally improves restore times and is a valuable update
+This release additionally improves restore times and is a valuable update\
 regardless. For more information about the release see the changelog at:
 
 https://mms.mongodb.com/help-hosted/v1.4/release-notes/application/#mms-server-1-4-2
 
-Please let us know if you have any questions about the bug, or would like
+Please let us know if you have any questions about the bug, or would like\
 assistance with the update, by commenting in this ticket.
 
 <<SIGNOFF>>
