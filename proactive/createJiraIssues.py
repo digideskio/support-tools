@@ -1,126 +1,83 @@
 import os
+import random
+import sys
+import time
 
-from jira.client import JIRA
-from pprint import pprint
 from ConfigParser import RawConfigParser
+from JIRApp import JIRApp
+from optparse import OptionParser
+from ProactiveSupport import get, jira_users, renderDescription
 
-# To do or not to do, that is this Boolean
-live = False
+#
+# Process command line parameters with a system of tubes
+#
+parser = OptionParser()
+parser.add_option("-c", "--config", default="jira.cfg",
+                  help="configuration file FILE", metavar="FILE")
+parser.add_option("-d", "--description",
+                  help="templated description file FILE", metavar="FILE")
+parser.add_option("-g", "--group",
+                  help="JIRA group GROUP", metavar="GROUP")
+parser.add_option("--live", action="store_true",
+                  help="create the ticket irl")
+parser.add_option("-s", "--summary",
+                  help="issue summary SUMMARY")
+(options, args) = parser.parse_args()
 
+error = False
+
+if not options.config:
+    print("Error: specify a configuration file")
+    error = True
+else:
+    # TODO expand to full path and verify readability of configuration file
+    pass
+if not options.description:
+    print("Error: specify a description file")
+    error = True
+else:
+    # TODO expand to full path and verify readability of description file
+    pass
+if not options.group:
+    print("Error: specify a group for the ticket")
+    error = True
+else:
+    # TODO expand to full path and verify readability of description file
+    pass
+if options.live is None:
+    options.live = False
+if not options.summary:
+    print("Error: specify a summary for the ticket")
+    error = True
+else:
+    # TODO perform basic validation
+    pass
+if error:
+    sys.exit(1)
+
+#
+# Parse configuration file and initialize JIRA++
+#
 config = RawConfigParser()
-config.read(os.getcwd() + '/jira.cfg')
+config.read(os.getcwd() + "/" + options.config)
+jira = JIRApp(config)
+jira.setLive(options.live)
 
-opts = {'server': 'https://jira.mongodb.org', "verify": False}
-auth = (config.get('JIRA', 'username'), config.get('JIRA', 'password'))
-jira = JIRA(options=opts, basic_auth=auth)
+# Set random seed
+random.seed(time.localtime())
 
-groups = ["adorsys",
-          "Adorsys - TRUSTCODE",
-          "ADP",
-          "amobee",
-          "Apple - Social Store",
-          "B2B_BW",
-          "barnesandnoble",
-          "BMC - Cert BMC Tools",
-          "CECity",
-          "Cisco - EIFDBA Team",
-          "Citigroup - Dev Support",
-          "DoD - GWS",
-          "Dreamworks Animation",
-          "Dynafleet-CPN",
-          "Expedia Search Solutions",
-          "Expedia_GIS",
-          "Gamesys",
-          "HPGDS",
-          "John Deere",
-          "Lola Enterprises - Customer Transformation",
-          "MediaOcean",
-          "Nike - PtP",
-          "Northgate Arinso",
-          "Panera - Online Ordering",
-          "pclndba",
-          "Server Density Ltd",
-          "Square Enix",
-          "Staples",
-          "TicketMaster",
-          "UHC.com",
-          "UPMC",
-          "VMware - Praxis Portal",
-          "webmd"]
+# Randomize reporter
+user = jira_users[random.randint(0, len(jira_users)-1)]
+template_config = {'NAME': get(user, 'name'),
+                   'SIGNOFF': get(user, 'signoff')}
 
-user_dict = {}
-user_dict["jacob.ribnik"] = {'name': "Jake",
-                             'signoff': "Jake"}
-user_dict["ruairi.newman"] = {'name': "Ruairi",
-                              'signoff': "Regards,\n\nRuairi"}
+descriptionfile = open(options.description, 'r')
+description = descriptionfile.read()
+description = renderDescription(description, template_config)
 
-users = user_dict.keys()
+issue_config = {'summary': options.summary,
+                'description': description,
+                'group': options.group
+                }
 
-counter = 0
-for group in groups:
-    useri = counter % 2
-    counter += 1
-
-    summary = 'MongoDB Proactive: OnPrem MMS Backup Critical Bug Advisory'
-    description = "Hello,\n\nMy name is " + user_dict[users[useri]]['name'] +\
-                  """ and I am a member of the Proactive Technical Support team
-                  here at MongoDB, Inc. Proactive Support is a new initiative
-                  to identify issues in your MongoDB deployment before they
-                  become problematic.
-
-                  We have identified a bug introduced in the 1.4.0 release of
-                  OnPrem MMS that impacts users backing up MongoDB 2.6 replica
-                  sets and sharded clusters. This issue affects deployments
-                  that include user or custom role definitions and can result
-                  in the loss of these definitions on restore.
-
-                  MMS 1.4.2 contains the fix for this bug and is available now
-                  at:
-
-                  http://www.mongodb.com/subscription/downloads/mms
-
-                  After updating you should perform a new initial sync to
-                  ensure the role definitions are included in the backup.
-
-                  This release additionally improves restore times and is a
-                  valuable update regardless. For more information about the
-                  release see the changelog at:
-
-                  https://mms.mongodb.com/help-hosted/v1.4/release-notes/application/#mms-server-1-4-2
-
-                  Please let us know if you have any questions about the bug,
-                  or would like assistance with the update, by commenting in
-                  this ticket.
-                  """ + user_dict[users[useri]]['signoff']
-
-    issue_dict = {
-        'project': {'key': 'CS'},
-        'summary': summary,
-        'description': description,
-        'issuetype': {'name': 'Proactive'},
-        'priority': jira.priority('3').raw,
-        'reporter': {'name': 'proactive-support'},
-        #        'customfield_10041': {'name': users[useri]},
-        'customfield_10030': {'name': group}
-        }
-
-    print("Creating ticket...")
-
-    if live:
-        issue = jira.create_issue(fields=issue_dict)
-    else:
-        issue = {}
-        issue['raw'] = issue_dict
-
-    print("Created ticket:")
-    pprint(issue)
-
-    if live:
-        # (u'761', u'Wait for Customer')
-        res = jira.transition_issue(issue, '761')
-        pprint(res)
-    else:
-        res = True
-
-    if res:
-        print("--> transition to WFC")
+jira.createProactiveIssue(issue_config)
