@@ -1,25 +1,40 @@
+import sys
+
 from pprint import pprint
 
 
 class JIRAIssue:
     """ This is a JIRA ticket. There are many like it but this one is mine. """
+    def getSetter(self, param):
+        set_map = {'description': self.setDescription,
+                   'group': self.setGroup,
+                   'issuetype': self.setIssuetype,
+                   'owner': self.setOwner,
+                   'priority': self.setPriority,
+                   'project': self.setProject,
+                   'reporter': self.setReporter,
+                   'summary': self.setSummary,
+                   # DAN tickets
+                   'company groups': self.setCompanyGroups
+                   }
+        if param.lower() in set_map:
+            return set_map[param.lower()]
+        else:
+            None
+
     def __init__(self, jira, params={}):
         # jira is an instance of jira.client.JIRA
         self.jira = jira
         self.data = {}
 
         for param in params:
-            if param == "group":
-                key = "customfield_10030"
-                value = {'name': params[param]}
-            elif param == "owner":
-                key = "customfield_10041"
-                value = {'name': params[param]}
-            else:
-                key = param
-                value = params[param]
-
-            self.data[key] = value
+            if params[param] is not None:
+                setter = self.getSetter(param)
+                if setter:
+                    setter(params[param])
+                else:
+                    print "Error: param %s not supported" % param
+                    sys.exit(2)
 
     def dump(self):
         pprint(self.data)
@@ -33,7 +48,7 @@ class JIRAIssue:
         else:
             self.data['customfield_10030'] = {'name': group}
 
-    def setIssueType(self, issueType):
+    def setIssuetype(self, issueType):
         if 'issuetype' in self.data:
             self.data['issuetype']['name'] = issueType
         else:
@@ -62,3 +77,6 @@ class JIRAIssue:
 
     def setSummary(self, summary):
         self.data['summary'] = summary
+
+    def setCompanyGroups(self, companyGroups):
+        self.data['customfield_10850'] = companyGroups

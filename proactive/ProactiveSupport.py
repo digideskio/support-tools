@@ -18,4 +18,6 @@ def get(jira_user, param):
 def renderDescription(text, config):
     for param in config:
         text = text.replace("<<" + param + ">>", config[param])
+    # turn lines terminated with '\' back into a single line
+    text = text.replace("\\\n", " ")
     return text

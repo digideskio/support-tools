@@ -18,10 +18,10 @@ class JIRApp(JIRA):
         JIRA.__init__(self, options=opts, basic_auth=auth)
 
     def createIssue(self, params={}):
-        """ This method actually creates a JIRA issue """
-        issue = JIRAIssue(self, params)
+        """ This method creates a JIRA issue """
         # TODO validate issue meta is sufficient to
         # successfully create the ticket
+        issue = JIRAIssue(self, params)
 
         print "Creating issue..."
 
@@ -32,31 +32,19 @@ class JIRApp(JIRA):
             except JIRAError:
                 e = sys.exc_info()[0]
                 print "JIRApp.createIssue: ", e
+
+            if params['issuetype'].lower() == "proactive":
+                print "Setting to WFC..."
+
+                try:
+                    # (u'761', u'Wait for Customer')
+                    self.transition_issue(issue, '761')
+                except JIRAError:
+                    e = sys.exc_info()[0]
+                    print "JIRApp.createIssue: ", e
+
         else:
             issue.dump()
-
-        return issue
-
-    def createProactiveIssue(self, params={}):
-        """ This method creates a ticket of type Proactive
-        and sets it to Wait for Customer """
-        issue = JIRAIssue(self, params)
-        issue.setProject('CS')
-        issue.setIssueType('Proactive')
-        issue.setPriority(3)
-        issue.setReporter('proactive-support')
-        issue = self.createIssue(issue.data)
-
-        print "Setting to WFC..."
-
-        if self.live:
-            # Set to Wait for Customer
-            # (u'761', u'Wait for Customer')
-            try:
-                self.transition_issue(issue, '761')
-            except JIRAError:
-                e = sys.exc_info()[0]
-                print "JIRApp.createProactiveIssue: ", e
 
         return issue
 
