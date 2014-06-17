@@ -160,7 +160,7 @@ EOF
 
 msection dmidecode dmidecode --type memory
 msection sensors sensors
-msection mcelog mcelog
+msection mcelog getfiles /var/log/mcelog
 
 msection transparent_hugepage <<EOF
 lsfiles -R /sys/kernel/mm/{redhat_,}transparent_hugepage
