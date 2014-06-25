@@ -32,22 +32,70 @@ class JIRApp(JIRA):
             except JIRAError:
                 e = sys.exc_info()[0]
                 print "JIRApp.createIssue: ", e
-
-            if params['issuetype'].lower() == "proactive":
-                print "Setting to WFC..."
-
-                try:
-                    # (u'761', u'Wait for Customer')
-                    self.transition_issue(issue, '761')
-                except JIRAError:
-                    e = sys.exc_info()[0]
-                    print "JIRApp.createIssue: ", e
-
         else:
             issue.dump()
 
+        # Update with labels if specified
+        if 'labels' in params:
+            self.setLabels(issue, params['labels'])
+
+        # NOTE must call setOwner before setWFC for reasons unknown
+        # JIRA allows transitions in this order but not the other
+        if 'owner' in params and params['owner'] != "":
+            self.setOwner(issue, params['owner'])
+
+        if params['issuetype'].lower() == "proactive":
+            self.setWFC(issue)
+
         return issue
+
+    def setLabels(self, issue, labels):
+        """ This method sets the labels in a JIRA issue """
+        # TODO validate labels is a string that will return [] on split
+        print "Setting labels..."
+
+        if self.live:
+            try:
+                issue.update(labels=labels.split(','))
+                print "Updated %s" % issue.key
+            except JIRAError:
+                e = sys.exc_info()[0]
+                print "JIRApp.setLabels: ", e
+        else:
+            print "beep boop boop beep boop"
 
     def setLive(self, b):
         """ Lock and load? """
         self.live = b
+
+    def setOwner(self, issue, owner):
+        """ This method sets the JIRA issue owner using the Internal Fields
+        transition """
+        print "Setting owner..."
+
+        if self.live:
+            try:
+                # (u'831', u'Internal Fields')
+                fields = {'customfield_10041': {'name': owner}}
+                self.transition_issue(issue, '831', fields=fields)
+                print "Transitioned %s" % issue.key
+            except JIRAError:
+                e = sys.exc_info()[0]
+                print "JIRApp.setOwner: ", e
+        else:
+            print "beep boop boop beep boop"
+
+    def setWFC(self, issue):
+        """ This method sets the status of a ticket to Wait for Customer """
+        print "Setting WFC..."
+
+        if self.live:
+            try:
+                # (u'761', u'Wait for Customer')
+                self.transition_issue(issue, '761')
+                print "Transitioned %s" % issue.key
+            except JIRAError:
+                e = sys.exc_info()[0]
+                print "JIRApp.setWFC: ", e
+        else:
+            print "beep boop boop beep boop"

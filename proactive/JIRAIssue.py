@@ -9,6 +9,7 @@ class JIRAIssue:
         set_map = {'description': self.setDescription,
                    'group': self.setGroup,
                    'issuetype': self.setIssuetype,
+                   'labels': self.setLabels,
                    'owner': self.setOwner,
                    'priority': self.setPriority,
                    'project': self.setProject,
@@ -54,11 +55,15 @@ class JIRAIssue:
         else:
             self.data['issuetype'] = {'name': issueType}
 
+    def setLabels(self, labels):
+        """ This is a placeholder for the parameter. Labels is set via update
+        """
+        pass
+
     def setOwner(self, owner):
-        if 'customfield_10041' in self.data:
-            self.data['customfield_10041']['name'] = owner
-        else:
-            self.data['customfield_10041'] = {'name': owner}
+        """ This is a placeholder for the parameter. Owner is set via Internal
+        Fields transition """
+        pass
 
     def setPriority(self, priority):
         self.data['priority'] = self.jira.priority(str(priority)).raw
