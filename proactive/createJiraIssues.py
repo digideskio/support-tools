@@ -20,8 +20,12 @@ parser.add_option("-g", "--group",
                   help="JIRA group GROUP", metavar="GROUP")
 parser.add_option("-i", "--priority",
                   help="ticket priority PRIORITY, e.g. 1, 2, 3, etc.")
+parser.add_option("-l", "--labels",
+                  help="ticket label(s), comma separated")
 parser.add_option("--live", action="store_true",
                   help="create the ticket irl")
+parser.add_option("-o", "--owner",
+                  help="issue owner OWNER")
 parser.add_option("-p", "--project",
                   help="issue project PROJECT")
 parser.add_option("-r", "--reporter",
@@ -94,8 +98,12 @@ jira.setLive(options.live)
 # Set random seed
 random.seed(time.localtime())
 
-# Randomize reporter
-user = jira_users[random.randint(0, len(jira_users)-1)]
+# Randomize owner
+if options.owner:
+    user = options.owner
+else:
+    user = jira_users[random.randint(0, len(jira_users)-1)]
+    options.owner = user
 template_config = {'NAME': get(user, 'name'),
                    'SIGNOFF': get(user, 'signoff')}
 
@@ -106,11 +114,16 @@ description = renderDescription(description, template_config)
 issue_config = {'description': description,
                 'group': options.group,
                 'issuetype': options.issuetype,
+                'owner': options.owner,
                 'priority': options.priority,
                 'project': options.project,
                 'reporter': options.reporter,
                 'summary': options.summary
                 }
+
+# Labels are optional
+if options.labels:
+    issue_config['labels'] = options.labels
 
 # Until the meta validation is available, add for DAN
 if options.project == "DAN":
