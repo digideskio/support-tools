@@ -4,17 +4,20 @@
 
 [PHP: Installation - Manual](http://www.php.net/manual/en/mongo.installation.php#mongo.installation.osx)
 
-## php-find.php
+## php-crud.php
 
-This connects to localhost, does an insert on `test.items`, a find and then print.
+PHP crud - Create, read, update and delete
 
-To run this on CLI:
+This example connects to localhost, insert a document in `test.items`, finds it and then print.
+Lastly it drops the `items` collection.
 
-	php php-find.php
+Run this:
+
+	$ php php-find.php
 
 Sample output:
 
-	$ php php-find.php
+	php mongodb driver version 1.5.4
 	1 document inserted
 	1 document(s) found.
 	Title: Calvin and Hobbes
