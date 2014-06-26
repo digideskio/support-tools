@@ -51,6 +51,20 @@ public class MongoAggregation {
         System.out.println("aggregate pipeline:");
         System.out.println(match);
         System.out.println(group + "\n");
+
+        // if 2.6
+        // AggregationOptions aggregationOptions = AggregationOptions.builder()
+        //     .batchSize(100)
+        //     .outputMode(AggregationOptions.OutputMode.CURSOR)
+        //     .allowDiskUse(true)
+        //     .build();
+        // Cursor cursor = coll.aggregate(pipeline, AggregationOptions.builder().build());
+
+        // System.out.println("output.results:");
+        // while (cursor.hasNext()) {
+        //     System.out.println(cursor.next());
+        // }
+
         AggregationOutput output = coll.aggregate(pipeline);
 
         System.out.println("output.results:");
