@@ -7,6 +7,10 @@ Requirements:
 How to run this:
 javac -cp .:mongo-java-driver-2.12.2.jar MongoAggregation.java && java -cp .:mongo-java-driver-2.12.2.jar: MongoAggregation
 
+Sample data:
+mgenerate '{ "symbol": "DTEGn.DE", "timestamp": "$datetime", "value": "$number"}' -c aggregate -d mydb --num 480 --drop
+
+
 Sample output:
 ---
 aggregate pipeline:
@@ -39,7 +43,9 @@ public class MongoAggregation {
         DBObject groupfields =      new BasicDBObject("Year", new BasicDBObject("$year", "$timestamp"));
         groupfields.put("Month",    new BasicDBObject("$month", "$timestamp"));
         groupfields.put("Day",      new BasicDBObject("$dayOfMonth", "$timestamp"));
-        DBObject group =        new BasicDBObject("$group", new BasicDBObject("_id", groupfields));
+
+        // DBObject group =        new BasicDBObject("$group", new BasicDBObject("_id", groupfields));
+        DBObject group =        new BasicDBObject("$group", new BasicDBObject("_id", groupfields).append("Average",  new BasicDBObject("$avg", "$value")));
 
         List<DBObject> pipeline = Arrays.asList(match, group);
         System.out.println("aggregate pipeline:");
