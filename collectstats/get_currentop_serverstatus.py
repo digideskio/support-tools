@@ -22,6 +22,7 @@ from time import sleep
 from pymongo import MongoClient, errors
 from urlparse import urlparse
 
+
 def get_server_status(db):
     return db.command('serverStatus')
 
@@ -53,6 +54,29 @@ def setup_logging(logfile, debug):
     logger.addHandler(fh)
 
 
+# Since serverStatus and currentOp can return docs with fields that contain . and/or $,
+# these need to be sanitized before they can be stored in a collection.
+def sanitize_doc(son):
+	if not isinstance(son, dict):
+		return son
+	for (key, value) in son.items():
+		if isinstance(value, dict):
+			newvalue = sanitize_doc(value)
+		elif isinstance(value, list):
+			l = []
+			for i in value:
+				l.append(sanitize_doc(i))
+			newvalue = l
+		else:
+			newvalue = value
+		if "." in key or "$" in key:
+			son.pop(key)
+			son[key.replace(".", "_DOT_").replace("$", "_DOLLAR_")] = newvalue
+		else:
+			son[key] = newvalue
+	return son
+
+
 if __name__ == "__main__":
     args = setup_argparse()
     setup_logging(args.logfile, args.debug)
@@ -76,11 +100,7 @@ if __name__ == "__main__":
         exit()
 
     while True:
-        logger.debug(get_server_status(target_db))
-        logger.debug(get_current_op(target_db))
-        # The default output from db.serverStatus() includes a document 'locks', which has a subdocument with the key '.'.
-        # Whilst this is valid BSON, MongoDB won't accept this as a valid field name.
-        sanitised_server_status = get_server_status(target_db)
-        sanitised_server_status['locks']['__dot__'] = sanitised_server_status['locks'].pop('.')
-        output_db[output_collection_name].insert({'client_ts': datetime.now(), 'server_status': sanitised_server_status, 'current_op': get_current_op(target_db)})
+        output = {'client_ts': datetime.now(), 'server_status': get_server_status(target_db), 'current_op': get_current_op(target_db)}
+        logger.debug(output)
+        output_db[output_collection_name].insert(sanitize_doc(output))
         sleep(args.sampleinterval)
