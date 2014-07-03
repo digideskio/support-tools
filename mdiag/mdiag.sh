@@ -174,6 +174,7 @@ EOF
 msection mongo_setup_files <<EOF
 #this doesn't handle relative paths
 ps aux | grep mongo | awk -F "-f " '{print \$2}' | xargs -n1 cat
+ps aux | grep mongo | awk -F "--config " '{print \$2}' | xargs -n1 cat
 EOF
 
 msection proc/cmdline <<EOF
