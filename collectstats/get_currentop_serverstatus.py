@@ -81,7 +81,7 @@ if __name__ == "__main__":
     args = setup_argparse()
     setup_logging(args.logfile, args.debug)
     logger = logging.getLogger('get_currentop_serverstatus')
-    output_collection_name = urlparse(args.outputmongodb).netloc.replace(':', '')
+    output_collection_name = urlparse(args.targetmongodb).netloc.replace(':', '')
 
     try:
         target_client = MongoClient(args.targetmongodb)
