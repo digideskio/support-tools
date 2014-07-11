@@ -25,10 +25,6 @@
 *.sql
 *.sqlite
 
-# Ide files
-######################
-*/.idea/*
-
 # OS generated files #
 ######################
 .DS_Store
@@ -39,16 +35,12 @@
 Icon?
 ehthumbs.db
 Thumbs.db
+/.idea/
+/conf/trafficbot.conf
+/dump/
+/sounds/*.wav
+/nohup.out
 
-driver-samples/java/*.jar
+/test/sounds/
 
-*/.idea/*
-
-/support-bot/conf/trafficbot.conf
-/support-bot/dump/
-/support-bot/sounds/*.wav
-/support-bot/nohup.out
-/support-bot/test/sounds/
-
-*/projectFilesBackup/*
-
+projectFilesBackup

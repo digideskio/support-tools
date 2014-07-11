@@ -1,0 +1,25 @@
+From 344d92980d7dbd07df4b5a5c207f5ef250d25ef8 Mon Sep 17 00:00:00 2001
+From: Jared Tobin <jared@jtobin.ca>
+Date: Wed, 26 Jun 2013 17:05:00 +1200
+Subject: [PATCH] Replace zmq_init.
+
+---
+ rbzmq.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/rbzmq.c b/rbzmq.c
+index 6b4b9d8..0481d06 100644
+--- a/rbzmq.c
++++ b/rbzmq.c
+@@ -170,7 +170,7 @@ static VALUE context_initialize (int argc_, VALUE* argv_, VALUE self_)
+     Data_Get_Struct (self_, void, ctx);
+ 
+     assert (ctx->context == NULL);
+-    void *zctx = zmq_init (NIL_P (io_threads) ? 1 : NUM2INT (io_threads));
++    void *zctx = zmq_ctx_new();
+     if (!zctx) {
+         rb_raise (exception_type, "%s", zmq_strerror (zmq_errno ()));
+         return Qnil;
+-- 
+1.8.5.5
+
