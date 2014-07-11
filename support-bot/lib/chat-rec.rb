@@ -27,7 +27,7 @@ def recXMPP
               user = ret.split(' ')[1]
               im.add(user)
               im.deliver(incomingAddress, "I added a friend: #{ret}")
-              logOut "I added a friend: #{ret}"
+              logOut "I added a friend: #{ret}", 1
             else
               im.deliver(incomingAddress, ret) unless ret.empty?
               logOut "I said: #{ret}" unless ret.empty?
@@ -46,7 +46,7 @@ def recXMPP
       end
       if ! im.connected?
         im = Jabber::Simple.new(@jabberusername, @jabberpassword, nil, "Available", @jabberserver)
-        logOut 'disconnected, reconnecting'
+        logOut 'XMPP disconnected, reconnecting'
       end
       sleep 1
     rescue => e
