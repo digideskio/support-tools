@@ -72,6 +72,8 @@ end
 @startTime = Time.now
 @excludedAddresses = [ 'support-triage@10genchat.appspotchat.com' ]
 
+@logLevel = 0
+
 readSteeringFile(ARGV[1])
 
 #Setup Jira
@@ -92,7 +94,6 @@ options = {
 @chatRequests = Queue.new
 @xmppQueue = Queue.new
 @ircQueue = Queue.new
-@logLevel = 0
 
 #Function Main
 #Start a Basic Jira connection
