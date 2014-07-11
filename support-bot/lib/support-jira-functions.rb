@@ -725,8 +725,8 @@ def checkNewProactive(db)
                       proactive: false
                   }
                   @issues[issue["jira"]["key"]] = data
-                  msg = "Proactive issue #{issue["key"]} has had customer response"
-                  @proactiveAlertsSent.push issue["key"]
+                  msg = "Proactive issue #{issue["jira"]["key"]} has had customer response"
+                  @proactiveAlertsSent.push issue["jira"]["key"]
                   @ipcqueue.push({'msg'=>msg, 'dst' => @roomNameNewIssue}) if msg != nil
                   @ipcqueue.push({'msg'=>msg, 'dst' => @ircNameNewIssue}) if msg != nil
                 end

@@ -105,6 +105,10 @@ def smartWorkflowTransiton(client, key, trans_name)
 	return false
 end
 
+def labelsGood?(db, key)
+  db.collection("issues").find({'jira.key'=> key["key"]},)
+end
+
 def workflowIteration(db, client, workflow, limit)
 	processesedThisLap = []
 	workflow.each do |wItem|

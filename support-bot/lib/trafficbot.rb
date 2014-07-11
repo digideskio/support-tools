@@ -109,6 +109,7 @@ readAndUpdateJiraCS(client, @jiraquery, true)
 
 #Fork Threads
 if @soundOnlyMode == false
+  @soundOn = false
   thr = Thread.new { mainChatThread() }
 else
   logOut 'Running in sound only mode'
