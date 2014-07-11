@@ -5,7 +5,7 @@ require 'thread'
 require 'jira'
 
 #Borrow the trafficbot init
-require_relative '../lib/init-functions.rb'
+require_relative '../support-bot/lib/init-functions.rb'
 require_relative "options.rb"
 
 passedArgs = AutoOptParse.parse(ARGV)
@@ -22,11 +22,13 @@ passedArgs = AutoOptParse.parse(ARGV)
 @workflow = nil
 @key = nil
 @demo = passedArgs.demo
+@logLevel = 0
+
 unless @demo
   p "LIVE MODE"
 end
 
-readSteeringFile("../conf/trafficbot.conf")
+readSteeringFile("../support-bot/conf/trafficbot.conf")
 
 options = {
     :username => @jirausername,

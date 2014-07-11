@@ -71,6 +71,13 @@ def respondToChat(msg, username = nil, protocol = 'XMPP', room = "nil")
         @chatRequests.push("#{room} #{protocol} FTS")
       when '#!WFC'
         @chatRequests.push("#{room} #{protocol} WFC #{array.join(' ').upcase}")
+      when '#!LOGLEVEL'
+        begin
+          @logLevel = array[0].to_i
+        rescue => e
+          return "Failed to set log level with reason: #{e}"
+        end
+        return "Set logLevel to #{array[0].to_i}"
       when "#!INVITE"
         @ipcqueue.push({'msg'=>"/invite #{array[0]}", 'dst' => @roomName})
       when '#!ADDFRIEND'

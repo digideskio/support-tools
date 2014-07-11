@@ -55,6 +55,9 @@ class AutoOptParse
 
       opts.on("-v", "--[no-]verbose", "Run verbosely") do |v|
         options.verbose = v
+        if v == true
+          @logLevel = 1
+        end
       end
 
       opts.separator ""

@@ -1,7 +1,9 @@
 #Function logOut
 # Function to write to the logging queue, this should be used instead of a print
-def logOut(s)
-  @loggingQueue.push(s.to_s)
+def logOut(s, i = 0)
+  if i <= @logLevel
+    @loggingQueue.push(s.to_s)
+  end
 end
 
 #Function loggingThread

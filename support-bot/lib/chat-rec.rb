@@ -88,6 +88,7 @@ def recIRC
   require "socket"
   ircConn = connIrc
   lastPing = Time.now()
+
   while true
     #Loop and read until get an assertion about 'blocking' assertion
     begin
@@ -123,8 +124,9 @@ def recIRC
       sleep 0.5
       begin
         msg = ircConn.read_nonblock(1000000)
+        logOut "Ping message #{msg}"
       rescue Exception => e
-        logOut "Ping failed with #{e}"
+        logOut "Ping failed with #{e}", 1
         ircConn = connIrc
       end
       lastPing = Time.now

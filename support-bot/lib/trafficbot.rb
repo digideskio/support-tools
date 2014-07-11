@@ -92,6 +92,7 @@ options = {
 @chatRequests = Queue.new
 @xmppQueue = Queue.new
 @ircQueue = Queue.new
+@logLevel = 0
 
 #Function Main
 #Start a Basic Jira connection
@@ -139,6 +140,14 @@ while true
   if logThr.status == 'aborting' || logThr.status == nil
     logOut 'Logger Thread died, re-forking'
     logThr = Thread.new { loggingThread() }
+  end
+  if xmppThr.status == 'aborting' || xmppThr.status == nil
+    logOut 'Logger Thread died, re-forking'
+    xmppThr = Thread.new { recXMPP() }
+  end
+  if ircThr.status == 'aborting' || ircThr.status == nil
+    logOut 'Logger Thread died, re-forking'
+    ircThr = Thread.new { recIRC() }
   end
   sleep 5
 end
