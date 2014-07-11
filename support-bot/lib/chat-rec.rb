@@ -124,9 +124,9 @@ def recIRC
       sleep 0.5
       begin
         msg = ircConn.read_nonblock(1000000)
-        logOut "Ping message #{msg}"
+        logOut "Ping message #{msg}", 1
       rescue Exception => e
-        logOut "Ping failed with #{e}", 1
+        logOut "Ping failed with #{e}"
         ircConn = connIrc
       end
       lastPing = Time.now

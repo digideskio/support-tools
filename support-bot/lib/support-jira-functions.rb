@@ -141,7 +141,7 @@ def soundEffect(key=nil, priority=nil)
 
   #If we have a file, play it
   unless file == ''
-    logOut("Attempting to play file '#{file}'")
+    logOut("Attempting to play file '#{file}'", 1)
     host_os = RbConfig::CONFIG['host_os']
     case host_os
       when /mswin|msys|mingw|cygwin|bccwin|wince|emc/
@@ -321,7 +321,7 @@ def slaSchedule(slaInt)
     when 5
       return 4 * 60 * 60
     else
-      logOut "Asked for invalid SLA value of #{slaInt}"
+      logOut "Asked for invalid SLA value of #{slaInt}", 1
   end
   return false
 end
@@ -677,7 +677,7 @@ def readAndUpdateJiraCS(db,query,init = false)
     end
     if @issues[key][:ts] != time
       unless @issues[key][:proactive]
-        logOut "Issue #{key} was removed from register"
+        logOut "Issue #{key} was removed from register", 1
         @issues.delete(key)
       end
     else
@@ -708,7 +708,7 @@ def checkNewProactive(db)
                     begin
                       soundEffect(issue["jira"]["key"], issue["jira"]["fields"]['priority']['name'].split()[0])
                     rescue => e
-                      logOut "Error playing soundEffect: #{e}"
+                      logOut "Error playing soundEffect: #{e}", 1
                     end
                   end
                   data = {
@@ -748,7 +748,7 @@ def checkNewProactive(db)
       status = ir["jira"]["fields"]["status"]["id"]
       assignee = ir["jira"]["fields"]["assignee"]
       unless status == "10005" || status == "10006" || assignee != nil
-        logOut "Issue #{key} was removed from register"
+        logOut "Issue #{key} was removed from register", 1
         @issues.delete(key)
       end
     end
