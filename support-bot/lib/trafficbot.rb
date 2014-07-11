@@ -25,7 +25,7 @@ if mode == 'api'
   @jiraquery = 'filter = "Commercial Support, Unassigned, Needs 10gen Response"'
 else
   require_relative 'support-jira-functions.rb'
-  @jiraquery = {"fields.project.key" => { "$in" => ["CS", "PARTNER", "SUPPORT", "MMSSUPPORT"] }, "fields.assignee" => nil, "fields.status.id" => {"$nin" => [ "5", "6", "10007", "10006" ]}, "fields.issuetype.id" => {"$ne" => "23"} }
+  @jiraquery = {"jira.fields.project.key" => { "$in" => ["CS", "PARTNER", "SUPPORT", "MMSSUPPORT"] }, "jira.fields.assignee" => nil, "jira.fields.status.id" => {"$nin" => [ "5", "6", "10007", "10006" ]}, "jira.fields.issuetype.id" => {"$ne" => "23"} }
 end
 
 #Global Top Level variables
@@ -62,9 +62,9 @@ if mode == 'api'
   @wfcPerson = "(Owner = \"USERNAME\" or assignee = \"USERNAME\") and (project = \"Commercial Support\" OR project = \"Community Private\") and status = \"Waiting for Customer\""
   @wfcGeneral = "(project = \"Commercial Support\" OR project = \"Community Private\") and status = \"Waiting for Customer\""
 else
-  @ftsActive = { "fields.labels" => "fs", "fields.status.id" => {"$nin" => [ "5", "6", "10007", "10006" ]} }
-  @ftsWFC = { "fields.labels" => "fs", "fields.status.id" => {"$in" => [ "10007", "10006" ]} }
-  @wfcGeneral = { "fields.project.key" => { "$in" => ["CS", "PARTNER", "SUPPORT", "MMSSUPPORT"] }, "fields.status.id" => "10006" }
+  @ftsActive = { "jira.fields.labels" => "fs", "jira.fields.status.id" => {"$nin" => [ "5", "6", "10007", "10006" ]} }
+  @ftsWFC = { "jira.fields.labels" => "fs", "jira.fields.status.id" => {"$in" => [ "10007", "10006" ]} }
+  @wfcGeneral = { "jira.fields.project.key" => { "$in" => ["CS", "PARTNER", "SUPPORT", "MMSSUPPORT"] }, "jira.fields.status.id" => "10006" }
 end
 @stateFile = 'trafficbot.sav'
 @soundOnlyMode = true

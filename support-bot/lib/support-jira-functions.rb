@@ -186,20 +186,20 @@ def doFTSSection(db, query, xhtml)
   msg = ""
   db.collection("issues").find(query).each do |issue|
     if xhtml
-      msg += "<a href='https://jira.mongodb.org/browse/#{issue["key"]}'>#{issue["key"]}</a>  "
+      msg += "<a href='https://jira.mongodb.org/browse/#{issue["jira"]["key"]}'>#{issue["jira"]["key"]}</a>  "
     else
-      msg += "#{issue["key"]}  "
+      msg += "#{issue["jira"]["key"]}  "
     end
 
-    if issue["fields"]['customfield_10030']
+    if issue["jira"]["fields"]['customfield_10030']
       if xhtml
-        msg += "(#{escapeXML(issue["fields"]['customfield_10030']['name'])})  "
+        msg += "(#{escapeXML(issue["jira"]["fields"]['customfield_10030']['name'])})  "
       else
-        msg += "(#{issue["fields"]['customfield_10030']['name']})  "
+        msg += "(#{issue["jira"]["fields"]['customfield_10030']['name']})  "
       end
     end
 
-    commentsArr = db.collection("issues").find_one(:key=>issue["key"])["fields"]["comment"]["comments"]
+    commentsArr = db.collection("issues").find_one('jira.key'=>issue["jira"]["key"])["jira"]["fields"]["comment"]["comments"]
     lastComment = commentsArr[-1]['body']
     secondLastComment = nil
     if commentsArr[-2] != nil
@@ -256,7 +256,7 @@ def doWFCMessage(db, username)
   today = Date.new
   msg = "WFC Issues for #{username}, flagged for follow up:\n"
   db.collection("issues").find(query).each do |issue|
-    commentsArr = db.collection("issues").find_one(:key=>issue["key"])["fields"]["comment"]["comments"]
+    commentsArr = db.collection("issues").find_one('jira.key'=>issue["jira"]["key"])["jira"]["fields"]["comment"]["comments"]
       lastComment = commentsArr[-1]['body']
     dateObj = lastComment.match(/ping (on )?(\d\d\d\d[\/-])?[\d|\d\d][\/-][\d\d|\d]/i)
     if dateObj
@@ -283,7 +283,7 @@ def doWFCMessageAll(db)
   today = Date.new
   msg = "WFC Issues for all users, flagged for follow up:\n"
   db.collection("issues").find(@wfcGeneral).each do |issue|
-    commentsArr = db.collection("issues").find_one(:key=>issue["key"])["fields"]["comment"]["comments"]
+    commentsArr = db.collection("issues").find_one('jira.key'=>issue["jira"]["key"])["jira"]["jira"]["fields"]["comment"]["comments"]
     lastComment = commentsArr[-1]['body']
     dateObj = lastComment.match(/ping (on )?(\d\d\d\d[\/-])?[\d|\d\d][\/-][\d\d|\d]/i)
     if dateObj
@@ -583,9 +583,9 @@ def checkForFinalized(db)
     if @issues[key][:rv]
       begin
         if @issues[key][:warned] == nil || @issues[key][:warned] == false
-          ir = db.collection("issues").find_one(:key=>key)
-            status = ir["fields"]["status"]["id"]
-          lastComment = ir["fields"]["comment"]['comments'][-1]
+          ir = db.collection("issues").find_one('jira.key'=>key)
+            status = ir["jira"]["fields"]["status"]["id"]
+          lastComment = ir["jira"]["fields"]["comment"]['comments'][-1]
           # Confirm that there is a comment on the issue
           unless lastComment == nil
             if (!lastComment.has_key? "visibility") && (!['1','3'].include? status)
@@ -619,13 +619,13 @@ def readAndUpdateJiraCS(db,query,init = false)
   #Compare the current List of issues to the old, update if needed
   db.collection("issues").find(query).each do |issue|
     begin
-      unless @issues.has_key? issue["key"]
+      unless @issues.has_key? issue["jira"]["key"]
         msg = ""
         #Issue ID, Priority, timeCreated, currentTime, new or old, counter of times seen, excluded from nagging?, slabreach nag done?, review needed?
         data = {
-            id: issue["id"],
-            p: issue["fields"]['priority']['id'],
-            tc: issue["fields"]['created'],
+            id: issue["jira"]["id"],
+            p: issue["jira"]["fields"]['priority']['id'],
+            tc: issue["jira"]["fields"]['created'],
             ts: time,
             new: false,
             ctr: 0,
@@ -636,16 +636,16 @@ def readAndUpdateJiraCS(db,query,init = false)
         }
 
         #New Issue or returning old issue?
-        if issue["fields"]['created'].to_i >= (Time.now.to_i - (@jiraInterval*4))
-          msg = "New #{issue["fields"]['priority']['name'].split()[0]} - #{issue["fields"]['reporter']['displayName']}"
-          if issue["fields"]['customfield_10030']
-            msg += " from #{issue["fields"]['customfield_10030']['name']}"
+        if issue["jira"]["fields"]['created'].to_i >= (Time.now.to_i - (@jiraInterval*4))
+          msg = "New #{issue["jira"]["fields"]['priority']['name'].split()[0]} - #{issue["jira"]["fields"]['reporter']['displayName']}"
+          if issue["jira"]["fields"]['customfield_10030']
+            msg += " from #{issue["jira"]["fields"]['customfield_10030']['name']}"
           end
-          msg += " created #{issue["key"]}: #{issue['fields']['summary']}"
+          msg += " created #{issue["jira"]["key"]}: #{issue["jira"]['fields']['summary']}"
           data[:new] = true
           if @soundOn
             begin
-              soundEffect(issue["key"], issue["fields"]['priority']['name'].split()[0])
+              soundEffect(issue["jira"]["key"], issue["jira"]["fields"]['priority']['name'].split()[0])
             rescue => e
               logOut "Error playing soundEffect: #{e}"
             end
@@ -658,14 +658,14 @@ def readAndUpdateJiraCS(db,query,init = false)
           @ipcqueue.push({'msg'=>msg, 'dst' => @roomNameNewIssue}) if msg != nil
           @ipcqueue.push({'msg'=>msg, 'dst' => @ircNameNewIssue}) if msg != nil
         end
-        @issues[issue["key"]] = data
+        @issues[issue["jira"]["key"]] = data
       end
-      @issues[issue["key"]][:ts] = time
-      @issues[issue["key"]][:ctr] += 1
+      @issues[issue["jira"]["key"]][:ts] = time
+      @issues[issue["jira"]["key"]][:ctr] += 1
     rescue => e
       logOut "Error in processing thread: #{e}"
       logOut "Backtrace: #{e.backtrace}"
-      logOut issue["key"]
+      logOut issue["jira"]["key"]
     end
   end
 
@@ -692,29 +692,29 @@ def checkNewProactive(db)
   time = Time.now
 
   #Compare the current List of issues to the old, update if needed
-  db.collection("issues").find({"fields.issuetype.id" => "23"}).each do |issue|
+  db.collection("issues").find({"jira.fields.issuetype.id" => "23"}).each do |issue|
     begin
       unless @proactiveAlertsSent.include? issue["key"]
-        comments = issue["fields"]["comment"]["comments"]
-        assignee = issue["fields"]["assignee"]
+        comments = issue["jira"]["fields"]["comment"]["comments"]
+        assignee = issue["jira"]["fields"]["assignee"]
         if assignee == nil
           alerted = false
           comments.each do |comment|
             unless comment["author"]["emailAddress"].end_with? "@10gen.com", "@mongodb.com"
               time = comment["created"]
-              if alerted == false && ! @issues.has_key?(issue["key"])
+              if alerted == false && ! @issues.has_key?(issue["jira"]["key"])
                 if time.to_i >= (Time.now.to_i - (@jiraInterval*4))
                   if @soundOn
                     begin
-                      soundEffect(issue["key"], issue["fields"]['priority']['name'].split()[0])
+                      soundEffect(issue["jira"]["key"], issue["jira"]["fields"]['priority']['name'].split()[0])
                     rescue => e
                       logOut "Error playing soundEffect: #{e}"
                     end
                   end
                   data = {
-                      id: issue["id"],
-                      p: issue["fields"]['priority']['id'],
-                      tc: issue["fields"]['created'],
+                      id: issue["jira"]["id"],
+                      p: issue["jira"]["fields"]['priority']['id'],
+                      tc: issue["jira"]["fields"]['created'],
                       ts: time,
                       new: false,
                       ctr: 0,
@@ -724,7 +724,7 @@ def checkNewProactive(db)
                       rvt: nil,
                       proactive: false
                   }
-                  @issues[issue["key"]] = data
+                  @issues[issue["jira"]["key"]] = data
                   msg = "Proactive issue #{issue["key"]} has had customer response"
                   @proactiveAlertsSent.push issue["key"]
                   @ipcqueue.push({'msg'=>msg, 'dst' => @roomNameNewIssue}) if msg != nil
@@ -739,14 +739,14 @@ def checkNewProactive(db)
     rescue => e
       logOut "Error in processing thread: #{e}"
       logOut "Backtrace: #{e.backtrace}"
-      logOut issue["key"]
+      logOut issue["jira"]["key"]
     end
   end
   @issues.each_key do |key|
     if @issues[key][:proactive]
-      ir = db.collection("issues").find_one(:key=>key)
-      status = ir["fields"]["status"]["id"]
-      assignee = ir["fields"]["assignee"]
+      ir = db.collection("issues").find_one('jira.key'=>key)
+      status = ir["jira"]["fields"]["status"]["id"]
+      assignee = ir["jira"]["fields"]["assignee"]
       unless status == "10005" || status == "10006" || assignee != nil
         logOut "Issue #{key} was removed from register"
         @issues.delete(key)
