@@ -72,7 +72,7 @@ end
 
 def userNotResponded(db, key)
 	key["fields"]["comment"]["comments"].each do |comment|
-		unless comment["author"]["emailAddress"].end_with?  "@10gen.com", "@mongodb.com"
+		unless isMongoDB? comment["author"]["emailAddress"]
 			return false
 		end
 	end
