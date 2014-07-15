@@ -1,8 +1,0 @@
-ns test.big first 0:2b000 last 2:2000 
- 2b000(176128): extent magic 41424344 me 0:2b000 next 0:52000 prev ffffffff:0 ns test.big len 1e000 first 0:2b0b0 last 0:454b0 
- 52000(335872): extent magic 41424344 me 0:52000 next 0:ca000 prev 0:2b000 ns test.big len 78000 first 0:520b0 last 0:c64b0 
- ca000(827392): extent magic 41424344 me 0:ca000 next 0:2aa000 prev 0:52000 ns test.big len 1e0000 first 0:ca0b0 last 0:2a64b0 
- 2aa000(2793472): extent magic 41424344 me 0:2aa000 next 1:2000 prev 0:ca000 ns test.big len 780000 first 0:2aa0b0 last 0:a264b0 
- 2000(8192): extent magic 41424344 me 1:2000 next 1:a22000 prev 0:2aa000 ns test.big len a20000 first 1:20b0 last 1:a1f6b0 
- a22000(10625024): extent magic 41424344 me 1:a22000 next 2:2000 prev 1:2000 ns test.big len dac000 first 1:a220b0 last 1:17caeb0 
- 2000(8192): extent magic 41424344 me 2:2000 next ffffffff:0 prev 1:a22000 ns test.big len 1275000 first 2:20b0 last 2:2e6ab0 

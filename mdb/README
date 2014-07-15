@@ -2,10 +2,11 @@ NAME
     mdb - simple tool to dump parts of mongo databases to debug corruption issues
 
 SYNOPSIS
-    mdb -c[lnpi[b]] dbpath database [collection]
-    mdb -x[lnp[b]] filename [offset]
-    mdb -r[b] filename offset
-    mdb -b filename offset
+    python mdb.py -c[fx[r[npbBt]]] dbpath ns
+    python mdb.py -x[r[npbBt]] filename [offset]
+    python mdb.py -r[bBt] filename offset
+    python mdb.py -bB filename offset length
+    python mdb.py -g[bBt] filename [string|hex hex ...]
 
 DESCRIPTION
 
@@ -20,65 +21,73 @@ DESCRIPTION
     Operation is controlled by a set of flags specified in the first
     argument, as follows:
 
-    c If the c flag is specified you must specify a dbpath, and
-      database name, and you may specify a collection name.  mdb
-      prints information from the .ns file for the given collection
-      (or for all collections if you don't specify a collection) in
-      the database at the specified dbpath. This includes the
-      collection information from the .ns file, and the list of extent
-      headers for this collection. If in addition the l, n, p, or i
-      flags are specified, the record headers within each extent are
-      traversed, parsed, verified, and printed, as detailed below. If
-      the b flag is also specified, the BSON content of each record is
-      parsed, verified, and printed.
+    c Information from the .ns file for selected namespaces is
+      printed.  You must specify a dbpath, and you may specify an
+      ns. The ns may be either a database name, in which case all
+      namespaces in that database are printed; or it may be a fully
+      qualified ns name. If no ns is specified all namespaces in all
+      databases are printed.  In addition the f, x, r, n, p, b, and/or
+      B flags may be specified to control printing of additional
+      information.
 
-    l The records within the extent(s) are traversed from the
-      beginning of the extent to the end, following the "length" field
-      of the record headers. This is the most useful record traversal
-      mode for database corruption debugging because in this mode,
-      when corruption is detected, mdb attempts to resync and continue
-      by finding the next apparently valid record header in the
-      extent.
+    f When used with the c flag, free-list information for selected
+      namespaces is printed in two forms: the free list for each
+      bucket is printed; and each printed record header that is on a
+      free list is annotated with it's bucket and ordinal position
+      within the free list for that bucket.
 
-    n The records within the extent(s) are traversed following the
-      "next" pointers in the record headers. In this mode when record
-      header corruption is detected no recovery is possible so mdb
-      exits.
+    x Extent headers are printed. When used with the c flag the extent
+      headers for the selected namespaces are printed. When used
+      without the c flag you must specify a database filename and you
+      may specify an offset (in hex) within that file that corresponds
+      to the beginning of an extent; if you don't specify an offset
+      all extents within the file are printed. In addition the r, n,
+      p, b and/or B flags may be specified to control printing of
+      additional information.
 
-    p The records within the extent(s) are traversed following the
-      "prev" pointers in the record headers. In this mode when record
-      header corruption is detected no recovery is possible so mdb
-      exits.
+    r When used with the x flag record headers for each displayed
+      extent are printed. Record headers are traversed within an
+      extent by following the "length" field in the record header.
+      When used without the x flag a single record header is printed,
+      and a file name and offset must be specified. In addition the b,
+      B, or t flags may be specified to control the printing of
+      additional information.
 
-    i The records in the collection are enumerated by traversing the
-      _id index. Not implemented yet.
+    n When used with the x flag each printed record header is
+      annotated with information about the position of that record on
+      the first/next list. The annotiation takes the form "first+n" to
+      indicate that this record is the nth record on the first/next
+      list.
 
-    x If the x flag is specified you must specify a database filename
-      and you may specify an offset (in hex) within that file that
-      corresponds to the beginning of an extent; if you don't specify
-      an offset all extents within the file are printed. For each
-      extent The extent header is printed.  If in addition the l, n,
-      or p flags are specified, the record headers within the extent
-      are parsed, verified, and printed, as detailed above. If the b
-      flag is also specified, the BSON content of each record is
-      parsed, verified, and printed.
+    p When used with the x flag each printed record header is
+      annotated with information about the position of that record on
+      the last/prev list. The annotiation takes the form "last-n" to
+      indicate that this record is the nth record on the last/prev
+      list.
 
-    r If the r flag is specified you must specify a database filename
-      and an offset (in hex) within that file that corresponds to the
-      beginning of a record. The record header is printed.  If the b
-      flag is also specified, the BSON content of the record is
-      parsed, verified, and printed.
+    b When used with the r flag the BSON content of each record
+      displayed is printed. When used without the r flag a filename,
+      offset, and length must be specified, and the BSON content at
+      that location is printed. The printed information includes
+      offset, field name, field type for all fields; and field values
+      for some types, excluding strings and BinData.
 
-    b If the b flag is specified in combination with other flags, the
-      BSON contents of any records traversed are parsed, verified, and
-      printed, as described above. If the b flag is specified without
-      any other flags, you must specify a database filename and an
-      offset (in hex) within that file that corresponds to the
-      beginning of BSON document. To print a .bson file, specify -b
-      with an offset of 0.
+    B Like the b flag, except that field values for all types is
+      printed.
+
+    t When used with the r flag, the index content of displayed index
+      records is printed.
+
+    g Search the records in a file for a particular string. All
+      records in all extents in the file are searched. The pattern may
+      be specified as a single string, or as a sequence of byte values
+      specified as two-digit hex numbers. In addition the b, B, or t
+      flags may be specified to control the printing of additional
+      information.
+
 
 OUTPUT
-    See test.sh for examples of commands, and look in test-expected/
+    See test.sh for examples of commands, and look in expected/
     for examples of output for each of the commands.
 
 NOTE

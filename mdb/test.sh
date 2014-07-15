@@ -10,39 +10,43 @@ function init() {
 
 function test_one() {
     mkdir -p test-actual
-    exp=test-expected/mdb$2
-    act=test-actual/mdb$2
-    $* >$act
+    exp=expected/mdb$1
+    act=/tmp/mdb$1
+    python mdb.py $* >$act
     if diff $exp $act; then
         echo pass $*
     else
         echo FAIL $*
+        exit -1
     fi
 }
 
 function test_all() {
 
-    test_one ./mdb -c testdb test big
-    test_one ./mdb -clb testdb test small
-    test_one ./mdb -cn testdb test small
-    test_one ./mdb -cp testdb test big
-    test_one ./mdb -cl testdb test big
+    test_one  -cx testdb test.big
+    test_one  -cxrb testdb test.small
+    test_one  -cxrnpf testdb test.small
+    test_one  -cf testdb test
+    test_one  -cxrt testdb 'test.small.$_id_'
 
-    test_one ./mdb -x testdb/test.0 2000
-    test_one ./mdb -xl testdb/test.0 2000
-    test_one ./mdb -xlb testdb/test.0 2000
+    test_one  -x testdb/test.0 0x2000
+    test_one  -xr testdb/test.0 0x2000
+    test_one  -xrb testdb/test.0 0x2000
 
-    # xxx not working for some reason
-    #test_one ./mdb -xn testdb/test.0 offset
-    #test_one ./mdb -xp testdb/test.0 offset
+    test_one  -r testdb/test.0 0x20b0
+    test_one  -s testdb/test.0 0x20b0
+    test_one  -rb testdb/test.0 0x110b0
+    test_one  -B testdb/test.0 0x110c0
 
-    test_one ./mdb -r testdb/test.0 20b0
-    test_one ./mdb -rb testdb/test.0 110b0
+    test_one -g testdb/test.0 world
 
-    test_one ./mdb -b testdb/test.0 110c0
+    #xxx need test for "o" flag
 }
 
-
-init
+#init
 test_all
+
+
+
+
 

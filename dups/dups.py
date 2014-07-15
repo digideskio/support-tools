@@ -19,7 +19,8 @@ blocks = {}
 # to have by coincidence identical blocks that are mostly 0s
 # with only a couple of matching non-0 bytes at the beginning
 
-for offset in itertools.count(0, blocksize):
+for i in itertools.count(0):
+    offset = i * blocksize
     block = f.read(blocksize)
     if not block:
         break
