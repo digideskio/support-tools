@@ -102,10 +102,10 @@ def recIRC
           arr = msg.split
           body = arr[3..-1].join(' ').gsub(/\\r\\n/, '')
           body.gsub!(/^:/,'')
-          incomingAddress = arr[2]
+          incomingAddress = arr[2].chomp
           username = arr[0].split('!')[0].sub!(/:/,'')
           if incomingAddress == @ircnick
-            incomingAddress == username
+            incomingAddress = username
           end
           ret = respondToChat(body, username, 'IRC', incomingAddress )
         end
