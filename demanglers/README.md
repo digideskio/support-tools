@@ -1,7 +1,11 @@
 demanglers
 ==========
 
-Various scripts that will take human-oriented output from monitoring programs and "de-mangle" them into simple, space-separated column-based text format, suitable for further (machine) analysis.  I like feeding these resulting files into [GNUplot](http://gnuplot.info) (mainly because I've used gnuplot for years).
+Various scripts that will take human-oriented output from monitoring programs and "de-mangle" them into simple, space-separated column-based text format, suitable for further (machine) analysis.  Mongostat's output format is particularly stupid.
+
+Tries to keep a reasonable amount of human-readability with #-commented column headers (sometimes periodically repeated).
+
+I like feeding these resulting files into [GNUplot](http://gnuplot.info) (mainly because I've used gnuplot for years).
 
 These require various text processing utilities like `awk`, `sed`, `grep`, and `column`.  Apologies if I've used any GNU extensions (reasonably likely, especially `gawk`).
 
