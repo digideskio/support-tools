@@ -139,6 +139,7 @@ msection iostat iostat -xtm 5 10
 msection rpcinfo rpcinfo -p
 msection scsidevices getfiles /sys/bus/scsi/devices/*/model
 msection selinux sestatus
+msection netstat netstat -anpoe
 
 msection timezone_config getfiles /etc/timezone /etc/sysconfig/clock
 msection timedatectl timedatectl
