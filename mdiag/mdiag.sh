@@ -135,6 +135,7 @@ msection df-k df -k
 msection mount mount
 msection procinfo getfiles /proc/mounts /proc/self/mountinfo /proc/cpuinfo /proc/meminfo /proc/zoneinfo /proc/swaps /proc/modules /proc/vmstat
 msection top top -b -n 10 -c -w 512
+msection top_threads top -b -n 10 -c -w 512 -H
 msection iostat iostat -xtm 5 10
 msection rpcinfo rpcinfo -p
 msection scsidevices getfiles /sys/bus/scsi/devices/*/model
