@@ -9,7 +9,11 @@ end
 #Function loggingThread
 # Async Logging output thread
 def loggingThread(filename = 'trafficbot.log')
-  f = File.open(filename, 'a')
+  if filename == "STDOUT"
+     f = STDOUT
+  else
+    f = File.open(filename, 'a')
+  end
   while true
     ostr = Time.now.to_s + " " + @loggingQueue.pop().to_s
     #p ostr

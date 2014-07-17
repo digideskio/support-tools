@@ -83,8 +83,12 @@ class AutoOptParse
     end
     opt_parser.parse!(args)
     if options.log_file == nil
-      puts "Error: No logfile name specified"
-      exit(1)
+      if options.mode != "i"
+        puts "Error: No logfile name specified"
+        exit(1)
+      else
+        options.log_file = 'STDOUT'
+      end
     end
     options
   end  # parse()
