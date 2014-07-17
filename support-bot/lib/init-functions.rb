@@ -25,7 +25,7 @@ def readSteeringFile(file = 'conf/trafficbot.conf')
     file = 'conf/trafficbot.conf'
   end
 
-  logOut "Reading from steeringfile - #{file}"
+  logOut "Reading from steeringfile - #{file}", 1
   File.open(file).each_line do |line|
     arr = line.split /\s+=\s+/
     case arr[0]

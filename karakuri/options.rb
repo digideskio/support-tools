@@ -19,6 +19,8 @@ class AutoOptParse
     options.file = "workflow.json"
     options.verbose = false
     options.limit = 0
+    options.force = false
+    options.log_file = nil
 
     opt_parser = OptionParser.new do |opts|
       opts.banner = "Usage: auto.rb [options]"
@@ -33,9 +35,18 @@ class AutoOptParse
         options.mode = mode
       end
 
-      opts.on("-l", "--live",
+      opts.on("-l filename", "--logfile filename", "Path to the logfile to be used") do |logfile|
+        options.log_file = logfile
+      end
+
+      opts.on("--live",
               "Run automator in live mode. Has no effect in interactive mode") do |live|
         options.demo = false
+      end
+
+      opts.on("-F", "--force",
+              "Don't wait for requests/responses. Just perform actions") do |force|
+        options.force = true
       end
 
       opts.on("-f", "--file [workflow file]",
@@ -71,6 +82,10 @@ class AutoOptParse
       end
     end
     opt_parser.parse!(args)
+    if options.log_file == nil
+      puts "Error: No logfile name specified"
+      exit(1)
+    end
     options
   end  # parse()
 

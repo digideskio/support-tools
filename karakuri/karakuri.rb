@@ -10,23 +10,19 @@ require_relative "options.rb"
 
 passedArgs = AutoOptParse.parse(ARGV)
 
-#Main init
-@dbURI = "mongodb://localhost:27017/support"
-@dbConnOpts = {:pool_size => 5}
-
 @jirausername = nil
 @jirapassword = nil
 @jiraserver = 'https://jira.mongodb.org/'
 
 @loggingQueue = Queue.new
-@workflow = nil
-@key = nil
+#@workflow = nil
+#@key = nil
 @demo = passedArgs.demo
 @logLevel = 0
+@dbURI = "mongodb://localhost:27017/support"
+@dbConnOpts = {:pool_size => 5}
 
-unless @demo
-  p "LIVE MODE"
-end
+logThr = Thread.new { loggingThread(passedArgs.log_file) }
 
 readSteeringFile("../support-bot/conf/trafficbot.conf")
 
@@ -42,6 +38,13 @@ options = {
 client = JIRA::Client.new(options)
 db = Mongo::MongoClient.from_uri(@dbURI,@dbConnOpts).db('support')
 
+logOut "Started run with file #{passedArgs.file}"
+
+unless @demo
+  p "LIVE MODE"
+  logOut "Loaded and running live"
+end
+
 def loadWorkflow (file)
 	json = File.read(file)
 	return Yajl::Parser.parse(json)["workflow"]
@@ -52,11 +55,11 @@ def timePassed(db, key)
 end
 
 def haveDone? (db, key, action)
-	return db.collection("automation").find_one({"key" => key, "actions_taken"=>action})
+	return db.collection("karakuri").find_one({"key" => key, "actions_taken"=>action})
 end
 
 def prerequsMet(db, key, prereqs)
-	done = db.collection("automation").find_one({"key" => key})
+	done = db.collection("karakuri").find_one({"key" => key})
 	#Issue doesnt exist
 	if done == nil
 		return false
@@ -89,7 +92,7 @@ end
 def userInformedOfTicket(db, key)
 	if userNotResponded(db, key)
 		if key["fields"]["customfield_10030"] != nil || !isMongoDB?(key["fields"]["assignee"]["emailAddress"]) || !isMongoDB?(key["fields"]["reporter"]["emailAddress"])
-			return true;
+			return true
 		end
 	end
 	return false
@@ -105,8 +108,50 @@ def smartWorkflowTransiton(client, key, trans_name)
 	return false
 end
 
+def shouldI?(db, key, name)
+  #If i'm interractive ask someone. Don't check the DB
+  if passedArgs.mode == "i"
+    p "Would you like to execute #{name} for #{key}?"
+    response = gets
+    response.downcase
+    until "yn".include? response[0]
+      p "Sorry, i didnt understand that. Would you like to execute #{name} for #{key} [y/n]?"
+      response = gets
+      response.downcase
+    end
+    if response[0] == "y"
+      # We will take an action here, so remove the "tbd"
+      db.collection("karakuri").update({"key" => key}, {"$pull" => { "actions_wanted" => name}})
+      return true
+    else
+      return false
+    end
+  end
+  #If force flag is on - just do whatever
+  if passedArgs.force == true
+    return true
+  end
+
+  #We aren't on force and we aren't interractive, we now should check
+  doc = db.collection("karakuri").find_one({"key" => key})
+
+  #No doc? we should add one
+  if doc == nil
+    db.collection("karakuri").update({"key" => key}, {"$addToSet" => { "actions_wanted" => name}},{:upsert => true})
+    return false
+  end
+  #Is a doc, are we okay to send?
+  if doc["actions_approved"].include? name
+    return true
+  else
+    db.collection("karakuri").update({"key" => key}, {"$addToSet" => { "actions_wanted" => name}},{:upsert => true})
+    return false
+  end
+
+end
+
 def labelsGood?(db, key)
-  db.collection("issues").find({'jira.key'=> key["key"]},)
+  db.collection("issues").find({'jira.key'=> key["key"]})
 end
 
 def workflowIteration(db, client, workflow, limit)
@@ -118,39 +163,28 @@ def workflowIteration(db, client, workflow, limit)
 				unless haveDone?(db, key["key"], wItem["name"])
 					if wItem["time_passed"] < timePassed(db, key)
 						go = false
+
+            #Have we met all the prerequisites?
 						if wItem.has_key? "workflowPrereq" 
 							if prerequsMet(db, key["key"], wItem["workflowPrereq"])
 							end
 						else
 							go = true
             end
-            #Interractive check. Ewwwww
-            if passedArgs.mode == "i" && go == true
-              p "Would you like to execute #{wItem["name"]} for #{key["key"]}?"
-              response = ""
-              response = gets
-              until "yn".include? response[0]
-                p "Sorry, i didnt understand that. Would you like to execute #{wItem["name"]} for #{key["key"]} [y/n]?"
-                response = gets
-                response.downcase
-              end
-              if response[0] == "y"
-                go = true
-              else
-                go = false
-              end
+            if go
+              go = shouldI?(db, key["key"], wItem["name"])
             end
 						if go
 							begin
 								res = methods.send(wItem["postFilterFunction"], db, key)
 								if res 
-									p "Workflow #{wItem["name"]} triggered for #{key["key"]}"
+									logOut "Workflow #{wItem["name"]} triggered for #{key["key"]}"
 									unless @demo
 										ir = client.Issue.find(key["key"])
 										c = ir.comments.build
 										out = c.save(wItem["workflow_comment"])
 										unless out
-											p "Failed action #{wItem["workflow_comment"]}"
+											logOut "Writing comment on #{key["key"]} for action #{wItem["workflow_comment"]}"
 										end
 										t_id = smartWorkflowTransiton(client, ir, wItem["workflow_action"])
 										if t_id != nil
@@ -161,16 +195,16 @@ def workflowIteration(db, client, workflow, limit)
 												out = t.save("transition" => {"id" => t_id})
 											end
 											unless out
-												p "Failed action #{wItem["workflow_action"]}"
+												logOut "Failed workflow transition on #{key["key"]} for #{wItem["workflow_action"]}"
 											end
-										end
-										db.collection("automation").update({"key"=>key["key"]},{"$push" => {"actions_taken" => wItem["name"]}},{:upsert => true})
+                    end
+                    db.collection("karakuri").update({"key"=>key["key"]},{"$push" => {"actions_taken" => wItem["name"]}, "$pull" => { "actions_approved" => wItem["name"]}},{:upsert => true})
 									end
 									processesedThisLap.push(key["key"])
 								end
 							rescue => e
-								p e
-								p e.backtrace
+								logOut "Caught exception: #{e} while processing #{wItem["name"]} on #{key["key"]}"
+								logOut e.backtrace
 							end
 						end
 					end
