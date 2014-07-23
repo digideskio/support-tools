@@ -185,19 +185,14 @@ mongo_pids="`pgrep mongo`"
 msection mongo_summary ps -Fww -p $mongo_pids
 
 for pid in $mongo_pids; do
-
-msection proc/$pid <<EOF
-lsfiles /proc/$pid/cmdline
-msubsection cmdline xargs -n1 -0 < /proc/$pid/cmdline
-
-xargs -n1 -0 < /proc/$pid/cmdline | awk '\$0 == "-f" || \$0 == "--config" { getline; print; }' | getstdinfiles
-
-getfiles /proc/$pid/limits /proc/$pid/mounts /proc/$pid/mountinfo /proc/$pid/smaps /proc/$pid/numa_maps
-
-lsfiles /proc/$pid/fd 
-getfiles /proc/$pid/fdinfo/*
-EOF
-
+	msection proc/$pid <<-EOF
+	lsfiles /proc/$pid/cmdline
+	msubsection cmdline xargs -n1 -0 < /proc/$pid/cmdline
+	xargs -n1 -0 < /proc/$pid/cmdline | awk '\$0 == "-f" || \$0 == "--config" { getline; print; }' | getstdinfiles
+	getfiles /proc/$pid/limits /proc/$pid/mounts /proc/$pid/mountinfo /proc/$pid/smaps /proc/$pid/numa_maps
+	lsfiles /proc/$pid/fd 
+	getfiles /proc/$pid/fdinfo/*
+	EOF
 done
 
 msection global_mongodb_conf getfiles /etc/mongodb.conf /etc/mongod.conf
