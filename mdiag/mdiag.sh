@@ -172,9 +172,7 @@ EOF
 
 mongo_pids="`pgrep mongo`"
 
-msection mongo_summary <<EOF
-ps -Fww -p $mongo_pids
-EOF
+msection mongo_summary ps -Fww -p $mongo_pids
 
 msection mongo_setup_files <<EOF
 #this doesn't handle relative paths
