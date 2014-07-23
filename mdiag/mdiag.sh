@@ -9,13 +9,13 @@ msection() {
 	(
 		echo ""
 		echo ""
-		echo "=========== start $name ==========="
+		echo "=========== start section $name ==========="
 		if [ $# -eq 0 ]; then
 			eval "`cat`"
 		else
 			"$@"
 		fi
-		echo "============ end $name ============"
+		echo "============ end section $name ============"
 	) >> "$diagfile" 2>&1
 	echo "done"
 }
@@ -23,13 +23,13 @@ msection() {
 msubsection() {
 	name="$1"
 	shift
-	echo "--> start $f <--"
+	echo "--> start subsection $f <--"
 	if [ $# -eq 0 ]; then
 		eval "`cat`"
 	else
 		"$@"
 	fi
-	echo "--> end $f <--"
+	echo "--> end subsection $f <--"
 }
 
 printeach() {
