@@ -170,8 +170,10 @@ lsfiles -R /sys/kernel/mm/{redhat_,}transparent_hugepage
 find /sys/kernel/mm/{redhat_,}transparent_hugepage -type f | getstdinfiles
 EOF
 
+mongo_pids="`pgrep mongo`"
+
 msection mongo_summary <<EOF
-ps -Fww -p `pgrep mongo`
+ps -Fww -p $mongo_pids
 EOF
 
 msection mongo_setup_files <<EOF
@@ -181,27 +183,27 @@ ps aux | grep mongo | awk -F "--config " '{print \$2}' | xargs -n1 cat
 EOF
 
 msection proc/cmdline <<EOF
-for i in \`pgrep mongo\`; do echo "PID: \$i"; lsfiles /proc/\$i/cmdline; echo "--> begin cmdline <--"; xargs -n1 -0 < /proc/\$i/cmdline; echo "--> end cmdline <--"; echo; done
+for i in $mongo_pids; do echo "PID: \$i"; lsfiles /proc/\$i/cmdline; echo "--> begin cmdline <--"; xargs -n1 -0 < /proc/\$i/cmdline; echo "--> end cmdline <--"; echo; done
 EOF
 
 msection proc/limits <<EOF
-for i in \`pgrep mongo\`; do echo "PID: \$i"; getfiles /proc/\$i/limits; echo; done
+for i in $mongo_pids; do echo "PID: \$i"; getfiles /proc/\$i/limits; echo; done
 EOF
 
 msection proc/fds <<EOF
-for i in \`pgrep mongo\`; do echo "PID: \$i"; lsfiles /proc/\$i/fd /proc/\$i/fdinfo; echo; echo "fdinfo:"; getfiles /proc/\$i/fdinfo/*; echo; done
+for i in $mongo_pids; do echo "PID: \$i"; lsfiles /proc/\$i/fd /proc/\$i/fdinfo; echo; echo "fdinfo:"; getfiles /proc/\$i/fdinfo/*; echo; done
 EOF
 
 msection proc/smaps <<EOF
-for i in \`pgrep mongo\`; do echo "PID: \$i"; getfiles /proc/\$i/smaps; echo; done
+for i in $mongo_pids; do echo "PID: \$i"; getfiles /proc/\$i/smaps; echo; done
 EOF
 
 msection proc/numa_maps <<EOF
-for i in \`pgrep mongo\`; do echo "PID: \$i"; getfiles /proc/\$i/numa_maps; echo; done
+for i in $mongo_pids; do echo "PID: \$i"; getfiles /proc/\$i/numa_maps; echo; done
 EOF
 
 msection proc/mounts <<EOF
-for i in \`pgrep mongo\`; do echo "PID: \$i"; getfiles /proc/\$i/mounts /proc/\$i/mountinfo; echo; done
+for i in $mongo_pids; do echo "PID: \$i"; getfiles /proc/\$i/mounts /proc/\$i/mountinfo; echo; done
 EOF
 
 msection smartctl <<EOF
