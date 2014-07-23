@@ -178,10 +178,7 @@ msection dmidecode dmidecode --type memory
 msection sensors sensors
 msection mcelog getfiles /var/log/mcelog
 
-msection transparent_hugepage <<EOF
-lsfiles -R /sys/kernel/mm/{redhat_,}transparent_hugepage
-getfilesfromcommand find /sys/kernel/mm/{redhat_,}transparent_hugepage -type f
-EOF
+msection transparent_hugepage getfilesfromcommand find /sys/kernel/mm/{redhat_,}transparent_hugepage -type f
 
 mongo_pids="`pgrep mongo`"
 
