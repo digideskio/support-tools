@@ -182,29 +182,33 @@ ps aux | grep mongo | awk -F "-f " '{print \$2}' | xargs -n1 cat
 ps aux | grep mongo | awk -F "--config " '{print \$2}' | xargs -n1 cat
 EOF
 
-msection proc/cmdline <<EOF
-for i in $mongo_pids; do echo "PID: \$i"; lsfiles /proc/\$i/cmdline; echo "--> begin cmdline <--"; xargs -n1 -0 < /proc/\$i/cmdline; echo "--> end cmdline <--"; echo; done
+for pid in $mongo_pids; do
+
+msection proc/$pid/cmdline <<EOF
+lsfiles /proc/$pid/cmdline; echo "--> begin cmdline <--"; xargs -n1 -0 < /proc/$pid/cmdline; echo "--> end cmdline <--"
 EOF
 
-msection proc/limits <<EOF
-for i in $mongo_pids; do echo "PID: \$i"; getfiles /proc/\$i/limits; echo; done
+msection proc/$pid/limits <<EOF
+getfiles /proc/$pid/limits
 EOF
 
-msection proc/fds <<EOF
-for i in $mongo_pids; do echo "PID: \$i"; lsfiles /proc/\$i/fd /proc/\$i/fdinfo; echo; echo "fdinfo:"; getfiles /proc/\$i/fdinfo/*; echo; done
+msection proc/$pid/fds <<EOF
+lsfiles /proc/$pid/fd /proc/$pid/fdinfo; echo; echo "fdinfo:"; getfiles /proc/$pid/fdinfo/*
 EOF
 
-msection proc/smaps <<EOF
-for i in $mongo_pids; do echo "PID: \$i"; getfiles /proc/\$i/smaps; echo; done
+msection proc/$pid/smaps <<EOF
+getfiles /proc/$pid/smaps
 EOF
 
-msection proc/numa_maps <<EOF
-for i in $mongo_pids; do echo "PID: \$i"; getfiles /proc/\$i/numa_maps; echo; done
+msection proc/$pid/numa_maps <<EOF
+getfiles /proc/$pid/numa_maps
 EOF
 
-msection proc/mounts <<EOF
-for i in $mongo_pids; do echo "PID: \$i"; getfiles /proc/\$i/mounts /proc/\$i/mountinfo; echo; done
+msection proc/$pid/mounts <<EOF
+getfiles /proc/$pid/mounts /proc/$pid/mountinfo
 EOF
+
+done
 
 msection smartctl <<EOF
 smartctl --scan | sed -e "s/#.*$//" | while read i; do smartctl --all \$i; done
