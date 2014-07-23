@@ -52,6 +52,10 @@ getstdinfiles() {
 	done
 }
 
+getfilesfromcommand() {
+	"$@" | getstdinfiles
+}
+
 lsfiles() {
 	somefiles=
 	restfiles=
@@ -176,7 +180,7 @@ msection mcelog getfiles /var/log/mcelog
 
 msection transparent_hugepage <<EOF
 lsfiles -R /sys/kernel/mm/{redhat_,}transparent_hugepage
-find /sys/kernel/mm/{redhat_,}transparent_hugepage -type f | getstdinfiles
+getfilesfromcommand find /sys/kernel/mm/{redhat_,}transparent_hugepage -type f
 EOF
 
 mongo_pids="`pgrep mongo`"
@@ -201,17 +205,11 @@ msection smartctl <<EOF
 smartctl --scan | sed -e "s/#.*$//" | while read i; do smartctl --all \$i; done
 EOF
 
-msection nr_requests <<EOF
-find /sys -name nr_requests | getstdinfiles
-EOF
+msection nr_requests getfilesfromcommand find /sys -name nr_requests
 
-msection read_ahead_kb <<EOF
-find /sys -name read_ahead_kb | getstdinfiles
-EOF
+msection read_ahead_kb getfilesfromcommand find /sys -name read_ahead_kb
 
-msection scheduler <<EOF
-find /sys -name scheduler | getstdinfiles
-EOF
+msection scheduler getfilesfromcommand find /sys -name scheduler
 
 msection scsidevices getfiles /sys/bus/scsi/devices/*/model
 
