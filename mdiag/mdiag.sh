@@ -20,6 +20,18 @@ msection() {
 	echo "done"
 }
 
+msubsection() {
+	name="$1"
+	shift
+	echo "--> start $f <--"
+	if [ $# -eq 0 ]; then
+		eval "`cat`"
+	else
+		"$@"
+	fi
+	echo "--> end $f <--"
+}
+
 printeach() {
 	for i; do
 		echo "$i"
@@ -30,9 +42,7 @@ getfiles() {
 	for f; do
 		echo ""
 		ls -l "$f"
-		echo "--> start $f <--"
-		cat "$f"
-		echo "--> end $f <--"
+		msubsection "$f" cat "$f"
 	done
 }
 
@@ -184,7 +194,7 @@ for pid in $mongo_pids; do
 
 msection proc/$pid <<EOF
 lsfiles /proc/$pid/cmdline
-echo "--> begin cmdline <--"; xargs -n1 -0 < /proc/$pid/cmdline; echo "--> end cmdline <--"
+msubsection cmdline xargs -n1 -0 < /proc/$pid/cmdline
 
 getfiles /proc/$pid/limits /proc/$pid/mounts /proc/$pid/mountinfo /proc/$pid/smaps /proc/$pid/numa_maps
 
