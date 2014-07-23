@@ -184,28 +184,14 @@ EOF
 
 for pid in $mongo_pids; do
 
-msection proc/$pid/cmdline <<EOF
-lsfiles /proc/$pid/cmdline; echo "--> begin cmdline <--"; xargs -n1 -0 < /proc/$pid/cmdline; echo "--> end cmdline <--"
-EOF
+msection proc/$pid <<EOF
+lsfiles /proc/$pid/cmdline
+echo "--> begin cmdline <--"; xargs -n1 -0 < /proc/$pid/cmdline; echo "--> end cmdline <--"
 
-msection proc/$pid/limits <<EOF
-getfiles /proc/$pid/limits
-EOF
+getfiles /proc/$pid/limits /proc/$pid/mounts /proc/$pid/mountinfo /proc/$pid/smaps /proc/$pid/numa_maps
 
-msection proc/$pid/fds <<EOF
-lsfiles /proc/$pid/fd /proc/$pid/fdinfo; echo; echo "fdinfo:"; getfiles /proc/$pid/fdinfo/*
-EOF
-
-msection proc/$pid/smaps <<EOF
-getfiles /proc/$pid/smaps
-EOF
-
-msection proc/$pid/numa_maps <<EOF
-getfiles /proc/$pid/numa_maps
-EOF
-
-msection proc/$pid/mounts <<EOF
-getfiles /proc/$pid/mounts /proc/$pid/mountinfo
+lsfiles /proc/$pid/fd 
+getfiles /proc/$pid/fdinfo/*
 EOF
 
 done
