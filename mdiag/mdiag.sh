@@ -206,6 +206,9 @@ EOF
 
 done
 
+msection global_mongodb_conf getfiles /etc/mongodb.conf /etc/mongod.conf
+msection global_mms_conf getfiles /etc/mongodb-mms/*
+
 msection smartctl <<EOF
 smartctl --scan | sed -e "s/#.*$//" | while read i; do smartctl --all \$i; done
 EOF
