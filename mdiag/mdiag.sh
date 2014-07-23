@@ -188,8 +188,16 @@ msection transparent_hugepage getfilesfromcommand find /sys/kernel/mm/{redhat_,}
 msection ps ps -eLFww
 
 # Dynamic/monitoring info
-msection top top -b -n 10 -c
-msection top_threads top -b -n 10 -c -H
+msection top <<EOF
+COLUMNS=512
+export COLUMNS
+top -b -d 1 -n 30 -c | sed -e 's/ *$//g'
+EOF
+msection top_threads <<EOF
+COLUMNS=512
+export COLUMNS
+top -b -d 1 -n 30 -c -H | sed -e 's/ *$//g'
+EOF
 msection iostat iostat -xtm 1 120
 
 # Mongo process info
