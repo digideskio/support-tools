@@ -171,7 +171,7 @@ msection lvm_lvs lvs -v
 msection mdadm_detail mdadm --detail --scan
 msection mdadm_proc cat /proc/mdstat
 msection mdadm_md <<EOF
-for i in `ls /dev/md`; do mdadm --detail /dev/md/$i; done
+sed -ne 's,^\(md[0-9]\+\) : .*$,/dev/\1,p' < /proc/mdstat | xargs -n1 --no-run-if-empty mdstat --detail
 EOF
 
 msection dmidecode dmidecode --type memory
