@@ -23,13 +23,13 @@ msection() {
 msubsection() {
 	name="$1"
 	shift
-	echo "--> start subsection $f <--"
+	echo "--> start subsection $name <--"
 	if [ $# -eq 0 ]; then
 		eval "`cat`"
 	else
 		"$@"
 	fi
-	echo "--> end subsection $f <--"
+	echo "--> end subsection $name <--"
 }
 
 printeach() {
