@@ -106,6 +106,7 @@ echo "========================="
 
 shopt -s nullglob >> "$diagfile" 2>&1
 
+# Generic/system/distro/boot info
 msection args printeach "$@"
 msection date date
 msection whoami whoami
@@ -116,16 +117,48 @@ msection pythonpath echo "$PYTHONPATH"
 msection pythonhome echo "$PYTHONHOME"
 msection distro getfiles /etc/*release /etc/*version
 msection uname uname -a
-msection blockdev blockdev --report
-msection lsblk lsblk
-msection mdstat getfiles /proc/mdstat
 msection glibc lsfiles /lib*/libc.so* /lib/*/libc.so*
 msection glibc2 /lib*/libc.so* '||' /lib/*/libc.so*
 msection ld.so.conf getfiles /etc/ld.so.conf /etc/ld.so.conf.d/*
 msection lsb lsb_release -a
+msection rc.local getfiles /etc/rc.local
 msection sysctl sysctl -a
 msection sysctl.conf getfiles /etc/sysctl.conf /etc/sysctl.d/*
-msection rc.local getfiles /etc/rc.local
+msection ulimit ulimit -a
+msection limits.conf getfiles /etc/security/limits.conf /etc/security/limits.d/*
+msection selinux sestatus
+msection timezone_config getfiles /etc/timezone /etc/sysconfig/clock
+msection timedatectl timedatectl
+msection localtime lsfiles /etc/localtime
+msection localtime_matches find /usr/share/zoneinfo -type f -exec cmp -s \{\} /etc/localtime \; -print
+
+# Block device/filesystem info
+msection blockdev blockdev --report
+msection lsblk lsblk
+
+msection fstab getfiles /etc/fstab
+msection mount mount
+msection df-h df -h
+msection df-k df -k
+
+msection mdstat getfiles /proc/mdstat
+msection mdadm_detail_scan mdadm --detail --scan
+msection mdadm_detail <<EOF
+sed -ne 's,^\(md[0-9]\+\) : .*$,/dev/\1,p' < /proc/mdstat | xargs -n1 --no-run-if-empty mdstat --detail
+EOF
+
+msection dmsetup dmsetup ls
+msection device_mapper lsfiles -R /dev/mapper /dev/dm-*
+
+msection lvm_pvs pvs -v
+msection lvm_vgs vgs -v
+msection lvm_lvs lvs -v
+
+msection nr_requests getfilesfromcommand find /sys -name nr_requests
+msection read_ahead_kb getfilesfromcommand find /sys -name read_ahead_kb
+msection scheduler getfilesfromcommand find /sys -name scheduler
+
+# Network info
 msection ifconfig ifconfig -a
 msection route route -n
 msection iptables iptables -L -v -n
@@ -139,50 +172,29 @@ msection host.conf getfiles /etc/host.conf
 msection resolv getfiles /etc/resolv.conf
 msection nsswitch getfiles /etc/nsswitch.conf
 msection networks getfiles /etc/networks
-msection dmesg dmesg
-msection lspci lspci -vvv
-msection ulimit ulimit -a
-msection limits.conf getfiles /etc/security/limits.conf /etc/security/limits.d/*
-msection fstab getfiles /etc/fstab
-msection df-h df -h
-msection df-k df -k
-msection mount mount
-msection procinfo getfiles /proc/mounts /proc/self/mountinfo /proc/cpuinfo /proc/meminfo /proc/zoneinfo /proc/swaps /proc/modules /proc/vmstat /proc/loadavg
-msection ps ps -eLFww
-msection top top -b -n 10 -c
-msection top_threads top -b -n 10 -c -H
-msection iostat iostat -xtm 1 120
 msection rpcinfo rpcinfo -p
-msection selinux sestatus
 msection netstat netstat -anpoe
 
-msection timezone_config getfiles /etc/timezone /etc/sysconfig/clock
-msection timedatectl timedatectl
-msection localtime lsfiles /etc/localtime
-msection localtime_matches find /usr/share/zoneinfo -type f -exec cmp -s \{\} /etc/localtime \; -print
-
-msection dmsetup dmsetup ls
-msection device_mapper lsfiles -R /dev/mapper /dev/dm-*
-
-msection lvm_pvs pvs -v
-msection lvm_vgs vgs -v
-msection lvm_lvs lvs -v
-
-msection mdadm_detail_scan mdadm --detail --scan
-msection mdadm_detail <<EOF
-sed -ne 's,^\(md[0-9]\+\) : .*$,/dev/\1,p' < /proc/mdstat | xargs -n1 --no-run-if-empty mdstat --detail
-EOF
-
+# Hardware info
+msection dmesg dmesg
+msection lspci lspci -vvv
 msection dmidecode dmidecode --type memory
 msection sensors sensors
 msection mcelog getfiles /var/log/mcelog
 
+# Process/kernel info
+msection procinfo getfiles /proc/mounts /proc/self/mountinfo /proc/cpuinfo /proc/meminfo /proc/zoneinfo /proc/swaps /proc/modules /proc/vmstat /proc/loadavg
 msection transparent_hugepage getfilesfromcommand find /sys/kernel/mm/{redhat_,}transparent_hugepage -type f
+msection ps ps -eLFww
 
+# Dynamic/monitoring info
+msection top top -b -n 10 -c
+msection top_threads top -b -n 10 -c -H
+msection iostat iostat -xtm 1 120
+
+# Mongo process info
 mongo_pids="`pgrep mongo`"
-
 msection mongo_summary ps -Fww -p $mongo_pids
-
 for pid in $mongo_pids; do
 	msection proc/$pid <<-EOF
 	lsfiles /proc/$pid/cmdline
@@ -193,20 +205,13 @@ for pid in $mongo_pids; do
 	getfiles /proc/$pid/fdinfo/*
 	EOF
 done
-
 msection global_mongodb_conf getfiles /etc/mongodb.conf /etc/mongod.conf
 msection global_mms_conf getfiles /etc/mongodb-mms/*
 
+# Hardware info with a risk of hanging
 msection smartctl <<EOF
 smartctl --scan | sed -e "s/#.*$//" | while read i; do smartctl --all \$i; done
 EOF
-
-msection nr_requests getfilesfromcommand find /sys -name nr_requests
-
-msection read_ahead_kb getfilesfromcommand find /sys -name read_ahead_kb
-
-msection scheduler getfilesfromcommand find /sys -name scheduler
-
 msection scsidevices getfiles /sys/bus/scsi/devices/*/model
 
 cat <<EOF
