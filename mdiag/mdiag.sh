@@ -168,8 +168,8 @@ msection lvm_pvs pvs -v
 msection lvm_vgs vgs -v
 msection lvm_lvs lvs -v
 
-msection mdadm_detail mdadm --detail --scan
-msection mdadm_md <<EOF
+msection mdadm_detail_scan mdadm --detail --scan
+msection mdadm_detail <<EOF
 sed -ne 's,^\(md[0-9]\+\) : .*$,/dev/\1,p' < /proc/mdstat | xargs -n1 --no-run-if-empty mdstat --detail
 EOF
 
