@@ -149,7 +149,6 @@ msection top top -b -n 10 -c
 msection top_threads top -b -n 10 -c -H
 msection iostat iostat -xtm 1 120
 msection rpcinfo rpcinfo -p
-msection scsidevices getfiles /sys/bus/scsi/devices/*/model
 msection selinux sestatus
 msection netstat netstat -anpoe
 
@@ -214,6 +213,7 @@ msection scheduler <<EOF
 find /sys -name scheduler | getstdinfiles
 EOF
 
+msection scsidevices getfiles /sys/bus/scsi/devices/*/model
 
 cat <<EOF
 
