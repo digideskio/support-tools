@@ -3,33 +3,33 @@
 diagfile="/tmp/mdiag-`hostname`.txt"
 
 msection() {
-	name="$1"
+	section="$1"
 	shift
-	echo -n "Gathering $name info... "
+	echo -n "Gathering $section info... "
 	(
 		echo ""
 		echo ""
-		echo "=========== start section $name ==========="
+		echo "=========== start section $section ==========="
 		if [ $# -eq 0 ]; then
 			eval "`cat`"
 		else
 			"$@"
 		fi
-		echo "============ end section $name ============"
+		echo "============ end section $section ============"
 	) >> "$diagfile" 2>&1
 	echo "done"
 }
 
 msubsection() {
-	name="$1"
+	subsection="$1"
 	shift
-	echo "--> start subsection $name <--"
+	echo "--> start subsection $subsection <--"
 	if [ $# -eq 0 ]; then
 		eval "`cat`"
 	else
 		"$@"
 	fi
-	echo "--> end subsection $name <--"
+	echo "--> end subsection $subsection <--"
 }
 
 printeach() {
