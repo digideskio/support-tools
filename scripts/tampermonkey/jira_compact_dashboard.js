@@ -17,7 +17,7 @@ function addStyle(style) {
 // Reclaim some space from header area
 addStyle(".aui-avatar-project img { width: 40px; height: 40px }");
 addStyle(".issue-header .issue-header-content .aui-page-header { padding: 0px }");
-addStyle(".issue-header .issue-header-content .command-bar { padding: 0px }");;
+addStyle(".issue-header .issue-header-content .command-bar { padding: 0px }");
 
 // Add background colour to highlight warnings and CS info
 addStyle("#announcement-banner { padding: 5px; background-color: #ffffcc; }");
@@ -28,8 +28,8 @@ addStyle("div#reporter { color: #9ec05a }");
 function useHorizontalTabs () {
     var dashBoard = document.getElementById("dashboard");
     if (dashBoard) {
-        dashBoard.className = dashBoard.className.replace(/v-tabs/, 'h-tabs');
-        dashBoard.getElementsByTagName('ul')[0].className = 'horizontal tabs';
+        dashBoard.className = dashBoard.className.replace(/v-tabs/, "h-tabs");
+        dashBoard.getElementsByTagName("ul")[0].className = "horizontal tabs";
 
         // Add horizontal tab style
         addStyle("ul.horizontal{overflow:hidden;position:relative;top:1px;}");
@@ -50,10 +50,10 @@ function useHorizontalTabs () {
 
 // Append custom styles
 function writeStyles () {
-    var newStyle = document.createElement('style');
-    newStyle.type = 'text/css';
+    var newStyle = document.createElement("style");
+    newStyle.type = "text/css";
     if (document.getElementsByTagName) {
-        document.getElementsByTagName('head')[0].appendChild(newStyle);
+        document.getElementsByTagName("head")[0].appendChild(newStyle);
         if (newStyle.sheet && newStyle.sheet.insertRule) {
             for (var i = 0; i < css.length; i++) {
                 newStyle.sheet.insertRule(css[i], 0);
