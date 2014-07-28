@@ -2,6 +2,7 @@ import datetime
 import struct
 import sys
 import collections
+import base64
 
 #
 # bson
@@ -35,7 +36,12 @@ def info_string(buf, at):
 def info_bindata(buf, at):
     at, l = get_int(buf, at)
     at, sub = get_char(buf, at)
-    return at+l, ('bindata len=%d sub=%d' % (l, sub))
+    info = 'bindata len=%d sub=%d' % (l, sub)
+    if do_bson_detail:
+        for c in buf[at:at+l]:
+            info += ' %02x' % ord(c)
+        info += ' ' + base64.b64encode(buf[at:at+l])
+    return at+l, info
 
 def info_regexp(buf, at):
     at, e = get_cstring(buf, at)
@@ -81,6 +87,8 @@ types = {
     0x10: info_simple('int32', 4),
     0x11: info_time('timestamp', 8, 'i', skip=4),
     0x12: info_simple('int64', 8),
+    0x7f: info_simple('maxkey', 0),
+    0xff: info_simple('minkey', 0),
 }
 
 def print_record_bson(buf, at, l):
@@ -137,7 +145,14 @@ def print_btree(buf, at, l=None):
         child_f,child_o = diskloc56(child)
         loc_f,loc_o = diskloc56(loc)
         kd = at + 22 + kdo
-        print '%x: key child=%d:%x loc=%d:%x kdo=%x kd=%x' % (a, child_f,child_o, loc_f,loc_o, kdo, kd)
+        print '%x: key child=%d:%x loc=%d:%x kdo=%x kd=%x' % (a, child_f,child_o, loc_f,loc_o, kdo, kd),
+        if do_btree_detail:
+            print 'rec=%x' % at,
+            bytes = ''
+            for j in range(1,13):
+                bytes += '%02x' % ord(buf[kd+j])
+            print '%02x' % ord(buf[kd]), bytes,
+        print
         kds.add(kd)
     kds = list(sorted(kds))
     kds.append(at+l-16)
@@ -250,36 +265,43 @@ def visit_records(buf, at, end, print_content, per_record, ext_at=None, pending=
 
 extent_struct = struct.Struct('i i i i i i i 128s i i i i i')
 
+def extent(buf, at, check):
+    sig, loc_f,loc_o, next_f,next_o, prev_f,prev_o, ns, l, first_f,first_o, last_f,last_o = \
+        extent_struct.unpack_from(buf, at)
+    if sig != 0x41424344:
+        if check:
+            print 'ERROR: bad sig %x at %x(%d)' % (sig, at, at)
+        return None, None, None
+    ns = ns[:ns.find('\0')]
+    is_inx = '$' in ns and '_' in ns # xxx hack
+    if is_inx and do_btree: print_content = print_btree
+    elif not is_inx and do_bson: print_content = print_record_bson
+    else: print_content = None
+    def pending():
+        print '%d:%x: extent sig=%x loc=%d:%x' % (loc_f, at, sig, loc_f, loc_o),
+        print 'next=%x:%x prev=%x:%x' % (next_f, next_o, prev_f, prev_o),
+        print 'ns=%s len=%x(%d)' % (ns, l, l),
+        print 'first=%x:%x last=%x:%x' % (first_f, first_o, last_f, last_o)
+    if do_records:
+        r0 = at+176 if not is_inx else at+0x1000
+        if do_records_next:
+            pending = records_list(buf, r0, at+l, first_o, True, pending)
+        if do_records_prev:
+            pending = records_list(buf, r0, at+l, last_o, False, pending)
+        if do_records_oplog:
+            records_key(buf, r0, at+l, at, ts_key, 'ts')
+        visit_records(buf, r0, at+l, print_content, print_record, at, pending)
+        #def visit_records(buf, at, end, do_bson, per_record, ext_at=None, pending=None):
+    else:
+        pending()
+    return next_f, next_o, l
+
 def extents(buf, at, end):
     while at+176 < end:
-        sig, loc_f,loc_o, next_f,next_o, prev_f,prev_o, ns, l, first_f,first_o, last_f,last_o = \
-            extent_struct.unpack_from(buf, at)
-        if sig != 0x41424344:
+        _, _, l = extent(buf, at, False)
+        if l is None:
             break
-        ns = ns[:ns.find('\0')]
-        is_inx = '$' in ns and '_' in ns # xxx hack
-        if is_inx and do_btree: print_content = print_btree
-        elif not is_inx and do_bson: print_content = print_record_bson
-        else: print_content = None
-        def pending():
-            print '%d:%x: extent sig=%x loc=%d:%x' % (loc_f, at, sig, loc_f, loc_o),
-            print 'next=%x:%x prev=%x:%x' % (next_f, next_o, prev_f, prev_o),
-            print 'ns=%s len=%x(%d)' % (ns, l, l),
-            print 'first=%x:%x last=%x:%x' % (first_f, first_o, last_f, last_o)
-        if do_records:
-            r0 = at+176 if not is_inx else at+0x1000
-            if do_records_next:
-                pending = records_list(buf, r0, at+l, first_o, True, pending)
-            if do_records_prev:
-                pending = records_list(buf, r0, at+l, last_o, False, pending)
-            if do_records_oplog:
-                records_key(buf, r0, at+l, at, ts_key, 'ts')
-            visit_records(buf, r0, at+l, print_content, print_record, at, pending)
-            #def visit_records(buf, at, end, do_bson, per_record, ext_at=None, pending=None):
-        else:
-            pending()
         at += l
-    return next_f, next_o
 
 #
 # files as buffers
@@ -334,9 +356,9 @@ def collection(dbpath, ns):
                             break
             if do_extents:
                 f, o = first_f, first_o
-                while o > 0:
+                while o is not None and o > 0:
                     xbuf = get_db_buf(dbpath, db, f)
-                    f, o = extents(xbuf, o, o+177)
+                    f, o, _ = extent(xbuf, o, True)
         at += 628
 
 
@@ -356,12 +378,17 @@ do_records_next = 'n' in flags
 do_records_prev = 'p' in flags
 do_bson = 'b' in flags or 'B' in flags
 do_bson_detail = 'B' in flags
-do_btree = 't' in flags
+do_btree = 't' in flags or 'T' in flags
+do_btree_detail = 'T' in flags
 do_records_oplog = 'o' in flags
 do_collection = 'c' in flags
 do_free = 'f' in flags
 
 find = ''
+
+print_content = None
+if do_btree: print_content = print_btree
+if do_bson: print_content = print_record_bson
 
 if do_collection:
     dbpath = sys.argv[2]
@@ -387,11 +414,11 @@ elif do_extents: # mdb x[rb] file [addr]
 elif do_records: # mdb r[b] file addr
     buf = open(sys.argv[2]).read()
     at = int(sys.argv[3], 0)
-    visit_records(buf, at, at+1, print_record_bson if do_bson else None, print_record)
+    visit_records(buf, at, at+1, print_content, print_record)
 elif do_records_multi: # mdb s[b] file addr
     buf = open(sys.argv[2]).read()
     at = int(sys.argv[3], 0)
-    visit_records(buf, at, len(buf), print_record_bson if do_bson else None, print_record)
+    visit_records(buf, at, len(buf), print_content, print_record)
 elif do_bson: # mdb b file addr [len]
     buf = open(sys.argv[2]).read()
     at = int(sys.argv[3], 0)
