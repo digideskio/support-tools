@@ -566,6 +566,7 @@ def checkNewIssues(db)
   time = Time.now
   finalQuery = @jiraquery
   finalQuery["jira.fields.created"] = {"$gte"=> @lastChecked }
+  @lastChecked = Time.now
   #Compare the current List of issues to the old, update if needed
   db.collection("issues").find(finalQuery).each do |issue|
     if @soundOn
@@ -645,7 +646,6 @@ def mainJiraThread(db)
       checkNewIssues(db)
       #Check for new proactive issues
       checkNewProactive(db)
-      @lastChecked = Time.now
     else
       doQueueRead(db)
     end
