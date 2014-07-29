@@ -89,6 +89,9 @@ options = {
 #Hash of Issues in Jira
 @issues = {}
 
+#Time of each check is tracked
+@lastChecked = Time.now
+
 #IPC Thread
 @ipcqueue = Queue.new
 @chatRequests = Queue.new
@@ -104,8 +107,6 @@ if mode == 'api'
 else
   client = Mongo::MongoClient.from_uri(@dbURI,@dbConnOpts).db('support')
 end
-#Initialize our view of the queue, after the chat starts given a JIRA read can take time.
-readAndUpdateJiraCS(client, @jiraquery, true)
 
 #Fork Threads
 if @soundOnlyMode == false

@@ -389,12 +389,14 @@ def doQueueRead(db)
       case arg
         when 'REVIEW'
           key = array.shift
+          #pre-treat any requests for review of a URL
           if key.include? "HTTP"
             key = key.split("/")[-1]
           end
           #Remove any trailing nasties
           key = key.chomp().chomp(',').chomp('.')
 
+          #Setup the reviewers queue
           who = array.shift
           reviewers = []
           array.each do |entry|
@@ -408,28 +410,8 @@ def doQueueRead(db)
               end
             end
           end
+          #Push into DB
           db.collection("reviews").update({:key=> key},{:key=> key, :done => false, :requested_by =>who, :reviewers=>reviewers},{:upsert => true} )
-          if @issues.has_key? key
-            @issues[key][:rv] = 'r'
-            @issues[key][:rvt] = Time.now
-            @issues[key][:lgtms] = []
-            @issues[key][:reviewers] = reviewers
-          else
-            data = {
-                :id => nil,
-                :p => 3,
-                :tc => Time.now,
-                :ts => Time.now,
-                :new => false,
-                :ctr => 0,
-                :ex => true,
-                :rv => 'r',
-                :rvt => Time.now,
-                :lgtms => [],
-                :reviewers => reviewers
-            }
-            @issues[key] = data
-          end
           msg = "#{who} requested review of #{key}"
           unless reviewers.empty?
             msg += " from #{reviewers.join(', ')}"
@@ -442,8 +424,8 @@ def doQueueRead(db)
           if key.include? "HTTP"
             key = key.split("/")[-1]
           end
-          if @issues.has_key? key
-            @issues[key][:rv] = nil
+          obj = db.collection("reviews").find_one({:key=> key})
+          if obj != nil
             msg = "Review of #{key} finalized by #{who}"
             #Broadcast to IRC as well as XMPP
             @ipcqueue.push({'msg'=>msg, 'dst' => @ircRoomName}) if msg != nil
@@ -455,9 +437,8 @@ def doQueueRead(db)
           if key.include? "HTTP"
             key = key.split("/")[-1]
           end
-          if @issues.has_key? key
-            @issues[key][:rv] = 'n'
-            @issues[key][:lgtms] = []
+          obj = db.collection("reviews").find_one({:key=> key})
+          if obj != nil
             msg = "Review of #{key} set to 'needs work' by #{who}"
             #Broadcast to IRC as well as XMPP
             @ipcqueue.push({'msg'=>msg, 'dst' => @ircRoomName}) if msg != nil
@@ -469,71 +450,45 @@ def doQueueRead(db)
           if key.include? "HTTP"
             key = key.split("/")[-1]
           end
-          if @issues.has_key? key
-            @issues[key][:lgtms].push who
-            @issues[key][:lgtms].uniq!
+          obj = db.collection("reviews").find_one({:key=> key})
+          if obj != nil
             msg = "Issue #{key} LGTM'd by #{who}"
             #Broadcast to IRC as well as XMPP
             @ipcqueue.push({'msg'=>msg, 'dst' => @ircRoomName}) if msg != nil
             db.collection("reviews").update({:key=> key},{"$push" => { :lgtms => who}})
           end
-        when 'SAVESTATE'
-          saveState
-          msg = "State Saved"
-        when 'LOADSTATE'
-          loadState
-          if dst['recip'] != 'nobody'
-            msg = "State Loaded"
-          end
-        when 'IGNORE'
-          key = array.shift
-          if @issues.has_key? key
-            @issues[key][:ex] = true
-            msg = "Issue #{key} added to ignore list"
-          end
-        when 'ACTIVE'
-          key = array.shift
-          if @issues.has_key? key
-            @issues[key][:ex] = false
-            @issues[key][:ctr] = 3
-            msg = "Issue #{key} added to active list"
-          end
         when 'LIST'
-          doIgn = false
-          if !array.empty? && array[0] == 'IGNORED'
-            doIgn = true
+          project = nil
+          if !array.empty?
+            project = array[0]
           end
-          if doIgn
-            msg = "List of Ignored issues:\n"
+          if array
+            msg = "List of Active issues in #{project}:\n"
           else
             msg = "List of Active issues:\n"
           end
-          @issues.each_key do |key|
-            #Xor Bitches
-            unless @issues[key][:ex] ^ doIgn
-              msg += "#{escapeKey(key)}\n"
-            end
-            if @issues[key][:rv] == 'r'
-              msg += "Review "
-              unless @issues[key][:warned] == nil || @issues[key][:warned] == false
-                msg += "*"
-              end
-              msg += escapeKey(key)
-              if @issues[key][:reviewers] != nil
-                if @issues[key][:reviewers].size > 0
-                  msg += " (by #{@issues[key][:reviewers].join(',')})"
+          query = {"done" => { "$ne" => true}}
+          if project
+            query["key"] = /#{project.upcase}/
+          end
+          db.reviews.find(query).each do |key|
+            if key["done"] == false
+              msg += "Review #{escapeKey(key)}"
+              if key[:reviewers] != nil
+                if key[:reviewers].size > 0
+                  msg += " (by #{key[:reviewers].join(',')})"
                 end
               end
-              if @issues[key][:lgtms] != nil
-                if @issues[key][:lgtms].size > 0
-                  msg += " LGTMs: #{@issues[key][:lgtms].join(',')}"
+              if key[:lgtms] != nil
+                if key[:lgtms].size > 0
+                  msg += " LGTMs: #{key[:lgtms].join(',')}"
                 end
               end
-              msg+="\n"
             end
-            if @issues[key][:rv] == 'n'
-              msg += "Needs work #{escapeKey(key)}\n"
+            if key["done"] == "needs work"
+              msg += "Needs work #{escapeKey(key)}"
             end
+            msg+="\n"
           end
         when 'SOUNDCHECK'
           soundEffect
@@ -579,112 +534,49 @@ def doQueueRead(db)
 end
 
 def checkForFinalized(db)
-  @issues.each_key do |key|
-    if @issues[key][:rv]
-      begin
-        if @issues[key][:warned] == nil || @issues[key][:warned] == false
-          ir = db.collection("issues").find_one('jira.key'=>key)
-            status = ir["jira"]["fields"]["status"]["id"]
-          lastComment = ir["jira"]["fields"]["comment"]['comments'][-1]
-          # Confirm that there is a comment on the issue
-          unless lastComment == nil
-            if (!lastComment.has_key? "visibility") && (!['1','3'].include? status)
-              @chatRequests.push("#{@defaultXMPPRoom} XMPP FIN #{key} Auto:pushed")
-              @chatRequests.push("#{@supportIRCChan} IRC FIN #{key} Auto:pushed")
-            end
+  db.reviews.find({"done" => { "$ne" => true}}).each do |iss|
+    begin
+      ir = db.collection("issues").find_one('jira.key'=>iss["key"])
+        status = ir["jira"]["fields"]["status"]["id"]
+        lastComment = ir["jira"]["fields"]["comment"]['comments'][-1]
+        # Confirm that there is a comment on the issue
+        unless lastComment == nil
+          if (!lastComment.has_key? "visibility") && (!['1','3'].include? status)
+            @chatRequests.push("#{@defaultXMPPRoom} XMPP FIN #{key} Auto:pushed")
+            @chatRequests.push("#{@supportIRCChan} IRC FIN #{key} Auto:pushed")
           end
         end
-      rescue => e
-        logOut "Error in processing autocomplete #{key} - #{e}"
-        logOut "Backtrace: #{e.backtrace}"
-        if @issues[key][:warned] == nil || @issues[key][:warned] == false
-          @issues[key][:warned] = true
-          @ipcqueue.push({'msg'=>"Unable to find issue '#{key}' for auto finalize", 'dst' => @roomName})
-          @ipcqueue.push({'msg'=>"Unable to find issue '#{key}' for auto finalize", 'dst' => @ircRoomName})
-        end
-        return
-      end
+    rescue => e
+      logOut "Error in processing autocomplete #{key} - #{e}"
+      logOut "Backtrace: #{e.backtrace}"
+      return
     end
   end
 end
 
-# Function - readAndUpdateJira
-# Will read from the Jira REST API using the given client and update the global hash of current issues in the support CS Queue
-# Has an optional "init" value which lets you specify if you want to be alerted
-def readAndUpdateJiraCS(db,query,init = false)
-
-  #Set the Current TS for this lap
+#Checks to see if we have had new issues raised
+def checkNewIssues(db)
   time = Time.now
-
+  finalQuery = @jiraInterval
+  finalQuery["jira"]["fields"]["created"] = {"$gte"=> @lastChecked }
   #Compare the current List of issues to the old, update if needed
-  db.collection("issues").find(query).each do |issue|
-    begin
-      unless @issues.has_key? issue["jira"]["key"]
-        msg = ""
-        #Issue ID, Priority, timeCreated, currentTime, new or old, counter of times seen, excluded from nagging?, slabreach nag done?, review needed?
-        data = {
-            id: issue["jira"]["id"],
-            p: issue["jira"]["fields"]['priority']['id'],
-            tc: issue["jira"]["fields"]['created'],
-            ts: time,
-            new: false,
-            ctr: 0,
-            ex: false,
-            exsla: false,
-            rv: nil,
-            rvt: nil
-        }
-
-        #New Issue or returning old issue?
-        if issue["jira"]["fields"]['created'].to_i >= (Time.now.to_i - (@jiraInterval*4))
-          msg = "New #{issue["jira"]["fields"]['priority']['name'].split()[0]} - #{issue["jira"]["fields"]['reporter']['displayName']}"
-          if issue["jira"]["fields"]['customfield_10030']
-            msg += " from #{issue["jira"]["fields"]['customfield_10030']['name']}"
-          end
-          msg += " created #{issue["jira"]["key"]}: #{issue["jira"]['fields']['summary']}"
-          data[:new] = true
-          if @soundOn
-            begin
-              soundEffect(issue["jira"]["key"], issue["jira"]["fields"]['priority']['name'].split()[0])
-            rescue => e
-              logOut "Error playing soundEffect: #{e}"
-            end
-          end
-        end
-
-        if init
-          data[:ex] = true
-        else
-          @ipcqueue.push({'msg'=>msg, 'dst' => @roomNameNewIssue}) if msg != nil
-          @ipcqueue.push({'msg'=>msg, 'dst' => @ircNameNewIssue}) if msg != nil
-        end
-        @issues[issue["jira"]["key"]] = data
+  db.collection("issues").find(finalQuery).each do |issue|
+    if @soundOn
+      begin
+        soundEffect(issue["jira"]["key"], issue["jira"]["fields"]['priority']['name'].split()[0])
+      rescue => e
+        logOut "Error playing soundEffect: #{e}", 1
       end
-      @issues[issue["jira"]["key"]][:ts] = time
-      @issues[issue["jira"]["key"]][:ctr] += 1
-    rescue => e
-      logOut "Error in processing thread: #{e}"
-      logOut "Backtrace: #{e.backtrace}"
-      logOut issue["jira"]["key"]
     end
+    msg = "New #{issue["jira"]["fields"]['priority']['name'].split()[0]} - #{issue["jira"]["fields"]['reporter']['displayName']}"
+    if issue["jira"]["fields"]['customfield_10030']
+      msg += " from #{issue["jira"]["fields"]['customfield_10030']['name']}"
+    end
+    msg += " created #{issue["jira"]["key"]}: #{issue["jira"]['fields']['summary']}"
+    @ipcqueue.push({'msg'=>msg, 'dst' => @roomNameNewIssue}) if msg != nil
+    @ipcqueue.push({'msg'=>msg, 'dst' => @ircNameNewIssue}) if msg != nil
   end
-
-  #Remove Old issues (assigned ones)
-  @issues.each_key do |key|
-    if @issues[key][:rv]
-      @issues[key][:ts] = time
-      @issues[key][:ctr] += 1
-    end
-    if @issues[key][:ts] != time
-      unless @issues[key][:proactive]
-        logOut "Issue #{key} was removed from register", 1
-        @issues.delete(key)
-      end
-    else
-      doNags(key)
-    end
-  end
-end #readAndUpdateJiraCS
+end
 
 #Checks for and alerts when there are new proactive tickets
 def checkNewProactive(db)
@@ -711,20 +603,6 @@ def checkNewProactive(db)
                       logOut "Error playing soundEffect: #{e}", 1
                     end
                   end
-                  data = {
-                      id: issue["jira"]["id"],
-                      p: issue["jira"]["fields"]['priority']['id'],
-                      tc: issue["jira"]["fields"]['created'],
-                      ts: time,
-                      new: false,
-                      ctr: 0,
-                      ex: false,
-                      exsla: false,
-                      rv: nil,
-                      rvt: nil,
-                      proactive: false
-                  }
-                  @issues[issue["jira"]["key"]] = data
                   msg = "Proactive issue #{issue["jira"]["key"]} has had customer response"
                   @proactiveAlertsSent.push issue["jira"]["key"]
                   @ipcqueue.push({'msg'=>msg, 'dst' => @roomNameNewIssue}) if msg != nil
@@ -742,17 +620,6 @@ def checkNewProactive(db)
       logOut issue["jira"]["key"]
     end
   end
-  @issues.each_key do |key|
-    if @issues[key][:proactive]
-      ir = db.collection("issues").find_one('jira.key'=>key)
-      status = ir["jira"]["fields"]["status"]["id"]
-      assignee = ir["jira"]["fields"]["assignee"]
-      unless status == "10005" || status == "10006" || assignee != nil
-        logOut "Issue #{key} was removed from register", 1
-        @issues.delete(key)
-      end
-    end
-  end
 end
 
 #Function mainJiraThread
@@ -762,24 +629,18 @@ def mainJiraThread(db)
   counter = 1
   while true
     if (counter % @jiraInterval) == 0
+      #Check chat messages
       doQueueRead(db)
+      #Check to see if anyone has pushed comments out
       checkForFinalized(db)
-      readAndUpdateJiraCS(db, @jiraquery)
+      #readAndUpdateJiraCS(db, @jiraquery)
+      #Check for new issues
+      checkNewIssues(db)
+      #Check for new proactive issues
       checkNewProactive(db)
+      @lastChecked = Time.now
     else
       doQueueRead(db)
-    end
-    if (counter % (60 * 20)) == 0
-      reviewCount = 0
-      @issues.each_key do |key|
-        if @issues[key][:rv] == 'r'
-          reviewCount+=1
-        end
-      end
-      if reviewCount > 0
-        @ipcqueue.push({'msg'=>"There are currently #{reviewCount} reviews in the queue", 'dst' => @roomName})
-      end
-      counter = 0
     end
     counter += 1
     sleep 1
