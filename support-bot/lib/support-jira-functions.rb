@@ -462,7 +462,7 @@ def doQueueRead(db)
           if !array.empty?
             project = array[0]
           end
-          if array
+          if project
             msg = "List of Active issues in #{project}:\n"
           else
             msg = "List of Active issues:\n"
