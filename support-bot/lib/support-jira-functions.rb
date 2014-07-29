@@ -473,7 +473,7 @@ def doQueueRead(db)
           end
           db.collection("reviews").find(query).each do |key|
             if key["done"] == false
-              msg += "Review #{escapeKey(key)}"
+              msg += "Review #{escapeKey(key["key"])}"
               if key[:reviewers] != nil
                 if key[:reviewers].size > 0
                   msg += " (by #{key[:reviewers].join(',')})"
