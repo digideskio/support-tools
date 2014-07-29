@@ -471,7 +471,7 @@ def doQueueRead(db)
           if project
             query["key"] = /#{project.upcase}/
           end
-          db.reviews.find(query).each do |key|
+          db.collection("reviews").find(query).each do |key|
             if key["done"] == false
               msg += "Review #{escapeKey(key)}"
               if key[:reviewers] != nil
@@ -534,7 +534,7 @@ def doQueueRead(db)
 end
 
 def checkForFinalized(db)
-  db.reviews.find({"done" => { "$ne" => true}}).each do |iss|
+  db.collection("reviews").find({"done" => { "$ne" => true}}).each do |iss|
     begin
       ir = db.collection("issues").find_one('jira.key'=>iss["key"])
         status = ir["jira"]["fields"]["status"]["id"]
