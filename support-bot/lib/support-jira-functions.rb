@@ -473,7 +473,11 @@ def doQueueRead(db)
           end
           db.collection("reviews").find(query).each do |key|
             if key["done"] == false
-              msg += "Review #{escapeKey(key["key"])}"
+              msg += "Review "
+              if @autoCompleteFails.include? key["key"]
+                msg += "*"
+              end
+              msg += "#{escapeKey(key["key"])}"
               if key["reviewers"] != nil
                 if key["reviewers"].size > 0
                   msg += " (by #{key["reviewers"].join(',')})"
@@ -486,7 +490,7 @@ def doQueueRead(db)
               end
             end
             if key["done"] == "needs work"
-              msg += "Needs work #{escapeKey(key)}"
+              msg += "Needs work #{escapeKey(key["key"])}"
             end
             msg+="\n"
           end
@@ -536,7 +540,8 @@ end
 def checkForFinalized(db)
   db.collection("reviews").find({"done" => { "$ne" => true}}).each do |issue|
     begin
-      ir = db.collection("issues").find_one('jira.key'=>issue["key"])
+      unless @autoCompleteFails.include? issue["key"]
+        ir = db.collection("issues").find_one('jira.key'=>issue["key"])
         status = ir["jira"]["fields"]["status"]["id"]
         lastComment = ir["jira"]["fields"]["comment"]['comments'][-1]
         # Confirm that there is a comment on the issue
@@ -546,7 +551,9 @@ def checkForFinalized(db)
             @chatRequests.push("#{@supportIRCChan} IRC FIN #{issue["key"]} Auto:pushed")
           end
         end
+      end
     rescue => e
+      @autoCompleteFails.push issue["key"]
       logOut "Error in processing autocomplete #{issue["key"]} - #{e}"
       logOut "Backtrace: #{e.backtrace}"
       return

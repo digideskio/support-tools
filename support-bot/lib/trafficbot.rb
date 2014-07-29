@@ -92,6 +92,9 @@ options = {
 #Time of each check is tracked
 @lastChecked = Time.now
 
+#List of items we have failed to auto complete
+@autoCompleteFails = []
+
 #IPC Thread
 @ipcqueue = Queue.new
 @chatRequests = Queue.new
