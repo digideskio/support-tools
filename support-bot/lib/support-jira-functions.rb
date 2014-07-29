@@ -481,7 +481,7 @@ def doQueueRead(db)
               end
               if key["lgtms"] != nil
                 if key["lgtms"].size > 0
-                  msg += " LGTMs: #{key[:lgtms].join(',')}"
+                  msg += " LGTMs: #{key["lgtms"].join(',')}"
                 end
               end
             end
