@@ -557,8 +557,8 @@ end
 #Checks to see if we have had new issues raised
 def checkNewIssues(db)
   time = Time.now
-  finalQuery = @jiraInterval
-  finalQuery["jira"]["fields"]["created"] = {"$gte"=> @lastChecked }
+  finalQuery = @jiraquery
+  finalQuery["jira.fields.created"] = {"$gte"=> @lastChecked }
   #Compare the current List of issues to the old, update if needed
   db.collection("issues").find(finalQuery).each do |issue|
     if @soundOn
