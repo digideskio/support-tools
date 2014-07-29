@@ -1,6 +1,6 @@
 { "workflow" :[ {
 	"name" : "ProactiveResp1", 
-	"base_filter" : {"fields.issuetype.id" : "23", "fields.status.id" : {"$in" : [ "1", "3", "10006", "4" ]}},
+	"base_filter" : {"jira.fields.issuetype.id" : "23", "jira.fields.status.id" : {"$in" : [ "1", "3", "10006", "4" ]}},
 	"time_passed" : 172800,  
 	"postFilterFunction" : "userInformedOfTicket",
 	"workflow_action" : "Wait for Customer",
@@ -8,7 +8,7 @@
 },
 { 
 	"name" : "ProactiveResp2", 
-	"base_filter" : {"fields.issuetype.id" : "23", "fields.status.id" : {"$in" : [ "1", "3", "10006", "4" ]}},
+	"base_filter" : {"jira.fields.issuetype.id" : "23", "jira.fields.status.id" : {"$in" : [ "1", "3", "10006", "4" ]}},
 	"time_passed" : 172800, 
 	"postFilterFunction" : "userInformedOfTicket",
 	"workflowPrereq" : ["ProactiveResp1"],
@@ -17,7 +17,7 @@
 },
 { 
 	"name" : "ProactiveResp3", 
-	"base_filter" : {"fields.issuetype.id" : "23", "fields.status.id" : {"$in" : [ "1", "3", "10006", "4" ]}},
+	"base_filter" : {"jira.fields.issuetype.id" : "23", "jira.fields.status.id" : {"$in" : [ "1", "3", "10006", "4" ]}},
 	"time_passed" : 259200,
 	"postFilterFunction" : "userInformedOfTicket",
 	"workflowPrereq" : ["ProactiveResp2"],

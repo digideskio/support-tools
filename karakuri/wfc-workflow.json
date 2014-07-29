@@ -1,0 +1,26 @@
+{ "workflow" :[ {
+	"name" : "WFC1", 
+	"base_filter" : {"jira.fields.issuetype.id" : { "$ne" : "23"}, "jira.fields.project.key" : {"$in" : [ "CS", "MMSSUPPORT", "SUPPORT" ]}},
+	"time_passed" : 345600,
+	"workflow_action" : "Wait for Customer",
+	"workflow_comment" : {"body":"Dear MongoDB Support Customer,\n\nWe have not heard back from you in the past 4 days and would like to follow up on the status of this issue.\n\n Is there further we can do to help you?\n\nBest regards,\nMongoDB Support" }
+},
+{ 
+	"name" : "WFC2", 
+	"base_filter" : {"jira.fields.issuetype.id" : { "$ne" : "23"}, "jira.fields.project.key" : {"$in" : [ "CS", "MMSSUPPORT", "SUPPORT" ]}},
+	"time_passed" : 172800, 
+	"postFilterFunction" : "wasLastMe?",
+	"workflowPrereq" : ["WFC1"],
+	"workflow_action" : "Wait for Customer",
+	"workflow_comment" : {"body":"Dear MongoDB User,\n\nThis is a second friendly follow up. Is there anything further we can do for you on this issue? If not we will mark it as closed in the coming days.\n\nBest regards,\nMongoDB Support" }
+},
+{ 
+	"name" : "WFC3", 
+	"base_filter" : {"jira.fields.issuetype.id" : { "$ne" : "23"}, "jira.fields.project.key" : {"$in" : [ "CS", "MMSSUPPORT", "SUPPORT" ]}},
+	"time_passed" : 172800,
+	"postFilterFunction" : "wasLastMe?",
+	"workflowPrereq" : ["WFC2"],
+	"workflow_action" : "Resolve Issue",
+	"workflow_comment" : {"body":"Dear MongoDB User,\n\nWe are closing this ticket as we have not heard back from you. If you would like help with the issues raised in the ticket either now or in the future please feel free to reopen it.\n\nBest regards,\nMongoDB Support" }
+} ] }
+

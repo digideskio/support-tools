@@ -534,20 +534,20 @@ def doQueueRead(db)
 end
 
 def checkForFinalized(db)
-  db.collection("reviews").find({"done" => { "$ne" => true}}).each do |iss|
+  db.collection("reviews").find({"done" => { "$ne" => true}}).each do |issue|
     begin
-      ir = db.collection("issues").find_one('jira.key'=>iss["key"])
+      ir = db.collection("issues").find_one('jira.key'=>issue["key"])
         status = ir["jira"]["fields"]["status"]["id"]
         lastComment = ir["jira"]["fields"]["comment"]['comments'][-1]
         # Confirm that there is a comment on the issue
         unless lastComment == nil
           if (!lastComment.has_key? "visibility") && (!['1','3'].include? status)
-            @chatRequests.push("#{@defaultXMPPRoom} XMPP FIN #{key} Auto:pushed")
-            @chatRequests.push("#{@supportIRCChan} IRC FIN #{key} Auto:pushed")
+            @chatRequests.push("#{@defaultXMPPRoom} XMPP FIN #{issue["key"]} Auto:pushed")
+            @chatRequests.push("#{@supportIRCChan} IRC FIN #{issue["key"]} Auto:pushed")
           end
         end
     rescue => e
-      logOut "Error in processing autocomplete #{key} - #{e}"
+      logOut "Error in processing autocomplete #{issue["key"]} - #{e}"
       logOut "Backtrace: #{e.backtrace}"
       return
     end

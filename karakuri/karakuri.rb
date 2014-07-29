@@ -51,7 +51,7 @@ def loadWorkflow (file)
 end
 
 def timePassed(db, key)
-	return Time.now.to_i - key["fields"]['updated'].to_i
+	return Time.now.to_i - key["jira"]["fields"]['updated'].to_i
 end
 
 def haveDone? (db, key, action)
@@ -74,7 +74,7 @@ def prerequsMet(db, key, prereqs)
 end
 
 def userNotResponded(db, key)
-	key["fields"]["comment"]["comments"].each do |comment|
+	key["jira"]["fields"]["comment"]["comments"].each do |comment|
 		unless isMongoDB? comment["author"]["emailAddress"]
 			return false
 		end
@@ -91,7 +91,7 @@ end
 
 def userInformedOfTicket(db, key)
 	if userNotResponded(db, key)
-		if key["fields"]["customfield_10030"] != nil || !isMongoDB?(key["fields"]["assignee"]["emailAddress"]) || !isMongoDB?(key["fields"]["reporter"]["emailAddress"])
+		if key["jira"]["fields"]["customfield_10030"] != nil || !isMongoDB?(key["jira"]["fields"]["assignee"]["emailAddress"]) || !isMongoDB?(key["jira"]["fields"]["reporter"]["emailAddress"])
 			return true
 		end
 	end
@@ -106,6 +106,13 @@ def smartWorkflowTransiton(client, key, trans_name)
 		end
 	end
 	return false
+end
+
+def wasLastMe?(db, key)
+  lastComment = key["jira"]["fields"]["comment"]["comments"][-1]
+  if lastComment["emailAddress"] = "trafficbot@10gen.com"
+    return true;
+  end
 end
 
 def shouldI?(db, key, name)
