@@ -1,7 +1,7 @@
 ###################
 # mdiag.ps1 - Windows Diagnostic Script for MongoDB
 #
-# Copyright MongoDB 2014. All rights reserved.
+
 $diagfile = $("mdiag-" + $(hostname) + ".txt")
 
 Function msection
