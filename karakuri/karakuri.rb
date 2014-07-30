@@ -51,7 +51,7 @@ def loadWorkflow (file)
 end
 
 def timePassed(db, key)
-	return Time.now.to_i - key["jira"]["fields"]['updated'].to_i
+	return Time.now.to_i - key['jira']["fields"]['updated'].to_i
 end
 
 def haveDone? (db, key, action)
@@ -64,6 +64,9 @@ def prerequsMet(db, key, prereqs)
 	if done == nil
 		return false
 	end
+    unless done.include? "actions_taken"
+        return false
+    end
 	list = done["actions_taken"]
 	prereqs.each do |prereq|
 		unless list.include? prereq
@@ -148,7 +151,7 @@ def shouldI?(db, key, name)
     return false
   end
   #Is a doc, are we okay to send?
-  if doc["actions_approved"].include? name
+  if doc.include? "actions_approved" and doc["actions_approved"].include? name
     return true
   else
     db.collection("karakuri").update({"key" => key}, {"$addToSet" => { "actions_wanted" => name}},{:upsert => true})
@@ -161,37 +164,47 @@ def labelsGood?(db, key)
   db.collection("issues").find({'jira.key'=> key["key"]})
 end
 
-def workflowIteration(db, client, workflow, limit)
+def workflowIteration(db, client, passedArgs)
+    workflow = loadWorkflow(passedArgs.file)
+
+    if passedArgs.mode == "i"
+        limit = 0
+    else
+        limit = passedArgs.limit
+    end
+
 	processesedThisLap = []
 	workflow.each do |wItem|
+        logOut "Considering #{wItem["name"]}..."
 		query = wItem["base_filter"]
 		db.collection("issues").find(query, {:limit => limit}).each do |key|
-			unless processesedThisLap.include? key["key"]
-				unless haveDone?(db, key["key"], wItem["name"])
+			unless processesedThisLap.include? key['jira']["key"]
+				unless haveDone?(db, key['jira']["key"], wItem["name"])
 					if wItem["time_passed"] < timePassed(db, key)
 						go = false
 
             #Have we met all the prerequisites?
 						if wItem.has_key? "workflowPrereq" 
-							if prerequsMet(db, key["key"], wItem["workflowPrereq"])
+							if prerequsMet(db, key['jira']["key"], wItem["workflowPrereq"])
+                                go = true
 							end
 						else
 							go = true
             end
             if go
-              go = shouldI?(db, key["key"], wItem["name"])
+              go = shouldI?(db, key['jira']["key"], wItem["name"], passedArgs)
             end
 						if go
 							begin
 								res = methods.send(wItem["postFilterFunction"], db, key)
 								if res 
-									logOut "Workflow #{wItem["name"]} triggered for #{key["key"]}"
+									logOut "Workflow #{wItem["name"]} triggered for #{key['jira']["key"]}"
 									unless @demo
-										ir = client.Issue.find(key["key"])
+										ir = client.Issue.find(key['jira']["key"])
 										c = ir.comments.build
 										out = c.save(wItem["workflow_comment"])
 										unless out
-											logOut "Writing comment on #{key["key"]} for action #{wItem["workflow_comment"]}"
+											logOut "Writing comment on #{key['jira']["key"]} for action #{wItem["workflow_comment"]}"
 										end
 										t_id = smartWorkflowTransiton(client, ir, wItem["workflow_action"])
 										if t_id != nil
@@ -202,15 +215,15 @@ def workflowIteration(db, client, workflow, limit)
 												out = t.save("transition" => {"id" => t_id})
 											end
 											unless out
-												logOut "Failed workflow transition on #{key["key"]} for #{wItem["workflow_action"]}"
+												logOut "Failed workflow transition on #{key['jira']["key"]} for #{wItem["workflow_action"]}"
 											end
                     end
-                    db.collection("karakuri").update({"key"=>key["key"]},{"$push" => {"actions_taken" => wItem["name"]}, "$pull" => { "actions_approved" => wItem["name"]}},{:upsert => true})
+                    db.collection("karakuri").update({"key"=>key['jira']["key"]},{"$push" => {"actions_taken" => wItem["name"]}, "$pull" => { "actions_approved" => wItem["name"]}},{:upsert => true})
 									end
-									processesedThisLap.push(key["key"])
+									processesedThisLap.push(key['jira']["key"])
 								end
 							rescue => e
-								logOut "Caught exception: #{e} while processing #{wItem["name"]} on #{key["key"]}"
+								logOut "Caught exception: #{e} while processing #{wItem["name"]} on #{key['jira']["key"]}"
 								logOut e.backtrace
 							end
 						end
@@ -225,13 +238,13 @@ workflow = loadWorkflow(passedArgs.file)
 
 #Run as a daemon
 while passedArgs.mode == "d"
-  workflowIteration(db, client, workflow, passedArgs.limit)
+  workflowIteration(db, client, passedArgs)
 	sleep 60
 end
 
 #Run one instance before leaving in cron mode
 if passedArgs.mode == "c"
-  workflowIteration(db, client, workflow, passedArgs.limit)
+  workflowIteration(db, client, passedArgs)
 end
 
 #Run interractively. Ick
@@ -259,5 +272,5 @@ if passedArgs.mode == "i"
   #We check when running interactive, so no need for the Demo flag
   @demo = false
   #No limit when running interactive
-  workflowIteration(db, client, workflow, 0)
+  workflowIteration(db, client, passedArgs)
 end
