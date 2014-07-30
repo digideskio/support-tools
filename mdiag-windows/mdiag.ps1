@@ -1,6 +1,6 @@
 ###################
 # mdiag.ps1 - Windows Diagnostic Script for MongoDB
-# Author: "Pat Gunn" <pgunn@mongodb.com>
+#
 # Copyright MongoDB 2014. All rights reserved.
 $diagfile = $("mdiag-" + $(hostname) + ".txt")
 
