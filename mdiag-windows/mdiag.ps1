@@ -90,7 +90,6 @@ Function _docmd
 	$text = ""
 	$ok = 1;
 	Try 	{
-		#echo "Trying to run command [$args]`n"
 		$text = $(Invoke-Expression "$args -ErrorAction Stop")
 		}
 	Catch	{$ok = 0}
