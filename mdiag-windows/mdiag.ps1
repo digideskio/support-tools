@@ -42,32 +42,19 @@ Function endsubsection
 
 Function runcommand
 	{
-	$ok, $txt = _docmd "$args" # Quotes stringify the object
-	if($ok)
-		{
-		echo "Result of [$args]: $txt`n"
-		}
-	else	{
-		echo "Result of [$args]: COMMAND FAILED`n"
-		}
+	$cmdobj = _docmd "$args" # Quotes stringify the object
+	echo $(ConvertTo-Json $cmdobj)
 	}
+
 Function getfiles
 	{
 	foreach ($filename in $args)
 		{
-		if(_file_exists $filename)
-			{
-			$contents 	= _readfile $filename
-			$stat		= _statfile $filename
-			echo $("File [$filename]: First 2 lines:`n" + $contents[0] + "`n" + $contents[1] + "`n")
-			echo $("File has mode " + $stat[0] + "`n`n")
-			}
-		else
-			{
-			echo "File [$filename]: Does not exist`n"
-			}
+		$fileobj = _dofile "$filename"
+		echo $(ConvertTo-Json $fileobj)
 		}
 	}
+
 ###############
 # Generic internal functions
 #
@@ -78,42 +65,86 @@ Function _in_section
 	if($thissection -ne $Null) {return 1;}
 	return 0;
 	}
+
 Function _in_subsection
 	{
 	if($subsection -ne $Null) {return 1;}
 	return 0;
 	}
+
+Function _dofile($fn)
+	{
+	$ret = New-Object PSObject
+
+	if(_file_exists $fn)
+		{
+		$fobj = Get-ChildItem $fn
+		Add-Member -InputObject $ret NoteProperty filename $((Resolve-Path $fn).toString())
+		Add-Member -InputObject $ret NoteProperty exists $True # Needed to get boolean value
+		Add-Member -InputObject $ret NoteProperty ls $((ls -l $fn).toString() )
+		Add-Member -InputObject $ret NoteProperty ctime $fobj.CreationTimeUTC
+		Add-Member -InputObject $ret NoteProperty atime $fobj.LastAccessTimeUTC
+		Add-Member -InputObject $ret NoteProperty mtime $fobj.LastWriteTimeUTC
+		Add-Member -InputObject $ret NoteProperty size $fobj.Length
+			# There are other things we could add to this if we liked.
+		Add-Member -InputObject $ret NoteProperty output $(_readfile $fn)
+		}
+	else
+		{
+		Add-Member -InputObject $ret NoteProperty filename "$fn" # Note this will not expand any wildcards or paths
+		Add-Member -InputObject $ret NoteProperty exists $False # Needed to get boolean value
+		}
+	return $ret
+	}
+
 Function _docmd
 	{
-	#Write-Error "Passed arguments [$args]`n"
-	$ret = ""
+	# Allow for conceptual differences between Unix and Windows here.
+	#Write-Error "Passed arguments [$args]`n" # Reenable this for debugging if you need
+	$ret = New-Object PSObject
+	$ts = @{}
+
+	Add-Member -InputObject $ret NoteProperty command "$args"
+	$retString = ""
 	$text = ""
 	$ok = 1;
+#	$ts['start'] = $(Invoke-Expression date).toString() # This just gave a human string in the output.
+	$ts['start'] = Get-Date # This gives a structured object including a JSON-friendly string.
+
 	Try 	{
+		#echo "Trying to run command [$args]`n"
 		$text = $(Invoke-Expression "$args -ErrorAction Stop")
 		}
 	Catch	{$ok = 0}
-	if($ok) {$ret = $text}
-	return $ok,$ret
+	$simpleOk = $?
+
+	$ts['end'] = Get-Date
+	if(! $simpleOk)
+		{$ok = 0;}
+
+	Add-Member -InputObject $ret NoteProperty ts $ts
+	Add-Member -InputObject $ret NoteProperty ok $ok
+	Add-Member -InputObject $ret NoteProperty retcode $retCode # Won't get a meaningful value if cmd did not launch
+
+	if($ok)
+		{
+		Add-Member -InputObject $ret NoteProperty output "$text"
+		}
+	return $ret
 	}
+
 Function _file_exists($filename)
 	{
 	if(Test-Path $filename) {return 1;}
 	return 0;
 	}
-Function _statfile($filename)
-	{
-	# Not sure what the best way to emulate this is.
-	# There is a family of methods that exist as follows:
-	# (Get-ChildItem $filename).methodname
-	# If I can't find a better way to get at this kind of info, I'll build a suitable list that way
-	$fo = Get-ChildItem $filename
-	return $fo.Mode,$fo.IsReadOnly,$fo.CreationTimeUTC,$fo.LastAccessTimeUTC,$fo.LastWriteTimeUTC,$fo.Length
-	}
+
 Function _readfile($filename)
 	{
-	return(Get-Content $filename);
+	$ret = Get-Content $filename | ForEach-Object {$_.toString()} # From Object list to list of strings
+	return $ret;
 	}
+
 ###############
 # JSON functions
 #
@@ -156,6 +187,6 @@ section stuff3
 endsection
 
 section stuff4
-	getfiles mdiag.ps1
+	getfiles sample.txt
 	getfiles /etc/*release*
 endsection
