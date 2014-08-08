@@ -42,16 +42,41 @@ Function endsubsection
 
 Function runcommand
 	{
+	if(! (_in_section) ) {throw "Internal error: Trying to run a command while not in a section";}
 	$cmdobj = _docmd "$args" # Quotes stringify the object
-	echo $(ConvertTo-Json $cmdobj)
+	Add-Member -InputObject $cmdobj NoteProperty section $thissection
+	if(_in_subsection)
+		{
+		Add-Member -InputObject $cmdobj NoteProperty subsection $subsection
+		}
+
+	Add-Content $diagfile $(ConvertTo-Json $cmdobj)
+	}
+
+Function runjsoncommand
+	{
+	if(! (_in_section)) {throw "Internal error: Trying to run a jsoncommand while not in a section";}
+	$objout = _dojsoncmd "$args" # Quotes stringify the object
+	Add-Member -InputObject $objout NoteProperty section $thissection
+	if(_in_subsection)
+		{
+		Add-Member -InputObject $objout NoteProperty subsection $subsection
+		}
+	Add-Content $diagfile $(ConvertTo-Json $objout)
 	}
 
 Function getfiles
 	{
+	if(! (_in_section)) {throw "Internal error: Trying to run getfiles while not in a section";}
 	foreach ($filename in $args)
 		{
 		$fileobj = _dofile "$filename"
-		echo $(ConvertTo-Json $fileobj)
+		Add-Member -InputObject $fileobj NoteProperty section $thissection
+		if(_in_subsection)
+			{
+			Add-Member -InputObject $fileobj NoteProperty subsection $subsection
+			}
+		Add-Content $diagfile $(ConvertTo-Json $fileobj)
 		}
 	}
 
@@ -133,6 +158,32 @@ Function _docmd
 	return $ret
 	}
 
+Function _dojsoncmd
+	{
+	# This runs a statement that returns JSON, being careful not to stringify it!
+	$ret = New-Object PSObject
+	$ok = $True
+	Try 	{ # The redirect here is a special hack for systeminfo which is chatty.
+		$val = Invoke-Expression "$args" 2>$null 3>$null
+		}
+	Catch	{
+		$val = New-Object PSObject
+		Add-Member -InputObject $val NoteProperty output "Error"
+		$ok = $False
+		}
+	Add-Member -InputObject $ret NoteProperty command "$args"
+	Add-Member -InputObject $ret NoteProperty ok $ok
+	if($ok)
+		{
+		Add-Member -InputObject $ret NoteProperty JSONOutput $True
+		Add-Member -InputObject $ret NoteProperty JSONValue $val
+		}
+	return $ret
+	}
+
+###############
+# File I/O operations (internal only)
+
 Function _file_exists($filename)
 	{
 	if(Test-Path $filename) {return 1;}
@@ -144,13 +195,6 @@ Function _readfile($filename)
 	$ret = Get-Content $filename | ForEach-Object {$_.toString()} # From Object list to list of strings
 	return $ret;
 	}
-
-###############
-# JSON functions
-#
-# Please don't call these in the script portion of the code. The API here will never freeze.
-
-# TODO - actually figure out the right abstraction for this.
 
 ###############
 # Script-scoped variables
@@ -182,7 +226,7 @@ section stuff3
 		runcommand uname -a
 	endsubsection
 	subsection bit3
-		runcommand stuff
+		runjsoncommand "systeminfo /fo csv | ConvertFrom-Csv"
 	endsubsection
 endsection
 
