@@ -15,14 +15,12 @@ Function section($sname)
 	if(_in_section) {throw "Internal error: starting new section [$sname] when already in section [$thissection]";}
 	$script:thissection = $sname
 	echo "Gathering section [$script:thissection]"
-	# TODO: Setup data structures for this section. Maybe output beginning of the JSON paragraph
 	}
 
 Function endsection
 	{
 	echo "Finished with section [$thissection]. Closing`n"
 	$script:thissection = $Null # Only real way to clear this; Remove-Variable didn't work right
-	# TODO: Clean (flush?) data structures for this section. Maybe output end of JSON paragraph
 	}
 
 Function subsection($ssname)
@@ -30,14 +28,12 @@ Function subsection($ssname)
 	if(_in_subsection) {throw "Internal error: starting new subsection [$ssname] when already in subsection [$subsection]";}
 	$script:subsection = $ssname
 	echo "Gathering subsection [$script:subsection]"
-	# TODO: Setup data structures for this section. Maybe output beginning of the JSON subparagraph
 	}
 
 Function endsubsection
 	{
 	echo "Finished with subsection [$subsection]. Closing`n"
 	$script:subsection = $Null
-	# TODO: Clean (flush?) data structures for this section. Maybe output end of JSON subparagraph
 	}
 
 Function runcommand
