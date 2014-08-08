@@ -1,6 +1,9 @@
 ###################
 # mdiag.ps1 - Windows Diagnostic Script for MongoDB
 
+param(
+[string] $ticket
+)
 
 $diagfile = $("mdiag-" + $(hostname) + ".txt")
 ##################
@@ -40,6 +43,8 @@ Function runcommand
 	{
 	if(! (_in_section) ) {throw "Internal error: Trying to run a command while not in a section";}
 	$cmdobj = _docmd "$args" # Quotes stringify the object
+	Add-Member -InputObject $cmdobj NoteProperty ref $ticket
+	Add-Member -InputObject $cmdobj NoteProperty run $(date)
 	Add-Member -InputObject $cmdobj NoteProperty section $thissection
 	if(_in_subsection)
 		{
@@ -53,6 +58,8 @@ Function runjsoncommand
 	{
 	if(! (_in_section)) {throw "Internal error: Trying to run a jsoncommand while not in a section";}
 	$objout = _dojsoncmd "$args" # Quotes stringify the object
+	Add-Member -InputObject $objout NoteProperty ref $ticket
+	Add-Member -InputObject $objout NoteProperty run $(date)
 	Add-Member -InputObject $objout NoteProperty section $thissection
 	if(_in_subsection)
 		{
@@ -67,6 +74,8 @@ Function getfiles
 	foreach ($filename in $args)
 		{
 		$fileobj = _dofile "$filename"
+		Add-Member -InputObject $fileobj NoteProperty ref $ticket
+		Add-Member -InputObject $fileobj NoteProperty run $(date)
 		Add-Member -InputObject $fileobj NoteProperty section $thissection
 		if(_in_subsection)
 			{
@@ -145,7 +154,6 @@ Function _docmd
 
 	Add-Member -InputObject $ret NoteProperty ts $ts
 	Add-Member -InputObject $ret NoteProperty ok $ok
-	Add-Member -InputObject $ret NoteProperty retcode $retCode # Won't get a meaningful value if cmd did not launch
 
 	if($ok)
 		{
