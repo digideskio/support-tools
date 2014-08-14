@@ -12,14 +12,14 @@ from ConfigParser import RawConfigParser
 class Karakuri:
     def __init__(self, config, mongodb):
         self.ticketer = None
-        self.live = True
+        self.live = False
 
         # Initialize databases and collections
         self.db_jirameta = mongodb.jirameta
         self.db_support = mongodb.support
         self.db_karakuri = mongodb.karakuri
         self.coll_issues = self.db_support.issues
-        self.coll_workflows = self.db_karakuri.workflows_test
+        self.coll_workflows = self.db_karakuri.workflows
         self.coll_log = self.db_karakuri.log
 
         # TODO extract JIRA specific config and pass to JIRA++
