@@ -17,6 +17,7 @@
     </div>
     <div class="row">
         <div class="col col-lg-6 col-md-6">
+            <h4>Summary</h4>
             <pre>
                 % for dataPoint in group:
                 %   for key in dataPoint:
@@ -30,13 +31,24 @@
         %   issueDesc = "issues"
         % end
         <div class="col col-lg-6 col-md-6">
-            {{descriptionCache.get('greeting')}} {{group[0]['FirstName']}},<br/>
-            <br/>
-            {{descriptionCache.get('opening')}}<br/><br/>
             % for test in group[0]['failedTests']:
             %   testDescription = descriptionCache.get(test)
             %   if testDescription != None:
-                    {{testDescription}}<br/><br/>
+                 <div class="col col-lg-12">
+                    <h4>{{test}}</h4>
+                    <pre>
+{{descriptionCache.get('greeting')}} {{group[0]['FirstName']}},
+
+{{descriptionCache.get('opening')}}
+
+{{testDescription}}
+
+{{descriptionCache.get('closing')}}
+                    </pre>
+                    <div class="pull-right">
+                        <a class="btn btn-primary" href="#">Create Jira Issue</a>
+                    </div>
+                 </div>
             %   end
             % end
         </div>
