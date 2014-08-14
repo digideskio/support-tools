@@ -10,6 +10,7 @@ conn = pymongo.MongoClient()
 db = conn.euphonia
 coll_mmsgroupreports = db.mmsgroupreports
 coll_failedtests = db.failedtests
+coll_groupsummaries = db.groupsummaries
 
 # If tag not specified get the latest entry by _id
 # and analyze groups with common tag
@@ -47,6 +48,7 @@ for group in curs_groups:
     g = GroupReport(group)
     results = g.runAllTests()
 
+    failedTests = []
     for r in results:
         # If a passing test had previously failed but has not yet been acted
         # upon, remove it from the list of failures
@@ -59,8 +61,15 @@ for group in curs_groups:
             continue
 
         # Persist failures
-        match = {'gid': group['GroupId'], 'test': r, 'ticket': {"$exists": 0}}
-        updoc = {"$addToSet": {'rids': group['_id']},
-                 "$setOnInsert": {'gid': group['GroupId'], 'test': r,
+        failedTests.append(r)
+        match =  {'gid': group['GroupId'], 'test': r, 'ticket': {"$exists": 0}}
+        updoc =  {"$addToSet": {'rids': group['_id']},
+                  "$setOnInsert": {'gid': group['GroupId'], 'test': r,
                                   'name': group['GroupName']}}
         coll_failedtests.update(match, updoc, upsert=True)
+
+
+    # Build summary document containing customer info and failed tests
+    group['numFailedTests'] = len(failedTests)
+    group['failedTests'] = failedTests
+    coll_groupsummaries.insert(group)
