@@ -16,7 +16,7 @@
         </div>
     </div>
     <div class="row">
-        <div class="col col-lg-12">
+        <div class="col col-lg-6 col-md-6">
             <pre>
                 % for dataPoint in group:
                 %   for key in dataPoint:
@@ -24,6 +24,21 @@
                 %   end
                 % end
             </pre>
+        </div>
+        % issueDesc = "an issue"
+        % if(group[0]['numFailedTests'] > 1):
+        %   issueDesc = "issues"
+        % end
+        <div class="col col-lg-6 col-md-6">
+            {{descriptionCache.get('greeting')}} {{group[0]['FirstName']}},<br/>
+            <br/>
+            {{descriptionCache.get('opening')}}<br/><br/>
+            % for test in group[0]['failedTests']:
+            %   testDescription = descriptionCache.get(test)
+            %   if testDescription != None:
+                    {{testDescription}}<br/><br/>
+            %   end
+            % end
         </div>
     </div>
 </div>

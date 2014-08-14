@@ -1,11 +1,11 @@
 class GroupDAO:
 
     def __init__(self,database):
-        self.collection = database.mmsgroupreports
+        self.collection = database.groupsummaries
 
 
     def getGroupSummary(self,gid):
-        results = self.collection.find({"GroupId":gid}).limit(2)
+        results = self.collection.find({"GroupId":gid})
         groupDataPoint = next(results,None)
         dataPoints = []
         while groupDataPoint != None:

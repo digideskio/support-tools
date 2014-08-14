@@ -1,0 +1,14 @@
+{
+    "greeting" : "Hi",
+    "opening" : "In reviewing your MongoDB configuration data in MMS, we have identified some items that should be addressed in order to avoid potentially-critical issues in the future. In particular:",
+    "EvenVotingNumberReplicaSets" : "You have an even number of voting nodes in your replica set. This can lead to election issues in the event of a primary node failure. Please consider adding an additional voting node to your replica set(s) to ensure an odd number of votes.",
+    "NumActiveHostWithRlimitsStartupWarning" : "NumActiveHostWithRlimitsStartupWarning",
+    "NumActiveAgent" : "NumActiveAgent",
+    "NumActiveHostWithNumaStartupWarning" : "NumActiveHostWithNumaStartupWarning",
+    "NumaStartupWarning" : "NumaStartupWarning",
+    "StartupWarning" : "StartupWarning",
+    "NumActiveHostWithStartupWarning" : "NumActiveHostWithStartupWarning",
+    "MongoVersion" : "You are using an old version of MongoDB (2.2) that has known issues resolved in later versions of the software. Please consider upgrading to the latest release to take advantage of these fixes. For more information, please see <a href='https://wiki.mongodb.com/display/cs/Idempotency+and+MongoDB+2.2+replication'>our wiki</a>",
+    "Mongo22Idempotency" : "Mongo22Idempotency",
+    "Mongo24DbhashCache" : "Mongo24DbhashCache"
+}

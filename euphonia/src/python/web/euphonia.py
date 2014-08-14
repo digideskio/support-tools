@@ -1,6 +1,7 @@
 from bottle import route, run, template, static_file
 import pymongo
 import os
+import json
 import failedTestDAO
 import groupDAO
 
@@ -19,7 +20,7 @@ def index(page=1):
 @route('/group/<gid>')
 def groupSummary(gid):
     groupSummary = groups.getGroupSummary(gid)
-    return template('base_page',renderpage="group",group=groupSummary)
+    return template('base_page',renderpage="group",group=groupSummary,descriptionCache=descriptionCache)
 
 @route('/js/<filename>')
 def server_js(filename):
@@ -38,5 +39,9 @@ connection = pymongo.MongoClient(connection_string)
 database = connection.euphonia
 failedTests = failedTestDAO.FailedTestDAO(database)
 groups = groupDAO.GroupDAO(database)
+
+descriptionJSON = open('descriptions.json')
+descriptionCache = json.load(descriptionJSON)
+descriptionJSON.close()
 
 run(host='localhost', port=8080)
