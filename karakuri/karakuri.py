@@ -20,7 +20,7 @@ class Karakuri:
         self.db_karakuri = mongodb.karakuri
         self.coll_issues = self.db_support.issues
         self.coll_workflows = self.db_karakuri.workflows
-        self.coll_log = self.db_karakuri.log
+        self.coll_logs = self.db_karakuri.logs
 
         # TODO extract JIRA specific config and pass to JIRA++
         # Initialize JIRA++
@@ -178,9 +178,8 @@ class Karakuri:
                         _id = ObjectId()
                         logdoc = {'_id': _id, 'id': issue.id, 'workflow':
                                   workflow['name']}
-                        self.coll_log.insert(logdoc)
+                        self.coll_logs.insert(logdoc)
 
-                        # TODO backfill karakuri.log
                         match = {'_id': issue.id}
                         updoc = {'$set': {'karakuri.updated':
                                  datetime.utcnow()},
