@@ -1,16 +1,14 @@
 {
     "greeting" : "Hi",
     "opening" : "In reviewing your MongoDB configuration data in MMS, we have identified an issue that should be addressed in order to avoid potentially-critical issues in the future. In particular:",
-    "closing" : "We look forward to working with you to resolve this issue, please reply to this ticket at your earliest convenience so we can schedule some time to work with you.\n\nThanks,\nMongoDB Proactive Services Team",
+    "closing" : "We look forward to working with you to resolve this issues described above, and we have created individual support tickets to track each issue (you should receive notifications shortly). Please review any tickets at your earliest convenience so we can schedule some time to work with you.<br/><br/>Thanks,<br/>The MongoDB Proactive Services Team",
     "EvenVotingNumberReplicaSets" : "You have an even number of voting nodes in your replica set. This can lead to election issues in the event of a primary node failure. Please consider adding an additional voting node to your replica set(s) to ensure an odd number of votes.",
     "NumActiveHostWithRlimitsStartupWarning" : "NumActiveHostWithRlimitsStartupWarning",
     "NumActiveAgent" : "NumActiveAgent",
-    "NumActiveHostWithNumaStartupWarning" : "NumActiveHostWithNumaStartupWarning",
-    "NumaStartupWarning" : "NumaStartupWarning",
-    "StartupWarning" : "StartupWarning",
-    "LimitsStartupWarning" : "One or more of your nodes has an incorrect ulimits setting, which can result in performance and stability issues with the database. For more information, please refer to http://docs.mongodb.org/manual/reference/ulimit/",
+    "NumaStartupWarning" : "One or more of your hosts is using NUMA (Non-Uniform Memory Access), which has been shown to cause performance and stability issues. For more information, please refer to the following documentation: <a href='http://docs.mongodb.org/manual/administration/production-notes/#mongodb-and-numa-hardware'>http://docs.mongodb.org/manual/administration/production-notes/#mongodb-and-numa-hardware</a>",
+    "LimitsStartupWarning" : "One or more of your hosts has an incorrect ulimits setting, which can result in performance and stability issues with the database. For more information, please refer to the following documentation: <a href='http://docs.mongodb.org/manual/reference/ulimit/'>http://docs.mongodb.org/manual/reference/ulimit/</a>",
     "NumActiveHostWithStartupWarning" : "NumActiveHostWithStartupWarning",
-    "Mongo22Idempotency" : "You are using an older version of MongoDB (2.2) that has known issues resolved in later versions of the software. Please consider upgrading to the latest release to take advantage of these fixes. For more information, please see https://wiki.mongodb.com/display/cs/Idempotency+and+MongoDB+2.2+replication",
-    "Mongo24DbhashCache" : "You are using an older version of MongoDB (2.4.1 - 2.4.7) that has known issues resolved in later versions of the software. Please consider upgrading to the latest release to take advantage of these fixes. For more information, please see https://wiki.mongodb.com/display/cs/2.4.7+-+SERVER-11421+-+Cached+dbhash+for+the+config.chunks+collection+not+updated",
-    "Mongo24InitialSync" : "You are using an older version of MongoDB (2.4.0) that has a known issue regarding initial sync that has been resolved in later versions of the software. Please consider upgrading to the latest release to take advantage of these fixes."
+    "Mongo22Idempotency" : "You have an older version of MongoDB (2.2) that has known issues resolved in later versions of the software. Please consider upgrading to the latest release to take advantage of these fixes. For more information, please see the following wiki article: <a href='https://wiki.mongodb.com/display/cs/Idempotency+and+MongoDB+2.2+replication'>https://wiki.mongodb.com/display/cs/Idempotency+and+MongoDB+2.2+replication</a>",
+    "Mongo24DbhashCache" : "You have an older version of MongoDB (2.4.1 - 2.4.7) that has known issues resolved in later versions of the software. Please consider upgrading to the latest release to take advantage of these fixes.",
+    "Mongo24InitialSync" : "You have an older version of MongoDB (2.4.0) that has a known issue regarding initial sync that has been resolved in later versions of the software. Please consider upgrading to the latest release to take advantage of these fixes."
 }

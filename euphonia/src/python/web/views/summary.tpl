@@ -15,7 +15,7 @@
                        <td><span popover-placement="bottom" popover-html="On the Bottom!" popover-trigger="mouseenter">{{group['numFailedTests']}}</span></td>
                        <td>
                            % for test in group['failedTests']:
-                           {{test}}&nbsp;
+                           {{test['test']}}<br/>
                            %end
                        </td>
                    </tr>

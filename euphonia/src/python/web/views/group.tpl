@@ -2,55 +2,79 @@
     <div class="row">
         <div class="col col-lg-12">
             % cType = "Free"
-            % if group[0]['IsCsCustomer'] == True:
+            % if group['IsCsCustomer'] == True:
             %   cType = "CS"
-            <h1>{{group[0]['GroupName']}} <small><i>({{cType}})</i></small></h1>
+            <h1>{{group['GroupName']}} <small><i>({{cType}})</i></small></h1>
         </div>
     </div>
     <div class="row">
         <div class="col col-lg-12">
             % cType = "Free"
-            % if group[0]['IsCsCustomer'] == True:
+            % if group['IsCsCustomer'] == True:
             %   cType = "CS"
-            <span><strong>Contact:</strong> <a href="mailto:{{group[0]['UserEmail']}}">{{group[0]['FirstName']}} {{group[0]['LastName']}}</a></span>
+            <span><strong>Contact:</strong> <a href="mailto:{{group['UserEmail']}}">{{group['FirstName']}} {{group['LastName']}}</a></span>
         </div>
     </div>
     <div class="row">
-        <div class="col col-lg-6 col-md-6">
+        <div class="col col-lg-4 col-md-4">
             <h4>Summary</h4>
             <pre>
-                % for dataPoint in group:
-                %   for key in dataPoint:
-                    {{key}}: {{dataPoint[key]}}
-                %   end
-                % end
+            %   for key in group:
+{{key}}: {{group[key]}}
+            %   end
             </pre>
         </div>
-        % issueDesc = "an issue"
-        % if(group[0]['numFailedTests'] > 1):
-        %   issueDesc = "issues"
-        % end
-        <div class="col col-lg-6 col-md-6">
-            % for test in group[0]['failedTests']:
-            %   testDescription = descriptionCache.get(test)
+        <div class="col col-lg-8 col-md-8">
+            <div class="col col-lg-12">
+                <h4>Customer Email</h4>
+                <div class="well">
+                    {{descriptionCache.get('greeting')}} {{group['FirstName']}},<br/>
+                    <br/>
+                    {{descriptionCache.get('opening')}}<br/>
+                    <br/>
+                    <ul>
+                    <%
+                    for test in group['failedTests']:
+                        testName = test.get('test')
+                        testIgnore = test.get('ignore')
+                        testDescription = descriptionCache.get(testName)
+                        if testDescription != None and testIgnore == 0:
+                    %>
+                        <li>{{!testDescription}}</li><br/>
+                    <%
+                        end
+                    end
+                    %>
+                    </ul>
+                    {{!descriptionCache.get('closing')}}
+                </div>
+            </div>
+            % for test in group['failedTests']:
+            %   testName = test.get('test')
+            %   testIgnore = test.get('ignore')
+            %   testDescription = descriptionCache.get(testName)
             %   if testDescription != None:
                  <div class="col col-lg-12">
-                    <h4>{{test}}</h4>
-                    <pre>
-{{descriptionCache.get('greeting')}} {{group[0]['FirstName']}},
-
-{{descriptionCache.get('opening')}}
-
-{{testDescription}}
-
-{{descriptionCache.get('closing')}}
-                    </pre>
-                    <div class="pull-right">
-                        <a class="btn btn-primary" href="#">Create Jira Issue</a>
+                    <h4>{{testName}}</h4>
+                    <div class="well">
+                    {{descriptionCache.get('greeting')}} {{group['FirstName']}},<br/>
+                    <br/>
+                    {{!testDescription}}
+                    </div>
+                    <div class="pull-right btn-group">
+                        <a class="btn btn-danger {{"disabled" if testIgnore == 1 else ""}}" href="/group/{{group['GroupId']}}/ignore/{{testName}}">Ignore Issue</a>
+                        <a class="btn btn-success {{"disabled" if testIgnore == 0 else ""}}" href="/group/{{group['GroupId']}}/include/{{testName}}">Include Issue</a>
                     </div>
                  </div>
             %   end
             % end
+            <div class="col col-lg-12 col-md-12">
+                <br/>
+                <br/>
+                <div class="pull-right">
+                    <a class="btn btn-primary" href="#">Send Email</a>
+                </div>
+            </div>
         </div>
     </div>
 </div>

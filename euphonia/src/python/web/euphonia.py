@@ -1,4 +1,4 @@
-from bottle import route, run, template, static_file
+from bottle import route, run, template, static_file, redirect
 import pymongo
 import os
 import json
@@ -22,6 +22,19 @@ def groupSummary(gid):
     groupSummary = groups.getGroupSummary(gid)
     return template('base_page',renderpage="group",group=groupSummary,descriptionCache=descriptionCache)
 
+@route('/group/<gid>/ignore/<test>')
+def ignoreTest(gid,test):
+    groupSummary = groups.getGroupSummary(gid)
+    groups.ignoreTest(gid,test)
+    redirect('/group/%s' % gid)
+
+@route('/group/<gid>/include/<test>')
+def includeTest(gid,test):
+    groupSummary = groups.getGroupSummary(gid)
+    groups.includeTest(gid,test)
+    redirect('/group/%s' % gid)
+
+# STATIC FILES
 @route('/js/<filename>')
 def server_js(filename):
     return static_file(filename, root='./js')

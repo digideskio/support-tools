@@ -61,7 +61,7 @@ for group in curs_groups:
             continue
 
         # Persist failures
-        failedTests.append(r)
+        failedTests.append({"test":r,"ignore":0,"notified":0})
         match =  {'gid': group['GroupId'], 'test': r, 'ticket': {"$exists": 0}}
         updoc =  {"$addToSet": {'rids': group['_id']},
                   "$setOnInsert": {'gid': group['GroupId'], 'test': r,
@@ -72,4 +72,5 @@ for group in curs_groups:
     # Build summary document containing customer info and failed tests
     group['numFailedTests'] = len(failedTests)
     group['failedTests'] = failedTests
+    group['testTimestamp'] = group['_id'].generation_time
     coll_groupsummaries.insert(group)
