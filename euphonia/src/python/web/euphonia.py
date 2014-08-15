@@ -57,4 +57,4 @@ descriptionJSON = open('descriptions.json')
 descriptionCache = json.load(descriptionJSON)
 descriptionJSON.close()
 
-run(host='localhost', port=8080)
+run(port=8080)
