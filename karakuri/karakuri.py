@@ -13,6 +13,7 @@ class Karakuri:
     def __init__(self, config, mongodb):
         self.ticketer = None
         self.live = False
+        self.verbose = False
 
         # Initialize databases and collections
         self.db_jirameta = mongodb.jirameta
@@ -84,13 +85,6 @@ class Karakuri:
                 # use 'updated' as comment could have been created dev-only
                 # lastPublicComment = issue.lastXGenPublicComment
 
-                # NOTE to compare with karakuri.rb, require that the user has
-                # never before commented, and that the issue either does not
-                # have a company (customfield_10030), does not have a MongoDB
-                # assignee, or does not have a MongoDB reporter; i.e. the ruby
-                # is innocent until proven guilty
-                rubypass = True
-
                 # if no public comments, use issue updated
                 # if lastPublicComment is None:
                 lastDate = issue.updated
@@ -105,19 +99,24 @@ class Karakuri:
                         if lastKarakuri > lastDate:
                             lastDate = lastKarakuri
 
-                #
-                # ruby simulation
-                #
+                # NOTE to compare with karakuri.rb, require that the user has
+                # never before commented, and that the issue either does not
+                # have a company (customfield_10030), does not have a MongoDB
+                # assignee, or does not have a MongoDB reporter; i.e. the ruby
+                # is innocent until proven guilty
+                rubypass = True
+
+                lcc = issue.lastCustomerComment
                 company = issue.company
                 assigneeEmail = issue.assigneeEmail
-
                 assigneeIsMongoDB = isMongoDBEmail(assigneeEmail)
                 reporterEmail = issue.reporterEmail
                 reporterIsMongoDB = isMongoDBEmail(reporterEmail)
 
                 if rubypass:
-                    if company is not None or assigneeIsMongoDB is False or\
-                            reporterIsMongoDB is False:
+                    if lcc is None and (company is not None or\
+                            assigneeIsMongoDB is False or\
+                            reporterIsMongoDB is False):
                         pass
                     else:
                         rubypass = False
@@ -128,16 +127,17 @@ class Karakuri:
                 now = datetime.utcnow()
 
                 if lastDate + time_elapsed < now and rubypass:
-                    print "%s, come on down! You're the next con-ticket on "\
-                          "the Support-is-right!" % issue.key
+                    print "Workflow %s triggered for %s" % (workflow['name'], issue.key)
+                    # print "%s, come on down! You're the next con-ticket on "\
+                    #       "the Support-is-right!" % issue.key
 
-                    # success of the entire workflow
+                    # the success of the entire workflow
                     # so far so good
                     success = True
 
                     actions = workflow['actions']
                     for action in actions:
-                        # Is this a real action?
+                        # is action defined for this ticketing system?
                         if hasattr(self.ticketer, action['name']):
                             args = []
 
@@ -146,15 +146,18 @@ class Karakuri:
                             else:
                                 args = []
 
-                            # first argument is the ticket "id", i.e. that
-                            # which the specific ticketing system will use
+                            # first argument is always the ticket "id", i.e.
+                            # that used by the specific ticketing system
+                            # TODO make sure this ticketId is appropriate for
+                            # this ticketer!!!
                             args.insert(0, issue.ticketId)
                             # for the sake of logging reduce string arguments
                             # to 50 characters and replace \n with \\n
                             argString = (', '.join('"' + arg[:50].replace('\n',
                                          '\\n') + '"' for arg in args))
-                            print "Executing: %s(%s)" % (action['name'],
-                                                         argString)
+                            if self.verbose:
+                                print "Executing: %s(%s)" % (action['name'],
+                                                             argString)
 
                             if self.live:
                                 f = getattr(self.ticketer, action['name'])
@@ -162,7 +165,8 @@ class Karakuri:
                                 r = f(*args)
 
                                 if not r:
-                                    # if one fails the whole workflow fails
+                                    # if one action fails, whole workflow fails
+                                    # TODO log failures in karakuri.logs
                                     success = False
                                     break
 
@@ -174,16 +178,15 @@ class Karakuri:
                         # we'll log this workflow in two places
                         # 1. karakuri.logs
                         # 2. support.issues.karakuri
-                        # with a common object id for timing
+                        # with a common ObjectId for timing
                         _id = ObjectId()
-                        logdoc = {'_id': _id, 'id': issue.id, 'workflow':
+                        logdoc = {'_id': _id, 'iid': issue.id, 'workflow':
                                   workflow['name']}
                         self.coll_logs.insert(logdoc)
 
                         match = {'_id': issue.id}
                         updoc = {'$set': {'karakuri.updated':
-                                 datetime.utcnow()},
-                                 '$push':
+                                 datetime.utcnow()}, '$push':
                                  {'karakuri.workflows_performed':
                                   {'name': workflow['name'], 'log': _id}}}
 
