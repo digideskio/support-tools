@@ -69,12 +69,17 @@ class Karakuri:
                 raise e
 
             for i in curs_issues:
-                # JIRA is the only option for now
-                if 'jira' in i:
-                    issue = SupportIssue()
-                    issue.fromJIRADoc(i)
-                else:
+                issue = SupportIssue()
+                issue.fromDoc(i)
+
+                # only JIRA at the moment
+                if not issue.hasJIRA():
                     print "Skipping unsupported ticketing type!"
+                    continue
+
+                # check for Karakuri actions
+                if not issue.isActive():
+                    print "Skipping %s as it is not active" % issue.key
                     continue
 
                 # is the onus on them?
@@ -105,6 +110,7 @@ class Karakuri:
                 # assignee, or does not have a MongoDB reporter; i.e. the ruby
                 # is innocent until proven guilty
                 rubypass = True
+                newpass = True
 
                 lcc = issue.lastCustomerComment
                 company = issue.company
@@ -113,20 +119,22 @@ class Karakuri:
                 reporterEmail = issue.reporterEmail
                 reporterIsMongoDB = isMongoDBEmail(reporterEmail)
 
-                if rubypass:
-                    if lcc is None and (company is not None or\
-                            assigneeIsMongoDB is False or\
-                            reporterIsMongoDB is False):
-                        pass
-                    else:
-                        rubypass = False
+                if lcc is None and (company is not None or\
+                        assigneeIsMongoDB is False or\
+                        reporterIsMongoDB is False):
+                    pass
+                else:
+                    rubypass = False
+
+                if company is None or lcc is not None:
+                    newpass = False
 
                 # has enough time elapsed?
                 time_elapsed = timedelta(seconds=workflow['time_elapsed'])
                 # in UTC please!
                 now = datetime.utcnow()
 
-                if lastDate + time_elapsed < now and rubypass:
+                if lastDate + time_elapsed < now and newpass:
                     print "Workflow %s triggered for %s" % (workflow['name'], issue.key)
                     # print "%s, come on down! You're the next con-ticket on "\
                     #       "the Support-is-right!" % issue.key

@@ -41,6 +41,11 @@ class SupportIssue:
         # TODO add protections to ensure proper jira doc?
         return self.doc is not None and 'jira' in self.doc
 
+    def hasKarakuri(self):
+        """ Returns true if Karakuri-specific informaton is present """
+        # TODO add protections to ensure proper karakuri doc?
+        return self.doc is not None and 'karakuri' in self.doc
+
     def isProactive(self):
         if self.issuetype.lower() == 'proactive' and\
                 isMongoDBEmail(self.reporterEmail):
@@ -411,28 +416,27 @@ class SupportIssue:
     # End properties
     #
 
-    def fromJIRADoc(self, doc):
+    def fromDoc(self, doc):
         """ This method expects a document from MongoDB, i.e.
-        support.issues.find({}, {'jira':1}) """
+        support.issues.findOne() """
         self.doc = doc
 
-        if not self.hasJIRA():
-            return None
+        if self.hasJIRA():
+            # normalize date fields
+            created = self.doc['jira']['fields']['created']
+            if not isinstance(created, datetime):
+                created = dateutil.parser.parse(created).astimezone(
+                    dateutil.tz.tzutc()).replace(tzinfo=None)
+                self.doc['jira']['fields']['created']
 
-        # normalize date fields
-        created = self.doc['jira']['fields']['created']
-        if not isinstance(created, datetime):
-            created = dateutil.parser.parse(created).astimezone(
-                dateutil.tz.tzutc()).replace(tzinfo=None)
-            self.doc['jira']['fields']['created']
-
-        updated = self.doc['jira']['fields']['updated']
-        if not isinstance(updated, datetime):
-            updated = dateutil.parser.parse(updated).astimezone(
-                dateutil.tz.tzutc()).replace(tzinfo=None)
-            self.doc['jira']['fields']['updated']
-
-        return self
+            updated = self.doc['jira']['fields']['updated']
+            if not isinstance(updated, datetime):
+                updated = dateutil.parser.parse(updated).astimezone(
+                    dateutil.tz.tzutc()).replace(tzinfo=None)
+                self.doc['jira']['fields']['updated']
+                
+            return self
+        return None
 
     def getJIRAFields(self):
         """ Return a fields dict that can be passed directly to the
@@ -508,3 +512,27 @@ class SupportIssue:
 
     def setJIRACompanyGroups(self, fields, companyGroups):
         fields['customfield_10850'] = companyGroups
+
+    #
+    # Karakuri specific
+    #
+
+    def isActive(self):
+        if not self.hasKarakuri() or 'sleep' not in self.doc['karakuri']:
+            return True
+
+        wakeDate = self.doc['karakuri']['sleep']
+
+        if not isinstance(wakeDate, datetime):
+            if wakeDate == float("inf"):
+                return False
+            else:
+                # TODO probably not the best idea
+                wakeDate = dateutil.parser.parse(wakeDate).astimezone(
+                    dateutil.tz.tzutc()).replace(tzinfo=None)
+
+        if wakeDate <= datetime.utcnow():
+            # TODO wake up! i.e. drop sleep
+            return True
+        else:
+            return False
