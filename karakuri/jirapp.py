@@ -1,6 +1,4 @@
-import random
-import time
-
+from datetime import datetime
 from jira.client import JIRA
 from jira.resources import Issue as JIRAIssue
 from jira.exceptions import JIRAError
@@ -8,10 +6,15 @@ from pprint import pprint
 from pymongo.errors import PyMongoError
 
 
+def log(msg):
+    print "[{0}] {1}".format(datetime.now(), msg)
+
+
 class jirapp(JIRA):
     """ JIRA++ is JIRA+1. Use it to profit. """
-
     def __init__(self, config, jirametadb, supportdb):
+        log("Initializing JIRA++")
+
         # By default we sit here and look pretty
         # All talk, no walk
         self.live = False
@@ -20,72 +23,101 @@ class jirapp(JIRA):
         # support
         self.supportdb = supportdb
 
-        # Set random seed
-        random.seed(time.localtime())
-
         opts = {'server': 'https://jira.mongodb.org', "verify": False}
         auth = (config.get('JIRA', 'username'), config.get('JIRA', 'password'))
 
-        JIRA.__init__(self, options=opts, basic_auth=auth)
+        try:
+            JIRA.__init__(self, options=opts, basic_auth=auth)
+
+        except JIRAError as e:
+            raise e
+
+    def __getTransitionId(self, issue, transition):
+        """ This method gets the transition id for the given transition name.
+        It is dependent on the JIRA issue project and status """
+        # A ticket may undergo several state-changing actions between the time
+        # we first queried it in our local db and now. Until we come up with
+        # something foolproof we'll query JIRA each time for the ticket status
+        # before performing the transition. It's annoying but that's life dude
+        if not isinstance(issue, JIRAIssue):
+            try:
+                issue = self.issue(issue.key)
+
+            except JIRAError as e:
+                raise e
+
+        project = issue.fields.project.key
+        status = issue.fields.status.name
+
+        # transition id
+        tid = None
+
+        log("Finding '%s' transition id for project:'%s', status:'%s'" % (
+              transition, project, status))
+
+        try:
+            coll_transitions = self.jirametadb.transitions
+            match = {'pkey': project, 'sname': status, 'tname': transition}
+            proj = {'tid': 1, '_id': 0}
+            doc = coll_transitions.find_one(match, proj)
+
+        except PyMongoError as e:
+            raise e
+
+        if doc and 'tid' in doc and doc['tid'] is not None:
+            tid = doc['tid']
+            log("Found transition id:%s" % tid)
+
+        else:
+            log("Transition id not found. Most likely issue is already in the desired state.")
+
+        return tid
 
     def addPublicComment(self, issue, comment):
         """ This method adds a public-facing comment to a JIRA issue """
         # TODO validate comment
-
-        print "Adding public comment..."
+        log("Adding public comment to JIRA %s" % issue.key)
 
         if self.live:
             try:
-                return self.add_comment(issue, comment)
+                self.add_comment(issue.key, comment)
 
             except JIRAError as e:
                 raise e
 
-        else:
-            self.verbot()
+        return issue
 
     def addDeveloperComment(self, issue, comment):
         """ This method adds a developer-only comment to a JIRA issue """
         # TODO validate comment
-
-        print "Adding developer-only comment..."
+        log("Adding developer-only comment to JIRA %s" % issue.key)
 
         if self.live:
             try:
-                return self.add_comment(issue, comment,
-                                        visibility={'type': 'role',
-                                                    'value': 'Developers'})
+                self.add_comment(issue.key, comment,
+                                 visibility={'type': 'role',
+                                             'value': 'Developers'})
 
             except JIRAError as e:
                 raise e
 
-        else:
-            self.verbot()
+        return issue
 
     def closeIssue(self, issue):
         """ This method closes a JIRA issue """
-
-        print "Closing issue..."
+        log("Closing JIRA %s" % issue.key)
 
         if self.live:
-            try:
-                tid = self.getTransitionId(issue, 'Close Issue')
+            tid = self.__getTransitionId(issue, 'Close Issue')
 
-            except Exception as e:
-                raise e
+            if tid:
+                try:
+                    self.transition_issue(issue.key, tid)
 
-            print "Transitioning issue..."
+                except JIRAError as e:
+                    raise e
 
-            try:
-                # TODO does transition_issue return anything?
-                self.transition_issue(issue, tid)
-                return True
-
-            except JIRAError as e:
-                raise e
-
-        else:
-            self.verbot()
+        return issue
 
     def createIssue(self, fields={}):
         """ This method creates a JIRA issue. Assume fields is in a format that
@@ -103,7 +135,8 @@ class jirapp(JIRA):
         # required fields for issue creation
         required_fields = None
 
-        print "Getting createmeta data..."
+        log("Getting createmeta data for project:%s, issuetype:%s" % (
+              fields['project']['key'], fields['issuetype']['name']))
 
         try:
             doc = coll_createmeta.find_one(match, proj)
@@ -120,70 +153,28 @@ class jirapp(JIRA):
 
             for f in required_fields:
                 if f not in fields:
-                    print "Error: %s required to create %s %s JIRA issue" %\
+                    log("Error: %s required to create %s %s JIRA issue" %\
                         (f, fields['issuetype']['name'],
-                         fields['project']['key'])
+                         fields['project']['key']))
                     raiseexception = True
 
             if raiseexception is True:
                 raise Exception("jira.createmeta validation failed")
 
-        print "Creating JIRA issue..."
+        log("Creating JIRA issue...")
 
         if self.live:
             try:
                 issue = self.create_issue(fields=fields)
-                print "Created %s" % issue.key
-                return issue.id
 
             except JIRAError as e:
                 raise e
+
+            log("Created JIRA %s" % issue.key)
+            return issue
 
         else:
             pprint(fields)
-
-    def getTransitionId(self, issue, transition):
-        """ This method gets the transition id for the given transition name.
-        It is dependent on the JIRA issue project and status """
-        # TODO validate transition
-
-        # A ticket may undergo several state-changing actions between the time
-        # we first queried it in our local db and now. Until we come up with
-        # something foolproof we'll query JIRA each time for the ticket status
-        # before performing the transition. It's annoying but that's life dude
-        if not isinstance(issue, JIRAIssue):
-            try:
-                issue = self.issue(issue)
-
-            except JIRAError as e:
-                raise e
-
-        project = issue.fields.project.key
-        status = issue.fields.status.name
-
-        # transition id
-        tid = None
-
-        print "Getting %s transition id..." % transition
-
-        try:
-            coll_transitions = self.jirametadb.transitions
-            match = {'pkey': project, 'sname': status, 'tname': transition}
-            proj = {'tid': 1, '_id': 0}
-            doc = coll_transitions.find_one(match, proj)
-            print "Success!"
-
-        except PyMongoError as e:
-            raise e
-
-        if doc and 'tid' in doc:
-            tid = doc['tid']
-
-        if tid is None:
-            print "Error: unable to locate %s transition" % transition
-            raise Exception("invalid transition")
-
-        return tid
 
     def resolveIssue(self, issue, resolution):
         """ This method resolves a JIRA issue with the given resolution """
@@ -204,41 +195,40 @@ class jirapp(JIRA):
             raise Exception("%s is not a supported resolution type" %
                             resolution)
 
-        print "Resolving issue..."
+        log("Resolving JIRA %s" % issue.key)
 
         if self.live:
-            tid = self.getTransitionId(issue, 'Resolve Issue')
+            tid = self.__getTransitionId(issue, 'Resolve Issue')
 
-            print "Transitioning issue..."
+            if tid:
+                try:
+                    self.transition_issue(issue.key, tid, resolution={'id': rid})
 
-            try:
-                self.transition_issue(issue, tid, resolution={'id': rid})
-                print "Success!"
-                return True
+                except JIRAError as e:
+                    raise e
 
-            except JIRAError as e:
-                raise e
-
-        else:
-            self.verbot()
+        return issue
 
     def setLabels(self, issue, labels):
         """ This method sets the labels in a JIRA issue """
         # TODO validate labels is a string that will return [] on split
-
-        print "Setting labels..."
+        log("Setting labels in JIRA %s" % issue.key)
 
         if self.live:
+            if not isinstance(issue, JIRAIssue):
+                try:
+                    issue = self.issue(issue)
+
+                except JIRAError as e:
+                    raise e
+
             try:
                 issue.update(labels=labels.split(','))
-                print "Success!"
-                return True
 
             except JIRAError as e:
                 raise e
 
-        else:
-            self.verbot()
+        return issue
 
     def setLive(self, b):
         """ Lock and load? """
@@ -247,66 +237,33 @@ class jirapp(JIRA):
     def setOwner(self, issue, owner):
         """ This method sets the JIRA issue owner using the Internal Fields
         transition """
-
-        print "Setting owner..."
+        log("Setting owner of JIRA %s" % issue.key)
 
         if self.live:
             fields = {'customfield_10041': {'name': owner}}
-            tid = self.getTransitionId(issue, 'Internal Fields')
+            tid = self.__getTransitionId(issue, 'Internal Fields')
 
-            print "Transitioning issue..."
+            if tid:
+                try:
+                    self.transition_issue(issue.key, tid, fields=fields)
 
-            try:
-                self.transition_issue(issue, tid, fields=fields)
-                print "Success!"
-                return True
+                except JIRAError as e:
+                    raise e
 
-            except JIRAError as e:
-                raise e
-
-        else:
-            self.verbot()
+        return issue
 
     def wfcIssue(self, issue):
         """ This method sets the status of a ticket to Wait for Customer """
-
-        print "Changing to WFC..."
+        log("Setting JIRA %s to Wait for Customer" % issue.key)
 
         if self.live:
-            # if issue is already WFC return
-            doc = self.supportdb.issues.find_one({'jira.id': issue})
+            tid = self.__getTransitionId(issue, 'Wait for Customer')
 
-            if doc and doc['jira']['fields']['status']['name'] ==\
-                    "Waiting for Customer":
-                print "Issue is already WFC!"
-                return True
+            if tid:
+                try:
+                    self.transition_issue(issue.key, tid)
 
-            tid = self.getTransitionId(issue, 'Wait for Customer')
+                except JIRAError as e:
+                    raise e
 
-            print "Transitioning issue..."
-
-            try:
-                self.transition_issue(issue, tid)
-                print "Success!"
-                return True
-
-            except JIRAError as e:
-                raise e
-
-        else:
-            self.verbot()
-
-    def verbot(self):
-        """ This method prints out beeps and boops in place of doing
-        anything for realz """
-
-        beepboop = ["beep", "boop"]
-        nb = random.randint(3, 7)
-
-        utterance = ""
-        for i in range(0, nb):
-            utterance += beepboop[random.randint(0, 1)]
-            if i < (nb-1):
-                utterance += " "
-
-        print utterance
+        return issue
