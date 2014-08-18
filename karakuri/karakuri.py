@@ -119,9 +119,9 @@ class Karakuri:
                 reporterEmail = issue.reporterEmail
                 reporterIsMongoDB = isMongoDBEmail(reporterEmail)
 
-                if lcc is None and (company is not None or\
-                        assigneeIsMongoDB is False or\
-                        reporterIsMongoDB is False):
+                if lcc is None and (company is not None or
+                                    assigneeIsMongoDB is False or
+                                    reporterIsMongoDB is False):
                     pass
                 else:
                     rubypass = False
@@ -135,7 +135,8 @@ class Karakuri:
                 now = datetime.utcnow()
 
                 if lastDate + time_elapsed < now and newpass:
-                    print "Workflow %s triggered for %s" % (workflow['name'], issue.key)
+                    print "Workflow %s triggered for %s" % (workflow['name'],
+                                                            issue.key)
                     # print "%s, come on down! You're the next con-ticket on "\
                     #       "the Support-is-right!" % issue.key
 
