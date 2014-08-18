@@ -11,6 +11,13 @@
     </div>
     <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
       <ul class="nav navbar-nav">
+          % for section in ["groups","issues"]:
+          %     active = ""
+          %     if section == renderpage:
+          %         active = "active"
+          %     end
+                <li><a href="/{{section}}" class="{{active}}">{{section}}</a></li>
+          % end
       </ul>
       <ul class="nav navbar-nav navbar-right">
         <li><a href="#"><span class="glyphicon glyphicon-user"></span></a></li>

@@ -10,5 +10,6 @@
     "NumActiveHostWithStartupWarning" : "NumActiveHostWithStartupWarning",
     "Mongo22Idempotency" : "You have an older version of MongoDB (2.2) that has known issues resolved in later versions of the software. Please consider upgrading to the latest release to take advantage of these fixes. For more information, please see the following wiki article: <a href='https://wiki.mongodb.com/display/cs/Idempotency+and+MongoDB+2.2+replication'>https://wiki.mongodb.com/display/cs/Idempotency+and+MongoDB+2.2+replication</a>",
     "Mongo24DbhashCache" : "You have an older version of MongoDB (2.4.1 - 2.4.7) that has known issues resolved in later versions of the software. Please consider upgrading to the latest release to take advantage of these fixes.",
-    "Mongo24InitialSync" : "You have an older version of MongoDB (2.4.0) that has a known issue regarding initial sync that has been resolved in later versions of the software. Please consider upgrading to the latest release to take advantage of these fixes."
+    "Mongo24InitialSync" : "You have an older version of MongoDB (2.4.0) that has a known issue regarding initial sync that has been resolved in later versions of the software. Please consider upgrading to the latest release to take advantage of these fixes.",
+    "Mongo26" : "You have an older version of MongoDB (2.6.0) that has a known issue which has been resolved in a later release. Please consider upgrading to the latest release to take advantage of these fixes."
 }

@@ -61,10 +61,10 @@ for group in curs_groups:
             continue
 
         # Persist failures
-        failedTests.append({"test":r,"ignore":0,"notified":0})
+        failedTests.append({"test":r,"ignore":0,"notified":0,"priority": g.tests[r],"priorityScore":g.testPriorityScores[g.tests[r]]})
         match =  {'gid': group['GroupId'], 'test': r, 'ticket': {"$exists": 0}}
         updoc =  {"$addToSet": {'rids': group['_id']},
-                  "$setOnInsert": {'gid': group['GroupId'], 'test': r,
+                  "$setOnInsert": {'gid': group['GroupId'], 'test': r, 'priority': g.tests[r],
                                   'name': group['GroupName']}}
         coll_failedtests.update(match, updoc, upsert=True)
 
@@ -72,5 +72,9 @@ for group in curs_groups:
     # Build summary document containing customer info and failed tests
     group['numFailedTests'] = len(failedTests)
     group['failedTests'] = failedTests
+    failedTestsPriority = 0.0
+    for test in failedTests:
+        failedTestsPriority += float(test['priorityScore'])
+    group['priority'] = failedTestsPriority
     group['testTimestamp'] = group['_id'].generation_time
     coll_groupsummaries.insert(group)

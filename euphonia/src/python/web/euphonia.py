@@ -1,38 +1,61 @@
-from bottle import route, run, template, static_file, redirect
+from bottle import run, redirect, error, route, template, static_file
 import pymongo
 import os
 import json
 import failedTestDAO
 import groupDAO
+import issueDAO
 
+# ROOT/SUMMARY PAGE
 @route('/<page:re:\d*>')
 def index(page=1):
+    return redirect('/'.join(['/groups',page]))
+
+# GROUP-RELATED ROUTES
+@route('/groups/<page:re:\d*>')
+@route('/groups')
+@route('/issue/<test>')
+def groups(page=1,test=None):
+    query = None
+    if test != None:
+        query = {"failedTests.test":{"$in":[test]}}
+    print query
     limit = 10
     if page == '':
         page = 1
     page = int(page)
     skip = (page - 1) * limit
-    sortField = 'numFailedTests'
+    sortField = 'priority'
     order = pymongo.DESCENDING
-    testsSummary = failedTests.getFailedTestsSummary(sortField=sortField,order=order,skip=skip,limit=limit)
-    return template('base_page',renderpage="summary",groups=testsSummary['groups'],page=page,count=testsSummary['count'])
+    testsSummary = groups.getFailedTestsSummary(sortField=sortField,order=order,skip=skip,limit=limit,query=query)
+    return template('base_page',renderpage="summary",groups=testsSummary['groups'],page=page,count=testsSummary['count'],issue=test)
 
 @route('/group/<gid>')
 def groupSummary(gid):
     groupSummary = groups.getGroupSummary(gid)
-    return template('base_page',renderpage="group",group=groupSummary,descriptionCache=descriptionCache)
+    if groupSummary != None:
+        return template('base_page',renderpage="group",group=groupSummary,descriptionCache=descriptionCache)
+    else:
+        return redirect('/groups')
 
 @route('/group/<gid>/ignore/<test>')
 def ignoreTest(gid,test):
     groupSummary = groups.getGroupSummary(gid)
     groups.ignoreTest(gid,test)
-    redirect('/group/%s' % gid)
+    return redirect('/group/%s' % gid)
 
 @route('/group/<gid>/include/<test>')
 def includeTest(gid,test):
     groupSummary = groups.getGroupSummary(gid)
     groups.includeTest(gid,test)
-    redirect('/group/%s' % gid)
+    return redirect('/group/%s' % gid)
+
+#FAILEDTEST-RELATED ROUTES
+@route('/issues')
+def issueSummary():
+    issueSummary = issues.getIssueSummary()
+    topIssues = issues.getTopIssues(5)
+    return template('base_page',renderpage="issues",issueSummary=issueSummary,topIssues=topIssues,descriptionCache=descriptionCache)
 
 # STATIC FILES
 @route('/js/<filename>')
@@ -50,8 +73,8 @@ def server_css(filename):
 connection_string = "mongodb://localhost"
 connection = pymongo.MongoClient(connection_string)
 database = connection.euphonia
-failedTests = failedTestDAO.FailedTestDAO(database)
 groups = groupDAO.GroupDAO(database)
+issues = issueDAO.IssueDAO(database)
 
 descriptionJSON = open('descriptions.json')
 descriptionCache = json.load(descriptionJSON)
