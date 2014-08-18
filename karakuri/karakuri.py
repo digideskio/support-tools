@@ -9,8 +9,14 @@ from supportissue import isMongoDBEmail, SupportIssue
 from ConfigParser import RawConfigParser
 
 
+def log(msg):
+        print "[{0}] {1}".format(datetime.now(), msg)
+
+
 class Karakuri:
     def __init__(self, config, mongodb):
+        log("Initializing Karakuri")
+
         self.ticketer = None
         self.live = False
         self.verbose = False
@@ -38,11 +44,12 @@ class Karakuri:
         # process each workflow
         try:
             curs_workflows = self.coll_workflows.find()
+
         except pymongo.errors.PyMongoError as e:
             raise e
 
         for workflow in curs_workflows:
-            print "Exercising %s workflow..." % workflow['name']
+            log("Exercising %s workflow..." % workflow['name'])
 
             query_string = workflow['query_string']
             match = json.loads(query_string)
@@ -57,7 +64,7 @@ class Karakuri:
             if 'prereqs' in workflow:
                 # require each prerequisite is met
                 prereqs = workflow['prereqs']
-                print "Considering prereqs: %s" % ', '.join(map(str, prereqs))
+                log("Considering prereqs: %s" % ', '.join(map(str, prereqs)))
                 for prereq in prereqs:
                     match['$and'].append({'karakuri.workflows_performed.name':
                                           prereq})
@@ -65,6 +72,7 @@ class Karakuri:
             # find 'em and get 'er done!
             try:
                 curs_issues = self.coll_issues.find(match)
+
             except pymongo.errors.PyMongoError as e:
                 raise e
 
@@ -74,12 +82,12 @@ class Karakuri:
 
                 # only JIRA at the moment
                 if not issue.hasJIRA():
-                    print "Skipping unsupported ticketing type!"
+                    log("Skipping unsupported ticketing type!")
                     continue
 
                 # check for Karakuri actions
                 if not issue.isActive():
-                    print "Skipping %s as it is not active" % issue.key
+                    log("Skipping %s as it is not active" % issue.key)
                     continue
 
                 # is the onus on them?
@@ -135,10 +143,8 @@ class Karakuri:
                 now = datetime.utcnow()
 
                 if lastDate + time_elapsed < now and newpass:
-                    print "Workflow %s triggered for %s" % (workflow['name'],
-                                                            issue.key)
-                    # print "%s, come on down! You're the next con-ticket on "\
-                    #       "the Support-is-right!" % issue.key
+                    log("Workflow %s triggered for %s" % (workflow['name'],
+                                                            issue.key))
 
                     # the success of the entire workflow
                     # so far so good
@@ -155,18 +161,16 @@ class Karakuri:
                             else:
                                 args = []
 
-                            # first argument is always the ticket "id", i.e.
-                            # that used by the specific ticketing system
-                            # TODO make sure this ticketId is appropriate for
-                            # this ticketer!!!
-                            args.insert(0, issue.ticketId)
                             # for the sake of logging reduce string arguments
                             # to 50 characters and replace \n with \\n
                             argString = (', '.join('"' + arg[:50].replace('\n',
                                          '\\n') + '"' for arg in args))
                             if self.verbose:
-                                print "Executing: %s(%s)" % (action['name'],
-                                                             argString)
+                                log("Executing: %s(%s)" % (action['name'],
+                                                             argString))
+
+                            # first argument is always a SupportIssue type
+                            args.insert(0, issue)
 
                             if self.live:
                                 f = getattr(self.ticketer, action['name'])
