@@ -147,17 +147,19 @@ class jirapp(JIRA):
         It is dependent on the JIRA issue project and status """
         # TODO validate transition
 
-        if isinstance(issue, JIRAIssue):
-            issue = issue.id
+        # A ticket may undergo several state-changing actions between the time
+        # we first queried it in our local db and now. Until we come up with
+        # something foolproof we'll query JIRA each time for the ticket status
+        # before performing the transition. It's annoying but that's life dude
+        if not isinstance(issue, JIRAIssue):
+            try:
+                issue = self.issue(issue)
 
-        doc = self.supportdb.issues.find_one({'jira.id': issue})
+            except JIRAError as e:
+                raise e
 
-        if doc:
-            project = doc['jira']['fields']['project']['key']
-            status = doc['jira']['fields']['status']['name']
-
-        else:
-            raise Exception("unable to find %s in db" % issue)
+        project = issue.fields.project.key
+        status = issue.fields.status.name
 
         # transition id
         tid = None

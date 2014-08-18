@@ -1,10 +1,6 @@
-import copy
 import dateutil
 
 from datetime import datetime
-
-# TODO
-# JTR: Can we remove all the hypothesis crap?
 
 
 def isMongoDBEmail(email):
@@ -32,9 +28,32 @@ class SupportIssue:
     def __hash__(self):
         return self.id.__hash__()
 
-    def __init__(self, params={}):
+    def __init__(self, fields={}):
         self.doc = None
-        self.params = params
+        self.fields = fields
+
+    def fromDoc(self, doc):
+        """ This method expects a document from MongoDB, i.e.
+        support.issues.findOne() """
+        self.doc = doc
+
+        if self.hasJIRA():
+            # normalize date fields
+            created = self.doc['jira']['fields']['created']
+            if not isinstance(created, datetime):
+                created = dateutil.parser.parse(created).astimezone(
+                    dateutil.tz.tzutc()).replace(tzinfo=None)
+                self.doc['jira']['fields']['created']
+
+            updated = self.doc['jira']['fields']['updated']
+            if not isinstance(updated, datetime):
+                updated = dateutil.parser.parse(updated).astimezone(
+                    dateutil.tz.tzutc()).replace(tzinfo=None)
+                self.doc['jira']['fields']['updated']
+
+            return self
+
+        return None
 
     def hasJIRA(self):
         """ Returns true if JIRA-specific informaton is present """
@@ -45,6 +64,10 @@ class SupportIssue:
         """ Returns true if Karakuri-specific informaton is present """
         # TODO add protections to ensure proper karakuri doc?
         return self.doc is not None and 'karakuri' in self.doc
+
+    # TODO is this too dashboard specific to keep here?
+    def isFTS(self):
+        return 'fs' in self.labels
 
     def isProactive(self):
         if self.issuetype.lower() == 'proactive' and\
@@ -57,8 +80,12 @@ class SupportIssue:
     #
 
     @property
-    # TODO change this to assigneeName and propagate change to dashboard
+    # TODO remove this when dashboard is updated to use assigneeName
     def assignee(self):
+        return self.assigneeName
+
+    @property
+    def assigneeName(self):
         if self.hasJIRA():
             if 'assignee' in self.doc['jira']['fields'] and\
                     self.doc['jira']['fields']['assignee']:
@@ -96,6 +123,7 @@ class SupportIssue:
         if self.hasJIRA():
             if 'components' in self.doc['jira']['fields'] and\
                     self.doc['jira']['fields']['components']:
+                # TODO can we return the array instead of build a new one?
                 return map(lambda x: x['name'], self.doc['jira']['fields'][
                     'components'])
             return []
@@ -120,13 +148,16 @@ class SupportIssue:
                     'emailAddress']
 
                 if not isMongoDBEmail(currCommentAuthEmail):
-                    prevCommentAuthEmail = customer_relevant_comments[i-1][
-                        'author']['emailAddress']
+                    if i >= 1:
+                        prevCommentAuthEmail = customer_relevant_comments[i-1][
+                            'author']['emailAddress']
 
-                    if isMongoDBEmail(prevCommentAuthEmail) or i - 1 < 0:
-                        return {'created': customer_relevant_comments[i]
-                                ['created'], 'cidx':
-                                customer_relevant_comments[i]['cidx']}
+                        if not isMongoDBEmail(prevCommentAuthEmail):
+                            continue
+
+                    return {'created': customer_relevant_comments[i]
+                            ['created'], 'cidx':
+                            customer_relevant_comments[i]['cidx']}
         return None
 
     @property
@@ -134,7 +165,7 @@ class SupportIssue:
         if self.hasJIRA():
             comments = self.doc['jira']['fields']['comment']['comments']
 
-            for i in range(0, len(comments), 1):
+            for i in range(len(comments)):
                 if 'visibility' not in comments[i] or\
                         comments[i]['visibility']['value'] != 'Developers':
                     email = comments[i]['author']['emailAddress']
@@ -198,11 +229,10 @@ class SupportIssue:
             return self.doc['jira']['id']
         return None
 
-    # TODO too dashboard specific for this class to be a property?
-    # i liken this to isProactive
+    # TODO remove when dashboard is updated to use isFTS()
     @property
     def is_fts(self):
-        return 'fs' in self.labels
+        return self.isFTS()
 
     @property
     def issuetype(self):
@@ -264,7 +294,7 @@ class SupportIssue:
             for i in range(len(comments) - 1, -1, -1):
                 if 'visibility' not in comments[i] or\
                         comments[i]['visibility']['value'] != 'Developers':
-                    email = comments[i]['author'].get('emailAddress', None)
+                    email = comments[i]['author']['emailAddress']
 
                     if isMongoDBEmail(email) or\
                             isSlaQualifiedPartnerEmail(email):
@@ -275,53 +305,16 @@ class SupportIssue:
     def lastXGenOnlyComment(self):
         if self.hasJIRA():
             comments = self.doc['jira']['fields']['comment']['comments']
-            last_devonly_index = None
 
-            # Record location of last dev-only comment and use to combine with
-            # hypothesis
-            hypothesis_index = None
             for i in range(len(comments) - 1, -1, -1):
                 if 'visibility' in comments[i] and\
                         comments[i]['visibility']['value'] == 'Developers':
-                    last_devonly_index = i
-                    break
+                    email = comments[i]['author']['emailAddress']
 
-            if last_devonly_index is None:
-                return None
-            else:
-                returned_object = copy.deepcopy(comments[last_devonly_index])
-
-            if hypothesis_index is not None:
-                # If the last dev only comment is also a hypothesis, just show
-                # it
-                if hypothesis_index == last_devonly_index:
-                    returned_object = copy.deepcopy(comments[hypothesis_index])
-                    returned_object['author']['displayName'] = (
-                        returned_object.get('author').get('displayName')
-                        + ' (+Hypothesis)')
-                else:
-                    if (returned_object.get('author').get('displayName') ==
-                        comments[hypothesis_index].get('author').get(
-                            'displayName')):
-                        returned_object['author']['displayName'] = (
-                            returned_object.get('author').get('displayName') +
-                            ' (+separate Hypothesis)')
-                        returned_object['body'] = (
-                            returned_object.get('body') +
-                            comments[hypothesis_index].get('body'))
-                    else:
-                        returned_object['author']['displayName'] = (
-                            returned_object.get('author').get('displayName') +
-                            ' (+separate Hypothesis)')
-                        returned_object['body'] = (
-                            comments[last_devonly_index].get(
-                                'author').get('displayName') + 'said:' +
-                            returned_object.get('body') +
-                            comments[hypothesis_index].get('author').get('\
-                                    displayName') + ' hypothesized:' +
-                            comments[hypothesis_index].get('body'))
-            return {'author': {'displayName': returned_object['author'][
-                'displayName']}, 'cidx': last_devonly_index}
+                    if isMongoDBEmail(email) or\
+                            isSlaQualifiedPartnerEmail(email):
+                        return {'author': {'displayName': comments[i][
+                            'author']['displayName']}, 'cidx': i}
         return None
 
     @property
@@ -416,27 +409,9 @@ class SupportIssue:
     # End properties
     #
 
-    def fromDoc(self, doc):
-        """ This method expects a document from MongoDB, i.e.
-        support.issues.findOne() """
-        self.doc = doc
-
-        if self.hasJIRA():
-            # normalize date fields
-            created = self.doc['jira']['fields']['created']
-            if not isinstance(created, datetime):
-                created = dateutil.parser.parse(created).astimezone(
-                    dateutil.tz.tzutc()).replace(tzinfo=None)
-                self.doc['jira']['fields']['created']
-
-            updated = self.doc['jira']['fields']['updated']
-            if not isinstance(updated, datetime):
-                updated = dateutil.parser.parse(updated).astimezone(
-                    dateutil.tz.tzutc()).replace(tzinfo=None)
-                self.doc['jira']['fields']['updated']
-                
-            return self
-        return None
+    #
+    # JIRA speficic
+    #
 
     def getJIRAFields(self):
         """ Return a fields dict that can be passed directly to the
@@ -447,19 +422,19 @@ class SupportIssue:
         if self.hasJIRA():
             pass
 
-        for param in self.params:
-            setter = self.getJIRASetter(param)
+        for field in self.fields:
+            setter = self.getJIRASetter(field)
             if setter:
-                setter(fields, self.params[param])
+                setter(fields, self.fields[field])
             else:
-                # TODO continue without param?
-                raise Exception("param %s not supported in getJIRAFields" %
-                                param)
+                # TODO continue without field?
+                raise Exception("field %s not supported in getJIRAFields" %
+                                field)
 
         return fields
 
-    def getJIRASetter(self, param):
-        """ Return the appropriate JIRA-specific setter for the given param """
+    def getJIRASetter(self, field):
+        """ Return the appropriate JIRA-specific setter for the given field """
         set_map = {'description': self.setJIRADescription,
                    'group': self.setJIRAGroup,
                    'issuetype': self.setJIRAIssuetype,
@@ -472,8 +447,8 @@ class SupportIssue:
                    'company groups': self.setJIRACompanyGroups
                    }
 
-        if param in set_map:
-            return set_map[param]
+        if field in set_map:
+            return set_map[field]
         else:
             return None
 
