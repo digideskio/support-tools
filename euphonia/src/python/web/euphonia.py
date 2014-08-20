@@ -15,7 +15,7 @@ def index(page=1):
 # GROUP-RELATED ROUTES
 @route('/groups/<page:re:\d*>')
 @route('/groups')
-@route('/issue/<test>')
+@route('/test/<test>')
 def groups(page=1, test=None):
     query = None
     if test is not None:
@@ -52,16 +52,15 @@ def includeTest(gid, test):
     return redirect('/group/%s' % gid)
 
 #FAILEDTEST-RELATED ROUTES
-@route('/issues')
-def issueSummary():
-    issueSummary = issues.getIssueSummary()
-    topIssues = issues.getTopIssues(5)
-    return template('base_page', renderpage="issues", issueSummary=issueSummary, topIssues=topIssues, descriptionCache=descriptionCache)
+@route('/tests')
+def failedTestsSummary():
+    failedTestsSummary = failedTests.getFailedTestsSummary()
+    topFailedTests = failedTests.getTopFailedTests(5)
+    return template('base_page', renderpage="tests", testSummary=failedTestsSummary, topTests=topFailedTests, descriptionCache=descriptionCache)
 
-#TICKET ROUTES
-@route('/tickets')
-@route('/tickets/<ticket>')
-def ticketSummary(workflow=None, page=1):
+#ISSUE ROUTES
+@route('/issues')
+def issueSummary(workflow=None, page=1):
     query = None
     if workflow != None:
         query = {"workflow":{"$in":[workflow]}}
@@ -74,17 +73,21 @@ def ticketSummary(workflow=None, page=1):
     sortField = 'priority'
     order = pymongo.DESCENDING
     ticketSummary = tickets.getTicketSummary(query, sortField, order, skip, limit)
-    return template('base_page', renderpage="tickets", ticketSummary=ticketSummary)
+    issueIds = []
+    for issue in ticketSummary['tickets']:
+        issueIds.append(issue['iid'])
+    issueObjs = issues.getIssueSummaries(issueIds)
+    return template('base_page', renderpage="tickets", ticketSummary=ticketSummary, issues=issueObjs)
 
-@route('/ticket/<ticket>/approve')
-def approveTicket(ticket):
-    tickets.approveTicket(ticket)
-    return redirect('/tickets')
+@route('/issue/<issue>/approve')
+def approveIssue(issue):
+    tickets.approveTicket(issue)
+    return redirect('/issues')
 
-@route('/ticket/<ticket>/delay/<days>')
-def delayTicket(ticket,days):
-    tickets.delayTicket(ticket,days)
-    return redirect('/tickets')
+@route('/ticket/<issue>/delay/<days>')
+def delayIssue(issue,days):
+    tickets.delayTicket(issue,days)
+    return redirect('/issues')
 
 # STATIC FILES
 @route('/js/<filename>')
@@ -101,11 +104,14 @@ def server_css(filename):
 
 connection_string = "mongodb://localhost"
 connection = pymongo.MongoClient(connection_string)
-database = connection.euphonia
-karakuridb = connection.karakuri
-groups = groupDAO.GroupDAO(database)
-issues = issueDAO.IssueDAO(database)
-tickets = ticketDAO.TicketDAO(karakuridb)
+euphoniaDB = connection.euphonia
+karakuriDB = connection.karakuri
+supportDB = connection.support
+
+groups = groupDAO.GroupDAO(euphoniaDB)
+failedTests = failedTestDAO.FailedTestDAO(euphoniaDB)
+issues = issueDAO.IssueDAO(supportDB)
+tickets = ticketDAO.TicketDAO(karakuriDB)
 
 descriptionJSON = open('descriptions.json')
 descriptionCache = json.load(descriptionJSON)

@@ -1,5 +1,7 @@
 import pymongo
 import bson
+from bson.objectid import ObjectId
+from datetime import datetime, timedelta
 
 class TicketDAO:
 
@@ -20,7 +22,8 @@ class TicketDAO:
         return {"tickets": tickets, "count": ticketCount}
 
     def approveTicket(self,ticket):
-        self.collection.update({"iid":ticket},{"$set":{"approved":true,"t":)}})
+        print ticket
+        self.collection.update({"iid":ObjectId(ticket)},{"$set": {"approved": True, "t": datetime.utcnow()}})
 
     def delayTicket(self,ticket,days):
-        self.collection.update({"iid":ticket},{"$set":{"approved":false}})
+        self.collection.update({"iid":ObjectId(ticket)},{"$set": {"approved": False, "t": datetime.utcnow()}})

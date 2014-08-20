@@ -11,7 +11,7 @@
     </div>
     <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
       <ul class="nav navbar-nav">
-          % for section in ["groups","issues","tickets"]:
+          % for section in ["groups","tests","issues"]:
           %     active = ""
           %     if section == renderpage:
           %         active = "active"
