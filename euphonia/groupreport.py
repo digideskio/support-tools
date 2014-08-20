@@ -7,10 +7,18 @@ class GroupReport:
         # TODO validate named fields to guarantee schema across reports
         self.group = group
         # Currently supported tests, not all tests in GroupReportTests
-        self.tests = ['EvenVotingNumberReplicaSets', 'LimitsStartupWarning',
-                      'Mongo22Idempotency', 'Mongo24DbhashCache',
-                      'Mongo24InitialSync', 'Mongo26', 'NMonitoringAgents',
-                      'NumaStartupWarning', 'StartupWarning']
+        self.tests = {
+                        'EvenVotingNumberReplicaSets':'high',
+                        'LimitsStartupWarning':'medium',
+                        'Mongo22Idempotency':'high',
+                        'Mongo24DbhashCache':'high',
+                        'Mongo24InitialSync':'medium',
+                        'Mongo26':'low',
+                        'NMonitoringAgents':'low',
+                        'NumaStartupWarning':'medium',
+                        'StartupWarning':'low'
+                    }
+        self.testPriorityScores = {'low':2.0,'medium':4.0,'high':8.0}
         self.verbose = False
 
     def runAllTests(self):

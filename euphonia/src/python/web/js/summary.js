@@ -1,0 +1,3 @@
+
+$('.failedtests').popover();
+$('.tooltip').tooltip();
