@@ -28,7 +28,7 @@
                     </thead>
                     <tbody>
                     % for issue in topIssues:
-                        <tr><td><a href="/issue/{{issue['_id']}}">{{issue['_id']}}</a></td><td>{{issue['failedCount']}}</td></tr>
+                        <tr><td><a href="/issue/{{issue['_id']}}">{{issue['_id']}}</a></td><td><b>{{issue['failedCount']}}</b></td></tr>
                     % end
                     </tbody>
                 </table>
