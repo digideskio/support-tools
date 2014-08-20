@@ -1,55 +1,279 @@
 import json
+import logging
 import os
 import pymongo
 
-from bson.objectid import ObjectId
+from bson import ObjectId
 from datetime import datetime, timedelta
 from jirapp import jirapp
-from supportissue import isMongoDBEmail, SupportIssue
+from pprint import pprint
+from supportissue import SupportIssue
 from ConfigParser import RawConfigParser
-
-
-def log(msg):
-        print "[{0}] {1}".format(datetime.now(), msg)
 
 
 class Karakuri:
     def __init__(self, config, mongodb):
-        log("Initializing Karakuri")
+        logging.basicConfig(format='[%(asctime)s] %(message)s',
+                            level=logging.INFO)
+        logging.info("Initializing Karakuri")
+
+        # TODO add command line arguments
 
         self.ticketer = None
-        self.live = False
+        self.live = True
         self.verbose = False
+
+        if self.verbose:
+            for s in config.sections():
+                # TODO why doesn't this work?
+                logging.debug("%s", s)
+                logging.debug(pprint(config.items(s)))
 
         # Initialize databases and collections
         self.db_jirameta = mongodb.jirameta
         self.db_support = mongodb.support
         self.db_karakuri = mongodb.karakuri
         self.coll_issues = self.db_support.issues
-        self.coll_workflows = self.db_karakuri.workflows
-        self.coll_logs = self.db_karakuri.logs
+
+        #if self.live:
+        #    self.coll_workflows = self.db_karakuri.workflows
+        #    self.coll_log = self.db_karakuri.log
+        #    self.coll_queue = self.db_karakuri.queue
+        #else:
+        self.coll_workflows = self.db_karakuri.workflows_test
+        self.coll_log = self.db_karakuri.log_test
+        self.coll_queue = self.db_karakuri.queue_test
 
         # TODO extract JIRA specific config and pass to JIRA++
         # Initialize JIRA++
         self.jirapp = jirapp(config, self.db_jirameta, self.db_support)
         self.jirapp.setLive(self.live)
 
-        # Set the ticketer. Currently there is only one :(
+        # Set the ticketer. There can be only one:
+        # https://www.youtube.com/watch?v=sqcLjcSloXs
         self.setTicketer(self.jirapp)
 
-    def setTicketer(self, ticketer):
-        self.ticketer = ticketer
+    def getSupportIssue(self, issueId):
+        """ Return a SupportIssue for the given issueId """
+        if self.verbose:
+            logging.info("getSupportIssue('%s')", issueId)
 
-    def run(self):
-        # process each workflow
+        try:
+            doc = self.coll_issues.find_one({'_id': issueId})
+        except pymongo.errors.PyMongoError as e:
+            raise e
+
+        if doc:
+            issue = SupportIssue()
+            issue.fromDoc(doc)
+            return issue
+
+        logging.warning("issue %s !found", issueId)
+        return None
+
+    def log(self, issueId, workflowName, action, success):
+        logging.info("log('%s', '%s', '%s', %s)", issueId, workflowName,
+                     action, success)
+
+        lid = ObjectId()
+
+        doc = {'_id': lid, 'iid': issueId, 'workflow': workflowName,
+               'action': action, 'p': success}
+
+        try:
+            self.coll_log.insert(doc)
+        except pymongo.errors.PyMongoError as e:
+            raise e
+
+        return lid
+
+    def queueWorkflow(self, issueId, workflowName):
+        logging.info("queue('%s', '%s')", issueId, workflowName)
+
+        # don't queue a workflow that is already queued
+        match = {'iid': issueId, 'workflow': workflowName}
+        if self.coll_queue.find(match).count() != 0:
+            logging.info("%s already queued for issue '%s'", workflowName,
+                         issueId)
+            self.log(issueId, workflowName, 'queue', False)
+            return None
+
+        doc = {'iid': issueId, 'workflow': workflowName, 'approved': False,
+               'done': False, 'inProg': False, 't': datetime.utcnow()}
+
+        try:
+            self.coll_queue.insert(doc)
+        except pymongo.errors.PyMongoError as e:
+            raise e
+
+        self.log(issueId, workflowName, 'queue', True)
+
+    def perform(self, queueId):
+        logging.info("perform('%s')", queueId)
+
+        match = {'_id': queueId}
+        updoc = {"$set": {'inProg': True, 't': datetime.utcnow()}}
+
+        try:
+            doc = self.coll_queue.find_and_modify(match, updoc)
+        except pymongo.errors.PyMongoError as e:
+            raise e
+
+        if doc and 'workflow' in doc and doc['workflow']:
+            if self.performWorkflow(doc['iid'], doc['workflow']):
+                updoc = {"$set": {'done': True, 'inProg': False,
+                         't': datetime.utcnow()}}
+
+                try:
+                    self.coll_queue.find_and_modify(match, updoc)
+                except pymongo.errors.PyMongoError as e:
+                    raise e
+
+    def performWorkflow(self, issueId, workflowName):
+        """ Perform the proposed workflow for the given issue """
+        logging.info("performWorkflow('%s', '%s')", issueId, workflowName)
+
+        # validate that this is still worth running
+        if self.validate(issueId, workflowName):
+            self.log(issueId, workflowName, 'validate', True)
+        else:
+            logging.info("Issue does not satisfy workflow requirements, "
+                         "will !perform")
+            self.log(issueId, workflowName, 'validate', False)
+
+        issue = self.getSupportIssue(issueId)
+        if not issue:
+            raise Exception("unable to get SupportIssue for issue %s" %
+                            issueId)
+
+        try:
+            workflow = self.coll_workflows.find_one({'name': workflowName})
+        except pymongo.errors.PyMongoError as e:
+            raise e
+
+        if not workflow:
+            raise Exception("workflow %s is !defined" % workflow['name'])
+
+        # so far so good
+        success = True
+
+        for action in workflow['actions']:
+            # ensure action is defined for this ticketing system
+            if not hasattr(self.ticketer, action['name']):
+                raise Exception("%s is not a supported action" %
+                                action['name'])
+
+            args = []
+
+            if 'args' in action:
+                args = list(action['args'])
+            else:
+                args = []
+
+            # first argument is ticketer-dependent
+            # JIRA takes a JIRA-key
+            args.insert(0, issue.jiraKey)
+
+            # for the sake of logging reduce string arguments
+            # to 50 characters and replace \n with \\n
+            argString = (', '.join('"' + arg[:50].replace('\n',
+                         '\\n') + '"' for arg in args))
+            logging.info("Calling %s(%s)" % (action['name'], argString))
+
+            if self.live:
+                f = getattr(self.ticketer, action['name'])
+                # expand list to function arguments
+                r = f(*args)
+            else:
+                # simulate success
+                r = True
+
+            if not r:
+                success = False
+                break
+
+        lid = self.log(issue.id, workflow['name'], 'perform', success)
+
+        if success:
+            match = {'_id': issue.id}
+            updoc = {'$set': {'updated': datetime.utcnow()},
+                    '$push': {'karakuri.workflows_performed':
+                             {'name': workflow['name'], 'lid': lid}}}
+
+            try:
+                self.coll_issues.update(match, updoc)
+            except pymongo.errors.PyMongoError as e:
+                raise e
+
+        return success
+
+    def performAll(self):
+        """ Perform all approved workflows """
+        logging.info("performAll()")
+
+        match = {'done': False, 'inProg': False, 'approved': True}
+
+        try:
+            curs_queue = self.coll_queue.find(match)
+        except pymongo.errors.PyMongoError as e:
+            raise e
+
+        for i in curs_queue:
+            self.perform(i['_id'])
+
+    def validate(self, issueId, workflowName):
+        """ Verify that the given issue satisfies the requirements to run the
+        specified workflow """
+        logging.info("validate('%s', '%s')", issueId, workflowName)
+
+        try:
+            workflow = self.coll_workflows.find_one({'name': workflowName})
+        except pymongo.errors.PyMongoError as e:
+            raise e
+
+        if not workflow:
+            raise Exception("workflow %s is !defined" % workflowName)
+
+        query_string = workflow['query_string']
+        match = json.loads(query_string)
+
+        # has workflow already been performed for this issue?
+        # if so we're probably in the middle of a sequence of workflows
+        if "$and" not in match:
+            match["$and"] = []
+        match["$and"].append({'karakuri.workflows_performed.name': {"$ne":
+                              workflow['name']}})
+
+        if 'prereqs' in workflow:
+            # require each prerequisite has been met
+            prereqs = workflow['prereqs']
+
+            for prereq in prereqs:
+                match['$and'].append({'karakuri.workflows_performed.name': prereq})
+
+        # finally, the specified issue must return in the query!
+        match['_id'] = issueId
+
+        if self.verbose:
+            logging.debug(pprint(match))
+
+        if self.coll_issues.find(match).count() == 1:
+            logging.info("workflow validated")
+            return True
+        else:
+            logging.info("workflow failed validation")
+            return False
+
+    def findAndQueue(self):
+        logging.info("findAndQueue()")
+
         try:
             curs_workflows = self.coll_workflows.find()
-
         except pymongo.errors.PyMongoError as e:
             raise e
 
         for workflow in curs_workflows:
-            log("Exercising %s workflow..." % workflow['name'])
+            logging.info("Considering %s workflow" % workflow['name'])
 
             query_string = workflow['query_string']
             match = json.loads(query_string)
@@ -62,9 +286,8 @@ class Karakuri:
                                   workflow['name']}})
 
             if 'prereqs' in workflow:
-                # require each prerequisite is met
+                # require each prerequisite has been met
                 prereqs = workflow['prereqs']
-                log("Considering prereqs: %s" % ', '.join(map(str, prereqs)))
                 for prereq in prereqs:
                     match['$and'].append({'karakuri.workflows_performed.name':
                                           prereq})
@@ -72,7 +295,6 @@ class Karakuri:
             # find 'em and get 'er done!
             try:
                 curs_issues = self.coll_issues.find(match)
-
             except pymongo.errors.PyMongoError as e:
                 raise e
 
@@ -80,133 +302,51 @@ class Karakuri:
                 issue = SupportIssue()
                 issue.fromDoc(i)
 
-                # only JIRA at the moment
+                # we only support JIRA at the moment
                 if not issue.hasJIRA():
-                    log("Skipping unsupported ticketing type!")
+                    logging.info("Skipping unsupported ticketing type!")
                     continue
 
                 # check for Karakuri actions
                 if not issue.isActive():
-                    log("Skipping %s as it is not active" % issue.key)
+                    logging.info("Skipping %s as it is not active" % issue.key)
                     continue
-
-                # is the onus on them?
-                # if issue.status != "Waiting for Customer":
-                #    continue
 
                 # require time_elapsed has passed since last public comment
                 # use 'updated' as comment could have been created dev-only
-                # lastPublicComment = issue.lastXGenPublicComment
+                lastPublicComment = issue.lastXGenPublicComment
 
                 # if no public comments, use issue updated
-                # if lastPublicComment is None:
-                lastDate = issue.updated
-                # else:
-                #    lastDate = lastPublicComment['updated']
+                if lastPublicComment is None:
+                    lastDate = issue.updated
+                else:
+                    # TODO get updated, not just created :(
+                    lastDate = lastPublicComment['created']
 
                 # it's possible that we got here after a previous workflow
                 # and before our jira was updated to reflect that
-                if 'karakuri' in i:
-                    if 'updated' in i['karakuri']:
-                        lastKarakuri = i['karakuri']['updated']
+                if issue.hasKarakuri():
+                    # TODO create getters for these
+                    if 'updated' in issue.doc['karakuri']:
+                        lastKarakuri = issue.doc['karakuri']['updated']
                         if lastKarakuri > lastDate:
                             lastDate = lastKarakuri
 
-                # NOTE to compare with karakuri.rb, require that the user has
-                # never before commented, and that the issue either does not
-                # have a company (customfield_10030), does not have a MongoDB
-                # assignee, or does not have a MongoDB reporter; i.e. the ruby
-                # is innocent until proven guilty
-                rubypass = True
-                newpass = True
-
-                lcc = issue.lastCustomerComment
-                company = issue.company
-                assigneeEmail = issue.assigneeEmail
-                assigneeIsMongoDB = isMongoDBEmail(assigneeEmail)
-                reporterEmail = issue.reporterEmail
-                reporterIsMongoDB = isMongoDBEmail(reporterEmail)
-
-                if lcc is None and (company is not None or
-                                    assigneeIsMongoDB is False or
-                                    reporterIsMongoDB is False):
-                    pass
-                else:
-                    rubypass = False
-
-                if company is None or lcc is not None:
-                    newpass = False
+                # require that the issue have a company?
+                # company = issue.company
+                # require that the customer has never before commented?
+                # lcc = issue.lastCustomerComment
 
                 # has enough time elapsed?
                 time_elapsed = timedelta(seconds=workflow['time_elapsed'])
                 # in UTC please!
                 now = datetime.utcnow()
 
-                if lastDate + time_elapsed < now and newpass:
-                    log("Workflow %s triggered for %s" % (workflow['name'],
-                                                            issue.key))
+                if lastDate + time_elapsed < now:
+                    self.queueWorkflow(issue.id, workflow['name'])
 
-                    # the success of the entire workflow
-                    # so far so good
-                    success = True
-
-                    actions = workflow['actions']
-                    for action in actions:
-                        # is action defined for this ticketing system?
-                        if hasattr(self.ticketer, action['name']):
-                            args = []
-
-                            if 'args' in action:
-                                args = list(action['args'])
-                            else:
-                                args = []
-
-                            # for the sake of logging reduce string arguments
-                            # to 50 characters and replace \n with \\n
-                            argString = (', '.join('"' + arg[:50].replace('\n',
-                                         '\\n') + '"' for arg in args))
-                            if self.verbose:
-                                log("Executing: %s(%s)" % (action['name'],
-                                                             argString))
-
-                            # first argument is always a SupportIssue type
-                            args.insert(0, issue)
-
-                            if self.live:
-                                f = getattr(self.ticketer, action['name'])
-                                # expand list to function arguments
-                                r = f(*args)
-
-                                if not r:
-                                    # if one action fails, whole workflow fails
-                                    # TODO log failures in karakuri.logs
-                                    success = False
-                                    break
-
-                        else:
-                            raise Exception("Error: %s is not a supported\
-                                    action" % action['name'])
-
-                    if success and self.live:
-                        # we'll log this workflow in two places
-                        # 1. karakuri.logs
-                        # 2. support.issues.karakuri
-                        # with a common ObjectId for timing
-                        _id = ObjectId()
-                        logdoc = {'_id': _id, 'iid': issue.id, 'workflow':
-                                  workflow['name']}
-                        self.coll_logs.insert(logdoc)
-
-                        match = {'_id': issue.id}
-                        updoc = {'$set': {'karakuri.updated':
-                                 datetime.utcnow()}, '$push':
-                                 {'karakuri.workflows_performed':
-                                  {'name': workflow['name'], 'log': _id}}}
-
-                        try:
-                            self.coll_issues.update(match, updoc)
-                        except pymongo.errors.PyMongoError as e:
-                            raise e
+    def setTicketer(self, ticketer):
+        self.ticketer = ticketer
 
 #
 # Parse command line options
@@ -224,4 +364,5 @@ config.read(os.getcwd() + "/karakuri.cfg")  # + options.config)
 mongodb = pymongo.MongoClient()
 
 kk = Karakuri(config, mongodb)
-kk.run()
+kk.findAndQueue()
+kk.performAll()
