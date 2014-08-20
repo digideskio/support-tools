@@ -6,6 +6,7 @@ import failedTestDAO
 import groupDAO
 import issueDAO
 import ticketDAO
+import karakuriDAO
 
 # ROOT/SUMMARY PAGE
 @route('/<page:re:\d*>')
@@ -64,7 +65,6 @@ def issueSummary(workflow=None, page=1):
     query = None
     if workflow != None:
         query = {"workflow":{"$in":[workflow]}}
-    print query
     limit = 10
     if page == '':
         page = 1
@@ -73,15 +73,17 @@ def issueSummary(workflow=None, page=1):
     sortField = 'priority'
     order = pymongo.DESCENDING
     ticketSummary = tickets.getTicketSummary(query, sortField, order, skip, limit)
+    ticketQueues = tickets.getWorkflowStates()
     issueIds = []
     for issue in ticketSummary['tickets']:
         issueIds.append(issue['iid'])
     issueObjs = issues.getIssueSummaries(issueIds)
-    return template('base_page', renderpage="tickets", ticketSummary=ticketSummary, issues=issueObjs)
+    return template('base_page', renderpage="tickets", ticketSummary=ticketSummary, issues=issueObjs, ticketQueues=ticketQueues)
 
-@route('/issue/<issue>/approve')
+@route('/ticket/<issue>/approve')
 def approveIssue(issue):
     tickets.approveTicket(issue)
+    karakuri.approveTicket(issue)
     return redirect('/issues')
 
 @route('/ticket/<issue>/delay/<days>')
@@ -112,6 +114,7 @@ groups = groupDAO.GroupDAO(euphoniaDB)
 failedTests = failedTestDAO.FailedTestDAO(euphoniaDB)
 issues = issueDAO.IssueDAO(supportDB)
 tickets = ticketDAO.TicketDAO(karakuriDB)
+karakuri = karakuriDAO.karakuriDAO("http://localhost:8081")
 
 descriptionJSON = open('descriptions.json')
 descriptionCache = json.load(descriptionJSON)
