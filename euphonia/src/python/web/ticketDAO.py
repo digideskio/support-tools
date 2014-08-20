@@ -7,6 +7,7 @@ class TicketDAO:
 
     def __init__(self, database):
         self.collection = database.queue
+        self.workflows = database.workflows
 
     def getTicketSummary(self, query, sortField, order=pymongo.ASCENDING, skip=0, limit=10):
         fquery = {}
@@ -22,8 +23,16 @@ class TicketDAO:
         return {"tickets": tickets, "count": ticketCount}
 
     def approveTicket(self,ticket):
-        print ticket
         self.collection.update({"iid":ObjectId(ticket)},{"$set": {"approved": True, "t": datetime.utcnow()}})
 
     def delayTicket(self,ticket,days):
         self.collection.update({"iid":ObjectId(ticket)},{"$set": {"approved": False, "t": datetime.utcnow()}})
+
+    def getWorkflowStates(self):
+        results = self.workflows.find({})
+        states = []
+        state = next(results, None)
+        while state is not None:
+            states.append(state)
+            state = next(results, None)
+        return states

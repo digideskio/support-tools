@@ -3,7 +3,7 @@ from groupreport_tests import GroupReportTests
 
 class GroupReport:
     def __init__(self, group):
-        """ Build a GroupReport from a row in proactive.mmsgroupreports """
+        """ Build a GroupReport from a row in euphonia.mmsgroupreports """
         # TODO validate named fields to guarantee schema across reports
         self.group = group
         # Currently supported tests, not all tests in GroupReportTests
