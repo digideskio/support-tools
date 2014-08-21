@@ -11,7 +11,8 @@ from supportissue import SupportIssue
 from ConfigParser import RawConfigParser
 
 
-class Karakuri:
+class karakuri:
+    """ An automaton: http://en.wikipedia.org/wiki/Karakuri_ningy%C5%8D """
     def __init__(self, config, mongodb):
         logging.basicConfig(format='[%(asctime)s] %(message)s',
                             level=logging.INFO)
@@ -20,7 +21,7 @@ class Karakuri:
         # TODO add command line arguments
 
         self.ticketer = None
-        self.live = True
+        self.live = False
         self.verbose = False
 
         if self.verbose:
@@ -35,14 +36,9 @@ class Karakuri:
         self.db_karakuri = mongodb.karakuri
         self.coll_issues = self.db_support.issues
 
-        #if self.live:
-        #    self.coll_workflows = self.db_karakuri.workflows
-        #    self.coll_log = self.db_karakuri.log
-        #    self.coll_queue = self.db_karakuri.queue
-        #else:
-        self.coll_workflows = self.db_karakuri.workflows_test
-        self.coll_log = self.db_karakuri.log_test
-        self.coll_queue = self.db_karakuri.queue_test
+        self.coll_workflows = self.db_karakuri.workflows
+        self.coll_log = self.db_karakuri.log
+        self.coll_queue = self.db_karakuri.queue
 
         # TODO extract JIRA specific config and pass to JIRA++
         # Initialize JIRA++
@@ -53,15 +49,113 @@ class Karakuri:
         # https://www.youtube.com/watch?v=sqcLjcSloXs
         self.setTicketer(self.jirapp)
 
+    def find_and_modify(self, collection, match, updoc):
+        res = None
+
+        try:
+            res = collection.find_and_modify(match, updoc)
+        except pymongo.errors.PyMongoError as e:
+            logging.exception(e)
+
+        return res
+
+    def find_one(self, collection, match):
+        res = None
+
+        try:
+            res = collection.find_one(match)
+        except pymongo.errors.PyMongoError as e:
+            logging.exception(e)
+
+        return res
+
+    def queue_find_and_modify(self, match, updoc):
+        if "$set" in updoc:
+            updoc["$set"]['t'] = datetime.utcnow()
+        else:
+            updoc["$set"] = {'t': datetime.utcnow()}
+
+        return self.find_and_modify(self.coll_queue, match, updoc)
+
+    def approveQueue(self, qid):
+        match = {'_id': ObjectId(qid)}
+        updoc = {"$set": {'approved': True}}
+        return self.queue_find_and_modify(match, updoc)
+
+    def removeQueue(self, qid):
+        # documents cannot actually be removed from a capped collection
+        # set wakeDate to the end of time
+        wakeDate = datetime.max
+
+        match = {'_id': ObjectId(qid)}
+        updoc = {"$set": {'start': wakeDate}}
+        return self.queue_find_and_modify(match, updoc)
+
+    def sleepQueue(self, qid, seconds):
+        now = datetime.utcnow()
+
+        if seconds > (datetime.max-now).total_seconds():
+            wakeDate = datetime.max
+        else:
+            difference = timedelta(seconds=seconds)
+            wakeDate = now + difference
+
+        match = {'_id': ObjectId(qid)}
+        updoc = {"$set": {'start': wakeDate}}
+        return self.queue_find_and_modify(match, updoc)
+
+    def wakeQueue(self, qid):
+        match = {'_id': ObjectId(qid)}
+        updoc = {"$set": {'start': datetime.utcnow()}}
+        return self.queue_find_and_modify(match, updoc)
+
+    def sleepIssue(self, iid, seconds):
+        now = datetime.utcnow()
+
+        if seconds > (datetime.max-now).total_seconds():
+            wakeDate = datetime.max
+        else:
+            difference = timedelta(seconds=seconds)
+            wakeDate = now + difference
+
+        match = {'_id': ObjectId(iid)}
+        updoc = {"$set": {'karakuri.sleep': wakeDate}}
+        return self.find_and_modify(self.coll_issues, match, updoc)
+
+    def wakeIssue(self, iid):
+        match = {'_id': ObjectId(iid)}
+        updoc = {"$unset": {'karakuri.sleep': ""}}
+        return self.find_and_modify(self.coll_issues, match, updoc)
+
+    def getListOfQueueDocuments(self):
+        curs_queue = self.coll_queue.find()
+        return [q for q in curs_queue]
+
+    def getQueueDocument(self, queueId):
+        """ Return the specified queue document """
+        if not isinstance(queueId, ObjectId):
+            queueId = ObjectId(queueId)
+
+        if self.verbose:
+            logging.info("getQueueDocument('%s')", queueId)
+
+        doc = self.find_one(self.coll_queue, {'_id': queueId})
+
+        if doc:
+            return doc
+
+        logging.warning("queue document %s !found", queueId)
+        return None
+
     def getSupportIssue(self, issueId):
         """ Return a SupportIssue for the given issueId """
+        if not isinstance(issueId, ObjectId):
+            issueId = ObjectId(issueId)
+
         if self.verbose:
             logging.info("getSupportIssue('%s')", issueId)
 
-        try:
-            doc = self.coll_issues.find_one({'_id': issueId})
-        except pymongo.errors.PyMongoError as e:
-            raise e
+        doc = self.find_one(self.coll_issues, {'_id': issueId})
 
         if doc:
             issue = SupportIssue()
@@ -98,8 +192,9 @@ class Karakuri:
             self.log(issueId, workflowName, 'queue', False)
             return None
 
+        now = datetime.utcnow()
         doc = {'iid': issueId, 'workflow': workflowName, 'approved': False,
-               'done': False, 'inProg': False, 't': datetime.utcnow()}
+               'done': False, 'inProg': False, 't': now, 'start': now}
 
         try:
             self.coll_queue.insert(doc)
@@ -108,6 +203,7 @@ class Karakuri:
 
         self.log(issueId, workflowName, 'queue', True)
 
+    # TODO rename -> dequeue
     def perform(self, queueId):
         logging.info("perform('%s')", queueId)
 
@@ -146,10 +242,7 @@ class Karakuri:
             raise Exception("unable to get SupportIssue for issue %s" %
                             issueId)
 
-        try:
-            workflow = self.coll_workflows.find_one({'name': workflowName})
-        except pymongo.errors.PyMongoError as e:
-            raise e
+        workflow = self.find_one(self.coll_workflows, {'name': workflowName})
 
         if not workflow:
             raise Exception("workflow %s is !defined" % workflow['name'])
@@ -197,8 +290,8 @@ class Karakuri:
         if success:
             match = {'_id': issue.id}
             updoc = {'$set': {'updated': datetime.utcnow()},
-                    '$push': {'karakuri.workflows_performed':
-                             {'name': workflow['name'], 'lid': lid}}}
+                     '$push': {'karakuri.workflows_performed':
+                               {'name': workflow['name'], 'lid': lid}}}
 
             try:
                 self.coll_issues.update(match, updoc)
@@ -226,10 +319,7 @@ class Karakuri:
         specified workflow """
         logging.info("validate('%s', '%s')", issueId, workflowName)
 
-        try:
-            workflow = self.coll_workflows.find_one({'name': workflowName})
-        except pymongo.errors.PyMongoError as e:
-            raise e
+        workflow = self.find_one(self.coll_workflows, {'name': workflowName})
 
         if not workflow:
             raise Exception("workflow %s is !defined" % workflowName)
@@ -249,7 +339,8 @@ class Karakuri:
             prereqs = workflow['prereqs']
 
             for prereq in prereqs:
-                match['$and'].append({'karakuri.workflows_performed.name': prereq})
+                match['$and'].append({'karakuri.workflows_performed.name':
+                                     prereq})
 
         # finally, the specified issue must return in the query!
         match['_id'] = issueId
@@ -348,21 +439,23 @@ class Karakuri:
     def setTicketer(self, ticketer):
         self.ticketer = ticketer
 
-#
-# Parse command line options
-#
 
-#
-# Parse configuration file
-#
+if __name__ == "__main__":
+    #
+    # Parse command line options
+    #
 
-config = RawConfigParser()
-config.read(os.getcwd() + "/karakuri.cfg")  # + options.config)
+    #
+    # Parse configuration file
+    #
 
-# Initialize MongoDB
-# TODO configuration passed to MongoClient
-mongodb = pymongo.MongoClient()
+    config = RawConfigParser()
+    config.read(os.getcwd() + "/karakuri.cfg")  # + options.config)
 
-kk = Karakuri(config, mongodb)
-kk.findAndQueue()
-kk.performAll()
+    # Initialize MongoDB
+    # TODO configuration passed to MongoClient
+    mongodb = pymongo.MongoClient()
+
+    kk = karakuri(config, mongodb)
+    kk.findAndQueue()
+    kk.performAll()

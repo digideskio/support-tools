@@ -499,12 +499,7 @@ class SupportIssue:
         wakeDate = self.doc['karakuri']['sleep']
 
         if not isinstance(wakeDate, datetime):
-            if wakeDate == float("inf"):
-                return False
-            else:
-                # TODO probably not the best idea
-                wakeDate = dateutil.parser.parse(wakeDate).astimezone(
-                    dateutil.tz.tzutc()).replace(tzinfo=None)
+            return False
 
         if wakeDate <= datetime.utcnow():
             # TODO wake up! i.e. drop sleep

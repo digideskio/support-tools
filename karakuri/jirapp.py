@@ -2,10 +2,8 @@ import logging
 import pymongo
 
 from jira.client import JIRA
-from jira.resources import Issue as JIRAIssue
 from jira.exceptions import JIRAError
 from pprint import pprint
-from supportissue import SupportIssue
 
 
 class jirapp(JIRA):
