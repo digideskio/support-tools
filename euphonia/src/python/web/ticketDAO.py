@@ -1,7 +1,8 @@
 import pymongo
 import bson
 from bson.objectid import ObjectId
-from datetime import datetime, timedelta
+from datetime import datetime
+import karakuriDAO
 
 class TicketDAO:
 
@@ -23,10 +24,14 @@ class TicketDAO:
         return {"tickets": tickets, "count": ticketCount}
 
     def approveTicket(self,ticket):
-        self.collection.update({"iid":ObjectId(ticket)},{"$set": {"approved": True, "t": datetime.utcnow()}})
+        # self.collection.update({"iid":ObjectId(ticket)},{"$set": {"approved": True, "t": datetime.utcnow()}})
+        karakuri = karakuriDAO("http://localhost:8090")
+        karakuri.approveTicket(ticket)
 
-    def delayTicket(self,ticket,days):
-        self.collection.update({"iid":ObjectId(ticket)},{"$set": {"approved": False, "t": datetime.utcnow()}})
+    def delayTicket(self, ticket, days):
+        # self.collection.update({"iid":ObjectId(ticket)},{"$set": {"approved": False, "t": datetime.utcnow()}})
+        karakuri = karakuriDAO("http://localhost:8090")
+        karakuri.sleepTicket(ticket, days*86400)
 
     def getWorkflowStates(self):
         results = self.workflows.find({})

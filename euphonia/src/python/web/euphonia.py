@@ -1,27 +1,32 @@
-from bottle import run, redirect, error, route, template, static_file
+#!/usr/bin/env python
+
+from bottle import run, redirect, error, route, template, static_file, Bottle
 import pymongo
-import os
+import logging
+import sys
 import json
 import failedTestDAO
 import groupDAO
 import issueDAO
 import ticketDAO
 import karakuriDAO
+from daemon import Daemon
+
+app = Bottle()
 
 # ROOT/SUMMARY PAGE
-@route('/<page:re:\d*>')
+@app.route('/<page:re:\d*>')
 def index(page=1):
     return redirect('/'.join(['/groups',page]))
 
 # GROUP-RELATED ROUTES
-@route('/groups/<page:re:\d*>')
-@route('/groups')
-@route('/test/<test>')
+@app.route('/groups/<page:re:\d*>')
+@app.route('/groups')
+@app.route('/test/<test>')
 def groups(page=1, test=None):
     query = None
     if test is not None:
         query = {"failedTests.test":{"$in":[test]}}
-    print query
     limit = 10
     if page == '':
         page = 1
@@ -32,7 +37,7 @@ def groups(page=1, test=None):
     testsSummary = groups.getFailedTestsSummary(sortField=sortField, order=order, skip=skip, limit=limit, query=query)
     return template('base_page', renderpage="summary", groups=testsSummary['groups'], page=page, count=testsSummary['count'], issue=test)
 
-@route('/group/<gid>')
+@app.route('/group/<gid>')
 def groupSummary(gid):
     groupSummary = groups.getGroupSummary(gid)
     if groupSummary is not None:
@@ -40,27 +45,25 @@ def groupSummary(gid):
     else:
         return redirect('/groups')
 
-@route('/group/<gid>/ignore/<test>')
+@app.route('/group/<gid>/ignore/<test>')
 def ignoreTest(gid, test):
-    groupSummary = groups.getGroupSummary(gid)
     groups.ignoreTest(gid, test)
     return redirect('/group/%s' % gid)
 
-@route('/group/<gid>/include/<test>')
+@app.route('/group/<gid>/include/<test>')
 def includeTest(gid, test):
-    groupSummary = groups.getGroupSummary(gid)
     groups.includeTest(gid, test)
     return redirect('/group/%s' % gid)
 
 #FAILEDTEST-RELATED ROUTES
-@route('/tests')
+@app.route('/tests')
 def failedTestsSummary():
     failedTestsSummary = failedTests.getFailedTestsSummary()
     topFailedTests = failedTests.getTopFailedTests(5)
     return template('base_page', renderpage="tests", testSummary=failedTestsSummary, topTests=topFailedTests, descriptionCache=descriptionCache)
 
 #ISSUE ROUTES
-@route('/issues')
+@app.route('/issues')
 def issueSummary(workflow=None, page=1):
     query = None
     if workflow != None:
@@ -80,44 +83,69 @@ def issueSummary(workflow=None, page=1):
     issueObjs = issues.getIssueSummaries(issueIds)
     return template('base_page', renderpage="tickets", ticketSummary=ticketSummary, issues=issueObjs, ticketQueues=ticketQueues)
 
-@route('/ticket/<issue>/approve')
+@app.route('/ticket/<issue>/approve')
 def approveIssue(issue):
     tickets.approveTicket(issue)
     karakuri.approveTicket(issue)
     return redirect('/issues')
 
-@route('/ticket/<issue>/delay/<days>')
+@app.route('/ticket/<issue>/delay/<days>')
 def delayIssue(issue,days):
     tickets.delayTicket(issue,days)
     return redirect('/issues')
 
 # STATIC FILES
-@route('/js/<filename>')
+@app.route('/js/<filename>')
 def server_js(filename):
     return static_file(filename, root='./js')
 
-@route('/css/<filename>')
+@app.route('/css/<filename>')
 def server_css(filename):
     return static_file(filename, root='./css')
 
-@route('/img/<filename>')
+@app.route('/img/<filename>')
 def server_css(filename):
     return static_file(filename, root='./img')
 
-connection_string = "mongodb://localhost"
-connection = pymongo.MongoClient(connection_string)
-euphoniaDB = connection.euphonia
-karakuriDB = connection.karakuri
-supportDB = connection.support
+class automaton(Daemon):
+    def run(self):
+        app.run(host='0.0.0.0', port=8080)
 
-groups = groupDAO.GroupDAO(euphoniaDB)
-failedTests = failedTestDAO.FailedTestDAO(euphoniaDB)
-issues = issueDAO.IssueDAO(supportDB)
-tickets = ticketDAO.TicketDAO(karakuriDB)
-karakuri = karakuriDAO.karakuriDAO("http://localhost:8081")
+if __name__ == "__main__":
+    logging.basicConfig(format='[%(asctime)s] %(message)s',level=logging.INFO)
+    logging.info("Initializing Euphonia UI")
 
-descriptionJSON = open('descriptions.json')
-descriptionCache = json.load(descriptionJSON)
-descriptionJSON.close()
+    mongodb_connection_string = "mongodb://localhost"
+    karakuri_connection_string = "http://localhost:8081"
 
-run(reloader=True,host='0.0.0.0',port=8080)
+    descriptionJSON = open('descriptions.json')
+    descriptionCache = json.load(descriptionJSON)
+    descriptionJSON.close()
+
+    connection = pymongo.MongoClient(mongodb_connection_string)
+    euphoniaDB = connection.euphonia
+    karakuriDB = connection.karakuri
+    supportDB = connection.support
+
+    groups = groupDAO.GroupDAO(euphoniaDB)
+    failedTests = failedTestDAO.FailedTestDAO(euphoniaDB)
+    issues = issueDAO.IssueDAO(supportDB)
+    tickets = ticketDAO.TicketDAO(karakuriDB)
+    karakuri = karakuriDAO.karakuriDAO(karakuri_connection_string)
+
+    daemon = automaton('euphonia.pid')
+    if len(sys.argv) == 2:
+        if 'start' == sys.argv[1]:
+            daemon.start()
+        elif 'stop' == sys.argv[1]:
+                daemon.stop()
+        elif 'restart' == sys.argv[1]:
+                daemon.restart()
+        else:
+                print "Unknown command"
+                sys.exit(2)
+        sys.exit(0)
+    else:
+        print "usage: %s start|stop|restart" % sys.argv[0]
+        daemon.run()
+        sys.exit(2)
