@@ -1,5 +1,5 @@
 === mdb.py -cx testdb test.big
---- test.big first=0:2b000 last=2:2000, ce=0:2b000, cfn=-2:0
+--- test.big first=0:2b000 last=2:2000, ce=0:2b000, cfn=-2:0, count=5000
 0:2b000: extent sig=41424344 loc=0:2b000 next=0:52000 prev=-1:0 ns=test.big len=1e000(122880) first=0:2b0b0 last=0:454b0
 0:52000: extent sig=41424344 loc=0:52000 next=0:ca000 prev=0:2b000 ns=test.big len=78000(491520) first=0:520b0 last=0:c64b0
 0:ca000: extent sig=41424344 loc=0:ca000 next=0:2aa000 prev=0:52000 ns=test.big len=1e0000(1966080) first=0:ca0b0 last=0:2a64b0

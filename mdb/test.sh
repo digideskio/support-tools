@@ -23,6 +23,7 @@ function test_one() {
 
 function test_all() {
 
+    test_one  -ci testdb test
     test_one  -cx testdb test.big
     test_one  -cxrb testdb test.small
     test_one  -cxrnpf testdb test.small
