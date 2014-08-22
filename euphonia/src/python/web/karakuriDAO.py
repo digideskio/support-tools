@@ -8,8 +8,9 @@ class karakuriDAO:
     def executeKarakuriCall(self, url):
         try:
             r = requests.get(url)
-            print r
-            return r
+            print url
+            print r.json()
+            return r.json()['data']
         except:
             print "Failed to call: " + url
 

@@ -6,9 +6,10 @@ import karakuriDAO
 
 class TicketDAO:
 
-    def __init__(self, database):
+    def __init__(self, database, karakuri):
         self.collection = database.queue
         self.workflows = database.workflows
+        self.karakuri = karakuri
 
     def getTicketSummary(self, query, sortField, order=pymongo.ASCENDING, skip=0, limit=10):
         fquery = {}
@@ -25,13 +26,11 @@ class TicketDAO:
 
     def approveTicket(self,ticket):
         # self.collection.update({"iid":ObjectId(ticket)},{"$set": {"approved": True, "t": datetime.utcnow()}})
-        karakuri = karakuriDAO("http://localhost:8090")
-        karakuri.approveTicket(ticket)
+        self.karakuri.approveTicket(ticket)
 
     def delayTicket(self, ticket, days):
         # self.collection.update({"iid":ObjectId(ticket)},{"$set": {"approved": False, "t": datetime.utcnow()}})
-        karakuri = karakuriDAO("http://localhost:8090")
-        karakuri.sleepTicket(ticket, days*86400)
+        self.karakuri.sleepTicket(ticket, days*86400)
 
     def getWorkflowStates(self):
         results = self.workflows.find({})

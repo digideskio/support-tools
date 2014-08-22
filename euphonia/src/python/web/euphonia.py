@@ -75,12 +75,12 @@ def issueSummary(workflow=None, page=1):
     skip = (page - 1) * limit
     sortField = 'priority'
     order = pymongo.DESCENDING
-    ticketSummary = tickets.getTicketSummary(query, sortField, order, skip, limit)
+    #ticketSummary = tickets.getTicketSummary(query, sortField, order, skip, limit)
+    ticketSummary = karakuri.getQueues()
     ticketQueues = tickets.getWorkflowStates()
-    issueIds = []
+    issueObjs = {}
     for issue in ticketSummary['tickets']:
-        issueIds.append(issue['iid'])
-    issueObjs = issues.getIssueSummaries(issueIds)
+        issueObjs[str(issue['iid'])] = karakuri.getTicket(str(issue['iid']))['jira']
     return template('base_page', renderpage="tickets", ticketSummary=ticketSummary, issues=issueObjs, ticketQueues=ticketQueues)
 
 @app.route('/ticket/<issue>/approve')
@@ -109,14 +109,14 @@ def server_css(filename):
 
 class automaton(Daemon):
     def run(self):
-        app.run(host='0.0.0.0', port=8080)
+        app.run(host='0.0.0.0', port=8070)
 
 if __name__ == "__main__":
     logging.basicConfig(format='[%(asctime)s] %(message)s',level=logging.INFO)
     logging.info("Initializing Euphonia UI")
 
     mongodb_connection_string = "mongodb://localhost"
-    karakuri_connection_string = "http://localhost:8081"
+    karakuri_connection_string = "http://localhost:8080"
 
     descriptionJSON = open('descriptions.json')
     descriptionCache = json.load(descriptionJSON)
@@ -127,11 +127,11 @@ if __name__ == "__main__":
     karakuriDB = connection.karakuri
     supportDB = connection.support
 
+    karakuri = karakuriDAO.karakuriDAO(karakuri_connection_string)
     groups = groupDAO.GroupDAO(euphoniaDB)
     failedTests = failedTestDAO.FailedTestDAO(euphoniaDB)
     issues = issueDAO.IssueDAO(supportDB)
-    tickets = ticketDAO.TicketDAO(karakuriDB)
-    karakuri = karakuriDAO.karakuriDAO(karakuri_connection_string)
+    tickets = ticketDAO.TicketDAO(karakuriDB,karakuri)
 
     daemon = automaton('euphonia.pid')
     if len(sys.argv) == 2:
