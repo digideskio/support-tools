@@ -1,4 +1,5 @@
 import requests
+from bson.json_util import loads
 
 class karakuriDAO:
 
@@ -8,9 +9,10 @@ class karakuriDAO:
     def executeKarakuriCall(self, url):
         try:
             r = requests.get(url)
+            response = loads(r.text)
             print url
-            print r.json()
-            return r.json()['data']
+            print response
+            return response['data']
         except:
             print "Failed to call: " + url
 
@@ -56,5 +58,20 @@ class karakuriDAO:
 
     def wakeTicket(self, ticketId):
         getUrl = "%s/issue/%s/wake" % (self.SERVER, ticketId)
+        response = self.executeKarakuriCall(getUrl)
+        return response
+
+    def approveTicket(self, ticketId):
+        getUrl = "%s/issue/%s/approve" % (self.SERVER, ticketId)
+        response = self.executeKarakuriCall(getUrl)
+        return response
+
+    def getWorkflows(self):
+        getUrl = "%s/workflow" % (self.SERVER)
+        response = self.executeKarakuriCall(getUrl)
+        return response
+
+    def getWorkflow(self, workflowId):
+        getUrl = "%s/workflow/%s" % (self.SERVER, workflowId)
         response = self.executeKarakuriCall(getUrl)
         return response

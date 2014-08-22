@@ -7,17 +7,17 @@
     <div class="row">
         <div class="panel-group" id="accordion">
             <%
-                for queue in ticketQueues:
+                for workflow in ticketWorkflows:
                 previous = ""
                 try:
-                    previous = ','.join(queue['prereqs']) + " --> "
+                    previous = ','.join(workflow['prereqs']) + " --> "
                 except:
                     previous = ""
                 end
             %>
             <div class="panel panel-default">
                 <div class="panel-heading">
-                    <h4 class="panel-title"><span style="color:#aaaaaa;">{{previous}}</span>{{queue['name']}}</h4>
+                    <h4 class="panel-title"><span style="color:#aaaaaa;">{{previous}}</span>{{workflow['name']}}</h4>
                 </div>
                 <div id="collapseOne" class="panel-collapse collapse">
                     <div class="panel-body">
@@ -36,8 +36,8 @@
                                     </thead>
                                     <tbody>
                                     <%
-                                    for ticket in ticketSummary['tickets']:
-                                        if ticket['workflow'] == queue['name']:
+                                    for ticket in ticketSummary:
+                                        if ticket['workflow'] == workflow['name']:
                                             issue = issues[str(ticket['iid'])]
                                     %>
                                             <tr>

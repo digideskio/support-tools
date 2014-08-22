@@ -77,11 +77,12 @@ def issueSummary(workflow=None, page=1):
     order = pymongo.DESCENDING
     #ticketSummary = tickets.getTicketSummary(query, sortField, order, skip, limit)
     ticketSummary = karakuri.getQueues()
-    ticketQueues = tickets.getWorkflowStates()
+    ticketWorkflows = karakuri.getWorkflows()
+    print ticketWorkflows
     issueObjs = {}
-    for issue in ticketSummary['tickets']:
+    for issue in ticketSummary:
         issueObjs[str(issue['iid'])] = karakuri.getTicket(str(issue['iid']))['jira']
-    return template('base_page', renderpage="tickets", ticketSummary=ticketSummary, issues=issueObjs, ticketQueues=ticketQueues)
+    return template('base_page', renderpage="tickets", ticketSummary=ticketSummary, issues=issueObjs, ticketWorkflows=ticketWorkflows)
 
 @app.route('/ticket/<issue>/approve')
 def approveIssue(issue):
@@ -124,14 +125,13 @@ if __name__ == "__main__":
 
     connection = pymongo.MongoClient(mongodb_connection_string)
     euphoniaDB = connection.euphonia
-    karakuriDB = connection.karakuri
     supportDB = connection.support
 
     karakuri = karakuriDAO.karakuriDAO(karakuri_connection_string)
     groups = groupDAO.GroupDAO(euphoniaDB)
     failedTests = failedTestDAO.FailedTestDAO(euphoniaDB)
     issues = issueDAO.IssueDAO(supportDB)
-    tickets = ticketDAO.TicketDAO(karakuriDB,karakuri)
+    tickets = ticketDAO.TicketDAO(karakuri)
 
     daemon = automaton('euphonia.pid')
     if len(sys.argv) == 2:
