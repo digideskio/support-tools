@@ -131,6 +131,10 @@ class karakuri:
         curs_queue = self.coll_queue.find()
         return [q for q in curs_queue]
 
+    def getListOfWorkflowDocuments(self):
+        curs_workflows = self.coll_workflows.find()
+        return [q for q in curs_workflows]
+
     def getQueueDocument(self, queueId):
         """ Return the specified queue document """
         if not isinstance(queueId, ObjectId):
@@ -163,6 +167,19 @@ class karakuri:
             return issue
 
         logging.warning("issue %s !found", issueId)
+        return None
+
+    def getWorkflowDocument(self, workflowName):
+        """ Return the specified workflow document """
+        if self.verbose:
+            logging.info("getWorkflowDocument('%s')", workflowName)
+
+        doc = self.find_one(self.coll_workflows, {'name': workflowName})
+
+        if doc:
+            return doc
+
+        logging.warning("workflow document %s !found", workflowName)
         return None
 
     def log(self, issueId, workflowName, action, success):
