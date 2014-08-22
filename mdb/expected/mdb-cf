@@ -1,19 +1,133 @@
 === mdb.py -cf testdb test
---- test.small.$_id_ first=0:22000 last=0:22000, ce=0:22000, cfn=-2:0
+--- test.small.$_id_ first=0:22000 last=0:22000, ce=0:22000, cfn=-2:0, count=1
+free[0]+0 -1:0
+free[1]+0 -1:0
+free[2]+0 -1:0
+free[3]+0 -1:0
+free[4]+0 -1:0
+free[5]+0 -1:0
+free[6]+0 -1:0
+free[7]+0 -1:0
+free[8]+0 -1:0
+free[9]+0 -1:0
 free[10]+0 0:25000
---- test.small first=0:2000 last=0:2000, ce=0:2000, cfn=-2:0
+free[10]+1 -1:0
+free[11]+0 -1:0
+free[12]+0 -1:0
+free[13]+0 -1:0
+free[14]+0 -1:0
+free[15]+0 -1:0
+free[16]+0 -1:0
+free[17]+0 -1:0
+free[18]+0 -1:0
+--- test.small first=0:2000 last=0:2000, ce=0:2000, cfn=-2:0, count=10
+free[0]+0 -1:0
+free[1]+0 -1:0
+free[2]+0 -1:0
+free[3]+0 -1:0
+free[4]+0 -1:0
+free[5]+0 -1:0
+free[6]+0 -1:0
+free[7]+0 -1:0
+free[8]+0 -1:0
+free[9]+0 -1:0
+free[10]+0 -1:0
 free[11]+0 0:14cb0
---- test.big.$_id_ first=0:49000 last=0:a2a000, ce=0:49000, cfn=-2:0
+free[11]+1 -1:0
+free[12]+0 -1:0
+free[13]+0 -1:0
+free[14]+0 -1:0
+free[15]+0 -1:0
+free[16]+0 -1:0
+free[17]+0 -1:0
+free[18]+0 -1:0
+--- test.big.$_id_ first=0:49000 last=0:a2a000, ce=0:49000, cfn=-2:0, count=21
+free[0]+0 -1:0
+free[1]+0 -1:0
+free[2]+0 -1:0
+free[3]+0 -1:0
+free[4]+0 -1:0
+free[5]+0 -1:0
+free[6]+0 -1:0
+free[7]+0 -1:0
 free[8]+0 0:a4d000
---- test.system.indexes first=0:20000 last=0:20000, ce=0:20000, cfn=-2:0
+free[8]+1 -1:0
+free[9]+0 -1:0
+free[10]+0 -1:0
+free[11]+0 -1:0
+free[12]+0 -1:0
+free[13]+0 -1:0
+free[14]+0 -1:0
+free[15]+0 -1:0
+free[16]+0 -1:0
+free[17]+0 -1:0
+free[18]+0 -1:0
+--- test.system.indexes first=0:20000 last=0:20000, ce=0:20000, cfn=-2:0, count=2
+free[0]+0 -1:0
+free[1]+0 -1:0
+free[2]+0 -1:0
+free[3]+0 -1:0
+free[4]+0 -1:0
+free[5]+0 -1:0
+free[6]+0 -1:0
 free[7]+0 0:20158
---- test.system.namespaces first=0:21000 last=0:21000, ce=0:21000, cfn=-2:0
+free[7]+1 -1:0
+free[8]+0 -1:0
+free[9]+0 -1:0
+free[10]+0 -1:0
+free[11]+0 -1:0
+free[12]+0 -1:0
+free[13]+0 -1:0
+free[14]+0 -1:0
+free[15]+0 -1:0
+free[16]+0 -1:0
+free[17]+0 -1:0
+free[18]+0 -1:0
+--- test.system.namespaces first=0:21000 last=0:21000, ce=0:21000, cfn=-2:0, count=5
+free[0]+0 -1:0
+free[1]+0 -1:0
+free[2]+0 -1:0
+free[3]+0 -1:0
+free[4]+0 -1:0
+free[5]+0 -1:0
+free[6]+0 -1:0
 free[7]+0 0:21198
---- test.big first=0:2b000 last=2:2000, ce=0:2b000, cfn=-2:0
+free[7]+1 -1:0
+free[8]+0 -1:0
+free[9]+0 -1:0
+free[10]+0 -1:0
+free[11]+0 -1:0
+free[12]+0 -1:0
+free[13]+0 -1:0
+free[14]+0 -1:0
+free[15]+0 -1:0
+free[16]+0 -1:0
+free[17]+0 -1:0
+free[18]+0 -1:0
+--- test.big first=0:2b000 last=2:2000, ce=0:2b000, cfn=-2:0, count=5000
+free[0]+0 -1:0
+free[1]+0 -1:0
+free[2]+0 -1:0
+free[3]+0 -1:0
+free[4]+0 -1:0
+free[5]+0 -1:0
+free[6]+0 -1:0
 free[7]+0 1:a214b0
+free[7]+1 -1:0
 free[8]+0 1:17cccb0
 free[8]+1 0:a282b0
 free[8]+2 0:2a82b0
 free[8]+3 0:c82b0
 free[8]+4 0:472b0
+free[8]+5 -1:0
+free[9]+0 -1:0
+free[10]+0 -1:0
+free[11]+0 -1:0
+free[12]+0 -1:0
+free[13]+0 -1:0
+free[14]+0 -1:0
+free[15]+0 -1:0
+free[16]+0 -1:0
+free[17]+0 -1:0
 free[18]+0 2:2e88b0
+free[18]+1 -1:0

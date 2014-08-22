@@ -1,7 +1,7 @@
 === mdb.py -cxrb testdb test.small
---- test.small first=0:2000 last=0:2000, ce=0:2000, cfn=-2:0
+--- test.small first=0:2000 last=0:2000, ce=0:2000, cfn=-2:0, count=10
 0:2000: extent sig=41424344 loc=0:2000 next=-1:0 prev=-1:0 ns=test.small len=1e000(122880) first=0:20b0 last=0:12eb0
-20b0: record rlen=1e00(7680) end=3eb0 ext=2000 next=3eb0 prev=-1 blen=1de0(7648)
+0:20b0: record rlen=1e00(7680) end=3eb0 ext=2000 next=3eb0 prev=-1 blen=1de0(7648)
 20c4: _id: objectid 53 c3 d0 99 01 79 ab 0d 6c 5e 95 47 =2014-07-14T12:44:09Z
 20d5: number: double 33 33 33 33 33 33 fb 3f =1.7
 20e5: hello: string len=6 strlen=5
@@ -19,7 +19,7 @@
 3e90: EOO
 3e91: date: datetime 00 00 00 00 00 00 00 00 =1970-01-01T00:00:00Z
 3e9f: EOO
-3eb0: record rlen=1e00(7680) end=5cb0 ext=2000 next=5cb0 prev=20b0 blen=1de0(7648)
+0:3eb0: record rlen=1e00(7680) end=5cb0 ext=2000 next=5cb0 prev=20b0 blen=1de0(7648)
 3ec4: _id: objectid 53 c3 d0 99 01 79 ab 0d 6c 5e 95 48 =2014-07-14T12:44:09Z
 3ed5: number: double 33 33 33 33 33 33 fb 3f =1.7
 3ee5: hello: string len=6 strlen=5
@@ -37,7 +37,7 @@
 5c90: EOO
 5c91: date: datetime 00 00 00 00 00 00 00 00 =1970-01-01T00:00:00Z
 5c9f: EOO
-5cb0: record rlen=1e00(7680) end=7ab0 ext=2000 next=7ab0 prev=3eb0 blen=1de0(7648)
+0:5cb0: record rlen=1e00(7680) end=7ab0 ext=2000 next=7ab0 prev=3eb0 blen=1de0(7648)
 5cc4: _id: objectid 53 c3 d0 99 01 79 ab 0d 6c 5e 95 49 =2014-07-14T12:44:09Z
 5cd5: number: double 33 33 33 33 33 33 fb 3f =1.7
 5ce5: hello: string len=6 strlen=5
@@ -55,7 +55,7 @@
 7a90: EOO
 7a91: date: datetime 00 00 00 00 00 00 00 00 =1970-01-01T00:00:00Z
 7a9f: EOO
-7ab0: record rlen=1e00(7680) end=98b0 ext=2000 next=98b0 prev=5cb0 blen=1de0(7648)
+0:7ab0: record rlen=1e00(7680) end=98b0 ext=2000 next=98b0 prev=5cb0 blen=1de0(7648)
 7ac4: _id: objectid 53 c3 d0 99 01 79 ab 0d 6c 5e 95 4a =2014-07-14T12:44:09Z
 7ad5: number: double 33 33 33 33 33 33 fb 3f =1.7
 7ae5: hello: string len=6 strlen=5
@@ -73,7 +73,7 @@
 9890: EOO
 9891: date: datetime 00 00 00 00 00 00 00 00 =1970-01-01T00:00:00Z
 989f: EOO
-98b0: record rlen=1e00(7680) end=b6b0 ext=2000 next=b6b0 prev=7ab0 blen=1de0(7648)
+0:98b0: record rlen=1e00(7680) end=b6b0 ext=2000 next=b6b0 prev=7ab0 blen=1de0(7648)
 98c4: _id: objectid 53 c3 d0 99 01 79 ab 0d 6c 5e 95 4b =2014-07-14T12:44:09Z
 98d5: number: double 33 33 33 33 33 33 fb 3f =1.7
 98e5: hello: string len=6 strlen=5
@@ -91,7 +91,7 @@ b67e: 4: regexp len(e)=13 len(o)=0
 b690: EOO
 b691: date: datetime 00 00 00 00 00 00 00 00 =1970-01-01T00:00:00Z
 b69f: EOO
-b6b0: record rlen=1e00(7680) end=d4b0 ext=2000 next=d4b0 prev=98b0 blen=1de0(7648)
+0:b6b0: record rlen=1e00(7680) end=d4b0 ext=2000 next=d4b0 prev=98b0 blen=1de0(7648)
 b6c4: _id: objectid 53 c3 d0 99 01 79 ab 0d 6c 5e 95 4c =2014-07-14T12:44:09Z
 b6d5: number: double 33 33 33 33 33 33 fb 3f =1.7
 b6e5: hello: string len=6 strlen=5
@@ -109,7 +109,7 @@ d47e: 4: regexp len(e)=13 len(o)=0
 d490: EOO
 d491: date: datetime 00 00 00 00 00 00 00 00 =1970-01-01T00:00:00Z
 d49f: EOO
-d4b0: record rlen=1e00(7680) end=f2b0 ext=2000 next=f2b0 prev=b6b0 blen=1de0(7648)
+0:d4b0: record rlen=1e00(7680) end=f2b0 ext=2000 next=f2b0 prev=b6b0 blen=1de0(7648)
 d4c4: _id: objectid 53 c3 d0 99 01 79 ab 0d 6c 5e 95 4d =2014-07-14T12:44:09Z
 d4d5: number: double 33 33 33 33 33 33 fb 3f =1.7
 d4e5: hello: string len=6 strlen=5
@@ -127,7 +127,7 @@ f27e: 4: regexp len(e)=13 len(o)=0
 f290: EOO
 f291: date: datetime 00 00 00 00 00 00 00 00 =1970-01-01T00:00:00Z
 f29f: EOO
-f2b0: record rlen=1e00(7680) end=110b0 ext=2000 next=110b0 prev=d4b0 blen=1de0(7648)
+0:f2b0: record rlen=1e00(7680) end=110b0 ext=2000 next=110b0 prev=d4b0 blen=1de0(7648)
 f2c4: _id: objectid 53 c3 d0 99 01 79 ab 0d 6c 5e 95 4e =2014-07-14T12:44:09Z
 f2d5: number: double 33 33 33 33 33 33 fb 3f =1.7
 f2e5: hello: string len=6 strlen=5
@@ -145,7 +145,7 @@ f315: 0: bindata len=7500 sub=0
 11090: EOO
 11091: date: datetime 00 00 00 00 00 00 00 00 =1970-01-01T00:00:00Z
 1109f: EOO
-110b0: record rlen=1e00(7680) end=12eb0 ext=2000 next=12eb0 prev=f2b0 blen=1de0(7648)
+0:110b0: record rlen=1e00(7680) end=12eb0 ext=2000 next=12eb0 prev=f2b0 blen=1de0(7648)
 110c4: _id: objectid 53 c3 d0 99 01 79 ab 0d 6c 5e 95 4f =2014-07-14T12:44:09Z
 110d5: number: double 33 33 33 33 33 33 fb 3f =1.7
 110e5: hello: string len=6 strlen=5
@@ -163,7 +163,7 @@ f315: 0: bindata len=7500 sub=0
 12e90: EOO
 12e91: date: datetime 00 00 00 00 00 00 00 00 =1970-01-01T00:00:00Z
 12e9f: EOO
-12eb0: record rlen=1e00(7680) end=14cb0 ext=2000 next=-1 prev=110b0 blen=1de0(7648)
+0:12eb0: record rlen=1e00(7680) end=14cb0 ext=2000 next=-1 prev=110b0 blen=1de0(7648)
 12ec4: _id: objectid 53 c3 d0 99 01 79 ab 0d 6c 5e 95 50 =2014-07-14T12:44:09Z
 12ed5: number: double 33 33 33 33 33 33 fb 3f =1.7
 12ee5: hello: string len=6 strlen=5
@@ -181,4 +181,4 @@ f315: 0: bindata len=7500 sub=0
 14c90: EOO
 14c91: date: datetime 00 00 00 00 00 00 00 00 =1970-01-01T00:00:00Z
 14c9f: EOO
-14cb0: record rlen=b350(45904) end=20000 ext=2000 next=-1 prev=0 blen=eeeeeeee(4008636142)
+0:14cb0: record rlen=b350(45904) end=20000 ext=2000 next=-1 prev=0 blen=eeeeeeee(4008636142)

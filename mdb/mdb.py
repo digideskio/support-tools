@@ -3,6 +3,7 @@ import struct
 import sys
 import collections
 import base64
+import mmap
 
 #
 # bson
@@ -31,6 +32,14 @@ def info_string(buf, at):
     if l > 0 and l < 16*1024*1024 and sl < l: pass
     elif sl != l-1: info += ' WARNING: EMBEDDED NULL'
     else: info += ' ERROR: NO NULL'
+    return a+l, info
+
+
+def info_cstring(buf, at):
+    a, l = get_char(buf, at)
+    info = 'string len=%d' % l
+    if do_btree_detail:
+        info += ' "' + buf[a:a+l] + '"'
     return a+l, info
     
 def info_bindata(buf, at):
@@ -91,6 +100,12 @@ types = {
     0xff: info_simple('minkey', 0),
 }
 
+ctypes = {
+    0x04: info_double,
+    0x06: info_cstring,
+    0x08: info_time('objectid', 12, '>i'),
+}
+
 def print_record_bson(buf, at, l):
     print_bson(buf, at, None)
 
@@ -148,10 +163,14 @@ def print_btree(buf, at, l=None):
         print '%x: key child=%d:%x loc=%d:%x kdo=%x kd=%x' % (a, child_f,child_o, loc_f,loc_o, kdo, kd),
         if do_btree_detail:
             print 'rec=%x' % at,
-            bytes = ''
-            for j in range(1,13):
-                bytes += '%02x' % ord(buf[kd+j])
-            print '%02x' % ord(buf[kd]), bytes,
+            t = ord(buf[kd])
+            if t in ctypes:
+                _, detail = ctypes[t](buf, kd+1)
+            else:
+                detail = ''
+                for j in range(1,13):
+                    detail += '%02x' % ord(buf[kd+j])
+            print '%02x' % t, detail,
         print
         kds.add(kd)
     kds = list(sorted(kds))
@@ -227,15 +246,15 @@ def records_key(buf, at, end, ext_at, key, name):
 record_struct = struct.Struct('i i i i I')
 
 def print_record(buf, at, print_content, rlen, ext, next, prev, blen, pending=None):
-    f = buf.find(find, at, at+rlen)
-    if f >= 0:
+    found = buf.find(find, at, at+rlen)
+    if found >= 0:
         pending = do_pending(pending)
-        print '%x: record rlen=%x(%d) end=%x ext=%x' % (at, rlen, rlen, at+rlen, ext),
+        print '%s%x: record rlen=%x(%d) end=%x ext=%x' % (exts[buf], at, rlen, rlen, at+rlen, ext),
         print 'next=%x prev=%x blen=%x(%d)%s' % (next, prev, blen, blen, extra_info[(buf,at)])
         if find:
-            print '%x: found off=%x(%d)' % (f, f-at, f-at),
+            print '%s%x: found off=%x(%d)' % (exts[buf], found, found-at, found-at),
             for i in range(len(find) + 8):
-                print '%02x' % ord(buf[f-4+i]),
+                print '%02x' % ord(buf[found-4+i]),
             print
         if print_content:
             print_content(buf, at+16, rlen)
@@ -273,15 +292,16 @@ def extent(buf, at, check):
             print 'ERROR: bad sig %x at %x(%d)' % (sig, at, at)
         return None, None, None
     ns = ns[:ns.find('\0')]
-    is_inx = '$' in ns and '_' in ns # xxx hack
+    #is_inx = '$' in ns and '_' in ns # xxx hack
+    is_inx = '.$' in ns # xxx hack
     if is_inx and do_btree: print_content = print_btree
     elif not is_inx and do_bson: print_content = print_record_bson
     else: print_content = None
     def pending():
         print '%d:%x: extent sig=%x loc=%d:%x' % (loc_f, at, sig, loc_f, loc_o),
-        print 'next=%x:%x prev=%x:%x' % (next_f, next_o, prev_f, prev_o),
+        print 'next=%d:%x prev=%d:%x' % (next_f, next_o, prev_f, prev_o),
         print 'ns=%s len=%x(%d)' % (ns, l, l),
-        print 'first=%x:%x last=%x:%x' % (first_f, first_o, last_f, last_o)
+        print 'first=%d:%x last=%d:%x' % (first_f, first_o, last_f, last_o)
     if do_records:
         r0 = at+176 if not is_inx else at+0x1000
         if do_records_next:
@@ -308,56 +328,81 @@ def extents(buf, at, end):
 #
 
 bufs = {}
+exts = collections.defaultdict(str)
 
-def get_buf(fn):
+def get_buf(dbpath, db, ext):
+    fn = dbpath + '/' + db + '.' + str(ext)
     if not fn in bufs:
-        bufs[fn] = open(fn).read()
+        try:
+            f = open(fn, 'rb')
+            bufs[fn] = m = mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)
+            exts[m] = str(ext) + ':'
+        except Exception as e:
+            print e
+            raise
     return bufs[fn]
 
-def get_db_buf(dbpath, db, ext):
-    return get_buf(dbpath + '/' + db + '.' + str(ext))
-
 
 #
 #
 #
 
-ns_struct = struct.Struct('i 128s i i   i i  152s    iiii  i i 160s i i ii i i i i i')
-#                            name first last buckets stats l n inx          ce  cfnr
+
+ns_struct = struct.Struct('i 128s ii  i i  152s    iiii  i i 160s i i ii i ii ii   i  ii   ii ii i')
+#                            name 1st last buckets stats l n inx      pf f ce cfnr vv mk     ex ip
+
+inx_details_struct = struct.Struct('i i i i')
+
 
 def collection(dbpath, ns):
     db = ns.split('.')[0]
-    nsbuf = get_db_buf(dbpath, db, 'ns')
+    nsbuf = get_buf(dbpath, db, 'ns')
     at = 0
     while at+628 <= len(nsbuf):
         _, name, first_f,first_o, last_f,last_o, buckets, \
-            _, _, _, _, lastExtentSize, nIndexes, indexes, \
+            _, _, count_l, count_h, lastExtentSize, nIndexes, indexes, \
             isCapped, maxDocsInCapped, _, _, systemFlags, \
-            ce_f,ce_o, cfnr_f,cfnr_o = \
+            ce_f,ce_o, cfnr_f,cfnr_o, _, mkl, mkh,  _, _, extra, _, inProgress = \
             ns_struct.unpack_from(nsbuf, at)
+        count = (count_h << 32) + count_l
+        mk = (mkh << 32) + mkl
         name = name[:name.find('\0')]
         if (ns==db and name!='') or name==ns:
-            print '--- %s first=%d:%x last=%d:%x, ce=%d:%x, cfn=%d:%x' % \
-                (name, first_f, first_o, last_f, last_o, ce_f, ce_o, cfnr_f, cfnr_o)
-            #print lastExtentSize, nIndexes
+            print '--- %s first=%d:%x last=%d:%x, ce=%d:%x, cfn=%d:%x, count=%d' % \
+                (name, first_f, first_o, last_f, last_o, ce_f, ce_o, cfnr_f, cfnr_o, count)
+            if do_collection_indexes:
+                print 'nIndexes=%d extra=%d inProgress=%d mk=%x' % \
+                    (nIndexes, extra, inProgress, mk)
+                for i in range(nIndexes+inProgress):
+                    a = at+324+i*16 if i<10 else at+132+8+extra+(i-10)*16
+                    inx = nsbuf[a:a+16]
+                    btree_f, btree_o, info_f, info_o = inx_details_struct.unpack_from(inx)
+                    print '%x: index %d: btree %d:%x info %d:%x mk %d' % \
+                        (a, i, btree_f, btree_o, info_f, info_o, (mk>>i)&1)
+                    if do_collection_details:
+                        ibuf =  get_buf(dbpath, db, info_f)
+                        visit_records(ibuf, info_o, info_o+1, print_record_bson, print_record)
+                        bbuf =  get_buf(dbpath, db, btree_f)
+                        visit_records(bbuf, btree_o, btree_o+1, print_btree, print_record)
             if do_free:
                 for i in range(19):
                     f, a = struct.unpack_from('i i', buckets, i*8)
                     j = 0
-                    while f >= 0:
+                    while True:
                         print "free[%d]+%d %d:%x" % (i, j, f, a)
+                        if f < 0:
+                            break
                         try:
-                            xbuf = get_db_buf(dbpath, db, f)
+                            xbuf = get_buf(dbpath, db, f)
                             extra_info[(xbuf,a)] += ' free[%d]+%d' % (i, j)
                             _, _, f, a, _ = record_struct.unpack_from(xbuf, a)
                             j += 1
                         except:
-                            #print "can't open file %d" % f
                             break
             if do_extents:
                 f, o = first_f, first_o
                 while o is not None and o > 0:
-                    xbuf = get_db_buf(dbpath, db, f)
+                    xbuf = get_buf(dbpath, db, f)
                     f, o, _ = extent(xbuf, o, True)
         at += 628
 
@@ -381,7 +426,9 @@ do_bson_detail = 'B' in flags
 do_btree = 't' in flags or 'T' in flags
 do_btree_detail = 'T' in flags
 do_records_oplog = 'o' in flags
-do_collection = 'c' in flags
+do_collection = 'c' in flags or 'C' in flags
+do_collection_details = 'C' in flags
+do_collection_indexes = 'i' in flags
 do_free = 'f' in flags
 
 find = ''
