@@ -8,7 +8,6 @@ from bson.json_util import loads
 from datetime import datetime, timedelta
 from jirapp import jirapp
 from optparse import OptionParser
-from pprint import pprint
 from supportissue import SupportIssue
 from ConfigParser import RawConfigParser
 
@@ -34,11 +33,11 @@ class karakuri:
 
         # initialize databases and collections
         # TODO load mongodb specific config
-        mongo = pymongo.MongoClient()
-        self.coll_issues = mongo.support.issues
-        self.coll_workflows = mongo.karakuri.workflows
-        self.coll_log = mongo.karakuri.log
-        self.coll_queue = mongo.karakuri.queue
+        self.mongo = pymongo.MongoClient()
+        self.coll_issues = self.mongo.support.issues
+        self.coll_workflows = self.mongo.karakuri.workflows
+        self.coll_log = self.mongo.karakuri.log
+        self.coll_queue = self.mongo.karakuri.queue
 
     def find_and_modify(self, collection, match, updoc):
         res = None
@@ -52,17 +51,17 @@ class karakuri:
 
     def find_and_modify_issue(self, match, updoc):
         if "$set" in updoc:
-            updoc["$set"]['t'] = datetime.utcnow()
+            updoc["$set"]['updated'] = datetime.utcnow()
         else:
-            updoc["$set"] = {'t': datetime.utcnow()}
+            updoc["$set"] = {'updated': datetime.utcnow()}
 
         return self.find_and_modify(self.coll_issues, match, updoc)
 
     def find_and_modify_ticket(self, match, updoc):
         if "$set" in updoc:
-            updoc["$set"]['updated'] = datetime.utcnow()
+            updoc["$set"]['t'] = datetime.utcnow()
         else:
-            updoc["$set"] = {'updated': datetime.utcnow()}
+            updoc["$set"] = {'t': datetime.utcnow()}
 
         return self.find_and_modify(self.coll_queue, match, updoc)
 
@@ -108,13 +107,12 @@ class karakuri:
 
         issue = self.getSupportIssue(iid)
         if not issue:
-            logging.exception("unable to get SupportIssue for issue %s" % iid)
+            logging.exception("unable to get SupportIssue for %s" % iid)
             return None
 
-        workflow = self.find_one(self.coll_workflows, {'name': workflowName})
-
+        workflow = self.getWorkflow(workflowName)
         if not workflow:
-            logging.exception("workflow %s is !defined" % workflow['name'])
+            logging.exception("unable to get workflow for %s" % workflowName)
             return None
 
         # so far so good
@@ -156,42 +154,37 @@ class karakuri:
                 success = False
                 break
 
-        lid = self.log(issue.id, workflow['name'], 'perform', success)
+        lid = self.log(issue.id, workflowName, 'perform', success)
 
         if success:
             match = {'_id': issue.id}
-            updoc = {'$set': {'updated': datetime.utcnow()},
-                     '$push': {'karakuri.workflows_performed':
-                               {'name': workflow['name'], 'lid': lid}}}
-
-            try:
-                self.coll_issues.update(match, updoc)
-            except pymongo.errors.PyMongoError as e:
-                logging.exception(e)
+            updoc = {'$push': {'karakuri.workflows_performed':
+                               {'name': workflowName, 'lid': lid}}}
+            self.find_and_modify_issue(match, updoc)
 
         return success
 
-    def process(self, tid):
-        """ Perform the workflow specified in the ticket """
-        logging.info("process('%s')", tid)
+    def processTicket(self, tid):
+        """ Process the queued ticket """
+        logging.info("processTicket('%s')", tid)
 
-        match = {'_id': tid}
+        match = {'_id': ObjectId(tid)}
         updoc = {"$set": {'inProg': True}}
 
-        doc = self.find_and_modify_ticket(match, updoc)
+        ticket = self.find_and_modify_ticket(match, updoc)
 
-        if doc and 'workflow' in doc and doc['workflow']:
-            if self.performWorkflow(doc['iid'], doc['workflow']):
-                updoc = {"$set": {'done': True, 'inProg': False}}
-                doc = self.find_and_modify_ticket(match, updoc)
-                return doc
-            else:
-                updoc = {"$set": {'done': False, 'inProg': False}}
-                doc = self.find_and_modify_ticket(match, updoc)
-                return None
+        if not ticket:
+            logging.exception("unable to find and modify ticket %s", tid)
+            return None
+
+        res = self.performWorkflow(ticket['iid'], ticket['workflow'])
+        updoc = {"$set": {'done': res, 'inProg': False}}
+        ticket = self.find_and_modify_ticket(match, updoc)
+
+        return ticket
 
     def processAll(self):
-        """ Perform all approved workflows """
+        """ Process all queued tickets """
         logging.info("processAll()")
 
         match = {'done': False, 'inProg': False, 'approved': True}
@@ -202,8 +195,12 @@ class karakuri:
             logging.exception(e)
             return None
 
+        res = True
         for i in curs_queue:
-            self.process(i['_id'])
+            ticket = self.processTicket(i['_id'])
+            res &= (ticket and ticket['done'])
+
+        return res
 
     def queue(self, iid, workflowName):
         logging.info("queue('%s', '%s')", iid, workflowName)
@@ -214,7 +211,7 @@ class karakuri:
             logging.info("ticket to perform '%s' on '%s' already exists",
                          workflowName, iid)
             self.log(iid, workflowName, 'queue', False)
-            # return ticket doc?
+            # return ticket?
             return None
 
         now = datetime.utcnow()
@@ -225,6 +222,7 @@ class karakuri:
             self.coll_queue.insert(doc)
         except pymongo.errors.PyMongoError as e:
             logging.exception(e)
+            return None
 
         self.log(iid, workflowName, 'queue', True)
         return doc
@@ -324,10 +322,10 @@ class karakuri:
         specified workflow """
         logging.info("validate('%s', '%s')", iid, workflowName)
 
-        workflow = self.find_one(self.coll_workflows, {'name': workflowName})
+        workflow = self.getWorkflow(workflowName)
 
         if not workflow:
-            logging.exception("workflow %s is !defined" % workflowName)
+            logging.exception("unable to get workflow for %s" % workflowName)
             return None
 
         query_string = workflow['query_string']
@@ -352,7 +350,7 @@ class karakuri:
         match['_id'] = iid
 
         if self.verbose:
-            logging.debug(pprint(match))
+            logging.debug(match)
 
         if self.coll_issues.find(match).count() == 1:
             logging.info("workflow validated")
@@ -426,12 +424,24 @@ class karakuri:
               "GOOD TO GO AS OF (START)\tADDED TO QUEUE ON (CREATED)"
         i = 0
         for doc in k.getListOfTickets():
+            # do not show removed tickets, i.e. tickets with start time within
+            # one second of the end of time
+            diff = (datetime.max-doc['start']).total_seconds()
+            if diff < 1:
+                continue
+
             i += 1
             issue = self.getSupportIssue(doc['iid'])
             print "%5i\t%s\t%s\t%s\t%s\t\t%s\t\t%s\t%s" %\
                   (i, doc['_id'], issue.key, doc['workflow'],
                    doc['approved'], doc['inProg'], doc['start'].isoformat(),
                    doc['_id'].generation_time.isoformat())
+
+    def forListOfTickets(self, action, tids, **kwargs):
+        res = True
+        for tid in tids:
+            res &= bool(action(tid, **kwargs))
+        return res
 
     def approveTicket(self, tid):
         match = {'_id': ObjectId(tid)}
@@ -453,6 +463,7 @@ class karakuri:
         return self.find_and_modify_ticket(match, updoc)
 
     def sleepTicket(self, tid, seconds):
+        seconds = int(seconds)
         now = datetime.utcnow()
 
         if seconds > (datetime.max-now).total_seconds():
@@ -528,17 +539,30 @@ if __name__ == "__main__":
         pass
 
     if not options.ticket:
-        # only an error if find, list_queue or process_all not specified
+        # only an error if find, list_queue or process_all not specified as all
+        # other actions are ticket-dependent
         if not options.find and not options.list_queue and\
                 not options.process_all:
-            print("No tickets specified")
+            print("Please specify a ticket or tickets")
             error = True
     else:
-        pass
+        # Allow only one ticket-dependent action per run
+        numActions = 0
+        for action in [options.approve, options.disapprove, options.process,
+                       options.remove, options.sleep, options.wake]:
+            if action:
+                numActions += 1
 
-    # TODO disentagle multiple specified options
-    # currently they are singly executed in alphabetical order
-    # validate specified arguments
+        if numActions != 1:
+            print("Please specify a single action to take")
+            error = True
+
+        # TODO validate this
+        options.ticket = [t.strip() for t in options.ticket.split(',')]
+
+    # This is the end. My only friend, the end. RIP Jim.
+    if error:
+        sys.exit(1)
 
     # Parse configuration file and initialize karakuri
     config = RawConfigParser()
@@ -546,43 +570,54 @@ if __name__ == "__main__":
     k = karakuri(config)
     k.setLive(options.live)
 
-    if options.approve:
-        k.approveTicket(options.ticket)
-        sys.exit(0)
-
-    if options.disapprove:
-        k.disapproveTicket(options.ticket)
-        sys.exit(0)
-
+    # If find and queue, do the work, list the queue and exit. The only action
+    # I can imagine allowing aside from this is perform_all but that scares me
     if options.find:
         k.queueAll()
+        k.listQueue()
         sys.exit(0)
 
+    # Ignore other options if list requested
     if options.list_queue:
         k.listQueue()
         sys.exit(0)
 
+    if options.approve:
+        k.forListOfTickets(k.approveTicket, options.ticket)
+        sys.exit(0)
+
+    if options.disapprove:
+        k.forListOfTickets(k.disapproveTicket, options.ticket)
+        sys.exit(0)
+
     if options.remove:
-        k.removeTicket(options.ticket)
+        k.forListOfTickets(k.removeTicket, options.ticket)
         sys.exit(0)
 
     if options.sleep:
-        k.sleepTicket(options.ticket, options.sleep)
+        k.forListOfTickets(k.sleepTicket, options.ticket,
+                           seconds=options.sleep)
         sys.exit(0)
 
     if options.wake:
-        k.wakeTicket(options.ticket)
+        k.forListOfTickets(k.wakeTicket, options.ticket)
         sys.exit(0)
 
-    if options.process_all:
-        k.processAll()
-        sys.exit(0)
+    # Everything from here on down requires an Issuer
 
     # TODO extract JIRA specific config and pass to JIRA++
-    # Initialize JIRA++
+    # initialize JIRA++
     jirapp = jirapp(config, k.mongo)
     jirapp.setLive(k.live)
 
-    # Set the issuer. There can be only one:
+    # Set the Issuer. There can be only one:
     # https://www.youtube.com/watch?v=sqcLjcSloXs
     k.setIssuer(jirapp)
+
+    if options.process:
+        k.forListOfTickets(k.processTicket, options.ticket)
+
+    if options.process_all:
+        k.processAll()
+
+    sys.exit(0)
