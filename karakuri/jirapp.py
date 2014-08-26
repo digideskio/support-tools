@@ -8,16 +8,19 @@ from pprint import pprint
 
 class jirapp(JIRA):
     """ JIRA++ is JIRA+1. Use it to profit. """
-    def __init__(self, config, jirametadb, supportdb):
+    def __init__(self, config, mongo=None):
         logging.info("Initializing JIRA++")
 
         # By default we sit here and look pretty
         # All talk, no walk
         self.live = False
+
+        if mongo is None:
+            # setup mongo using mongo config
+            pass
+
         # jirameta
-        self.jirametadb = jirametadb
-        # support
-        self.supportdb = supportdb
+        self.db_jirameta = mongo.jirameta
 
         opts = {'server': 'https://jira.mongodb.org', "verify": False}
         auth = (config.get('JIRA', 'username'), config.get('JIRA', 'password'))
@@ -49,7 +52,7 @@ class jirapp(JIRA):
                      "status:'%s'" % (transition, project, status))
 
         try:
-            coll_transitions = self.jirametadb.transitions
+            coll_transitions = self.db_jirameta.transitions
             match = {'pkey': project, 'sname': status, 'tname': transition}
             proj = {'tid': 1, '_id': 0}
             doc = coll_transitions.find_one(match, proj)
@@ -116,7 +119,7 @@ class jirapp(JIRA):
         if 'project' not in fields or 'issuetype' not in fields:
             raise Exception("project and issuetype required for createmeta")
 
-        coll_createmeta = self.jirametadb.createmeta
+        coll_createmeta = self.db_jirameta.createmeta
         match = {'pkey': fields['project']['key'], 'itname':
                  fields['issuetype']['name']}
         proj = {'required': 1, '_id': 0}
