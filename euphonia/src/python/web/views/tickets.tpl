@@ -7,17 +7,19 @@
     <div class="row">
         <div class="panel-group" id="accordion">
             <%
-                for workflow in ticketWorkflows:
-                previous = ""
-                try:
-                    previous = ','.join(workflow['prereqs']) + " --> "
-                except:
+                if ticketWorkflows is not None:
+                    for workflow in ticketWorkflows:
                     previous = ""
+                    try:
+                        previous = ','.join(workflow['prereqs']) + " --> "
+                    except:
+                        previous = ""
+                    end
                 end
             %>
             <div class="panel panel-default">
                 <div class="panel-heading">
-                    <h4 class="panel-title"><span style="color:#aaaaaa;">{{previous}}</span>{{workflow['name']}}</h4>
+                    <h4 class="panel-title"><span style="color:#aaaaaa;">{{previous}}</span>{{workflow['name']}}<span class="pull-right">Approve all</span></h4>
                 </div>
                 <div id="collapseOne" class="panel-collapse collapse">
                     <div class="panel-body">
@@ -27,7 +29,6 @@
                                     <thead>
                                         <tr>
                                             <th>Ticket</th>
-                                            <th>Workflow</th>
                                             <th>Approved</th>
                                             <th>In Progress</th>
                                             <th>Last Update</th>
@@ -42,7 +43,6 @@
                                     %>
                                             <tr>
                                                 <td><a href="{{issue['self']}}">{{issue['key']}}</a></td>
-                                                <td>{{ticket['workflow']}}</td>
                                                 <td>{{ticket['approved']}}</td>
                                                 <td>{{ticket['inProg']}}</td>
                                                 <td>{{ticket['t']}}</td>

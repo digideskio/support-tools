@@ -20,14 +20,16 @@ def index(page=1):
     return redirect('/'.join(['/groups',page]))
 
 # GROUP-RELATED ROUTES
-@app.route('/groups/<page:re:\d*>')
+@app.route('/groups/<page:re:\d*>/<query>')
 @app.route('/groups')
 @app.route('/test/<test>')
-def groups(page=1, test=None):
+def groups(page=1, test=None, query=None):
     query = None
+    if query is not None:
+        query = {"GroupName": query}
     if test is not None:
         query = {"failedTests.test":{"$in":[test]}}
-    limit = 10
+    limit = 25
     if page == '':
         page = 1
     page = int(page)
@@ -68,7 +70,7 @@ def issueSummary(workflow=None, page=1):
     query = None
     if workflow != None:
         query = {"workflow":{"$in":[workflow]}}
-    limit = 10
+    limit = 25
     if page == '':
         page = 1
     page = int(page)
@@ -80,8 +82,9 @@ def issueSummary(workflow=None, page=1):
     ticketWorkflows = karakuri.getWorkflows()
     print ticketWorkflows
     issueObjs = {}
-    for issue in ticketSummary:
-        issueObjs[str(issue['iid'])] = karakuri.getTicket(str(issue['iid']))['jira']
+    if ticketSummary is not None:
+        for issue in ticketSummary:
+            issueObjs[str(issue['iid'])] = karakuri.getTicket(str(issue['iid']))['jira']
     return template('base_page', renderpage="tickets", ticketSummary=ticketSummary, issues=issueObjs, ticketWorkflows=ticketWorkflows)
 
 @app.route('/ticket/<issue>/approve')
@@ -94,6 +97,14 @@ def approveIssue(issue):
 def delayIssue(issue,days):
     tickets.delayTicket(issue,days)
     return redirect('/issues')
+
+# AUTOCOMPLETE SEARCH
+@app.route('/search/<query>')
+def autocomplete(query):
+    results = []
+    if query is not None:
+        results = groups.search(query)
+    return json.dumps(results)
 
 # STATIC FILES
 @app.route('/js/<filename>')
