@@ -14,7 +14,7 @@ coll_mmsgroupreports = db.mmsgroupreports
 coll_failedtests = db.failedtests
 coll_groupsummaries = db.groupsummaries
 
-es = Elasticsearch()
+#es = Elasticsearch()
 
 # If tag not specified get the latest entry by _id
 # and analyze groups with common tag
@@ -89,4 +89,4 @@ for group in curs_groups:
     print esgroup["_id"]
     esid = esgroup["_id"]["$oid"]
     esgroup['@timestamp'] = esgroup['testTimestamp']['$date']
-    es.index(index="euphonia", doc_type="groupsummary", id=esid, body=esgroup)
+    #es.index(index="euphonia", doc_type="groupsummary", id=esid, body=esgroup)
