@@ -22,6 +22,7 @@ def index(page=1):
 # GROUP-RELATED ROUTES
 @app.route('/groups/<page:re:\d*>/<query>')
 @app.route('/groups')
+@app.route('/groups/')
 @app.route('/test/<test>')
 def groups(page=1, test=None, query=None):
     query = None

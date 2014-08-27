@@ -1,9 +1,11 @@
 import pymongo
 import sys
 
-# from bson.son import SON
-# from pprint import pprint
 from groupreport import GroupReport
+from elasticsearch import Elasticsearch
+from bson.json_util import loads, dumps
+import json
+
 
 
 conn = pymongo.MongoClient()
@@ -11,6 +13,8 @@ db = conn.euphonia
 coll_mmsgroupreports = db.mmsgroupreports
 coll_failedtests = db.failedtests
 coll_groupsummaries = db.groupsummaries
+
+es = Elasticsearch()
 
 # If tag not specified get the latest entry by _id
 # and analyze groups with common tag
@@ -66,7 +70,7 @@ for group in curs_groups:
         updoc =  {"$addToSet": {'rids': group['_id']},
                   "$setOnInsert": {'gid': group['GroupId'], 'test': r, 'priority': g.tests[r],
                                   'name': group['GroupName']}}
-        coll_failedtests.update(match, updoc, upsert=True)
+        #coll_failedtests.update(match, updoc, upsert=True)
 
 
     # Build summary document containing customer info and failed tests
@@ -77,4 +81,12 @@ for group in curs_groups:
         failedTestsPriority += float(test['priorityScore'])
     group['priority'] = failedTestsPriority
     group['testTimestamp'] = group['_id'].generation_time
-    coll_groupsummaries.insert(group)
+    #coll_groupsummaries.insert(group)
+    esgroup = dumps(group)
+    esgroup = esgroup.replace('"UNKNOWN"','0')
+    esgroup = esgroup.replace('Infinity','0')
+    esgroup = json.loads(esgroup)
+    print esgroup["_id"]
+    esid = esgroup["_id"]["$oid"]
+    esgroup['@timestamp'] = esgroup['testTimestamp']['$date']
+    es.index(index="euphonia", doc_type="groupsummary", id=esid, body=esgroup)
