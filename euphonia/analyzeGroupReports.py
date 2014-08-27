@@ -70,7 +70,7 @@ for group in curs_groups:
         updoc =  {"$addToSet": {'rids': group['_id']},
                   "$setOnInsert": {'gid': group['GroupId'], 'test': r, 'priority': g.tests[r],
                                   'name': group['GroupName']}}
-        #coll_failedtests.update(match, updoc, upsert=True)
+        coll_failedtests.update(match, updoc, upsert=True)
 
 
     # Build summary document containing customer info and failed tests
@@ -81,7 +81,7 @@ for group in curs_groups:
         failedTestsPriority += float(test['priorityScore'])
     group['priority'] = failedTestsPriority
     group['testTimestamp'] = group['_id'].generation_time
-    #coll_groupsummaries.insert(group)
+    coll_groupsummaries.insert(group)
     esgroup = dumps(group)
     esgroup = esgroup.replace('"UNKNOWN"','0')
     esgroup = esgroup.replace('Infinity','0')
