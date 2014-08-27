@@ -85,3 +85,15 @@ class GroupReportTests:
                 group['NumActiveHostWithStartupWarning'] != 0:
             return False
         return True
+
+    def testNumReplicaSetWithMoreThanOneArbiter(group):
+        if group['NumReplicaSetWithMoreThanOneArbiter'] and\
+                group['NumReplicaSetWithMoreThanOneArbiter'] != 0:
+            return False
+        return True
+
+    def testNumHostWithVotesMoreThanOne(group):
+        if group['NumHostWithMoreThanOneVote'] and\
+                group['NumHostWithMoreThanOneVote'] != 0:
+            return False
+        return True

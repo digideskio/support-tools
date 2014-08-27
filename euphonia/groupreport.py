@@ -16,7 +16,9 @@ class GroupReport:
                         'Mongo26':'low',
                         'NMonitoringAgents':'low',
                         'NumaStartupWarning':'medium',
-                        'StartupWarning':'low'
+                        'StartupWarning':'low',
+                        'NumHostWithVotesMoreThanOne':'medium',
+                        'NumReplicaSetWithMoreThanOneArbiter':'low'
                     }
         self.testPriorityScores = {'low':2.0,'medium':4.0,'high':8.0}
         self.verbose = False
