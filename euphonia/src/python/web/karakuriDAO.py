@@ -52,17 +52,22 @@ class karakuriDAO:
         return response
 
     def sleepTicket(self, ticketId, seconds=86400):
-        getUrl = "%s/issue/%s/sleep/%s" % (self.SERVER, ticketId, seconds)
+        getUrl = "%s/ticket/%s/sleep/%s" % (self.SERVER, ticketId, seconds)
         response = self.executeKarakuriCall(getUrl)
         return response
 
     def wakeTicket(self, ticketId):
-        getUrl = "%s/issue/%s/wake" % (self.SERVER, ticketId)
+        getUrl = "%s/ticket/%s/wake" % (self.SERVER, ticketId)
         response = self.executeKarakuriCall(getUrl)
         return response
 
     def approveTicket(self, ticketId):
-        getUrl = "%s/issue/%s/wake" % (self.SERVER, ticketId)
+        getUrl = "%s/ticket/%s/approve" % (self.SERVER, ticketId)
+        response = self.executeKarakuriCall(getUrl)
+        return response
+
+    def disapproveTicket(self, ticketId):
+        getUrl = "%s/ticket/%s/disapprove" % (self.SERVER, ticketId)
         response = self.executeKarakuriCall(getUrl)
         return response
 
