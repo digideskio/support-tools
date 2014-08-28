@@ -417,6 +417,13 @@ class karakuri:
             curs_queue = self.coll_queue.find().sort('start', pymongo.ASCENDING)
         return [q for q in curs_queue]
 
+    def getListOfTicketIds(self, match=None):
+        if match is not None:
+            curs_queue = self.coll_queue.find(match, {'_id': 1}).sort('start', pymongo.ASCENDING)
+        else:
+            curs_queue = self.coll_queue.find({'_id': 1}).sort('start', pymongo.ASCENDING)
+        return [q['_id'] for q in curs_queue]
+
     def getListOfWorkflows(self):
         curs_workflows = self.coll_workflows.find()
         return [q for q in curs_workflows]
