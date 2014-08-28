@@ -9,17 +9,28 @@
             <%
                 if ticketWorkflows is not None:
                     for workflow in ticketWorkflows:
-                    previous = ""
-                    try:
-                        previous = ','.join(workflow['prereqs']) + " --> "
-                    except:
                         previous = ""
-                    end
-                end
+                        try:
+                            previous = ','.join(workflow['prereqs']) + " --> "
+                        except:
+                            previous = ""
+                        end
             %>
-            <div class="panel panel-default">
+                        <div class="panel panel-default">
                 <div class="panel-heading">
-                    <h4 class="panel-title"><span style="color:#aaaaaa;">{{previous}}</span>{{workflow['name']}}<span class="pull-right">Approve all</span></h4>
+                    <h4 class="panel-title"><span style="color:#aaaaaa;">{{previous}}</span>{{workflow['name']}}</h4>
+                    <div class="pull-right">
+                        <a class="btn btn-primary" href="/workflow/{{workflow['name']}}/approve">Approve All</a>
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-warning dropdown-toggle" data-toggle="dropdown">Sleep All <span class="caret"></span></button>
+                            <ul class="dropdown-menu" role="menu">
+                                <li><a href="/workflow/{{workflow['name']}}/sleep/1">Sleep 1 Day</a></li>
+                                <li><a href="/workflow/{{workflow['name']}}/sleep/3">Sleep 3 Days</a></li>
+                                <li><a href="/workflow/{{workflow['name']}}/sleep/7">Sleep 1 Week</a></li>
+                            </ul>
+                        </div>
+                        <a class="btn btn-danger" href="/workflow/{{workflow['name']}}/remove">Remove All</a>
+                    </div>
                 </div>
                 <div id="collapseOne" class="panel-collapse collapse">
                     <div class="panel-body">
@@ -31,7 +42,8 @@
                                             <th>Ticket</th>
                                             <th>Approved</th>
                                             <th>In Progress</th>
-                                            <th>Last Update</th>
+                                            <th>Start</th>
+                                            <th>Created</th>
                                             <th>Action</th>
                                         </tr>
                                     </thead>
@@ -45,23 +57,23 @@
                                                 <td><a href="{{issue['self']}}">{{issue['key']}}</a></td>
                                                 <td>{{ticket['approved']}}</td>
                                                 <td>{{ticket['inProg']}}</td>
-                                                <td>{{ticket['t']}}</td>
+                                                <td>{{ticket['startDate']}}</td>
+                                                <td>{{ticket['createDate']}}</td>
                                                 <td>
-                                                    <%
-                                                    disabled = ""
-                                                    if ticket['approved'] == True:
-                                                        disabled = " disabled"
-                                                    end
-                                                    %>
-                                                    <a class="btn btn-primary{{disabled}}" href="/ticket/{{ticket['iid']}}/approve">Approve</a>
+                                                    % if ticket['approved'] == True:
+                                                        <a class="btn btn-info" href="/ticket/{{ticket['_id']}}/disapprove">Disapprove</a>
+                                                    % else:
+                                                        <a class="btn btn-primary" href="/ticket/{{ticket['_id']}}/approve">Approve</a>
+                                                    % end
                                                     <div class="btn-group">
-                                                        <button type="button" class="btn btn-danger dropdown-toggle" data-toggle="dropdown">Delay <span class="caret"></span></button>
+                                                        <button type="button" class="btn btn-warning dropdown-toggle" data-toggle="dropdown">Sleep <span class="caret"></span></button>
                                                         <ul class="dropdown-menu" role="menu">
-                                                            <li><a href="/ticket/{{ticket['iid']}}/delay/1">Delay 1 Day</a></li>
-                                                            <li><a href="/ticket/{{ticket['iid']}}/delay/3">Delay 3 Days</a></li>
-                                                            <li><a href="/ticket/{{ticket['iid']}}/delay/7">Delay 1 Week</a></li>
+                                                            <li><a href="/ticket/{{ticket['_id']}}/sleep/1">Sleep 1 Day</a></li>
+                                                            <li><a href="/ticket/{{ticket['_id']}}/sleep/3">Sleep 3 Days</a></li>
+                                                            <li><a href="/ticket/{{ticket['_id']}}/sleep/7">Sleep 1 Week</a></li>
                                                         </ul>
                                                     </div>
+                                                    <a class="btn btn-danger" href="/ticket/{{ticket['_id']}}/remove">Remove</a>
                                                 </td>
                                             </tr>
                                     <%
@@ -75,6 +87,10 @@
                     </div>
                 </div>
             </div>
+            <%
+                    end
+                end
+            %>
         </div>
     </div>
 </div>

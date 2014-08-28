@@ -5,6 +5,7 @@ import pymongo
 import logging
 import sys
 import json
+from datetime import datetime
 import failedTestDAO
 import groupDAO
 import issueDAO
@@ -69,33 +70,63 @@ def failedTestsSummary():
 def issueSummary(workflow=None, page=1):
     query = None
     if workflow != None:
-        query = {"workflow":{"$in":[workflow]}}
+        query = {"workflow": {"$in": [workflow]}}
     limit = 25
     if page == '':
         page = 1
     page = int(page)
-    skip = (page - 1) * limit
-    sortField = 'priority'
-    order = pymongo.DESCENDING
-    #ticketSummary = tickets.getTicketSummary(query, sortField, order, skip, limit)
     ticketSummary = karakuri.getQueues()
     ticketWorkflows = karakuri.getWorkflows()
     print ticketWorkflows
     issueObjs = {}
     if ticketSummary is not None:
         for issue in ticketSummary:
-            issueObjs[str(issue['iid'])] = karakuri.getTicket(str(issue['iid']))['jira']
+            if 'start' in issue:
+                issue['startDate'] = datetime.strftime(issue['start'],"%Y-%m-%d %H:%M")
+            else:
+                issue['startDate'] = ""
+            issue['createDate'] = datetime.strftime(issue['t'],"%Y-%m-%d %H:%M")
+            issueObjs[str(issue['iid'])] = karakuri.getIssue(str(issue['iid']))['jira']
     return template('base_page', renderpage="tickets", ticketSummary=ticketSummary, issues=issueObjs, ticketWorkflows=ticketWorkflows)
 
-@app.route('/ticket/<issue>/approve')
-def approveIssue(issue):
-    tickets.approveTicket(issue)
-    karakuri.approveTicket(issue)
+@app.route('/ticket/<ticket>/approve')
+def approveTicket(ticket):
+    karakuri.approveTicket(ticket)
     return redirect('/issues')
 
-@app.route('/ticket/<issue>/delay/<days>')
-def delayIssue(issue,days):
-    tickets.delayTicket(issue,days)
+@app.route('/ticket/<ticket>/disapprove')
+def disapproveTicket(ticket):
+    karakuri.disapproveTicket(ticket)
+    return redirect('/issues')
+
+@app.route('/ticket/<ticket>/remove')
+def removeTicket(ticket):
+    karakuri.removeTicket(ticket)
+    return redirect('/issues')
+
+@app.route('/ticket/<ticket>/sleep/<days>')
+def delayTicket(ticket,days):
+    karakuri.sleepTicket(ticket,days)
+    return redirect('/issues')
+
+@app.route('/workflow/<workflow>/approve')
+def approveWorkflow(workflow):
+    karakuri.approveWorkflow(workflow)
+    return redirect('/issues')
+
+@app.route('/workflow/<workflow>/disapprove')
+def disapproveWorkflow(workflow):
+    karakuri.disapproveWorkflow(workflow)
+    return redirect('/issues')
+
+@app.route('/workflow/<workflow>/remove')
+def removeWorkflow(workflow):
+    karakuri.removeWorkflow(workflow)
+    return redirect('/issues')
+
+@app.route('/workflow/<workflow>/sleep/<days>')
+def delayWorkflow(workflow,days):
+    karakuri.sleepWorkflow(workflow,days)
     return redirect('/issues')
 
 # AUTOCOMPLETE SEARCH
