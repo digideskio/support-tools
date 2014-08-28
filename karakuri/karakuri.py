@@ -236,7 +236,7 @@ class karakuri:
             if self.live:
                 match = {'_id': iid}
                 updoc = {'$push': {'karakuri.workflows_performed':
-                                  {'name': workflowName, 'lid': lid}}}
+                                   {'name': workflowName, 'lid': lid}}}
                 issue = self.find_and_modify_issue(match, updoc)
 
                 if not issue:
@@ -375,7 +375,7 @@ class karakuri:
 
     def setVerbose(self, b):
         """ Be loquacious? """
-        self.verbose= b
+        self.verbose = b
 
     def validate(self, iidORissue, workflowNameORworkflow):
         """ Verify the issue satisfies the requirements of the workflow
@@ -460,7 +460,7 @@ class karakuri:
         workflow = self.find_one(self.coll_workflows, {'name': workflowName})
 
         if workflow:
-            return workflow 
+            return workflow
 
         logging.warning("Workflow %s not found!", workflowName)
         return None
