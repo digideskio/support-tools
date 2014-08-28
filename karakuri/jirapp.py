@@ -16,7 +16,7 @@ class jirapp(JIRA):
         self.live = False
 
         if mongo is None:
-            # setup mongo using mongo config
+            # TODO setup mongo using mongo config
             pass
 
         # jirameta
@@ -48,7 +48,7 @@ class jirapp(JIRA):
         # transition id
         tid = None
 
-        logging.info("Finding '%s' transition id for project:'%s', "
+        logging.info("Finding %s transition id for project:'%s', "
                      "status:'%s'" % (transition, project, status))
 
         try:
