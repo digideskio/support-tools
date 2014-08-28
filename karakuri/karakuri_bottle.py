@@ -227,8 +227,14 @@ def workflow_wake(name):
     return bson.json_util.dumps({'res': res})
 
 if __name__ == "__main__":
+    configFilename = os.getcwd() + "/karakuri.cfg"
+    logFilename = os.getcwd() + "/karakuri_bottle.cfg"
     config = RawConfigParser()
-    config.read(os.getcwd() + "/karakuri.cfg")  # + options.config)
+    config.read(configFilename)  # + options.config)
+    if not config.has_section("CLI"):
+        config.add_section("CLI")
+    config.set("CLI", "config", configFilename)
+    config.set("CLI", "log", logFilename)
     k = karakuri(config)
 
     run(host='localhost', port=8080)
