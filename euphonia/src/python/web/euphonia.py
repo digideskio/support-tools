@@ -159,7 +159,7 @@ if __name__ == "__main__":
     logging.info("Initializing Euphonia UI")
 
     mongodb_connection_string = "mongodb://localhost"
-    karakuri_connection_string = "http://localhost:8090"
+    karakuri_connection_string = "http://localhost:8080"
 
     descriptionJSON = open('descriptions.json')
     descriptionCache = json.load(descriptionJSON)
