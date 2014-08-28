@@ -62,7 +62,7 @@ class karakuriDAO:
         return response
 
     def approveTicket(self, ticketId):
-        getUrl = "%s/issue/%s/approve" % (self.SERVER, ticketId)
+        getUrl = "%s/issue/%s/wake" % (self.SERVER, ticketId)
         response = self.executeKarakuriCall(getUrl)
         return response
 

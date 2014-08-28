@@ -9,7 +9,7 @@ class IssueDAO:
         self.collection = database.issues
 
     def getIssueSummaries(self, issueIds):
-        results = self.collection.find({"_id": {"$in": issueIds}}, {"jira.key": 1, "jira.self": 1})
+        results = self.collection.find({"_id": {"$in": issueIds}}, {"jira.key": 1, "jira.self": 1, "karakuri.sleep": 1})
         issues = {}
         issue = next(results, None)
         while issue is not None:

@@ -18,7 +18,20 @@
             %>
                         <div class="panel panel-default">
                             <div class="panel-heading">
-                                <h4 class="panel-title"><span style="color:#aaaaaa;">{{previous}}</span>{{workflow['name']}}<span class="pull-right">Approve all</span></h4>
+                                <h4 class="panel-title"><span style="color:#aaaaaa;">{{previous}}</span>{{workflow['name']}}
+                                    <span class="pull-right">
+                                        <a class="btn btn-primary" href="/workflow/{{workflow['name']}}/approve">Approve all</a>
+                                        <div class="btn-group">
+                                            <button type="button" class="btn btn-warning dropdown-toggle" data-toggle="dropdown">Delay All <span class="caret"></span></button>
+                                            <ul class="dropdown-menu" role="menu">
+                                                <li><a href="/workflow/{{workflow['name']}}/delay/1">Delay 1 Day</a></li>
+                                                <li><a href="/workflow/{{workflow['name']}}/delay/3">Delay 3 Days</a></li>
+                                                <li><a href="/workflow/{{workflow['name']}}/delay/7">Delay 1 Week</a></li>
+                                            </ul>
+                                        </div>
+                                        <a class="btn btn-danger" href="/workflow/{{workflow['name']}}/remove">Remove All</a>
+                                    </span>
+                                </h4>
                             </div>
                             <div id="collapseOne" class="panel-collapse collapse">
                                 <div class="panel-body">
@@ -30,6 +43,7 @@
                                                         <th>Ticket</th>
                                                         <th>Approved</th>
                                                         <th>In Progress</th>
+                                                        <th>Sleep</th>
                                                         <th>Last Update</th>
                                                         <th>Action</th>
                                                     </tr>
@@ -39,11 +53,18 @@
                                                 for ticket in ticketSummary:
                                                     if ticket['workflow'] == workflow['name']:
                                                         issue = issues[str(ticket['iid'])]
+                                                        sleep = ""
+                                                        try:
+                                                            sleep = issue['karakuri']['sleep']
+                                                        except:
+                                                            sleep = ""
+                                                        end
                                                 %>
                                                         <tr>
-                                                            <td><a href="{{issue['self']}}">{{issue['key']}}</a></td>
+                                                            <td><a href="{{issue['jira']['self']}}">{{issue['jira']['key']}}</a></td>
                                                             <td>{{ticket['approved']}}</td>
                                                             <td>{{ticket['inProg']}}</td>
+                                                            <td>{{sleep}}</td>
                                                             <td>{{ticket['t']}}</td>
                                                             <td>
                                                                 <%
@@ -54,13 +75,14 @@
                                                                 %>
                                                                 <a class="btn btn-primary{{disabled}}" href="/ticket/{{ticket['iid']}}/approve">Approve</a>
                                                                 <div class="btn-group">
-                                                                    <button type="button" class="btn btn-danger dropdown-toggle" data-toggle="dropdown">Delay <span class="caret"></span></button>
+                                                                    <button type="button" class="btn btn-warning dropdown-toggle" data-toggle="dropdown">Delay <span class="caret"></span></button>
                                                                     <ul class="dropdown-menu" role="menu">
                                                                         <li><a href="/ticket/{{ticket['iid']}}/delay/1">Delay 1 Day</a></li>
                                                                         <li><a href="/ticket/{{ticket['iid']}}/delay/3">Delay 3 Days</a></li>
                                                                         <li><a href="/ticket/{{ticket['iid']}}/delay/7">Delay 1 Week</a></li>
                                                                     </ul>
                                                                 </div>
+                                                                <a class="btn btn-danger" href="/ticket/{{ticket['iid']}}/remove">Remove</a>
                                                             </td>
                                                         </tr>
                                                 <%

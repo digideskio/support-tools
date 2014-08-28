@@ -85,12 +85,12 @@ def issueSummary(workflow=None, page=1):
     issueObjs = {}
     if ticketSummary is not None:
         for issue in ticketSummary:
-            issueObjs[str(issue['iid'])] = karakuri.getTicket(str(issue['iid']))['jira']
+            issueObjs[str(issue['iid'])] = karakuri.getTicket(str(issue['iid']))
     return template('base_page', renderpage="tickets", ticketSummary=ticketSummary, issues=issueObjs, ticketWorkflows=ticketWorkflows)
 
 @app.route('/ticket/<issue>/approve')
 def approveIssue(issue):
-    tickets.approveTicket(issue)
+    #tickets.approveTicket(issue)
     karakuri.approveTicket(issue)
     return redirect('/issues')
 
