@@ -410,8 +410,11 @@ class karakuri:
     # Methods exposed in the RESTful API
     #
 
-    def getListOfTickets(self):
-        curs_queue = self.coll_queue.find().sort('start', pymongo.ASCENDING)
+    def getListOfTickets(self, match=None):
+        if match is not None:
+            curs_queue = self.coll_queue.find(match).sort('start', pymongo.ASCENDING)
+        else:
+            curs_queue = self.coll_queue.find().sort('start', pymongo.ASCENDING)
         return [q for q in curs_queue]
 
     def getListOfWorkflows(self):
