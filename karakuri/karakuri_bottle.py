@@ -61,8 +61,9 @@ def lsqueue():
 def queue_approve(id):
     """ Approve all active tickets, i.e. those that are not done """
     match = {'done': False}
-    tickets = k.getListOfTickets(match)
+    tickets = k.getListOfTicketIds(match)
     res = k.forListOfTickets(k.approveTicket, tickets)
+    res = 0 if res else 1
     return bson.json_util.dumps({'res': res})
 
 
@@ -70,8 +71,9 @@ def queue_approve(id):
 def queue_disapprove(id):
     """ Disapprove all active tickets """
     match = {'done': False}
-    tickets = k.getListOfTickets(match)
+    tickets = k.getListOfTicketIds(match)
     res = k.forListOfTickets(k.disapproveTicket, tickets)
+    res = 0 if res else 1
     return bson.json_util.dumps({'res': res})
 
 
@@ -79,8 +81,9 @@ def queue_disapprove(id):
 def queue_remove(id):
     """ Remove all active tickets """
     match = {'done': False}
-    tickets = k.getListOfTickets(match)
+    tickets = k.getListOfTicketIds(match)
     res = k.forListOfTickets(k.removeTicket, tickets)
+    res = 0 if res else 1
     return bson.json_util.dumps({'res': res})
 
 
@@ -89,8 +92,9 @@ def queue_remove(id):
 def queue_sleep(id, seconds=sys.maxint):
     match = {'done': False}
     """ Sleep all active tickets. A sleeping ticket cannot be acted upon """
-    tickets = k.getListOfTickets(match)
+    tickets = k.getListOfTicketIds(match)
     res = k.forListOfTickets(k.sleepTicket, tickets, seconds=seconds)
+    res = 0 if res else 1
     return bson.json_util.dumps({'res': res})
 
 
@@ -98,8 +102,9 @@ def queue_sleep(id, seconds=sys.maxint):
 def queue_wake(id):
     """ Wake all active tickets """
     match = {'done': False}
-    tickets = k.getListOfTickets(match)
+    tickets = k.getListOfTicketIds(match)
     res = k.forListOfTickets(k.wakeTicket, tickets)
+    res = 0 if res else 1
     return bson.json_util.dumps({'res': res})
 
 
@@ -181,49 +186,55 @@ def get_workflow(name):
     return bson.json_util.dumps({'res': res, 'data': workflow})
 
 
-@route('/workflow/approve')
+@route('/workflow/<name>/approve')
 def workflow_approve(name):
     """ Approve all active tickets in the workflow """
     match = {'workflow': name, 'done': False}
-    tickets = k.getListOfTickets(match)
+    tickets = k.getListOfTicketIds(match)
+    print(tickets)
     res = k.forListOfTickets(k.approveTicket, tickets)
+    res = 0 if res else 1
     return bson.json_util.dumps({'res': res})
 
 
-@route('/workflow/disapprove')
+@route('/workflow/<name>/disapprove')
 def workflow_disapprove(name):
     """ Disapprove all active tickets in the workflow """
     match = {'workflow': name, 'done': False}
-    tickets = k.getListOfTickets(match)
+    tickets = k.getListOfTicketIds(match)
     res = k.forListOfTickets(k.disapproveTicket, tickets)
+    res = 0 if res else 1
     return bson.json_util.dumps({'res': res})
 
 
-@route('/workflow/remove')
+@route('/workflow/<name>/remove')
 def workflow_remove(name):
     """ Remove all active tickets in the workflow """
     match = {'workflow': name, 'done': False}
-    tickets = k.getListOfTickets(match)
+    tickets = k.getListOfTicketIds(match)
     res = k.forListOfTickets(k.removeTicket, tickets)
+    res = 0 if res else 1
     return bson.json_util.dumps({'res': res})
 
 
-@route('/workflow/sleep')
-@route('/workflow/sleep/<seconds:int>')
+@route('/workflow/<name>/sleep')
+@route('/workflow/<name>/sleep/<seconds:int>')
 def workflow_sleep(name, seconds=sys.maxint):
     """ Sleep all active tickets in the workflow """
     match = {'workflow': name, 'done': False}
-    tickets = k.getListOfTickets(match)
+    tickets = k.getListOfTicketIds(match)
     res = k.forListOfTickets(k.sleepTicket, tickets, seconds=seconds)
+    res = 0 if res else 1
     return bson.json_util.dumps({'res': res})
 
 
-@route('/workflow/wake')
+@route('/workflow/<name>/wake')
 def workflow_wake(name):
     """ Wake all active tickets in the workflow """
     match = {'workflow': name, 'done': False}
-    tickets = k.getListOfTickets(match)
+    tickets = k.getListOfTicketIds(match)
     res = k.forListOfTickets(k.wakeTicket, tickets)
+    res = 0 if res else 1
     return bson.json_util.dumps({'res': res})
 
 if __name__ == "__main__":
