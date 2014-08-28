@@ -57,13 +57,15 @@ class SupportIssue:
 
     def hasJIRA(self):
         """ Returns true if JIRA-specific informaton is present """
-        # TODO add protections to ensure proper jira doc?
         return self.doc is not None and 'jira' in self.doc
 
     def hasKarakuri(self):
         """ Returns true if Karakuri-specific informaton is present """
-        # TODO add protections to ensure proper karakuri doc?
         return self.doc is not None and 'karakuri' in self.doc
+
+    def hasSLA(self):
+        """ Returns true if SLA-specific informaton is present """
+        return self.doc is not None and 'sla' in self.doc
 
     # TODO is this too dashboard specific to keep here?
     def isFTS(self):
@@ -217,14 +219,14 @@ class SupportIssue:
 
     @property
     # NOTE support dashboard might be using this for something
-    # else and require moving to ticketId (see below)
+    # else and require moving to issueId (see below)
     def id(self):
         if self.doc:
             return self.doc['_id']
         return None
 
     @property
-    def ticketId(self):
+    def issueId(self):
         if self.hasJIRA():
             return self.doc['jira']['id']
         return None
@@ -376,6 +378,12 @@ class SupportIssue:
             if 'summary' in self.doc['jira']['fields'] and\
                     self.doc['jira']['fields']:
                 return {'value': self.doc['jira']['fields']['summary']}
+        return None
+
+    @property
+    def sla(self):
+        if self.hasSLA():
+            return self.doc['sla']
         return None
 
     @property

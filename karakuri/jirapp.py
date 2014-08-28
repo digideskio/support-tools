@@ -16,7 +16,7 @@ class jirapp(JIRA):
         self.live = False
 
         if mongo is None:
-            # setup mongo using mongo config
+            # TODO setup mongo using mongo config
             pass
 
         # jirameta
@@ -48,7 +48,7 @@ class jirapp(JIRA):
         # transition id
         tid = None
 
-        logging.info("Finding '%s' transition id for project:'%s', "
+        logging.info("Finding %s transition id for project:'%s', "
                      "status:'%s'" % (transition, project, status))
 
         try:
@@ -73,7 +73,7 @@ class jirapp(JIRA):
     def addPublicComment(self, key, comment):
         """ This method adds a public-facing comment to a JIRA issue """
         # TODO validate comment
-        logging.info("Adding public comment to JIRA %s" % key)
+        logging.info("Adding public comment to %s" % key)
 
         if self.live:
             try:
@@ -86,7 +86,7 @@ class jirapp(JIRA):
     def addDeveloperComment(self, key, comment):
         """ This method adds a developer-only comment to a JIRA issue """
         # TODO validate comment
-        logging.info("Adding developer-only comment to JIRA %s" % key)
+        logging.info("Adding developer-only comment to %s" % key)
 
         if self.live:
             try:
@@ -99,7 +99,7 @@ class jirapp(JIRA):
 
     def closeIssue(self, key):
         """ This method closes a JIRA issue """
-        logging.info("Closing JIRA %s" % key)
+        logging.info("Closing %s" % key)
 
         if self.live:
             tid = self.__getTransitionId(key, 'Close Issue')
@@ -144,7 +144,7 @@ class jirapp(JIRA):
 
             for f in required_fields:
                 if f not in fields:
-                    logging.info("Error: %s required to create %s %s JIRA"
+                    logging.info("Error: %s required to create JIRA %s %s"
                                  "issue" % (f, fields['issuetype']['name'],
                                             fields['project']['key']))
                     raiseexception = True
@@ -160,7 +160,7 @@ class jirapp(JIRA):
             except JIRAError as e:
                 raise e
 
-            logging.info("Created JIRA %s" % issue.key)
+            logging.info("Created %s" % issue.key)
             return issue
 
         else:
@@ -185,7 +185,7 @@ class jirapp(JIRA):
             raise Exception("%s is not a supported resolution type" %
                             resolution)
 
-        logging.info("Resolving JIRA %s" % key)
+        logging.info("Resolving %s" % key)
 
         if self.live:
             tid = self.__getTransitionId(key, 'Resolve Issue')
@@ -200,7 +200,7 @@ class jirapp(JIRA):
     def setLabels(self, key, labels):
         """ This method sets the labels in a JIRA issue """
         # TODO validate labels is a string that will return [] on split
-        logging.info("Setting labels in JIRA %s" % key)
+        logging.info("Setting labels in %s" % key)
 
         try:
             issue = self.issue(key)
@@ -221,7 +221,7 @@ class jirapp(JIRA):
     def setOwner(self, key, owner):
         """ This method sets the JIRA issue owner using the Internal Fields
         transition """
-        logging.info("Setting owner of JIRA %s" % key)
+        logging.info("Setting owner of %s" % key)
 
         if self.live:
             fields = {'customfield_10041': {'name': owner}}
@@ -237,7 +237,7 @@ class jirapp(JIRA):
 
     def wfcIssue(self, key):
         """ This method sets the status of a ticket to Wait for Customer """
-        logging.info("Setting JIRA %s to Wait for Customer" % key)
+        logging.info("Setting %s to Wait for Customer" % key)
 
         if self.live:
             tid = self.__getTransitionId(key, 'Wait for Customer')
