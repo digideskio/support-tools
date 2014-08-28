@@ -59,24 +59,27 @@ def lsqueue():
 
 @route('/queue/approve')
 def queue_approve(id):
-    """ Approve all tickets """
-    tickets = k.getListOfTickets()
+    """ Approve all active tickets, i.e. those that are not done """
+    match = {'done': False}
+    tickets = k.getListOfTickets(match)
     res = k.forListOfTickets(k.approveTicket, tickets)
     return bson.json_util.dumps({'res': res})
 
 
 @route('/queue/disapprove')
 def queue_disapprove(id):
-    """ Disapprove all tickets """
-    tickets = k.getListOfTickets()
+    """ Disapprove all active tickets """
+    match = {'done': False}
+    tickets = k.getListOfTickets(match)
     res = k.forListOfTickets(k.disapproveTicket, tickets)
     return bson.json_util.dumps({'res': res})
 
 
 @route('/queue/remove')
 def queue_remove(id):
-    """ Remove all tickets """
-    tickets = k.getListOfTickets()
+    """ Remove all active tickets """
+    match = {'done': False}
+    tickets = k.getListOfTickets(match)
     res = k.forListOfTickets(k.removeTicket, tickets)
     return bson.json_util.dumps({'res': res})
 
@@ -84,16 +87,18 @@ def queue_remove(id):
 @route('/queue/sleep')
 @route('/queue/sleep/<seconds:int>')
 def queue_sleep(id, seconds=sys.maxint):
-    """ Sleep all tickets. A sleeping ticket cannot be acted upon """
-    tickets = k.getListOfTickets()
+    match = {'done': False}
+    """ Sleep all active tickets. A sleeping ticket cannot be acted upon """
+    tickets = k.getListOfTickets(match)
     res = k.forListOfTickets(k.sleepTicket, tickets, seconds=seconds)
     return bson.json_util.dumps({'res': res})
 
 
 @route('/queue/wake')
 def queue_wake(id):
-    """ Wake all tickets """
-    tickets = k.getListOfTickets()
+    """ Wake all active tickets """
+    match = {'done': False}
+    tickets = k.getListOfTickets(match)
     res = k.forListOfTickets(k.wakeTicket, tickets)
     return bson.json_util.dumps({'res': res})
 
@@ -178,8 +183,8 @@ def get_workflow(name):
 
 @route('/workflow/approve')
 def workflow_approve(name):
-    """ Approve all tickets in the workflow """
-    match = {'workflow': name}
+    """ Approve all active tickets in the workflow """
+    match = {'workflow': name, 'done': False}
     tickets = k.getListOfTickets(match)
     res = k.forListOfTickets(k.approveTicket, tickets)
     return bson.json_util.dumps({'res': res})
@@ -187,8 +192,8 @@ def workflow_approve(name):
 
 @route('/workflow/disapprove')
 def workflow_disapprove(name):
-    """ Disapprove all tickets in the workflow """
-    match = {'workflow': name}
+    """ Disapprove all active tickets in the workflow """
+    match = {'workflow': name, 'done': False}
     tickets = k.getListOfTickets(match)
     res = k.forListOfTickets(k.disapproveTicket, tickets)
     return bson.json_util.dumps({'res': res})
@@ -196,8 +201,8 @@ def workflow_disapprove(name):
 
 @route('/workflow/remove')
 def workflow_remove(name):
-    """ Remove all tickets in the workflow """
-    match = {'workflow': name}
+    """ Remove all active tickets in the workflow """
+    match = {'workflow': name, 'done': False}
     tickets = k.getListOfTickets(match)
     res = k.forListOfTickets(k.removeTicket, tickets)
     return bson.json_util.dumps({'res': res})
@@ -206,8 +211,8 @@ def workflow_remove(name):
 @route('/workflow/sleep')
 @route('/workflow/sleep/<seconds:int>')
 def workflow_sleep(name, seconds=sys.maxint):
-    """ Sleep all tickets in the workflow """
-    match = {'workflow': name}
+    """ Sleep all active tickets in the workflow """
+    match = {'workflow': name, 'done': False}
     tickets = k.getListOfTickets(match)
     res = k.forListOfTickets(k.sleepTicket, tickets, seconds=seconds)
     return bson.json_util.dumps({'res': res})
@@ -215,8 +220,8 @@ def workflow_sleep(name, seconds=sys.maxint):
 
 @route('/workflow/wake')
 def workflow_wake(name):
-    """ Wake all tickets in the workflow """
-    match = {'workflow': name}
+    """ Wake all active tickets in the workflow """
+    match = {'workflow': name, 'done': False}
     tickets = k.getListOfTickets(match)
     res = k.forListOfTickets(k.wakeTicket, tickets)
     return bson.json_util.dumps({'res': res})
