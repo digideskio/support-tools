@@ -5,6 +5,7 @@ import pymongo
 import logging
 import sys
 import json
+import pytz
 from datetime import datetime
 import failedTestDAO
 import groupDAO
@@ -13,6 +14,7 @@ import ticketDAO
 import karakuriDAO
 from daemon import Daemon
 
+utc = pytz.UTC
 app = Bottle()
 
 # ROOT/SUMMARY PAGE
@@ -80,13 +82,20 @@ def issueSummary(workflow=None, page=1):
     print ticketWorkflows
     issueObjs = {}
     if ticketSummary is not None:
-        for issue in ticketSummary:
-            if 'start' in issue:
-                issue['startDate'] = datetime.strftime(issue['start'],"%Y-%m-%d %H:%M")
+        for ticket in ticketSummary:
+            if 'start' in ticket:
+                ticket['startDate'] = datetime.strftime(ticket['start'],"%Y-%m-%d %H:%M")
+                starttz = ticket['start'].tzinfo
+                endOfTime = utc.localize(datetime.max).astimezone(starttz)
+                endOfTime = datetime.strftime(endOfTime,"%Y-%m-%d %H:%M")
+                ticket['removed'] = True if ticket['startDate'] == endOfTime else False
+                print ticket['start']
+                print utc.localize(datetime.max).astimezone(starttz)
             else:
-                issue['startDate'] = ""
-            issue['createDate'] = datetime.strftime(issue['t'],"%Y-%m-%d %H:%M")
-            issueObjs[str(issue['iid'])] = karakuri.getIssue(str(issue['iid']))['jira']
+                ticket['startDate'] = ""
+                ticket['removed'] = False
+            ticket['updateDate'] = datetime.strftime(ticket['t'],"%Y-%m-%d %H:%M")
+            issueObjs[str(ticket['iid'])] = karakuri.getIssue(str(ticket['iid']))['jira']
     return template('base_page', renderpage="tickets", ticketSummary=ticketSummary, issues=issueObjs, ticketWorkflows=ticketWorkflows)
 
 @app.route('/ticket/<ticket>/approve')
@@ -106,7 +115,8 @@ def removeTicket(ticket):
 
 @app.route('/ticket/<ticket>/sleep/<days>')
 def delayTicket(ticket,days):
-    karakuri.sleepTicket(ticket,days)
+    seconds = int(days) * 86400
+    karakuri.sleepTicket(ticket,seconds)
     return redirect('/issues')
 
 @app.route('/workflow/<workflow>/approve')

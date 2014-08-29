@@ -9,7 +9,7 @@ $(document).ready(function() {
     });
     $('.failedtests').popover();
     $('.tooltip').tooltip();
-    $('.collapse').collapse();
+    $('.metadata').tooltip();
     $('.tt-input').focus(function() {
         $('.twitter-typeahead').width(300);
     }).blur(function() {
