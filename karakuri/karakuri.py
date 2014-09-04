@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import argparse
 import bson
 import bson.json_util
 import logging
@@ -9,37 +10,54 @@ import sys
 
 from datetime import datetime, timedelta
 from jirapp import jirapp
-from optparse import OptionParser
 from supportissue import SupportIssue
-from ConfigParser import RawConfigParser
 
+class ConfigParser(argparse.ArgumentParser):
+    def __init__(self, *args, **kwargs):
+        super(ConfigParser, self).__init__(*args, **kwargs)
+
+    def convert_arg_line_to_args(self, line):
+        args = line.split()
+        for i in range(len(args)):
+            if i == 0:
+                # ignore commented lines
+                if args[i][0] == '#':
+                    break
+                if not args[i].startswith('--'):
+                    # add '--' to simulate cli option
+                    args[i] = "--%s" % args[i]
+            if not args[i].strip():
+                continue
+
+            yield args[i]
 
 class karakuri:
     """ An automaton: http://en.wikipedia.org/wiki/Karakuri_ningy%C5%8D """
-    def __init__(self, config):
+    def __init__(self, args):
         """ Wake the beast """
-        # TODO parsing of config should be done here
-        self.config = config
+        self.args = vars(args)
 
         # basic logging
         # TODO add verbosity options
-        logging.basicConfig(filename=config.get("CLI", "log"),
+        logging.basicConfig(filename=self.args['log'],
                             format='[%(asctime)s] %(message)s',
                             level=logging.DEBUG)
         logging.info("Initializing karakuri")
 
-        # output config for later debugging
-        logging.debug("Parsing config")
-        for s in config.sections():
-            logging.debug("[%s]", s)
-            logging.debug(config.items(s))
+        # output args for later debugging
+        logging.debug("Parsing args")
+        for arg in self.args:
+            logging.debug(self.args[arg])
 
         self.issuer = None
         self.live = False
         self.verbose = False
 
+        # if limit is specified then we are throttling
+        self.limit = self.args['limit']
+
         # initialize databases and collections
-        # TODO load and pass mongodb specific config
+        # TODO pass mongodb specific args
         self.mongo = pymongo.MongoClient()
         self.coll_issues = self.mongo.support.issues
         self.coll_workflows = self.mongo.karakuri.workflows
@@ -265,9 +283,15 @@ class karakuri:
             return None
 
         res = True
+        count = 0
         for i in curs_queue:
+            if count == self.limit:
+                logging.info("limit met, skipping the rest")
+                break
+
             ticket = self.processTicket(i['_id'])
             res &= (ticket and ticket['done'])
+            count += 1
 
         return res
 
@@ -560,67 +584,79 @@ class karakuri:
 
 if __name__ == "__main__":
     # Process command line parameters with a system of tubes
-    parser = OptionParser()
-    parser.add_option("-a", "--approve", action="store_true",
+    parser = argparse.ArgumentParser(description="If you don't know what this "
+                                     "does, stop what you're doing right now.")
+    parser.add_argument("-a", "--approve", action="store_true",
                       help="approve ticket")
-    parser.add_option("-c", "--config", default="karakuri.cfg", metavar="FILE",
+    parser.add_argument("-c", "--config", metavar="FILE",
                       help="configuration file FILE")
-    parser.add_option("-d", "--disapprove", action="store_true",
+    parser.add_argument("-d", "--disapprove", action="store_true",
                       help="disapprove ticket")
-    parser.add_option("-f", "--find", action="store_true",
+    parser.add_argument("--dry-run", action="store_true",
+                      help="see what would happen irl (default)")
+    parser.add_argument("-f", "--find", action="store_true",
                       help="find and queue tickets")
-    parser.add_option("--log", default="karakuri.log", metavar="FILE",
-                      help="log file FILE")
-    parser.add_option("-l", "--list-queue",  action="store_true",
+    parser.add_argument("--jira-username", metavar="USERNAME",
+                      help="specify JIRA username USERNAME")
+    parser.add_argument("--jira-password", metavar="PASSWORD",
+                      help="specify JIRA password PASSWORD")
+    parser.add_argument("-l", "--list-queue",  action="store_true",
                       help="list tickets in queue")
-    parser.add_option("--live", action="store_true",
+    parser.add_argument("--log", default="karakuri.log", metavar="FILE",
+                      help="log file FILE")
+    parser.add_argument("--limit", metavar="NUMBER",
+                      help="limit process-all to NUMBER tickets")
+    parser.add_argument("--live", action="store_true",
                       help="do what you do irl")
-    parser.add_option("-p", "--process", action="store_true",
+    parser.add_argument("-p", "--process", action="store_true",
                       help="process/dequeue ticket")
-    parser.add_option("--process-all", action="store_true",
+    parser.add_argument("--process-all", action="store_true",
                       help="process/dequeue all tickets!")
-    parser.add_option("-r", "--remove", action="store_true",
+    parser.add_argument("-r", "--remove", action="store_true",
                       help="remove ticket")
-    parser.add_option("-s", "--sleep", metavar="SECONDS",
+    parser.add_argument("-s", "--sleep", metavar="SECONDS",
                       help="sleep ticket for SECONDS seconds")
-    parser.add_option("-t", "--ticket", metavar="TICKET",
+    parser.add_argument("-t", "--ticket", metavar="TICKET",
                       help="specify ticket TICKET (comma separated)")
-    parser.add_option("-v", "--verbose", action="store_true",
+    parser.add_argument("-v", "--verbose", action="store_true",
                       help="be loquacious")
-    parser.add_option("-w", "--wake", action="store_true",
+    parser.add_argument("-w", "--wake", action="store_true",
                       help="wake ticket")
-    (options, args) = parser.parse_args()
+    args = parser.parse_args()
+
+    # Process config file if one is specified in the CLI options
+    if args.config:
+        # TODO expand to full path and verify readability of configuration file
+        args.config = os.getcwd() + "/" + args.config
+
+        configParser = ConfigParser(fromfile_prefix_chars='@',
+                                    parents=[parser])
+        args = configParser.parse_args(args=["@%s" % args.config],
+                                       namespace=args)
 
     # Configuration error found, aborting
     error = False
 
-    if not options.config:
-        print("Please specify a configuration file")
-        error = True
-    else:
-        # TODO expand to full path and verify readability of configuration file
-        configFilename = os.getcwd() + "/" + options.config
-
-    if not options.log:
+    if not args.log:
         print("Please specify a log file")
         error = True
     else:
-        # TODO expand to full path and verify writability of configuration file
-        logFilename = os.getcwd() + "/" + options.log
+        # TODO expand to full path and verify writability of log file
+        args.log = os.getcwd() + "/" + args.log
 
-    if not options.ticket:
+    if not args.ticket:
         # only an error if find, list_queue or process_all not specified as all
         # other actions are ticket-dependent
-        if not options.find and not options.list_queue and\
-                not options.process_all:
+        if not args.find and not args.list_queue and\
+                not args.process_all:
             print("Please specify a ticket or tickets")
             error = True
     else:
         # Allow only one ticket-dependent action per run
         # TODO allow double actions, e.g. -ap
         numActions = 0
-        for action in [options.approve, options.disapprove, options.process,
-                       options.remove, options.sleep, options.wake]:
+        for action in [args.approve, args.disapprove, args.process,
+                       args.remove, args.sleep, args.wake]:
             if action:
                 numActions += 1
 
@@ -629,73 +665,74 @@ if __name__ == "__main__":
             error = True
 
         # TODO validate this
-        options.ticket = [t.strip() for t in options.ticket.split(',')]
+        args.ticket = [t.strip() for t in args.ticket.split(',')]
 
     # This is the end. My only friend, the end. RIP Jim.
     if error:
         sys.exit(1)
 
-    # Parse configuration file and initialize karakuri
-    config = RawConfigParser()
-    config.read(configFilename)
-    if not config.has_section("CLI"):
-        config.add_section("CLI")
-    config.set("CLI", "config", configFilename)
-    config.set("CLI", "log", logFilename)
+    # If --dry-run is specified ignore --live
+    if args.dry_run:
+        args.live = False
 
-    # TODO add cli options into config
-    k = karakuri(config)
-    k.setLive(options.live)
-    k.setVerbose(options.verbose)
+    k = karakuri(args)
+    # NOTE can move these to __init__ now if you'd like
+    k.setLive(args.live)
+    k.setVerbose(args.verbose)
 
-    # If find and queue, do the work, list the queue and exit. The only action
-    # I can imagine allowing aside from this is perform_all but that scares me
-    if options.find:
+    # If find, do the work, list the queue and exit. The only action I can
+    # imagine allowing aside from this is process_all but that scares me
+    if args.find:
         k.queueAll()
         k.listQueue()
         sys.exit(0)
 
-    # Ignore other options if list requested
-    if options.list_queue:
+    # Ignore other args if list requested
+    if args.list_queue:
         k.listQueue()
         sys.exit(0)
 
-    if options.approve:
-        k.forListOfTickets(k.approveTicket, options.ticket)
+    if args.approve:
+        k.forListOfTickets(k.approveTicket, args.ticket)
         sys.exit(0)
 
-    if options.disapprove:
-        k.forListOfTickets(k.disapproveTicket, options.ticket)
+    if args.disapprove:
+        k.forListOfTickets(k.disapproveTicket, args.ticket)
         sys.exit(0)
 
-    if options.remove:
-        k.forListOfTickets(k.removeTicket, options.ticket)
+    if args.remove:
+        k.forListOfTickets(k.removeTicket, args.ticket)
         sys.exit(0)
 
-    if options.sleep:
-        k.forListOfTickets(k.sleepTicket, options.ticket,
-                           seconds=options.sleep)
+    if args.sleep:
+        k.forListOfTickets(k.sleepTicket, args.ticket,
+                           seconds=args.sleep)
         sys.exit(0)
 
-    if options.wake:
-        k.forListOfTickets(k.wakeTicket, options.ticket)
+    if args.wake:
+        k.forListOfTickets(k.wakeTicket, args.ticket)
         sys.exit(0)
 
+    #
     # Everything from here on down requires an Issuer
+    #
 
-    # TODO extract JIRA specific config and pass to JIRA++
-    # initialize JIRA++
-    jirapp = jirapp(config, k.mongo)
+    if not args.jira_username or not args.jira_password:
+        print("Please specify a JIRA username and password")
+        sys.exit(2)
+
+    # Initialize JIRA++
+    jirapp = jirapp(args.jira_username, args.jira_password, k.mongo)
     jirapp.setLive(k.live)
 
     # Set the Issuer. There can be only one:
     # https://www.youtube.com/watch?v=sqcLjcSloXs
     k.setIssuer(jirapp)
 
-    if options.process:
-        k.forListOfTickets(k.processTicket, options.ticket)
+    if args.process:
+        k.forListOfTickets(k.processTicket, args.ticket)
 
-    if options.process_all:
+    if args.process_all:
         k.processAll()
 
     sys.exit(0)
