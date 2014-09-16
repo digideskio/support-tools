@@ -565,8 +565,9 @@ end
 def checkNewIssues(db)
   time = Time.now
   finalQuery = @jiraquery
-  finalQuery["jira.fields.created"] = {"$gte"=> @lastChecked }
-  @lastChecked = Time.now
+  finalQuery["_id"] = {"$gte"=> @lastChecked }
+  logOut "Checking for new issues $gte #{@lastChecked}", 1
+  @lastChecked = BSON::ObjectId.from_time(Time.now-1)
   #Compare the current List of issues to the old, update if needed
   db.collection("issues").find(finalQuery).each do |issue|
     if @soundOn
