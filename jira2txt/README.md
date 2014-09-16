@@ -3,6 +3,8 @@
 A small Python script to query the mongodb.org JIRA instance for issues and to print out the
 specified field values in table format.
 
+Another version exists here: [`/10gen/kernel-tools/jira2txt`](https://github.com/10gen/kernel-tools/tree/master/jira2txt)
+
 ### Installation
 
 All you need for this script to run is the Python `jira` module, which you can install with:

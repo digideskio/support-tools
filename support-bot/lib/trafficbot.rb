@@ -90,7 +90,7 @@ options = {
 @issues = {}
 
 #Time of each check is tracked
-@lastChecked = Time.now
+@lastChecked = BSON::ObjectId.from_time(Time.now-1)
 
 #List of items we have failed to auto complete
 @autoCompleteFails = []
