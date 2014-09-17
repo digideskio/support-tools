@@ -1,0 +1,8 @@
+.div_workflow {
+    padding: 1em;
+    border-style: solid;
+    border-width: 1px;
+}
+
+.indent1 { margin-left: 4em; }
+.indent2 { margin-left: 8em; }
