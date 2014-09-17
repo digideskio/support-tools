@@ -1,4 +1,4 @@
-[JIRA]
-# username - not the email
-username = my_jira_username
-password = my_jira_password
+jira-username   my_jira_username
+jira-password   my_jira_password
+log             karakuri.log
+pid             /tmp/karakuri.pid

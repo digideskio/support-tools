@@ -1,16 +1,28 @@
 #!/usr/bin/env python
 
 import argparse
+import bottle
 import bson
 import bson.json_util
+import daemon
 import logging
 import os
+import pidlockfile
 import pymongo
+import signal
 import sys
+import threading
+import time
 
 from datetime import datetime, timedelta
 from jirapp import jirapp
 from supportissue import SupportIssue
+
+
+def getFullPath(path):
+    return path and\
+        os.path.abspath(os.path.expandvars(os.path.expanduser(path)))
+
 
 class ConfigParser(argparse.ArgumentParser):
     def __init__(self, *args, **kwargs):
@@ -31,30 +43,45 @@ class ConfigParser(argparse.ArgumentParser):
 
             yield args[i]
 
+
+class PipeToLogger:
+    def __init__(self, logger):
+        self.logger = logger
+
+    def write(self, s):
+        self.logger.info(s.strip())
+
+
 class karakuri:
     """ An automaton: http://en.wikipedia.org/wiki/Karakuri_ningy%C5%8D """
     def __init__(self, args):
         """ Wake the beast """
-        self.args = vars(args)
+        if not isinstance(args, dict):
+            args = vars(args)
+        self.args = args
 
-        # basic logging
-        # TODO add verbosity options
-        logging.basicConfig(filename=self.args['log'],
-                            format='[%(asctime)s] %(message)s',
-                            level=logging.DEBUG)
-        logging.info("Initializing karakuri")
+        # log what your momma gave ya
+        # TODO validate log-level
+        logLevel = self.args['log_level']
+        # CRITICAL  50
+        # ERROR     40
+        # WARNING   30
+        # INFO      20
+        # DEBUG     10
+        # NOTSET    0
+        # create logger
+        self.logger = logging.getLogger('logger')
+        self.logger.setLevel(logLevel)
+        self.logger.info("Initializing karakuri")
 
         # output args for later debugging
-        logging.debug("Parsing args")
+        self.logger.debug("Parsing args")
         for arg in self.args:
-            logging.debug(self.args[arg])
+            self.logger.debug("%s %s" % (arg, self.args[arg]))
 
+        # will the real __init__ please stand up, please stand up...
         self.issuer = None
-        self.live = False
-        self.verbose = False
-
-        # if limit is specified then we are throttling
-        self.limit = self.args['limit']
+        self.live = True if 'live' in self.args else False
 
         # initialize databases and collections
         # TODO pass mongodb specific args
@@ -64,11 +91,14 @@ class karakuri:
         self.coll_log = self.mongo.karakuri.log
         self.coll_queue = self.mongo.karakuri.queue
 
-    def __buildValidateQuery(self, workflow, iid=None):
+    def _buildValidateQuery(self, workflow, iid=None):
         """ Return a MongoDB query that accounts for the workflow prerequisites
         """
         query_string = workflow['query_string']
         match = bson.json_util.loads(query_string)
+
+        # issue must exist!
+        match['deleted'] = False
 
         # do not include issues for which the given workflow
         # has already been performed!
@@ -109,6 +139,32 @@ class karakuri:
 
         return match
 
+    def _performAction(self, action):
+        """ Do it like they do on the discovery channel """
+        # action must be defined for this issuing system
+        if not hasattr(self.issuer, action['name']):
+            self.logger.exception("%s is not a supported action",
+                                  action['name'])
+            return None
+
+        args = list(action['args'])
+
+        # for the sake of logging reduce string arguments
+        # to 50 characters and replace \n with \\n
+        argString = (', '.join('"' + arg[:50].replace('\n',
+                     '\\n') + '"' for arg in args))
+        self.logger.info("%s(%s)", action['name'], argString)
+
+        if self.live:
+            fun = getattr(self.issuer, action['name'])
+            # expand list to function arguments
+            res = fun(*args)
+        else:
+            # simulate success
+            res = True
+
+        return res
+
     def find_and_modify(self, collection, match, updoc):
         """ Wrapper for find_and_modify that handles exceptions """
         res = None
@@ -116,7 +172,7 @@ class karakuri:
         try:
             res = collection.find_and_modify(match, updoc)
         except pymongo.errors.PyMongoError as e:
-            logging.exception(e)
+            self.logger.exception(e)
 
         return res
 
@@ -147,7 +203,7 @@ class karakuri:
         try:
             res = collection.find_one(match)
         except pymongo.errors.PyMongoError as e:
-            logging.exception(e)
+            self.logger.exception(e)
 
         return res
 
@@ -156,9 +212,8 @@ class karakuri:
         if not isinstance(iid, bson.ObjectId):
             iid = bson.ObjectId(iid)
 
-        if self.verbose:
-            logging.info("log('%s', '%s', '%s', %s)", iid, workflowName,
-                         action, success)
+        self.logger.debug("log('%s', '%s', '%s', %s)", iid, workflowName,
+                          action, success)
 
         lid = bson.ObjectId()
 
@@ -168,35 +223,10 @@ class karakuri:
         try:
             self.coll_log.insert(log)
         except pymongo.errors.PyMongoError as e:
-            logging.exception(e)
+            self.logger.exception(e)
             # TODO write to file on disk instead
 
         return lid
-
-    def __performAction(self, action):
-        """ Do it like they do on the discovery channel """
-        # action must be defined for this issuing system
-        if not hasattr(self.issuer, action['name']):
-            logging.exception("%s is not a supported action", action['name'])
-            return None
-
-        args = list(action['args'])
-
-        # for the sake of logging reduce string arguments
-        # to 50 characters and replace \n with \\n
-        argString = (', '.join('"' + arg[:50].replace('\n',
-                     '\\n') + '"' for arg in args))
-        logging.info("%s(%s)", action['name'], argString)
-
-        if self.live:
-            fun = getattr(self.issuer, action['name'])
-            # expand list to function arguments
-            res = fun(*args)
-        else:
-            # simulate success
-            res = True
-
-        return res
 
     def performWorkflow(self, iid, workflowName):
         """ Perform the specified workflow for the given issue """
@@ -205,18 +235,18 @@ class karakuri:
 
         issue = self.getSupportIssue(iid)
         if not issue:
-            logging.exception("Unable to getSupportIssue(%s)", iid)
+            self.logger.exception("Unable to getSupportIssue(%s)", iid)
             self.log(iid, workflowName, 'perform', False)
             return None
 
         workflow = self.getWorkflow(workflowName)
         if not workflow:
-            logging.exception("Unable to getWorkflow(%s)", workflowName)
+            self.logger.exception("Unable to getWorkflow(%s)", workflowName)
             self.log(iid, workflowName, 'perform', False)
             return None
 
-        logging.info("performWorkflow('%s', '%s') # %s", iid, workflowName,
-                     issue.key)
+        self.logger.info("performWorkflow('%s', '%s') # %s", iid, workflowName,
+                         issue.key)
 
         # validate that this is still worth running
         # TODO add cleanQueue and removeAll methods
@@ -225,8 +255,8 @@ class karakuri:
         self.log(iid, workflowName, 'validate', res)
 
         if not res:
-            logging.info("Failed to validate workflow requirements, will "
-                         "not perform")
+            self.logger.info("Failed to validate workflow requirements, will "
+                             "not perform")
             self.log(iid, workflowName, 'perform', False)
             return None
 
@@ -241,7 +271,7 @@ class karakuri:
             else:
                 action['args'] = [issue.key]
 
-            res = self.__performAction(action)
+            res = self._performAction(action)
             self.log(iid, workflowName, action['name'], res)
 
             if not res:
@@ -258,8 +288,9 @@ class karakuri:
                 issue = self.find_and_modify_issue(match, updoc)
 
                 if not issue:
-                    logging.exception("Unable to record workflow %s in issue "
-                                      "%s # %s", workflowName, iid, issue.key)
+                    self.logger.exception("Unable to record workflow %s in "
+                                          " issue %s # %s", workflowName, iid,
+                                          issue.key)
                     self.log(iid, workflowName, 'record', False)
                     # NOTE "To return None, or not to return None?" That is the
                     # question. I believe that I should return None to keep the
@@ -272,22 +303,22 @@ class karakuri:
 
     def processAll(self):
         """ Process all tickets """
-        logging.info("processAll()")
+        self.logger.info("processAll()")
 
         match = {'done': False, 'inProg': False, 'approved': True}
 
         try:
             curs_queue = self.coll_queue.find(match)
         except pymongo.errors.PyMongoError as e:
-            logging.exception(e)
+            self.logger.exception(e)
             return None
 
         res = True
         count = 0
         for i in curs_queue:
-            if count == self.limit:
-                logging.info("limit met, skipping the rest")
-                break
+            # if count == self.limit:
+            #    self.logger.info("limit met, skipping the rest")
+            #    break
 
             ticket = self.processTicket(i['_id'])
             res &= (ticket and ticket['done'])
@@ -300,7 +331,7 @@ class karakuri:
         if not isinstance(tid, bson.ObjectId):
             tid = bson.ObjectId(tid)
 
-        logging.info("processTicket('%s')", tid)
+        self.logger.info("processTicket('%s')", tid)
 
         match = {'_id': tid, 'done': False, 'inProg': False, 'approved': True}
         updoc = {"$set": {'inProg': True}}
@@ -308,7 +339,8 @@ class karakuri:
 
         if not ticket:
             # most likely the ticket hasn't been approved
-            logging.exception("Unable to put ticket %s in to progress", tid)
+            self.logger.exception("Unable to put ticket %s in to progress",
+                                  tid)
             return None
 
         res = self.performWorkflow(ticket['iid'], ticket['workflow'])
@@ -318,29 +350,30 @@ class karakuri:
         ticket = self.find_and_modify_ticket(match, updoc)
 
         if not ticket:
-            logging.exception("Unable to take ticket %s out of progress", tid)
+            self.logger.exception("Unable to take ticket %s out of progress",
+                                  tid)
             return None
 
         return ticket
 
     def queueAll(self):
-        logging.info("queueAll()")
+        self.logger.info("queueAll()")
 
         try:
             curs_workflows = self.coll_workflows.find()
         except pymongo.errors.PyMongoError as e:
-            logging.exception(e)
+            self.logger.exception(e)
             return None
 
         for workflow in curs_workflows:
-            logging.info("Considering %s workflow", workflow['name'])
-            match = self.__buildValidateQuery(workflow)
+            self.logger.info("Considering %s workflow", workflow['name'])
+            match = self._buildValidateQuery(workflow)
 
             # find 'em and get 'er done!
             try:
                 curs_issues = self.coll_issues.find(match)
             except pymongo.errors.PyMongoError as e:
-                logging.exception(e)
+                self.logger.exception(e)
                 return None
 
             for i in curs_issues:
@@ -349,12 +382,13 @@ class karakuri:
 
                 # we only support JIRA at the moment
                 if not issue.hasJIRA():
-                    logging.info("Skipping unsupported ticketing type!")
+                    self.logger.info("Skipping unsupported ticketing type!")
                     continue
 
                 # check for karakuri sleepy time
                 if not issue.isActive():
-                    logging.info("Skipping %s as it is not active" % issue.key)
+                    self.logger.info("Skipping %s as it is not active" %
+                                     issue.key)
                     continue
 
                 self.queueTicket(issue.id, workflow['name'])
@@ -364,13 +398,13 @@ class karakuri:
         if not isinstance(iid, bson.ObjectId):
             iid = bson.ObjectId(iid)
 
-        logging.info("queueTicket('%s', '%s')", iid, workflowName)
+        self.logger.info("queueTicket('%s', '%s')", iid, workflowName)
 
         # don't queue a ticket that is already queued
         match = {'iid': iid, 'workflow': workflowName, 'done': False}
         if self.coll_queue.find(match).count() != 0:
-            logging.info("Workflow %s already queued for issue %s",
-                         workflowName, iid)
+            self.logger.info("Workflow %s already queued for issue %s",
+                             workflowName, iid)
             self.log(iid, workflowName, 'queue', False)
             return None
 
@@ -381,7 +415,7 @@ class karakuri:
         try:
             self.coll_queue.insert(ticket)
         except pymongo.errors.PyMongoError as e:
-            logging.exception(e)
+            self.logger.exception(e)
             self.log(iid, workflowName, 'queue', False)
             return None
 
@@ -397,10 +431,6 @@ class karakuri:
         """ Lock and load? """
         self.live = b
 
-    def setVerbose(self, b):
-        """ Be loquacious? """
-        self.verbose = b
-
     def validate(self, iidORissue, workflowNameORworkflow):
         """ Verify the issue satisfies the requirements of the workflow
         """
@@ -415,19 +445,18 @@ class karakuri:
         else:
             workflow = self.getWorkflow(workflowNameORworkflow)
 
-        logging.info("validate('%s', '%s')", iid, workflow['name'])
+        self.logger.info("validate('%s', '%s')", iid, workflow['name'])
 
-        match = self.__buildValidateQuery(workflow, iid)
+        match = self._buildValidateQuery(workflow, iid)
 
-        if self.verbose:
-            logging.debug("%s validate query:", workflow['name'])
-            logging.debug(match)
+        self.logger.debug("%s validate query:", workflow['name'])
+        self.logger.debug(match)
 
         if self.coll_issues.find(match).count() != 0:
-            logging.info("Workflow validated!")
+            self.logger.info("Workflow validated!")
             return True
         else:
-            logging.info("Workflow failed validation")
+            self.logger.info("Workflow failed validation")
             return False
 
     #
@@ -436,16 +465,20 @@ class karakuri:
 
     def getListOfTickets(self, match=None):
         if match is not None:
-            curs_queue = self.coll_queue.find(match).sort('start', pymongo.ASCENDING)
+            curs_queue = self.coll_queue.find(match).\
+                sort('start', pymongo.ASCENDING)
         else:
-            curs_queue = self.coll_queue.find().sort('start', pymongo.ASCENDING)
+            curs_queue = self.coll_queue.find().\
+                sort('start', pymongo.ASCENDING)
         return [q for q in curs_queue]
 
     def getListOfTicketIds(self, match=None):
         if match is not None:
-            curs_queue = self.coll_queue.find(match, {'_id': 1}).sort('start', pymongo.ASCENDING)
+            curs_queue = self.coll_queue.find(match, {'_id': 1}).\
+                sort('start', pymongo.ASCENDING)
         else:
-            curs_queue = self.coll_queue.find({'_id': 1}).sort('start', pymongo.ASCENDING)
+            curs_queue = self.coll_queue.find({'_id': 1}).\
+                sort('start', pymongo.ASCENDING)
         return [q['_id'] for q in curs_queue]
 
     def getListOfWorkflows(self):
@@ -457,8 +490,7 @@ class karakuri:
         if not isinstance(iid, bson.ObjectId):
             iid = bson.ObjectId(iid)
 
-        if self.verbose:
-            logging.info("getSupportIssue('%s')", iid)
+        self.logger.debug("getSupportIssue('%s')", iid)
 
         doc = self.find_one(self.coll_issues, {'_id': iid})
 
@@ -467,7 +499,7 @@ class karakuri:
             issue.fromDoc(doc)
             return issue
 
-        logging.warning("Issue %s not found!", iid)
+        self.logger.warning("Issue %s not found!", iid)
         return None
 
     def getTicket(self, tid):
@@ -475,28 +507,26 @@ class karakuri:
         if not isinstance(tid, bson.ObjectId):
             tid = bson.ObjectId(tid)
 
-        if self.verbose:
-            logging.info("getTicket('%s')", tid)
+        self.logger.debug("getTicket('%s')", tid)
 
         ticket = self.find_one(self.coll_queue, {'_id': tid})
 
         if ticket:
             return ticket
 
-        logging.warning("Ticket %s not found!", tid)
+        self.logger.warning("Ticket %s not found!", tid)
         return None
 
     def getWorkflow(self, workflowName):
         """ Return the specified workflow """
-        if self.verbose:
-            logging.info("getWorkflow('%s')", workflowName)
+        self.logger.debug("getWorkflow('%s')", workflowName)
 
         workflow = self.find_one(self.coll_workflows, {'name': workflowName})
 
         if workflow:
             return workflow
 
-        logging.warning("Workflow %s not found!", workflowName)
+        self.logger.warning("Workflow %s not found!", workflowName)
         return None
 
     def listQueue(self):
@@ -536,13 +566,8 @@ class karakuri:
         return self.find_and_modify_ticket(match, updoc)
 
     def removeTicket(self, tid):
-        # set wakeDate to the end of time and mark as done
-        # this will effectively remove the ticket from the
-        # queue without removing the document
-        wakeDate = datetime.max
-
         match = {'_id': bson.ObjectId(tid)}
-        updoc = {"$set": {'start': wakeDate, 'done': True}}
+        updoc = {"$set": {'done': True, 'removed': True}}
         return self.find_and_modify_ticket(match, updoc)
 
     def sleepTicket(self, tid, seconds):
@@ -582,54 +607,380 @@ class karakuri:
         updoc = {"$unset": {'karakuri.sleep': ""}}
         return self.find_and_modify_issue(match, updoc)
 
+    #
+    # Enter the Daemon
+    #
+    def run(self):
+        self.logger.info("Daemonizing karakuri")
+
+        # Initialize JIRA++
+        issuer = jirapp(self.args['jira_username'], self.args['jira_password'],
+                        self.mongo)
+        issuer.setLive(self.live)
+
+        # Set the Issuer. There can be only one:
+        # https://www.youtube.com/watch?v=sqcLjcSloXs
+        self.setIssuer(issuer)
+
+        if self.args['rest']:
+            b = bottle.Bottle()
+
+            # These are the RESTful API endpoints. There are many like it, but
+            # these are them
+            b.route('/issue', callback=self._issue_list)
+            b.route('/issue/<id>', callback=self._issue_get)
+            b.route('/issue/<id>/sleep', callback=self._issue_sleep)
+            b.route('/issue/<id>/sleep/<seconds:int>',
+                    callback=self._issue_sleep)
+            b.route('/issue/<id>/wake', callback=self._issue_wake)
+            b.route('/queue', callback=self._queue_list)
+            b.route('/queue/approve', callback=self._queue_approve)
+            b.route('/queue/disapprove', callback=self._queue_disapprove)
+            b.route('/queue/process', callback=self._queue_process)
+            b.route('/queue/remove', callback=self._queue_remove)
+            b.route('/queue/sleep', callback=self._queue_sleep)
+            b.route('/queue/sleep/<seconds:int>', callback=self._queue_sleep)
+            b.route('/queue/wake', callback=self._queue_wake)
+            b.route('/ticket/<id>', callback=self._ticket_get)
+            b.route('/ticket/<id>/approve', callback=self._ticket_approve)
+            b.route('/ticket/<id>/disapprove',
+                    callback=self._ticket_disapprove)
+            b.route('/ticket/<id>/process', callback=self._ticket_process)
+            b.route('/ticket/<id>/remove', callback=self._ticket_remove)
+            b.route('/ticket/<id>/sleep', callback=self._ticket_sleep)
+            b.route('/ticket/<id>/sleep/<seconds:int>',
+                    callback=self._ticket_sleep)
+            b.route('/ticket/<id>/wake', callback=self._ticket_wake)
+            b.route('/workflow', callback=self._workflow_list)
+            b.route('/workflow/<name>', callback=self._workflow_get)
+            b.route('/workflow/<name>/approve',
+                    callback=self._workflow_approve)
+            b.route('/workflow/<name>/disapprove',
+                    callback=self._workflow_disapprove)
+            b.route('/workflow/<name>/process',
+                    callback=self._workflow_process)
+            b.route('/workflow/<name>/remove', callback=self._workflow_remove)
+            b.route('/workflow/<name>/sleep', callback=self._workflow_sleep)
+            b.route('/workflow/<name>/sleep/<seconds:int>',
+                    callback=self._workflow_sleep)
+            b.route('/workflow/<name>/wake', callback=self._workflow_wake)
+
+            thread = threading.Thread(target=b.run,
+                                      kwargs=dict(host='localhost',
+                                                  port=self.args['port']))
+            thread.setDaemon(True)
+            thread.start()
+
+        while (1):
+            self.logger.info("The Loop, the Loop, the Loop is on fire!")
+            time.sleep(5)
+
+    def _issue_list(self):
+        """ Return no-way, Jose 404 """
+        # TODO implement no-way, Jose 404
+        ret = {'res': 1, 'data': []}
+        return bson.json_util.dumps(ret)
+
+    def _issue_get(self, id):
+        """ Return the issue """
+        issue = self.getSupportIssue(id)
+
+        if issue is not None:
+            res = 0
+        else:
+            issue = {'doc': {}}
+            res = 1
+
+        ret = {'res': res, 'data': issue.doc}
+        return bson.json_util.dumps(ret)
+
+    def _issue_sleep(self, id, seconds=sys.maxint):
+        """ Sleep the issue. A sleeping issue cannot have tickets queued """
+        res = 0 if self.sleepIssue(id, seconds) is not None else 1
+        ret = {'res': res}
+        return bson.json_util.dumps(ret)
+
+    def _issue_wake(self, id):
+        """ Wake the issue, i.e. unsleep it """
+        res = 0 if self.wakeIssue(id) is not None else 1
+        ret = {'res': res}
+        return bson.json_util.dumps(ret)
+
+    def _queue_list(self):
+        """ Return a list of tickets """
+        match = {'removed': {"$exists": False}}
+        tickets = self.getListOfTickets(match)
+
+        if tickets is not None:
+            res = 0
+        else:
+            tickets = []
+            res = 1
+
+        ret = {'res': res, 'data': tickets}
+        return bson.json_util.dumps(ret)
+
+    def _queue_approve(self):
+        """ Approve all active tickets, i.e. those that are not done """
+        match = {'done': False}
+        tickets = self.getListOfTicketIds(match)
+        res = self.forListOfTickets(self.approveTicket, tickets)
+        res = 0 if res else 1
+        ret = {'res': res}
+        return bson.json_util.dumps(ret)
+
+    def _queue_disapprove(self):
+        """ Disapprove all active tickets """
+        match = {'done': False}
+        tickets = self.getListOfTicketIds(match)
+        res = self.forListOfTickets(self.disapproveTicket, tickets)
+        res = 0 if res else 1
+        ret = {'res': res}
+        return bson.json_util.dumps(ret)
+
+    def _queue_process(self):
+        """ Process all active tickets """
+        match = {'done': False, 'approved': True}
+        tickets = self.getListOfTicketIds(match)
+        res = self.forListOfTickets(self.processTicket, tickets)
+        res = 0 if res else 1
+        ret = {'res': res}
+        return bson.json_util.dumps(ret)
+
+    def _queue_remove(self):
+        """ Remove all active tickets """
+        match = {'done': False}
+        tickets = self.getListOfTicketIds(match)
+        res = self.forListOfTickets(self.removeTicket, tickets)
+        res = 0 if res else 1
+        ret = {'res': res}
+        return bson.json_util.dumps(ret)
+
+    def _queue_sleep(self, seconds=sys.maxint):
+        match = {'done': False}
+        """ Sleep all active tickets. A sleeping ticket cannot be dequeued """
+        tickets = self.getListOfTicketIds(match)
+        res = self.forListOfTickets(self.sleepTicket, tickets, seconds=seconds)
+        res = 0 if res else 1
+        ret = {'res': res}
+        return bson.json_util.dumps(ret)
+
+    def _queue_wake(self):
+        """ Wake all active tickets """
+        match = {'done': False}
+        tickets = self.getListOfTicketIds(match)
+        res = self.forListOfTickets(self.wakeTicket, tickets)
+        res = 0 if res else 1
+        ret = {'res': res}
+        return bson.json_util.dumps(ret)
+
+    def _ticket_get(self, id):
+        """ Return the ticket """
+        ticket = self.getTicket(id)
+
+        if ticket is not None:
+            res = 0
+        else:
+            ticket = {}
+            res = 1
+        ret = {'res': res, 'data': ticket}
+        return bson.json_util.dumps(ret)
+
+    def _ticket_approve(self, id):
+        """ Approve the ticket """
+        res = 0 if self.approveTicket(id) is not None else 1
+        ret = {'res': res}
+        return bson.json_util.dumps(ret)
+
+    def _ticket_disapprove(self, id):
+        """ Disapprove the ticket """
+        res = 0 if self.disapproveTicket(id) is not None else 1
+        ret = {'res': res}
+        return bson.json_util.dumps(ret)
+
+    def _ticket_process(self, id):
+        """ Process the ticket """
+        res = 0 if self.processTicket(id) is not None else 1
+        ret = {'res': res}
+        return bson.json_util.dumps(ret)
+
+    def _ticket_remove(self, id):
+        """ Remove the ticket """
+        res = 0 if self.removeTicket(id) is not None else 1
+        ret = {'res': res}
+        return bson.json_util.dumps(ret)
+
+    def _ticket_sleep(self, id, seconds=sys.maxint):
+        """ Sleep the ticket. A sleeping ticket cannot be dequeued """
+        res = 0 if self.sleepTicket(id, seconds) is not None else 1
+        ret = {'res': res}
+        return bson.json_util.dumps(ret)
+
+    def _ticket_wake(self, id):
+        """ Wake the ticket, i.e. unsleep it """
+        res = 0 if self.wakeTicket(id) is not None else 1
+        ret = {'res': res}
+        return bson.json_util.dumps(ret)
+
+    def _workflow_list(self):
+        """ Return a list of workflows """
+        workflows = self.getListOfWorkflows()
+
+        if workflows is not None:
+            res = 0
+        else:
+            workflows = {}
+            res = 1
+
+        ret = {'res': res, 'data': workflows}
+        return bson.json_util.dumps(ret)
+
+    def _workflow_get(self, name):
+        """ Return the workflow """
+        workflow = self.getWorkflow(name)
+
+        if workflow is not None:
+            res = 0
+        else:
+            workflow = {}
+            res = 1
+
+        ret = {'res': res, 'data': workflow}
+        return bson.json_util.dumps(ret)
+
+    def _workflow_approve(self, name):
+        """ Approve all active tickets in the workflow """
+        match = {'workflow': name, 'done': False}
+        tickets = self.getListOfTicketIds(match)
+        res = self.forListOfTickets(self.approveTicket, tickets)
+        res = 0 if res else 1
+        ret = {'res': res}
+        return bson.json_util.dumps(ret)
+
+    def _workflow_disapprove(self, name):
+        """ Disapprove all active tickets in the workflow """
+        match = {'workflow': name, 'done': False}
+        tickets = self.getListOfTicketIds(match)
+        res = self.forListOfTickets(self.disapproveTicket, tickets)
+        res = 0 if res else 1
+        ret = {'res': res}
+        return bson.json_util.dumps(ret)
+
+    def _workflow_process(self, name):
+        """ Remove all active tickets in the workflow """
+        match = {'workflow': name, 'done': False, 'approved': True}
+        tickets = self.getListOfTicketIds(match)
+        res = self.forListOfTickets(self.removeTicket, tickets)
+        res = 0 if res else 1
+        ret = {'res': res}
+        return bson.json_util.dumps(ret)
+
+    def _workflow_remove(self, name):
+        """ Remove all active tickets in the workflow """
+        match = {'workflow': name, 'done': False}
+        tickets = self.getListOfTicketIds(match)
+        res = self.forListOfTickets(self.removeTicket, tickets)
+        res = 0 if res else 1
+        ret = {'res': res}
+        return bson.json_util.dumps(ret)
+
+    def _workflow_sleep(self, name, seconds=sys.maxint):
+        """ Sleep all active tickets in the workflow """
+        match = {'workflow': name, 'done': False}
+        tickets = self.getListOfTicketIds(match)
+        res = self.forListOfTickets(self.sleepTicket, tickets, seconds=seconds)
+        res = 0 if res else 1
+        ret = {'res': res}
+        return bson.json_util.dumps(ret)
+
+    def _workflow_wake(self, name):
+        """ Wake all active tickets in the workflow """
+        match = {'workflow': name, 'done': False}
+        tickets = self.getListOfTicketIds(match)
+        res = self.forListOfTickets(self.wakeTicket, tickets)
+        res = 0 if res else 1
+        ret = {'res': res}
+        return bson.json_util.dumps(ret)
+
 if __name__ == "__main__":
-    # Process command line parameters with a system of tubes
-    parser = argparse.ArgumentParser(description="If you don't know what this "
-                                     "does, stop what you're doing right now.")
-    parser.add_argument("-a", "--approve", action="store_true",
-                      help="approve ticket")
+    #
+    # Process command line arguments with a system of tubes
+    #
+    parser = argparse.ArgumentParser(description="An automaton: http://en.wiki"
+                                     "pedia.org/wiki/Karakuri_ningy%C5%8D")
     parser.add_argument("-c", "--config", metavar="FILE",
-                      help="configuration file FILE")
-    parser.add_argument("-d", "--disapprove", action="store_true",
-                      help="disapprove ticket")
-    parser.add_argument("--dry-run", action="store_true",
-                      help="see what would happen irl (default)")
-    parser.add_argument("-f", "--find", action="store_true",
-                      help="find and queue tickets")
-    parser.add_argument("--jira-username", metavar="USERNAME",
-                      help="specify JIRA username USERNAME")
-    parser.add_argument("--jira-password", metavar="PASSWORD",
-                      help="specify JIRA password PASSWORD")
-    parser.add_argument("-l", "--list-queue",  action="store_true",
-                      help="list tickets in queue")
-    parser.add_argument("--log", default="karakuri.log", metavar="FILE",
-                      help="log file FILE")
-    parser.add_argument("--limit", metavar="NUMBER",
-                      help="limit process-all to NUMBER tickets")
-    parser.add_argument("--live", action="store_true",
-                      help="do what you do irl")
-    parser.add_argument("-p", "--process", action="store_true",
-                      help="process/dequeue ticket")
-    parser.add_argument("--process-all", action="store_true",
-                      help="process/dequeue all tickets!")
-    parser.add_argument("-r", "--remove", action="store_true",
-                      help="remove ticket")
-    parser.add_argument("-s", "--sleep", metavar="SECONDS",
-                      help="sleep ticket for SECONDS seconds")
-    parser.add_argument("-t", "--ticket", metavar="TICKET",
-                      help="specify ticket TICKET (comma separated)")
-    parser.add_argument("-v", "--verbose", action="store_true",
-                      help="be loquacious")
-    parser.add_argument("-w", "--wake", action="store_true",
-                      help="wake ticket")
-    args = parser.parse_args()
+                        help="specify a configuration file")
+    parser.add_argument("-l", "--log", metavar="FILE",
+                        help="specify a log file")
+    parser.add_argument("--log-level", metavar="LEVEL",
+                        choices=["DEBUG", "INFO", "WARNING", "ERROR",
+                                 "CRITICAL"],
+                        default="DEBUG",
+                        help="DEBUG/INFO/WARNING/ERROR/CRITICAL")
+    parser.add_argument("-p", "--jira-password", metavar="PASSWORD",
+                        help="specify a JIRA password")
+    parser.add_argument("-u", "--jira-username", metavar="USERNAME",
+                        help="specify a JIRA username")
+    # support --pid in config files
+    parser.add_argument("--pid", default="/tmp/karakuri.pid",
+                        help=argparse.SUPPRESS)
+
+    # This is used for cli processing, parser is used for --config
+    # file processing so as not to require positional arguments
+    parsers = argparse.ArgumentParser(add_help=False, parents=[parser])
+    subparsers = parsers.add_subparsers(dest="command",
+                                        help='{cli,daemon} -h for help')
+
+    # cli sub-command
+    parser_cli = subparsers.add_parser('cli', help='run interactively')
+    parser_cli.add_argument("-a", "--approve", action="store_true",
+                            help="approve ticket")
+    parser_cli.add_argument("-d", "--disapprove", action="store_true",
+                            help="disapprove ticket")
+    parser_cli.add_argument("-f", "--find", action="store_true",
+                            help="find and queue tickets")
+    parser_cli.add_argument("--ls", action="store_true",
+                            help="list tickets in queue")
+    parser_cli.add_argument("-l", "--limit", metavar="NUMBER",
+                            help="limit process-all to NUMBER tickets")
+    parser_cli.add_argument("--live", action="store_true",
+                            help="do what you do irl")
+    parser_cli.add_argument("-p", "--process", action="store_true",
+                            help="process/dequeue ticket")
+    parser_cli.add_argument("--process-all", action="store_true",
+                            help="process/dequeue all tickets!")
+    parser_cli.add_argument("-r", "--remove", action="store_true",
+                            help="remove ticket")
+    parser_cli.add_argument("-s", "--sleep", metavar="SECONDS",
+                            help="sleep ticket for SECONDS seconds")
+    parser_cli.add_argument("-t", "--ticket", metavar="TICKET",
+                            help="specify ticket TICKET (comma separated)")
+    parser_cli.add_argument("-w", "--wake", action="store_true",
+                            help="wake ticket")
+
+    # daemon sub-command
+    parser_daemon = subparsers.add_parser('daemon',
+                                          help='run as a scary daemon')
+    parser_daemon.add_argument("action", choices=["start", "stop", "restart"],
+                               help="start/stop/restart")
+    parser_daemon.add_argument("--rest",  action="store_true",
+                               help="enable the RESTful interface")
+    parser_daemon.add_argument("--port",  metavar="PORT", default=8080,
+                               type=int,
+                               help="specify a port for the RESTful interface")
+    parser_daemon.add_argument("--pid", metavar="FILE",
+                               help="specify a PID file")
+
+    args = parsers.parse_args()
 
     # Process config file if one is specified in the CLI options
     if args.config:
-        # TODO expand to full path and verify readability of configuration file
-        args.config = os.getcwd() + "/" + args.config
+        args.config = getFullPath(args.config)
+        if not os.access(args.config, os.R_OK):
+            logging.error("Unable to read config file")
+            sys.exit(1)
 
-        configParser = ConfigParser(fromfile_prefix_chars='@',
+        configParser = ConfigParser(add_help=False, fromfile_prefix_chars='@',
                                     parents=[parser])
         args = configParser.parse_args(args=["@%s" % args.config],
                                        namespace=args)
@@ -637,19 +988,80 @@ if __name__ == "__main__":
     # Configuration error found, aborting
     error = False
 
-    if not args.log:
-        print("Please specify a log file")
-        error = True
-    else:
-        # TODO expand to full path and verify writability of log file
-        args.log = os.getcwd() + "/" + args.log
+    # Who dareth summon the Daemon!? Answer me these questions three...
+    if args.command == "daemon":
+        pidfile = pidlockfile.PIDLockFile(args.pid)
 
+        if args.action == "start":
+            if pidfile.is_locked():
+                print("There is already a running process")
+                sys.exit(1)
+
+        if args.action == "stop":
+            if pidfile.is_locked():
+                pid = pidfile.read_pid()
+                os.kill(pid, signal.SIGTERM)
+                sys.exit(0)
+            else:
+                print("There is no running process to stop")
+                sys.exit(2)
+
+        if args.action == "restart":
+            if pidfile.is_locked():
+                pid = pidfile.read_pid()
+                os.kill(pid, signal.SIGTERM)
+            else:
+                print("There is no running process to stop")
+
+        # I pity the fool that doesn't keep a log file!
+        if args.log is None:
+            logging.error("Please specify a log file")
+            error = True
+        else:
+            args.log = getFullPath(args.log)
+            if not os.access(os.path.dirname(args.log), os.W_OK):
+                logging.error("Unable to write to log file")
+                error = True
+
+        if error:
+            sys.exit(2)
+
+        # create file handler and set log level
+        logger = logging.getLogger("logger")
+        fh = logging.FileHandler(args.log)
+        fh.setLevel(args.log_level)
+        # create formatter
+        formatter = logging.Formatter('%(asctime)s - %(module)s - '
+                                      '%(levelname)s - %(message)s')
+        # add formatter to file handler
+        fh.setFormatter(formatter)
+        # add file handler to logger
+        logger.addHandler(fh)
+
+        context = daemon.DaemonContext(pidfile=pidfile,
+                                       stderr=fh.stream, stdout=fh.stream)
+
+        context.files_preserve = [fh.stream]
+        # TODO implment signal_map
+
+        print("Starting...")
+
+        with context:
+            k = karakuri(args)
+            # redirect stderr and stdout
+            sys.__stderr__ = PipeToLogger(k.logger)
+            sys.__stdout__ = PipeToLogger(k.logger)
+
+            k.run()
+
+        sys.exit(0)
+
+    # Badasses use the command line start your engines
     if not args.ticket:
         # only an error if find, list_queue or process_all not specified as all
         # other actions are ticket-dependent
-        if not args.find and not args.list_queue and\
-                not args.process_all:
-            print("Please specify a ticket or tickets")
+        if not args.find and not args.ls and not args.process_all:
+            logging.error("Please specify a ticket or tickets")
             error = True
     else:
         # Allow only one ticket-dependent action per run
@@ -661,7 +1073,7 @@ if __name__ == "__main__":
                 numActions += 1
 
         if numActions != 1:
-            print("Please specify a single action to take")
+            logging.error("Please specify a single action to take")
             error = True
 
         # TODO validate this
@@ -669,16 +1081,9 @@ if __name__ == "__main__":
 
     # This is the end. My only friend, the end. RIP Jim.
     if error:
-        sys.exit(1)
-
-    # If --dry-run is specified ignore --live
-    if args.dry_run:
-        args.live = False
+        sys.exit(3)
 
     k = karakuri(args)
-    # NOTE can move these to __init__ now if you'd like
-    k.setLive(args.live)
-    k.setVerbose(args.verbose)
 
     # If find, do the work, list the queue and exit. The only action I can
     # imagine allowing aside from this is process_all but that scares me
@@ -688,7 +1093,7 @@ if __name__ == "__main__":
         sys.exit(0)
 
     # Ignore other args if list requested
-    if args.list_queue:
+    if args.ls:
         k.listQueue()
         sys.exit(0)
 
@@ -718,7 +1123,7 @@ if __name__ == "__main__":
     #
 
     if not args.jira_username or not args.jira_password:
-        print("Please specify a JIRA username and password")
+        logging.error("Please specify a JIRA username and password")
         sys.exit(2)
 
     # Initialize JIRA++
