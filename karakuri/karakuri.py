@@ -677,7 +677,7 @@ class karakuri:
 
             thread = threading.Thread(target=b.run,
                                       kwargs=dict(host='localhost',
-                                                  port=self.args['port']))
+                                                  port=self.args['rest_port']))
             thread.setDaemon(True)
             thread.start()
 
