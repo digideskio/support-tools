@@ -8,22 +8,24 @@ from pprint import pprint
 
 class jirapp(JIRA):
     """ JIRA++ is JIRA+1. Use it to profit. """
-    def __init__(self, config, mongo=None):
+    def __init__(self, username, password, mongo=None):
         logging.info("Initializing JIRA++")
 
         # By default we sit here and look pretty
         # All talk, no walk
         self.live = False
 
-        if mongo is None:
-            # TODO setup mongo using mongo config
-            pass
-
-        # jirameta
-        self.db_jirameta = mongo.jirameta
+        if mongo is not None:
+            # jirameta
+            self.db_jirameta = mongo.jirameta
+        else:
+            # TODO propagate this case to draw needed information from JIRA
+            # instead of from MongoDB
+            # For now just throw an exception
+            raise Exception("unable to access jirameta")
 
         opts = {'server': 'https://jira.mongodb.org', "verify": False}
-        auth = (config.get('JIRA', 'username'), config.get('JIRA', 'password'))
+        auth = (username, password)
 
         try:
             JIRA.__init__(self, options=opts, basic_auth=auth)
