@@ -87,7 +87,10 @@ class karakuri:
 
         # will the real __init__ please stand up, please stand up...
         self.issuer = None
-        self.live = self.args['live']
+        if 'live' in self.args:
+            self.live = self.args['live']
+        else:
+            self.live = False
 
         # initialize databases and collections
         self.mongo = pymongo.MongoClient(self.args['mongo_host'],
