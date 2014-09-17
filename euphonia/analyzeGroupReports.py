@@ -14,7 +14,7 @@ coll_mmsgroupreports = db.mmsgroupreports
 coll_failedtests = db.failedtests
 coll_groupsummaries = db.groupsummaries
 
-#es = Elasticsearch()
+es = Elasticsearch()
 
 # If tag not specified get the latest entry by _id
 # and analyze groups with common tag
@@ -81,7 +81,10 @@ for group in curs_groups:
         failedTestsPriority += float(test['priorityScore'])
     group['priority'] = failedTestsPriority
     group['testTimestamp'] = group['_id'].generation_time
+
+    coll_groupsummaries.remove({"GroupId": group['GroupId']})
     coll_groupsummaries.insert(group)
+
     esgroup = dumps(group)
     esgroup = esgroup.replace('"UNKNOWN"','0')
     esgroup = esgroup.replace('Infinity','0')
@@ -89,4 +92,7 @@ for group in curs_groups:
     print esgroup["_id"]
     esid = esgroup["_id"]["$oid"]
     esgroup['@timestamp'] = esgroup['testTimestamp']['$date']
-    #es.index(index="euphonia", doc_type="groupsummary", id=esid, body=esgroup)
+    try:
+        es.index(index="euphonia", doc_type="groupsummary", id=esid, body=esgroup)
+    except Exception:
+        print "Could not insert summary document %s" % esid
