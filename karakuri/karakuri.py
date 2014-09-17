@@ -61,18 +61,24 @@ class karakuri:
         self.args = args
 
         # log what your momma gave ya
-        # TODO validate log-level
         logLevel = self.args['log_level']
-        # CRITICAL  50
-        # ERROR     40
-        # WARNING   30
-        # INFO      20
-        # DEBUG     10
-        # NOTSET    0
-        # create logger
+        logging.basicConfig()
         self.logger = logging.getLogger('logger')
         self.logger.setLevel(logLevel)
         self.logger.info("Initializing karakuri")
+
+        # If we are a daemon, there is already a FileHandler setup
+        # Otherwise, log to the terminal
+        if self.args['command'] == "cli":
+            ch = logging.StreamHandler()
+            ch.setLevel(self.args['log_level'])
+            # create formatter
+            formatter = logging.Formatter('%(asctime)s - %(module)s - '
+                                          '%(levelname)s - %(message)s')
+            # add formatter to file handler
+            ch.setFormatter(formatter)
+            # add file handler to logger
+            self.logger.addHandler(ch)
 
         # output args for later debugging
         self.logger.debug("Parsing args")
@@ -81,11 +87,11 @@ class karakuri:
 
         # will the real __init__ please stand up, please stand up...
         self.issuer = None
-        self.live = True if 'live' in self.args else False
+        self.live = self.args['live']
 
         # initialize databases and collections
-        # TODO pass mongodb specific args
-        self.mongo = pymongo.MongoClient()
+        self.mongo = pymongo.MongoClient(self.args['mongo_host'],
+                                         self.args['mongo_port'])
         self.coll_issues = self.mongo.support.issues
         self.coll_workflows = self.mongo.karakuri.workflows
         self.coll_log = self.mongo.karakuri.log
@@ -533,7 +539,8 @@ class karakuri:
         print "\tTICKET ID\t\t\tISSUE KEY\tWORKFLOW\tAPPROVED?\tIN PROGRESS?\t"\
               "DONE?\tSTART\t\t\t\tCREATED"
         i = 0
-        for ticket in k.getListOfTickets():
+        match = {'removed': {"$exists": 0}}
+        for ticket in k.getListOfTickets(match):
             # do not show removed tickets, i.e. tickets with start time within
             # one second of the end of time
             # diff = (datetime.max-ticket['start']).total_seconds()
@@ -916,10 +923,16 @@ if __name__ == "__main__":
                         choices=["DEBUG", "INFO", "WARNING", "ERROR",
                                  "CRITICAL"],
                         default="DEBUG",
-                        help="DEBUG/INFO/WARNING/ERROR/CRITICAL")
-    parser.add_argument("-p", "--jira-password", metavar="PASSWORD",
+                        help="{DEBUG,INFO,WARNING,ERROR,CRITICAL} (default=INFO)")
+    parser.add_argument("--mongo-host", metavar="HOSTNAME",
+                        default="localhost",
+                        help="specify the MongoDB hostname (default=localhost)")
+    parser.add_argument("--mongo-port", metavar="PORT", default=27017,
+                        type=int,
+                        help="specify the MongoDB port (default=27017)")
+    parser.add_argument("--jira-password", metavar="PASSWORD",
                         help="specify a JIRA password")
-    parser.add_argument("-u", "--jira-username", metavar="USERNAME",
+    parser.add_argument("--jira-username", metavar="USERNAME",
                         help="specify a JIRA username")
     # support --pid in config files
     parser.add_argument("--pid", default="/tmp/karakuri.pid",
@@ -951,6 +964,8 @@ if __name__ == "__main__":
                             help="process/dequeue all tickets!")
     parser_cli.add_argument("-r", "--remove", action="store_true",
                             help="remove ticket")
+    parser_cli.add_argument("--remove-all", action="store_true",
+                            help="remove all tickets")
     parser_cli.add_argument("-s", "--sleep", metavar="SECONDS",
                             help="sleep ticket for SECONDS seconds")
     parser_cli.add_argument("-t", "--ticket", metavar="TICKET",
@@ -962,14 +977,14 @@ if __name__ == "__main__":
     parser_daemon = subparsers.add_parser('daemon',
                                           help='run as a scary daemon')
     parser_daemon.add_argument("action", choices=["start", "stop", "restart"],
-                               help="start/stop/restart")
+                               help="<-- the available actions, choose one")
     parser_daemon.add_argument("--rest",  action="store_true",
                                help="enable the RESTful interface")
-    parser_daemon.add_argument("--port",  metavar="PORT", default=8080,
+    parser_daemon.add_argument("--rest-port",  metavar="PORT", default=8080,
                                type=int,
-                               help="specify a port for the RESTful interface")
+                               help="the RESTful interface port (default=8080)")
     parser_daemon.add_argument("--pid", metavar="FILE",
-                               help="specify a PID file")
+                               help="specify a PID file (default=/tmp/karakuri.pid)")
 
     args = parsers.parse_args()
 
@@ -1060,7 +1075,8 @@ if __name__ == "__main__":
     if not args.ticket:
         # only an error if find, list_queue or process_all not specified as all
         # other actions are ticket-dependent
-        if not args.find and not args.ls and not args.process_all:
+        if not args.find and not args.ls and not args.process_all and\
+                not args.remove_all:
             logging.error("Please specify a ticket or tickets")
             error = True
     else:
@@ -1082,6 +1098,10 @@ if __name__ == "__main__":
     # This is the end. My only friend, the end. RIP Jim.
     if error:
         sys.exit(3)
+
+    if args.ls:
+        # disable DEBUG as it will polute the screen
+        args.log_level = "ERROR"
 
     k = karakuri(args)
 
@@ -1107,6 +1127,11 @@ if __name__ == "__main__":
 
     if args.remove:
         k.forListOfTickets(k.removeTicket, args.ticket)
+        sys.exit(0)
+
+    if args.remove_all:
+        match = {'removed': {"$exists": 0}}
+        k.forListOfTickets(k.removeTicket, k.getListOfTickets(match))
         sys.exit(0)
 
     if args.sleep:
