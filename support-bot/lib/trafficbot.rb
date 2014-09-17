@@ -25,7 +25,8 @@ if mode == 'api'
   @jiraquery = 'filter = "Commercial Support, Unassigned, Needs 10gen Response"'
 else
   require_relative 'support-jira-functions.rb'
-  @jiraquery = {"jira.fields.project.key" => { "$in" => ["CS", "PARTNER", "SUPPORT", "MMSSUPPORT"] }, "jira.fields.assignee" => nil, "jira.fields.status.id" => {"$nin" => [ "5", "6", "10007", "10006" ]}, "jira.fields.issuetype.id" => {"$ne" => "23"} }
+  #@jiraquery = {"jira.fields.project.key" => { "$in" => ["CS", "PARTNER", "SUPPORT", "MMSSUPPORT"] }, "jira.fields.assignee" => nil, "jira.fields.status.id" => {"$nin" => [ "5", "6", "10007", "10006" ]}, "jira.fields.issuetype.id" => {"$ne" => "23"} }
+  @jiraquery = {"jira.fields.project.key" => { "$in" => ["CS", "PARTNER", "SUPPORT", "MMSSUPPORT"] }, "jira.fields.issuetype.id" => {"$ne" => "23"} }
 end
 
 #Global Top Level variables
