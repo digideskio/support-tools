@@ -2,10 +2,9 @@ import csv
 import pymongo
 import sys
 
-from datetime import datetime
+from datetime import datetime, date
 from groupreport import GroupReport
 from pprint import pprint
-
 
 def usage():
     print("usage: "+sys.argv[0]+" mms_group_report.csv [TAG]")
@@ -28,6 +27,11 @@ coll_mmsgroupreports = db.mmsgroupreports
 csvfile = open(sys.argv[1])
 cvsdict = csv.DictReader(csvfile)
 
+
+reportDate = tag.rstrip('.csv')
+reportDate = reportDate.split("_")[3]
+reportDateObj = datetime.strptime(reportDate, "%Y%m%d")
+reportDateStr = reportDateObj.strftime("%Y/%m/%d")
 for group in cvsdict:
     for key in group.keys():
         if not key:
@@ -75,7 +79,7 @@ for group in cvsdict:
             group[key] = lastPageView
 
     group["tag"] = tag
-
+    group["reportDate"] = reportDateStr
     try:
         coll_mmsgroupreports.insert(group)
     except Exception as e:
