@@ -20,16 +20,16 @@
                         <div class="panel-heading">
                             <h4 class="panel-title"><span style="color:#aaaaaa;">{{previous}}</span>{{workflow['name']}}
                                 <div class="pull-right">
-                                    <a class="btn btn-primary" href="/workflow/{{workflow['name']}}/approve">Approve All</a>
+                                    <a class="btn btn-primary metadata" data-toggle="tooltip" data-placement="top" title="Approve All" href="/workflow/{{workflow['name']}}/approve"><i class="glyphicon glyphicon-ok"></i></a>
                                     <div class="btn-group">
-                                        <button type="button" class="btn btn-warning dropdown-toggle" data-toggle="dropdown">Sleep All <span class="caret"></span></button>
-                                        <ul class="dropdown-menu" role="menu">
+                                        <button type="button" class="btn btn-warning dropdown-toggle" data-toggle="dropdown"><i class="glyphicon glyphicon-time metadata" data-toggle="tooltip" data-placement="top" title="Sleep All"></i>&nbsp;<span class="caret"></span></button>
+                                        <ul class="dropdown-menu dropdown-menu-right" role="menu">
                                             <li><a href="/workflow/{{workflow['name']}}/sleep/1">Sleep 1 Day</a></li>
                                             <li><a href="/workflow/{{workflow['name']}}/sleep/3">Sleep 3 Days</a></li>
                                             <li><a href="/workflow/{{workflow['name']}}/sleep/7">Sleep 1 Week</a></li>
                                         </ul>
                                     </div>
-                                    <a class="btn btn-danger" href="/workflow/{{workflow['name']}}/remove">Remove All</a>
+                                    <a class="btn btn-danger metadata" data-toggle="tooltip" data-placement="top" title="Remove All" href="/workflow/{{workflow['name']}}/remove"><i class="glyphicon glyphicon-remove"></i></a>
                                 </div>
                             </h4>
                             <div style="clear:both"></div>
@@ -73,28 +73,28 @@
                                                     <td>
                                                         <i class="glyphicon glyphicon-time metadata" data-toggle="tooltip" data-placement="top" title="Last Updated: {{ticket['updateDate']}}"></i>
                                                         % if ticket['removed'] == True:
-                                                        <i class="glyphicon glyphicon-remove metadata" data-toggle="tooltip" data-placement="top" title="Removed {{ticket['updateDate']}}"></i>
+                                                        <i class="glyphicon glyphicon-remove metadata" data-toggle="tooltip" data-placement="top" title="Removed: {{ticket['updateDate']}}"></i>
                                                         % end
                                                         % if ticket['done'] == True:
-	                                                        <i class="glyphicon glyphicon-ok metadata" data-toggle="tooltip" data-placement="top" title="Done {{ticket['updateDate']}}"></i>
+	                                                        <i class="glyphicon glyphicon-ok metadata" data-toggle="tooltip" data-placement="top" title="Done: {{ticket['updateDate']}}"></i>
 	                                                    % end
                                                     </td>
                                                     <td>
                                                         <div class="pull-right">
                                                         % if ticket['approved'] == True:
-                                                            <a class="btn btn-info" href="/ticket/{{ticket['_id']}}/disapprove">Disapprove</a>
+                                                            <a class="btn btn-xs btn-default metadata" data-toggle="tooltip" data-placement="top" title="Disapprove" href="/ticket/{{ticket['_id']}}/disapprove"><i class="glyphicon glyphicon-ok"></i></a>
                                                         % else:
-                                                            <a class="btn btn-primary" href="/ticket/{{ticket['_id']}}/approve">Approve</a>
+                                                            <a class="btn btn-xs btn-primary metadata" data-toggle="tooltip" data-placement="top" title="Approve" href="/ticket/{{ticket['_id']}}/approve"><i class="glyphicon glyphicon-ok"></i></a>
                                                         % end
                                                         <div class="btn-group">
-                                                            <button type="button" class="btn btn-warning dropdown-toggle" data-toggle="dropdown">Sleep <span class="caret"></span></button>
-                                                            <ul class="dropdown-menu" role="menu">
+                                                            <button type="button" class="btn btn-xs btn-warning dropdown-toggle" data-toggle="dropdown"><i class="glyphicon glyphicon-time metadata" data-toggle="tooltip dropdown" data-placement="top" title="Sleep"></i>&nbsp;<span class="caret"></span></button>
+                                                            <ul class="dropdown-menu dropdown-menu-right" role="menu">
                                                                 <li><a href="/ticket/{{ticket['_id']}}/sleep/1">Sleep 1 Day</a></li>
                                                                 <li><a href="/ticket/{{ticket['_id']}}/sleep/3">Sleep 3 Days</a></li>
                                                                 <li><a href="/ticket/{{ticket['_id']}}/sleep/7">Sleep 1 Week</a></li>
                                                             </ul>
                                                         </div>
-                                                        <a class="btn btn-danger {{doneDisabled}}" href="/ticket/{{ticket['_id']}}/remove">Remove</a>
+                                                        <a class="btn btn-xs btn-danger metadata {{doneDisabled}}" data-toggle="tooltip" data-placement="top" title="Remove" href="/ticket/{{ticket['_id']}}/remove"><i class="glyphicon glyphicon-remove"></i></a>
                                                         </div>
                                                     </td>
                                                 </tr>
