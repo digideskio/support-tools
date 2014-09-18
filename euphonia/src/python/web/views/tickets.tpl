@@ -75,6 +75,9 @@
                                                         % if ticket['removed'] == True:
                                                         <i class="glyphicon glyphicon-remove metadata" data-toggle="tooltip" data-placement="top" title="Removed {{ticket['updateDate']}}"></i>
                                                         % end
+                                                        % if ticket['done'] == True:
+	                                                        <i class="glyphicon glyphicon-ok metadata" data-toggle="tooltip" data-placement="top" title="Done {{ticket['updateDate']}}"></i>
+	                                                    % end
                                                     </td>
                                                     <td>
                                                         <div class="pull-right">
