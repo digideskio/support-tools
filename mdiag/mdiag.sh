@@ -110,6 +110,7 @@ shopt -s nullglob >> "$diagfile" 2>&1
 msection args printeach "$@"
 msection date date
 msection whoami whoami
+msection uptime uptime
 msection path echo "$PATH"
 msection ld_library_path echo "$LD_LIBRARY_PATH"
 msection ld_preload echo "$LD_PRELOAD"
