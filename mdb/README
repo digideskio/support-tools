@@ -7,6 +7,7 @@ SYNOPSIS
     python mdb.py -r[bBt] filename offset
     python mdb.py -bB filename offset length
     python mdb.py -g[bBt] filename [string|hex hex ...]
+    python mdb.py -j[e] filename
 
 DESCRIPTION
 
@@ -87,10 +88,39 @@ DESCRIPTION
       flags may be specified to control the printing of additional
       information.
 
+    j The specified journal file is decoded. The file header and each
+      journal section header and footer are displayed. Section
+      checksums are computed and verified. If the Python snappy module
+      is installed each section is decompressed to verify its
+      integrity. See section below for instructions on installing the
+      snappy module.
+
+    e When used with the j flag, journal entries in each section are
+      displayed. Requires the snappy module to decompress journal
+      sections; see instructions below for installing.
+
 
 OUTPUT
     See test.sh for examples of commands, and look in expected/
     for examples of output for each of the commands.
+
+INSTALLING SNAPPY
+
+    Full functionality for journal files requires the snappy library
+    and Python snappy module to decompress journal sections. To
+    install:
+
+    On Ubuntu:
+    sudo apt-get install python-pip
+    sudo apt-get install python-dev
+    sudo apt-get install libsnappy-dev
+    sudo pip install python-snappy
+
+    On EL:
+    sudo easy_install pip
+    sudo yum install snappy-devel
+    sudo yum install gcc-c++
+    sudo pip install python-snappy
 
 NOTE
     This is by no means production code, either in terms of code
