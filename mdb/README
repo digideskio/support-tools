@@ -36,6 +36,8 @@ DESCRIPTION
       free list is annotated with it's bucket and ordinal position
       within the free list for that bucket.
 
+    i when used with the c flag, indexes for the collection are printed.
+
     x Extent headers are printed. When used with the c flag the extent
       headers for the selected namespaces are printed. When used
       without the c flag you must specify a database filename and you

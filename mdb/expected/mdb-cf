@@ -1,5 +1,5 @@
 === mdb.py -cf testdb test
---- test.small.$_id_ first=0:22000 last=0:22000, ce=0:22000, cfn=-2:0, count=1
+001d5290: namespace name=test.small.$_id_ first=0:22000 last=0:22000, ce=0:22000, cfn=-2:0
 free[0]+0 -1:0
 free[1]+0 -1:0
 free[2]+0 -1:0
@@ -20,7 +20,7 @@ free[15]+0 -1:0
 free[16]+0 -1:0
 free[17]+0 -1:0
 free[18]+0 -1:0
---- test.small first=0:2000 last=0:2000, ce=0:2000, cfn=-2:0, count=10
+00797cb8: namespace name=test.small first=0:2000 last=0:2000, ce=0:2000, cfn=-2:0
 free[0]+0 -1:0
 free[1]+0 -1:0
 free[2]+0 -1:0
@@ -41,7 +41,7 @@ free[15]+0 -1:0
 free[16]+0 -1:0
 free[17]+0 -1:0
 free[18]+0 -1:0
---- test.big.$_id_ first=0:49000 last=0:a2a000, ce=0:49000, cfn=-2:0, count=21
+00829c18: namespace name=test.big.$_id_ first=0:49000 last=0:a2a000, ce=0:49000, cfn=-2:0
 free[0]+0 -1:0
 free[1]+0 -1:0
 free[2]+0 -1:0
@@ -62,7 +62,7 @@ free[15]+0 -1:0
 free[16]+0 -1:0
 free[17]+0 -1:0
 free[18]+0 -1:0
---- test.system.indexes first=0:20000 last=0:20000, ce=0:20000, cfn=-2:0, count=2
+00b8e024: namespace name=test.system.indexes first=0:20000 last=0:20000, ce=0:20000, cfn=-2:0
 free[0]+0 -1:0
 free[1]+0 -1:0
 free[2]+0 -1:0
@@ -83,7 +83,7 @@ free[15]+0 -1:0
 free[16]+0 -1:0
 free[17]+0 -1:0
 free[18]+0 -1:0
---- test.system.namespaces first=0:21000 last=0:21000, ce=0:21000, cfn=-2:0, count=5
+00c8888c: namespace name=test.system.namespaces first=0:21000 last=0:21000, ce=0:21000, cfn=-2:0
 free[0]+0 -1:0
 free[1]+0 -1:0
 free[2]+0 -1:0
@@ -104,7 +104,7 @@ free[15]+0 -1:0
 free[16]+0 -1:0
 free[17]+0 -1:0
 free[18]+0 -1:0
---- test.big first=0:2b000 last=2:2000, ce=0:2b000, cfn=-2:0, count=5000
+00fcd5b4: namespace name=test.big first=0:2b000 last=2:2000, ce=0:2b000, cfn=-2:0
 free[0]+0 -1:0
 free[1]+0 -1:0
 free[2]+0 -1:0
