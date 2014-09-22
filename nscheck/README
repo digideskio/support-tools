@@ -10,6 +10,15 @@ problem and have a fix from Ubuntu and/or VMWare. It is not advisable
 to attempt any recovery until this is the case as once the problem
 occurs it is reproducible.
 
+(One possible exception to the above: if a customer encounters a
+production down situation before a fix is available from Ubuntu and/or
+VMWare, it may be necessary to use nscheck to do a repair. As long as
+the customer does not create any additional databases (including doing
+initial sync operations) they should not be at risk of additional
+problems due to this issue even if they haven't addressed the
+underlying Ubuntu/VMWare problem, so repairing existing .ns files will
+get them back in operation.)
+
 
 DETECTION FOR 2.6 USERS
 
@@ -21,11 +30,17 @@ created. However, given the right conditions, the occurrence of the
 problem is reproducible; for example, it might occur every time a db
 is restored from backup, or otherwise created from scratch; and if it
 occurs on one node of a replica set it is likely to occur on
-others. Once the problem has occurred, mongod will fail with a fatal
-assertion on certain accesses to the namespace.
+others. Once the damage has been done to the .ns file, various
+failures may occur, including fatal assertion on startup, and failures
+of commands such as db.stats(), db.repairDatabase(), db.dropDatabase(),
+and possibly others. Diagnose the problem as follows:
 
-* fassert, with log signatures as follows:
-...
+* Failures accompanied by op result messages or log messages including:
+"errmsg" : "exception: assertion src/mongo/db/catalog/database.cpp:472",
+Assertion failure _name == nsToDatabaseSubstring( ns ) src/mongo/db/catalog/database.cpp 472
+exception: nsToDatabase: db too long
+Fatal Assertion 16253
+and possibly others indicating a .ns file problem
 
 * use nscheck to check the .ns file to verify the problem (see below)
 
@@ -48,7 +63,14 @@ DETECTION FOR 2.4 USERS
 As detailed above, the issue is believed to occur under 2.4 as well,
 but may go undetected as 2.4 lacks some checks that were introduced in
 2.6. More work is required to determine whether the issue may cause
-more subtle problems.
+more subtle problems under 2.4.
+
+* The following problems were produced in 2.4 by simulating .ns file
+  corruption:
+
+  * in dbHash command: ERROR: Uncaught std::exception:
+    basic_string::substr, terminating
+  * db.stats(): { "ok" : 0, "errmsg" : "missing ns: ..." }
 
 * use nscheck to check the .ns file (see below).
 
@@ -78,12 +100,16 @@ RECOVERY PROCEDURE
   during the resync.
 
 * If there is no healthy node, or resyncing is otherwise an
-  undesirable option for the customer, instruct the customer to
+  undesirable option for the customer, or if a production-down
+  situation occurs and a fix from Ubuntu and/or VMWare is not
+  available, instruct the customer to
 
   * shut down mongod
   * back up the entire database
   * use nscheck with the --repair option to repair the .ns files
   * restart mongod.
+
+
 
 
 USING THE NSCHECK TOOL
