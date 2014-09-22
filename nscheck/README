@@ -82,7 +82,10 @@ RECOVERY PROCEDURE
 
 * First step is to implement fixes TBD from Ubuntu and/or VMWare; do
   not proceed with recovery until this has been done, as the problem
-  is likely to recur without this.
+  is likely to recur without this. (Exception: in a production-down
+  situation, nscheck --repair could get the customer operational
+  again, with minimal risk of further issues provided they don't
+  create any new databases, including by resyncing.)
 
 * For 2.4 users (who are not upgrading at the moment), until we
   determine that this issue causes problems under 2.4, the most
