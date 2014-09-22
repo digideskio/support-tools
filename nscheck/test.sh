@@ -18,9 +18,9 @@ function test4 {
     rm -rf repair
     cp -r test repair
     echo === repairing
-    python nscheck.py --repair test
+    python nscheck.py --repair repair
     echo === checking
-    python nscheck.py test
+    python nscheck.py repair
     rm -rf repair
 }
 

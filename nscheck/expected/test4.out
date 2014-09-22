@@ -1,5 +1,5 @@
 === repairing
-checking test/ccs.ns
+checking repair/ccs.ns
 000ab90c: namespace name=ccs.system.namespaces OK
 0024e970: namespace name=ccs.connectionTicket.$expiry_1 OK
 004ab978: namespace name=ccs.deviceLogEntry.$date OK
@@ -40,8 +40,8 @@ checking test/ccs.ns
 00f2cd48: namespace ERROR - REPAIRED
 00f2d98c: namespace name=ccs.deviceLogEntry.$serialNumber OK
 00f75a84: namespace name=ccs.connectionTicket OK
-checked test/ccs.ns: 27 ERRORS
-checking test/d1/admin.ns
+checked repair/ccs.ns: 27 ERRORS
+checking repair/d1/admin.ns
 000148b8: namespace name=admin.system.profile OK
 00044d74: namespace name=admin.system.indexes OK
 0006509c: namespace name=admin.system.new_users.$user_1_db_1 OK
@@ -100,8 +100,8 @@ checking test/d1/admin.ns
 00effe84: namespace ERROR - REPAIRED
 00f005e0: namespace name=admin.system.users OK
 00f490a8: namespace name=admin.system.backup_users OK
-checked test/d1/admin.ns: 39 ERRORS
-checking test/d1/stg_mig.ns
+checked repair/d1/admin.ns: 39 ERRORS
+checking repair/d1/stg_mig.ns
 000666b0: namespace name=stg_mig.my_output.$_id_ OK
 00076844: namespace name=stg_mig.migration_dup OK
 0013d384: namespace name=stg_mig.migration_dup.$_id_ OK
@@ -158,8 +158,8 @@ checking test/d1/stg_mig.ns
 00c9e270: namespace name=stg_mig.migration.$migStatus_1 OK
 00e67d04: namespace name=stg_mig.migration.$migStatus_1_type_-1 OK
 00fbcf38: namespace name=stg_mig.myDupesCollection.$_id_ OK
-checked test/d1/stg_mig.ns: 33 ERRORS
-checking test/d2/admin.ns
+checked repair/d1/stg_mig.ns: 33 ERRORS
+checking repair/d2/admin.ns
 000148b8: namespace name=admin.system.profile OK
 00044d74: namespace name=admin.system.indexes OK
 0006509c: namespace name=admin.system.new_users.$user_1_db_1 OK
@@ -200,8 +200,8 @@ checking test/d2/admin.ns
 00eff728: namespace ERROR - REPAIRED
 00f005e0: namespace name=admin.system.users OK
 00f490a8: namespace name=admin.system.backup_users OK
-checked test/d2/admin.ns: 21 ERRORS
-checking test/d2/stg_mig.ns
+checked repair/d2/admin.ns: 21 ERRORS
+checking repair/d2/stg_mig.ns
 000666b0: namespace name=stg_mig.my_output.$_id_ OK
 00076844: namespace name=stg_mig.migration_dup OK
 0013c258: namespace ERROR - REPAIRED
@@ -270,8 +270,8 @@ checking test/d2/stg_mig.ns
 00c9e270: namespace name=stg_mig.migration.$migStatus_1 OK
 00e67d04: namespace name=stg_mig.migration.$migStatus_1_type_-1 OK
 00fbcf38: namespace name=stg_mig.myDupesCollection.$_id_ OK
-checked test/d2/stg_mig.ns: 46 ERRORS
-checking test/dw3.ns
+checked repair/d2/stg_mig.ns: 46 ERRORS
+checking repair/dw3.ns
 000af3ec: namespace name=dw3.mkcactivity.$adate_1 OK
 00150140: namespace name=dw3.topics.$id_list_1 OK
 001b40b0: namespace name=dw3.mkccontent.$_id_ OK
@@ -321,8 +321,8 @@ checking test/dw3.ns
 00bc2c04: namespace name=dw3.mkcactivity OK
 00c1ebe4: namespace name=dw3.mkccontent.$topics_1 OK
 00f5f45c: namespace name=dw3.mkccontent.$industries_1 OK
-checked test/dw3.ns: 24 ERRORS
-checking test/mms-dev.ns
+checked repair/dw3.ns: 24 ERRORS
+checking repair/mms-dev.ns
 0000112c: namespace ERROR - REPAIRED
 000013a0: namespace ERROR - REPAIRED
 00001614: namespace ERROR - REPAIRED
@@ -1949,8 +1949,8 @@ checking test/mms-dev.ns
 00fc53b0: namespace name=mms-dev.tickler OK
 00fd7ef8: namespace name=mms-dev.cms_content.$topics_1 OK
 00fefda8: namespace name=mms-dev.companies.$attributes_domains_1 OK
-checked test/mms-dev.ns: 1284 ERRORS
-checking test/mms-prod.ns
+checked repair/mms-dev.ns: 1284 ERRORS
+checking repair/mms-prod.ns
 0000112c: namespace ERROR - REPAIRED
 000013a0: namespace ERROR - REPAIRED
 00001888: namespace ERROR - REPAIRED
@@ -4644,8 +4644,8 @@ checking test/mms-prod.ns
 00fe6a78: namespace name=mms-prod.ref_countries OK
 00ff5384: namespace name=mms-prod.activity1.$_id_person_id_1__id_short_1 OK
 00ff64b0: namespace name=mms-prod.companies.$membership_id_1 OK
-checked test/mms-prod.ns: 2365 ERRORS
-checking test/summics.ns
+checked repair/mms-prod.ns: 2365 ERRORS
+checking repair/summics.ns
 00057b30: namespace name=summics.token.$customer_1 OK
 0005828c: namespace ERROR - REPAIRED
 00058500: namespace ERROR - REPAIRED
@@ -5109,14 +5109,14 @@ checking test/summics.ns
 00fb210c: namespace name=summics.text.$sentimentReady_1 OK
 00fd8654: namespace name=summics.help.$timestamp_1 OK
 00fecf0c: namespace name=summics.triggeredAlert.$_id_ OK
-checked test/summics.ns: 336 ERRORS
+checked repair/summics.ns: 336 ERRORS
 === checking
-checked test/ccs.ns: OK
-checked test/d1/admin.ns: OK
-checked test/d1/stg_mig.ns: OK
-checked test/d2/admin.ns: OK
-checked test/d2/stg_mig.ns: OK
-checked test/dw3.ns: OK
-checked test/mms-dev.ns: OK
-checked test/mms-prod.ns: OK
-checked test/summics.ns: OK
+checked repair/ccs.ns: OK
+checked repair/d1/admin.ns: OK
+checked repair/d1/stg_mig.ns: OK
+checked repair/d2/admin.ns: OK
+checked repair/d2/stg_mig.ns: OK
+checked repair/dw3.ns: OK
+checked repair/mms-dev.ns: OK
+checked repair/mms-prod.ns: OK
+checked repair/summics.ns: OK

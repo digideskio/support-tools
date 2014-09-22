@@ -72,7 +72,10 @@ RECOVERY PROCEDURE
   this.
 
 * If there is a healthy node (defined as: nscheck declares *all* .ns
-  files to be OK), resyncing from that node is an option.
+  files to be OK), resyncing from that node is an option. NOTE: this
+  option especially *should not be done* until the underlying issue on
+  Ubuntu and/or VMWare is addressed, as the problem is likely to occur
+  during the resync.
 
 * If there is no healthy node, or resyncing is otherwise an
   undesirable option for the customer, instruct the customer to
@@ -91,6 +94,7 @@ NAME
 SYNOPSIS
     python nscheck.py [--detail] [--repair] file_or_directory ...
 
+DESCRIPTION
     Each file listed on the command line is checked for errors. If a
     directory is specified it is recursively traversed to find .ns
     files to check. For example,
@@ -105,7 +109,7 @@ SYNOPSIS
     The error check can be run on a live system, with a very small
     chance of a temporary false ERROR report if a namespace (db,
     collection, index) is being added while nscheck is running. Run it
-    a second time to check for false positives.
+    a second time to screen out false positives.
 
     The repair procedure *must* be run with mongod shut down.
 
