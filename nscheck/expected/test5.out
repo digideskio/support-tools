@@ -1,0 +1,25 @@
+checking db/test.ns
+000b3140: namespace name=test.c3.$x7_1 OK
+001dd97c: namespace name=test.c3.$x4_1 OK
+003081b8: namespace name=test.c3.$x1_1 OK
+00396638: namespace name=test.c1.$_id_ OK
+003c12a4: namespace name=test.c2.$x2_1 OK
+004f245c: namespace name=test.c1 OK
+004f26d0: namespace name=test.c2 OK
+004f2944: namespace name=test.c3 OK
+0054162c: namespace name=test.c3.$x9_1 OK
+0066be68: namespace name=test.c3.$x6_1 OK
+006a9890: namespace name=test.c3.$_id_ OK
+007966a4: namespace name=test.c3.$x3_1 OK
+008c0ee0: namespace name=test.c3.$x0_1 OK
+00979fcc: namespace name=test.c2.$x1_1 OK
+00aa5e1c: namespace name=test.c3$extra OK
+00afa354: namespace name=test.c3.$x8_1 OK
+00b8e024: namespace name=test.system.indexes OK
+00c24b90: namespace name=test.c3.$x5_1 OK
+00c2b024: namespace name=test.c2.$_id_ OK
+00c8888c: namespace name=test.system.namespaces OK
+00d4f3cc: namespace name=test.c3.$x2_1 OK
+00dae9a4: namespace name=test.$freelist OK
+00f32cf4: namespace name=test.c2.$x0_1 OK
+checked db/test.ns: OK
