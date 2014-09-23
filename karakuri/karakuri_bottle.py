@@ -12,23 +12,24 @@ from karakuri import karakuri
 @route('/')
 def index():
     workflows = k.getListOfWorkflows()
-    return template('workflows', workflows=workflows)
+    return template('base_page', renderpage="workflows",workflows=workflows)
 
 
 @route('/static/<filename>')
 def server_static(filename):
-    return static_file(filename, root='/Users/jribnik/devel/github/'
-                                      '10gen-support-tools/karakuri/static')
+    return static_file(filename, root='./static')
 
 
 @post('/editworkflow')
 def edit_workflow():
-    _id = request.params.get('_id')
-    if not isinstance(_id, bson.ObjectId):
-        _id = bson.ObjectId(_id)
-    field = request.params.get('field')
-    val = request.params.get('val')
-    k.mongo.karakuri.workflows.update({'_id': _id}, {"$set": {field: val}})
+    formcontent = request.body.read()
+    formjson = bson.json_util.loads(formcontent)
+    print formjson
+    for workflow in formjson.get('workflow'):
+        workflowId = bson.json_util.ObjectId(workflow.get('_id'))
+        workflow['_id'] = workflowId
+        print workflow
+        k.mongo.karakuri.workflows.update({'_id': workflowId}, workflow)
 
 if __name__ == "__main__":
     configFilename = os.getcwd() + "/karakuri.cfg"

@@ -98,6 +98,11 @@ def issueSummary(workflow=None, page=1):
             issueObjs[str(ticket['iid'])] = karakuri.getIssue(str(ticket['iid']))['jira']
     return template('base_page', renderpage="tickets", ticketSummary=ticketSummary, issues=issueObjs, ticketWorkflows=ticketWorkflows)
 
+@app.route('/ticket/<ticket>/process')
+def processTicket(ticket):
+    karakuri.processTicket(ticket)
+    return redirect('/issues')
+
 @app.route('/ticket/<ticket>/approve')
 def approveTicket(ticket):
     karakuri.approveTicket(ticket)
@@ -117,6 +122,11 @@ def removeTicket(ticket):
 def delayTicket(ticket,days):
     seconds = int(days) * 86400
     karakuri.sleepTicket(ticket,seconds)
+    return redirect('/issues')
+
+@app.route('/workflow/<workflow>/process')
+def processWorkflow(workflow):
+    karakuri.processWorkflow(workflow)
     return redirect('/issues')
 
 @app.route('/workflow/<workflow>/approve')
