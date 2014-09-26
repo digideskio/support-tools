@@ -21,13 +21,6 @@ Function section($sname) {
 
 	$script:thissection = $sname
 	echo "Gathering section [$script:thissection]"
-
-	# make an array of section documents
-	if( !( $isfirstsection ) ) {
-		Add-Content $diagfile ","
-	}
-
-	$script:isfirstsection = $False
 }
 
 Function endsection {
@@ -49,27 +42,27 @@ Function endsubsection {
 	$script:subsection = $Null
 }
 
-Function runcommand {
-	if( !( _in_section ) ) {
-		throw "Internal error: Trying to run a command while not in a section";
-	}
-
-	$startts = _jsondate # { $date: seconds-since-epoch }
-	$cmdobj = _docmd "$args" # Quotes stringify the object
-
-	$cmdobj.ts = @{
-		start = $startts;
-		end = _jsondate
-	}
+Function emitdocument( $startts, $cmdobj ) {
 
 	$cmdobj.ref = $ticket;
-	$cmdobj.run = $script:rundate
-	$cmdobj.section = $thissection
+	$cmdobj.run = $script:rundate;
+	$cmdobj.section = $thissection;
+	$cmdobj.ts = @{
+		start = $startts;
+		end = _jsondate;
+	};
 
 	if( _in_subsection ) {
 		$cmdobj.subsection = $subsection
 	}
 
+	# make an array of  documents
+	if( !( $isfirstdocument ) ) {
+		Add-Content $diagfile ","
+	}
+
+	$script:isfirstdocument = $False
+	
 	try {
 		Add-Content $diagfile $(ConvertTo-Json $cmdobj)
 	}
@@ -81,6 +74,34 @@ Function runcommand {
 		# give it another shot without the output, just let it die if it still has an issue
 		Add-Content $diagfile $(ConvertTo-Json $cmdobj)
 	}
+}
+
+Function runcommand( $preferred_cmd, $fallback_cmd = $null ) {
+	if( !( _in_section ) ) {
+		throw "Internal error: Trying to run a command while not in a section";
+	}
+
+	$startts = _jsondate # { $date: seconds-since-epoch }
+	$cmdobj = _docmd "$preferred_cmd" # Quotes stringify the object
+
+	if( !( $cmdobj.ok ) -and ( "" -ne $fallback_cmd ) ) {
+		# preferred cmd failed and we have a fallback, so try that
+		echo " | Preference attempt failed, but have a fallback to try..."
+		
+		$fbcobj = _docmd "$fallback_cmd"
+
+		if( $fbcobj.ok ) {
+			echo " | ... which succeeded, bananarama!"
+		}
+		
+		$fbcobj.fallback_from = @{
+			command = $cmdobj.command;
+			error = $cmdobj.error;
+		}
+		$cmdobj = $fbcobj;
+	}
+
+	emitdocument $startts $cmdobj
 }
 
 Function runjsoncommand {
@@ -170,18 +191,31 @@ Function _docmd {
 	# Allow for conceptual differences between Unix and Windows here.
 	#Write-Error "Passed arguments [$args]`n" # Reenable this for debugging if you need
 
-	$ret = @{ command = "$args" }
+	# selecting only the first arg in the stream now due to possible mongoimport killers like ' " etc (which come out as \u00XX
+	$ret = @{ command = ("$args").Split("|")[0].Trim() }
 	$text = ""
 	$ok = $True;
 
 	Try {
 		#echo "Trying to run command [$args]`n"
-		$ret.output = Invoke-Expression "$args" -ErrorAction Stop
-		#Write-Host $text
+		# -ErrorVariable has no effect on Invoke-Expression, errors always pipe to STDERR
+		# $LASTEXITCODE is always zero (success!)
+		# $? is always True (success!)
+		# on failure the return value is always null though (thus far), so there's that
+		# $error seems to be the last definitive authority but is difficult to work with
+		$preerrcount = $error.Length.Length  # wtf?
+		$ret.output = Invoke-Expression "$args"
+
+		if( $preerrcount -ne $error.Length.Length ) {
+			# there was an error that Invoke-Expression desperately tried to hide
+			# yes, Invoke-Expression is really this broken - it is difficult to detect if the command had a problem
+			$ok = $False
+			$ret.error = $error[0].Exception.Message	
+		}
 	}
 	Catch {
 		$ok = $False
-		$ret.error = "command execution failed"
+		$ret.error = $error[0].Exception.Message
 	}
 
 	$simpleOk = $?
@@ -237,12 +271,17 @@ Function _readfile($filename) {
 
 ###############
 # Script-scoped variables
-$script:isfirstsection = $True
+$script:isfirstdocument = $True
 $script:thissection = $Null
 $script:subsection  = $Null
 $script:rundate = _jsondate
 
+
 Set-Content $diagfile "["
+
+# script relies on detecting changes in global error-state due to the uncatchable error behaviour of Invoke-Expression
+# clearing this just ensures that it will have space to buffer any errors that occur
+$error.Clear();
 
 ###############
 # Script portion
@@ -279,13 +318,19 @@ Set-Content $diagfile "["
 #endsection
 ##>
 
+section fingerprint
+$startts = _jsondate
+$obj = @{ command = ""; ok = True; output = @{ host = "Windows"; shell = "powershell"; script = "mdiag"; version = "1.0" } }
+emitdocument $startts $obj
+endsection
+
 section sysinfo
 $cmd = "systeminfo /FO CSV | ConvertFrom-Csv"
 runcommand $cmd
 endsection
 
 section tasklist
-$cmd = "Get-Process | Select __NounName,Name,Handles,VM,WS,PM,NPM,Path,Company,CPU,FileVersion,ProductVersion,Description,Product,Id,PriorityClass,TotalProcessorTime,BasePriority,PeakWorkingSet64,PeakVirtualMemorySize64,StartTime,@{Name=`"Threads`";Expression={`$_.Threads.Count}}"
+$cmd = "Get-Process | Select __NounName,Name,Handles,VM,WS,PM,NPM,Path,Company,CPU,FileVersion,ProductVersion,Description,Product,Id,PriorityClass,TotalProcessorTime,BasePriority,PeakWorkingSet64,PeakVirtualMemorySize64,StartTime,@{Name='Threads';Expression={`$_.Threads.Count}}"
 runcommand $cmd
 endsection
 
@@ -297,10 +342,19 @@ runcommand $cmd
 endsection
 
 section services
-$cmd = "Get-Service | Where-Object {`$_.ServiceName -like `"*Mongo*`"}"
+$cmd = "Get-Service | Where-Object {`$_.ServiceName -like '*Mongo*'}"
 runcommand $cmd
 $cmd = "Get-NetFirewallRule | Where-Object {`$_.DisplayName -like '*mongo*'} | Select Name,DisplayName,Enabled,@{Name='Profile';Expression={`$_.Profile.ToString()}},@{Name='Direction';Expression={`$_.Direction.ToString()}},@{Name='Action';Expression={`$_.Action.ToString()}},@{Name='PolicyStoreSourceType';Expression={`$_.PolicyStoreSourceType.ToString()}}"
 runcommand $cmd
+endsection
+
+section storage
+$cmd = "Get-Disk | Select PartitionStyle,ProvisioningType,OperationalStatus,HealthStatus,BusType,BootFromDisk,FirmwareVersion,FriendlyName,IsBoot,IsClustered,IsOffline,IsReadOnly,IsSystem,LogicalSectorSize,Manufacturer,Model,Number,NumberOfPartitions,Path,PhysicalSectorSize,SerialNumber,Size"
+$fbc = "Get-WmiObject Win32_DiskDrive | Select SystemName,BytesPerSector,Caption,CompressionMethod,Description,DeviceID,InterfaceType,Manufacturer,MediaType,Model,Name,Partitions,PNPDeviceID,SCSIBus,SCSILogicalUnit,SCSIPort,SCSITargetId,SectorsPerTrack,SerialNumber,Signature,Size,Status,TotalCylinders,TotalHeads,TotalSectors,TotalTracks,TracksPerCylinder"
+runcommand $cmd $fbc
+$cmd = "Get-Partition | Select OperationalStatus,Type,AccessPaths,DiskId,DiskNumber,DriveLetter,GptType,Guid,IsActive,IsBoot,IsHidden,IsOffline,IsReadOnly,IsShadowCopy,IsSystem,MbrType,NoDefaultDriveLetter,Offset,PartitionNumber,Size,TransitionState"
+$fbc = "Get-WmiObject Win32_LogicalDisk | Select Compressed,Description,DeviceID,DriveType,FileSystem,FreeSpace,MediaType,Name,Size,SystemName,VolumeSerialNumber"
+runcommand $cmd $fbc
 endsection
 
 
