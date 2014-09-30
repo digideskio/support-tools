@@ -323,14 +323,20 @@ def print_btree(buf, at, l=None):
         print '%x: key child=%d:%x loc=%d:%x kdo=%x kd=%x' % (a, child_f,child_o, loc_f,loc_o, kdo, kd),
         if do_btree_detail:
             print 'rec=%x' % at,
-            t = ord(buf[kd])
-            if t in ctypes:
-                _, detail = ctypes[t](buf, kd+1)
-            else:
-                detail = ''
-                for j in range(1,13):
-                    detail += '%02x' % ord(buf[kd+j])
-            print '%02x' % t, detail,
+            a = kd
+            while True:
+                t = ord(buf[a])
+                more = t & 0x40
+                t = t & ~0x40
+                if t in ctypes:
+                    a, detail = ctypes[t](buf, a+1)
+                else:
+                    detail = ''
+                    for j in range(1,13):
+                        detail += '%02x' % ord(buf[a+j])
+                    more = False
+                print '%02x' % (t|more), detail,
+                if not more: break
         print
         kds.add(kd)
     kds = list(sorted(kds))
@@ -525,7 +531,7 @@ def collection(dbpath, ns):
     nsbuf = get_buf(dbpath, db, 'ns')
     at = 0
     while at+628 <= len(nsbuf):
-        _, name, first_f,first_o, last_f,last_o, buckets, \
+        hash, name, first_f,first_o, last_f,last_o, buckets, \
             _, _, count_l, count_h, lastExtentSize, nIndexes, indexes, \
             isCapped, maxDocsInCapped, _, _, systemFlags, \
             ce_f,ce_o, cfnr_f,cfnr_o, _, mkl, mkh,  _, _, extra, _, inProgress = \
@@ -533,7 +539,8 @@ def collection(dbpath, ns):
         count = (count_h << 32) + count_l
         mk = (mkh << 32) + mkl
         name = name[:name.find('\0')]
-        if (ns==db and name!='') or name==ns:
+        #if (ns==db and hash) or name==ns:
+        if (ns==db and name) or name==ns:
             print '%08x: namespace name=%s first=%d:%x last=%d:%x, ce=%d:%x, cfn=%d:%x' % \
                 (at, name, first_f, first_o, last_f, last_o, ce_f, ce_o, cfnr_f, cfnr_o)
             if do_collection_indexes:

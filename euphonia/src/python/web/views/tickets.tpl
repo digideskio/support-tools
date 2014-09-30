@@ -20,15 +20,18 @@
                         <div class="panel-heading">
                             <h4 class="panel-title"><span style="color:#aaaaaa;">{{previous}}</span>{{workflow['name']}}
                                 <div class="pull-right">
-                                    <a class="btn btn-primary metadata" data-toggle="tooltip" data-placement="top" title="Approve All" href="/workflow/{{workflow['name']}}/approve"><i class="glyphicon glyphicon-ok"></i></a>
-                                    <div class="btn-group">
-                                        <button type="button" class="btn btn-warning dropdown-toggle" data-toggle="dropdown"><i class="glyphicon glyphicon-time metadata" data-toggle="tooltip" data-placement="top" title="Sleep All"></i>&nbsp;<span class="caret"></span></button>
-                                        <ul class="dropdown-menu dropdown-menu-right" role="menu">
-                                            <li><a href="/workflow/{{workflow['name']}}/sleep/1">Sleep 1 Day</a></li>
-                                            <li><a href="/workflow/{{workflow['name']}}/sleep/3">Sleep 3 Days</a></li>
-                                            <li><a href="/workflow/{{workflow['name']}}/sleep/7">Sleep 1 Week</a></li>
-                                        </ul>
-                                    </div>
+                                    <a class="btn btn-primary metadata" data-toggle="tooltip" data-placement="top" title="Process All" href="/workflow/{{workflow['name']}}/process"><i class="glyphicon glyphicon-play-circle"></i></a>
+                                    <a class="btn btn-success metadata" data-toggle="tooltip" data-placement="top" title="Approve All" href="/workflow/{{workflow['name']}}/approve"><i class="glyphicon glyphicon-ok"></i></a>
+                                    <i class="metadata" data-toggle="tooltip" data-placement="top" title="Sleep All">
+                                        <div class="btn-group">
+                                            <button type="button" class="btn btn-warning dropdown-toggle" data-toggle="dropdown"><i class="glyphicon glyphicon-time"></i>&nbsp;<span class="caret"></span></button>
+                                            <ul class="dropdown-menu dropdown-menu-right" role="menu">
+                                                <li><a href="/workflow/{{workflow['name']}}/sleep/1">Sleep 1 Day</a></li>
+                                                <li><a href="/workflow/{{workflow['name']}}/sleep/3">Sleep 3 Days</a></li>
+                                                <li><a href="/workflow/{{workflow['name']}}/sleep/7">Sleep 1 Week</a></li>
+                                            </ul>
+                                        </div>
+                                    </i>
                                     <a class="btn btn-danger metadata" data-toggle="tooltip" data-placement="top" title="Remove All" href="/workflow/{{workflow['name']}}/remove"><i class="glyphicon glyphicon-remove"></i></a>
                                 </div>
                             </h4>
@@ -81,19 +84,22 @@
                                                     </td>
                                                     <td>
                                                         <div class="pull-right">
+                                                            <a class="btn btn-xs btn-primary metadata" data-toggle="tooltip" data-placement="top" title="Process" href="/ticket/{{ticket['_id']}}/process"><i class="glyphicon glyphicon-play-circle"></i></a>
                                                         % if ticket['approved'] == True:
                                                             <a class="btn btn-xs btn-default metadata" data-toggle="tooltip" data-placement="top" title="Disapprove" href="/ticket/{{ticket['_id']}}/disapprove"><i class="glyphicon glyphicon-ok"></i></a>
                                                         % else:
-                                                            <a class="btn btn-xs btn-primary metadata" data-toggle="tooltip" data-placement="top" title="Approve" href="/ticket/{{ticket['_id']}}/approve"><i class="glyphicon glyphicon-ok"></i></a>
+                                                            <a class="btn btn-xs btn-success metadata" data-toggle="tooltip" data-placement="top" title="Approve" href="/ticket/{{ticket['_id']}}/approve"><i class="glyphicon glyphicon-ok"></i></a>
                                                         % end
-                                                        <div class="btn-group">
-                                                            <button type="button" class="btn btn-xs btn-warning dropdown-toggle" data-toggle="dropdown"><i class="glyphicon glyphicon-time metadata" data-toggle="tooltip dropdown" data-placement="top" title="Sleep"></i>&nbsp;<span class="caret"></span></button>
-                                                            <ul class="dropdown-menu dropdown-menu-right" role="menu">
-                                                                <li><a href="/ticket/{{ticket['_id']}}/sleep/1">Sleep 1 Day</a></li>
-                                                                <li><a href="/ticket/{{ticket['_id']}}/sleep/3">Sleep 3 Days</a></li>
-                                                                <li><a href="/ticket/{{ticket['_id']}}/sleep/7">Sleep 1 Week</a></li>
-                                                            </ul>
-                                                        </div>
+                                                        <i class="metadata" data-toggle="tooltip" data-placement="top" title="Sleep">
+                                                            <div class="btn-group">
+                                                                <button type="button" class="btn btn-xs btn-warning dropdown-toggle" data-toggle="dropdown"><i class="glyphicon glyphicon-time"></i>&nbsp;<span class="caret"></span></button>
+                                                                <ul class="dropdown-menu dropdown-menu-right" role="menu">
+                                                                    <li><a href="/ticket/{{ticket['_id']}}/sleep/1">Sleep 1 Day</a></li>
+                                                                    <li><a href="/ticket/{{ticket['_id']}}/sleep/3">Sleep 3 Days</a></li>
+                                                                    <li><a href="/ticket/{{ticket['_id']}}/sleep/7">Sleep 1 Week</a></li>
+                                                                </ul>
+                                                            </div>
+                                                        </i>
                                                         <a class="btn btn-xs btn-danger metadata {{doneDisabled}}" data-toggle="tooltip" data-placement="top" title="Remove" href="/ticket/{{ticket['_id']}}/remove"><i class="glyphicon glyphicon-remove"></i></a>
                                                         </div>
                                                     </td>

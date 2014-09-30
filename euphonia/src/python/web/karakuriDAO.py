@@ -63,6 +63,11 @@ class karakuriDAO:
         response = self.executeKarakuriCall(getUrl)
         return response
 
+    def processWorkflow(self, workflowId):
+        getUrl = "%s/workflow/%s/process" % (self.SERVER, workflowId)
+        response = self.executeKarakuriCall(getUrl)
+        return response
+
     def approveWorkflow(self, workflowId):
         getUrl = "%s/workflow/%s/approve" % (self.SERVER, workflowId)
         response = self.executeKarakuriCall(getUrl)
@@ -94,11 +99,14 @@ class karakuriDAO:
         response = self.executeKarakuriCall(getUrl)
         return response
 
+    def processTicket(self, ticketId):
+        getUrl = "%s/ticket/%s/process" % (self.SERVER, ticketId)
+        response = self.executeKarakuriCall(getUrl)
+        return response
+
     def approveTicket(self, ticketId):
         getUrl = "%s/ticket/%s/approve" % (self.SERVER, ticketId)
         response = self.executeKarakuriCall(getUrl)
-        print getUrl
-        print response
         return response
 
     def disapproveTicket(self, ticketId):
