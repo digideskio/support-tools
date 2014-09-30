@@ -5,19 +5,19 @@ on certain platforms TBD (involving certain Linux kernel versions and
 VMWare) the .ns file is not properly initialized to 0s by the o/s, and
 the resulting garbage hashtable entries cause an assertion failure.
 
-NOTE: the following assumes that we have identified the underlying
-problem and have a fix from Ubuntu and/or VMWare. It is not advisable
-to attempt any recovery until this is the case as once the problem
-occurs it is reproducible.
+NOTE: the following assumes that the customer has installed a kernel
+update that addresses this issue, or has installed a release from us
+that works around the issue (2.4.12 or 2.6.5). It is not advisable to
+attempt any recovery until this is the case as once the problem occurs
+it is reproducible.
 
 (One possible exception to the above: if a customer encounters a
-production down situation before a fix is available from Ubuntu and/or
-VMWare, it may be necessary to use nscheck to do a repair. As long as
-the customer does not create any additional databases (including doing
-initial sync operations) they should not be at risk of additional
-problems due to this issue even if they haven't addressed the
-underlying Ubuntu/VMWare problem, so repairing existing .ns files will
-get them back in operation.)
+production-down situation before a fix is available, it may be
+necessary to use nscheck to do a repair. As long as the customer does
+not create any additional databases (including doing initial sync
+operations) they should not be at risk of additional problems due to
+this issue even if they haven't addressed the underlying problem, so
+repairing existing .ns files will get them back in operation.)
 
 
 DETECTION FOR 2.6 USERS
@@ -36,11 +36,11 @@ of commands such as db.stats(), db.repairDatabase(), db.dropDatabase(),
 and possibly others. Diagnose the problem as follows:
 
 * Failures accompanied by op result messages or log messages including:
-"errmsg" : "exception: assertion src/mongo/db/catalog/database.cpp:472",
-Assertion failure _name == nsToDatabaseSubstring( ns ) src/mongo/db/catalog/database.cpp 472
-exception: nsToDatabase: db too long
-Fatal Assertion 16253
-and possibly others indicating a .ns file problem
+  * "errmsg" : "exception: assertion src/mongo/db/catalog/database.cpp:472",
+  * Assertion failure _name == nsToDatabaseSubstring( ns ) src/mongo/db/catalog/database.cpp 472
+  * exception: nsToDatabase: db too long
+  * Fatal Assertion 16253
+  * and possibly others indicating a .ns file problem
 
 * use nscheck to check the .ns file to verify the problem (see below)
 
@@ -80,12 +80,13 @@ RECOVERY PROCEDURE
 * Upon detecting a problem customer should immediately contact MongoDB
   support and we will direct them through the following steps.
 
-* First step is to implement fixes TBD from Ubuntu and/or VMWare; do
-  not proceed with recovery until this has been done, as the problem
-  is likely to recur without this. (Exception: in a production-down
-  situation, nscheck --repair could get the customer operational
-  again, with minimal risk of further issues provided they don't
-  create any new databases, including by resyncing.)
+* First step is to implement kernel fixes TBD from Ubuntu or upgrade
+  to MongoDB 2.4.12 or 2.6.5; do not proceed with recovery until this
+  has been done, as the problem is likely to recur without
+  this. (Exception: in a production-down situation, nscheck --repair
+  could get the customer operational again, with minimal risk of
+  further issues provided they don't create any new databases,
+  including by resyncing.)
 
 * For 2.4 users (who are not upgrading at the moment), until we
   determine that this issue causes problems under 2.4, the most
@@ -99,19 +100,17 @@ RECOVERY PROCEDURE
 * If there is a healthy node (defined as: nscheck declares *all* .ns
   files to be OK), resyncing from that node is an option. NOTE: this
   option especially *should not be done* until the underlying issue on
-  Ubuntu and/or VMWare is addressed, as the problem is likely to occur
-  during the resync.
+  is addressed, as the problem is likely to occur during the resync.
 
 * If there is no healthy node, or resyncing is otherwise an
   undesirable option for the customer, or if a production-down
-  situation occurs and a fix from Ubuntu and/or VMWare is not
-  available, instruct the customer to
+  situation occurs and a fix is yet not available, instruct the
+  customer to
 
   * shut down mongod
   * back up the entire database
   * use nscheck with the --repair option to repair the .ns files
   * restart mongod.
-
 
 
 
