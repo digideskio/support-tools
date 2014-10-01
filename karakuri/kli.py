@@ -31,7 +31,7 @@ class kli(karakuricommon.karakuriclient):
             res = self.queueRequest('find')
         if res['status'] != "success":
             self.printRequest(res)
-        print "found %i tasks" % len(res['data']['tickets'])
+        print "success, found %i tasks" % len(res['data']['tickets'])
 
     def list(self):
         res = self.queueRequest()
