@@ -1,4 +1,8 @@
 jira-username   my_jira_username
 jira-password   my_jira_password
 log             karakuri.log
-pid             /tmp/karakuri.pid
+log-level       INFO
+mongo-host      localhost
+mongo-port      27017
+rest-port       8080
+log             karakuri.log
