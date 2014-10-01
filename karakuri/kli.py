@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 
-import karakuriclient
+import karakuricommon
 import logging
 import sys
 
 
-class kli(karakuriclient.karakuriclient):
+class kli(karakuricommon.karakuriclient):
     """ A command line interface for karakuri """
     def __init__(self, *args, **kwargs):
-        karakuriclient.karakuriclient.__init__(self, *args, **kwargs)
+        karakuricommon.karakuriclient.__init__(self, *args, **kwargs)
 
     def find(self, workflow):
         if workflow is not None:
@@ -19,43 +19,30 @@ class kli(karakuriclient.karakuriclient):
         if res['status'] != "success":
             print(res)
             return
-
         tickets = res['data']['tickets']
-        print "Found tickets: %s" % tickets
+        print "Found %i tickets" % len(tickets)
 
-    def list(self, showInactive=False):
+    def list(self):
         res = self.queueRequest()
         if res['status'] != "success":
             print(res)
             return
+        tickets = res['data']['tickets']
 
         print "\tTICKET ID\t\t\tISSUE KEY\tWORKFLOW\tAPPROVED?\tIN PROGRESS?\t"\
               "DONE?\tSTART\t\t\t\t\tCREATED"
         i = 0
-
-        tickets = res['data']['tickets']
         for ticket in tickets:
-            # Do not show inactive tickets
-            if not ticket['active'] and not showInactive:
-                continue
             i += 1
-
-            # TODO suboptimal, consider adding issue key to the tickets
-            res = self.issueRequest(ticket['iid'])
-            if res['status'] == "success":
-                issue_key = res['data']['issue']['jira']['key']
-            else:
-                issue_key = "UNKNOWN"
-
             # TODO bulletproof this
             print "%5i\t%s\t%s\t%s\t%s\t\t%s\t\t%s\t%s\t%s" %\
-                  (i, ticket['_id'], issue_key, ticket['workflow'],
+                  (i, ticket['_id'], ticket['key'], ticket['workflow'],
                    ticket['approved'], ticket['inProg'], ticket['done'],
                    ticket['start'].isoformat(),
                    ticket['_id'].generation_time.isoformat())
 
 if __name__ == "__main__":
-    parser = karakuriclient.karakuriparser(description="A cli interface for "
+    parser = karakuricommon.karakuriparser(description="A cli interface for "
                                                        "karakuri")
     subparsers = parser.add_subparsers(dest="command",
                                        help='{command} -h for help')
@@ -142,7 +129,7 @@ if __name__ == "__main__":
     k = kli(args)
 
     if args.command == "list":
-        k.list(args.all)
+        k.list()
     elif args.command == "find":
         k.find(args.workflow)
     else:
@@ -154,7 +141,7 @@ if __name__ == "__main__":
 
         if noptions != 1:
             print "Specify only tickets, --workflow or --all"
-            sys.exit(2)
+            sys.exit(1)
 
         if args.tickets is not None:
             args.tickets = args.tickets.split(',')
@@ -165,6 +152,6 @@ if __name__ == "__main__":
             k.queueRequest(args.command)
         else:
             print "%s is not a supported command" % args.command
-            sys.exit(1)
+            sys.exit(2)
 
     sys.exit(0)

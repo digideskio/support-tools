@@ -4,6 +4,7 @@ import argparse
 import bottle
 import bson
 import bson.json_util
+import karakuricommon
 import logging
 import os
 import pymongo
@@ -15,32 +16,12 @@ from jirapp import jirapp
 from supportissue import SupportIssue
 
 
-class karakuri:
+class karakuri(karakuricommon.karakuribase):
     """ An automaton: http://en.wikipedia.org/wiki/Karakuri_ningy%C5%8D """
-    def __init__(self, args):
-        if not isinstance(args, dict):
-            args = vars(args)
-        self.args = args
+    def __init__(self, *args, **kwargs):
+        karakuricommon.karakuribase.__init__(self, *args, **kwargs)
 
-        # log what your momma gave ya
-        self.logger = logging.getLogger("logger")
-        self.logger.setLevel(self.args['log_level'])
-        fh = logging.FileHandler(self.args['log'])
-        fh.setLevel(self.args['log_level'])
-        formatter = logging.Formatter('%(asctime)s - %(module)s - '
-                                      '%(levelname)s - %(message)s')
-        fh.setFormatter(formatter)
-        self.logger.addHandler(fh)
-        self.logger.info("waking karakuri...")
-
-        # output args for debugging
-        self.logger.debug("parsed args:")
-        for arg in self.args:
-            self.logger.debug("%s %s" % (arg, self.args[arg]))
-
-        # will the real __init__ please stand up, please stand up...
         self.issuer = None
-        self.live = self.args['live']
 
         # initialize dbs and collections
         # TODO try except this
@@ -193,7 +174,7 @@ class karakuri:
                 self.logger.info("Skipping %s as it is not active" % issue.key)
                 continue
 
-            _res = self.queueTicket(issue.id, workflow['name'])
+            _res = self.queueTicket(issue.id, issue.key, workflow['name'])
             res &= _res['ok']
             if _res['ok']:
                 tickets.append(_res['payload'])
@@ -556,9 +537,9 @@ class karakuri:
 
         return {'ok': True, 'payload': ticket}
 
-    def queueTicket(self, iid, workflowName):
+    def queueTicket(self, iid, key, workflowName):
         """ Create a ticket for the given issue and workflow """
-        self.logger.info("queueTicket(%s,%s)", iid, workflowName)
+        self.logger.info("queueTicket(%s,%s,%s)", iid, key, workflowName)
         res = self.getObjectId(iid)
         if not res['ok']:
             return res
@@ -575,9 +556,9 @@ class karakuri:
             return {'ok': False, 'payload': message}
 
         now = datetime.utcnow()
-        ticket = {'iid': iid, 'workflow': workflowName, 'approved': False,
-                  'done': False, 'inProg': False, 't': now, 'start': now,
-                  'active': True}
+        ticket = {'iid': iid, 'key': key, 'workflow': workflowName,
+                  'approved': False, 'done': False, 'inProg': False, 't': now,
+                  'start': now, 'active': True}
 
         try:
             self.coll_queue.insert(ticket)
@@ -819,7 +800,7 @@ class karakuri:
     def _queue_find(self):
         """ Find and queue new tickets """
         self.logger.debug("_queue_find()")
-        res = self._find()
+        res = self.findTickets()
         if res['ok']:
             return self._success({'tickets': res['payload']})
         return self._error(res['payload'])
@@ -966,72 +947,42 @@ class karakuri:
         return self._workflow_response(self.wakeTicket, name)
 
 if __name__ == "__main__":
-    #
-    # Process command line arguments with a system of tubes
-    #
-    parser = argparse.ArgumentParser(description="An automaton: http://en.wiki"
-                                     "pedia.org/wiki/Karakuri_ningy%C5%8D")
-    parser.add_argument("-c", "--config", metavar="FILE",
-                        help="specify a configuration file")
-    parser.add_argument("-l", "--log", metavar="FILE",
-                        help="specify a log file")
-    parser.add_argument("--live", action="store_true",
-                        help="do what you do irl")
-    parser.add_argument("--log-level", metavar="LEVEL",
-                        choices=["DEBUG", "INFO", "WARNING", "ERROR",
-                                 "CRITICAL"],
-                        default="INFO",
-                        help="{DEBUG,INFO,WARNING,ERROR,CRITICAL} (default="
-                             "INFO)")
-    parser.add_argument("--mongo-host", metavar="HOSTNAME",
-                        default="localhost",
-                        help="specify the MongoDB hostname (default="
-                             "localhost)")
-    parser.add_argument("--mongo-port", metavar="PORT", default=27017,
-                        type=int,
-                        help="specify the MongoDB port (default=27017)")
-    parser.add_argument("--jira-password", metavar="PASSWORD",
-                        help="specify a JIRA password")
-    parser.add_argument("--jira-username", metavar="USERNAME",
-                        help="specify a JIRA username")
-    parser.add_argument("--pid", metavar="FILE", default="/tmp/karakuri.pid",
-                        help="specify the PID file")
-    parser.add_argument("--rest-port",  metavar="PORT", default=8080, type=int,
-                        help="the RESTful interface port (default=8080)")
+    parser = karakuricommon.karakuriparser(description="An automaton: http://en"
+                                                       ".wikipedia.org/wiki/Kar"
+                                                       "akuri_ningy%C5%8D")
+    parser.add_config_argument("--mongo-host", metavar="HOSTNAME",
+                               default="localhost",
+                               help="specify the MongoDB hostname (default="
+                                    "localhost)")
+    parser.add_config_argument("--mongo-port", metavar="PORT", default=27017,
+                                type=int,
+                                help="specify the MongoDB port (default=27017)")
+    parser.add_config_argument("--jira-password", metavar="PASSWORD",
+                               help="specify a JIRA password")
+    parser.add_config_argument("--jira-username", metavar="USERNAME",
+                               help="specify a JIRA username")
+    parser.add_config_argument("--rest-port",  metavar="PORT", default=8080, type=int,
+                               help="the RESTful interface port (default=8080)")
 
     args = parser.parse_args()
 
-    # Process config file if one is specified in the CLI options
-    if args.config:
-        args.config = os.path.abspath(os.path.expandvars(os.path.expanduser(
-            args.config)))
-
-        if not os.access(args.config, os.R_OK):
-            print("Unable to read from config file")
-            sys.exit(1)
-
-        configParser = ConfigParser(add_help=False, fromfile_prefix_chars='@',
-                                    parents=[parser])
-        args = configParser.parse_args(args=["@%s" % args.config],
-                                       namespace=args)
-
     # I pity the fool that doesn't keep a log file!
-    # i.e. Require a log file
-    if args.log:
-        args.log = os.path.abspath(os.path.expandvars(os.path.expanduser(
-            args.log)))
-
-        if not os.access(os.path.dirname(args.log), os.W_OK):
-            print("Unable to write to log file")
-            sys.exit(3)
-    else:
+    if args.log is None:
         print("Please specify a log file")
-        sys.exit(2)
+        sys.exit(1)
+
+    logger = logging.getLogger("logger")
+    fh = logging.FileHandler(args.log)
+    fh.setLevel(args.log_level)
+    formatter = logging.Formatter('%(asctime)s - %(module)s - '
+                                  '%(levelname)s - %(message)s')
+    fh.setFormatter(formatter)
+    logger.addHandler(fh)
 
     # Require a JIRA login for the time being
     if not args.jira_username or not args.jira_password:
         print("Please specify a JIRA username and password")
-        sys.exit(4)
+        sys.exit(2)
 
     k = karakuri(args)
 
@@ -1046,3 +997,5 @@ if __name__ == "__main__":
     # Keep it going, keep it going, keep it going full steam
     # Intergalactic Planetary
     k.start()
+
+    sys.exit(0)

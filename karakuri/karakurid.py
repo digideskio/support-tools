@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import daemon
-import karakuriclient
+import karakuricommon
 import logging
 import os
 import pidlockfile
@@ -10,10 +10,10 @@ import sys
 import time
 
 
-class karakurid(karakuriclient.karakuriclient):
+class karakurid(karakuricommon.karakuriclient):
     """ A scary karakuri daemon """
     def __init__(self, *args, **kwargs):
-        karakuriclient.karakuriclient.__init__(self, *args, **kwargs)
+        karakuricommon.karakuriclient.__init__(self, *args, **kwargs)
 
     def run(self):
         while (1):
@@ -21,7 +21,7 @@ class karakurid(karakuriclient.karakuriclient):
             time.sleep(5)
 
 if __name__ == "__main__":
-    parser = karakuriclient.karakuriparser(description="A scary karakuri "
+    parser = karakuricommon.karakuriparser(description="A scary karakuri "
                                                        "daemon")
     # Support --pid in --config
     parser.add_config_argument("--pid", metavar="FILE",
