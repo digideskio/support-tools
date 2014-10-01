@@ -134,6 +134,17 @@ msection localtime lsfiles /etc/localtime
 msection localtime_matches find /usr/share/zoneinfo -type f -exec cmp -s \{\} /etc/localtime \; -print
 
 # Block device/filesystem info
+msection scsi getfiles /proc/scsi
+DISK_DEVS=$(cat /proc/partitions | awk 'match($4, /^[sh]d[a-z]$/) { print $4 }')
+OUT_S=
+for disk in $DISK_DEVS; do
+  OUT_T="$(udevadm info --query=all --name=$disk | grep 'E: ID_MODEL=')"
+  if [ -n "$OUT_S" ]; then
+     OUT_S="${OUT_S}, "
+  fi
+  OUT_S="${OUT_S}${disk}-->${OUT_T##*=}"
+done
+msection scsi-map echo "$OUT_S"
 msection blockdev blockdev --report
 msection lsblk lsblk
 
