@@ -184,7 +184,8 @@ class karakuri(karakuricommon.karakuribase):
             _res = self.queueTicket(issue.id, issue.key, workflow['name'])
             res &= _res['ok']
             if _res['ok']:
-                tickets.append(_res['payload'])
+                if _res['payload'] is not None:
+                    tickets.append(_res['payload'])
             else:
                 # We will return a potentially multi-line message
                 # of workflow failures
@@ -563,11 +564,10 @@ class karakuri(karakuricommon.karakuribase):
         match = {'iid': iid, 'workflow': workflowName, 'active': True,
                  'done': False}
         if self.coll_queue.find(match).count() != 0:
-            message = "workflow '%s' already queued for issue '%s'" %\
-                (workflowName, iid)
-            self.logger.info(message)
+            self.logger.warning"workflow '%s' already queued for issue '%s', "
+                               "skipping", workflowName, iid)
             self._log(iid, workflowName, 'queue', False)
-            return {'ok': False, 'payload': message}
+            return {'ok': True, payload: None}
 
         now = datetime.utcnow()
         ticket = {'iid': iid, 'key': key, 'workflow': workflowName,
