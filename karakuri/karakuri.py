@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+
 import bottle
 import bson
 import bson.json_util
@@ -939,9 +940,9 @@ class karakuri(karakuricommon.karakuribase):
     def _workflow_find(self, name):
         """ Find and queue new tickets for the workflow """
         self.logger.debug("_workflow_find()")
-        tickets = self.findWorkflowTickets(name)
-        if tickets is not None:
-            return self._success({'tickets': tickets})
+        res = self.findWorkflowTickets(name)
+        if res['ok']:
+            return self._success({'tickets': res['payload']})
         return self._error()
 
     def _workflow_process(self, name):
