@@ -12,7 +12,7 @@ from karakuri import karakuri
 @route('/')
 def index():
     workflows = k.getListOfWorkflows()
-    return template('base_page', renderpage="workflows",workflows=workflows)
+    return template('base_page', renderpage="workflows", workflows=workflows)
 
 
 @route('/static/<filename>')
