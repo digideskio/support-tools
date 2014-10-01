@@ -13,6 +13,7 @@ from configparser import ConfigParser
 class karakuribase:
     """ A base class for karakuri classes """
     def __init__(self, args):
+        # Expect args from karakuriparser
         if not isinstance(args, dict):
             args = vars(args)
         self.args = args
@@ -26,12 +27,13 @@ class karakuribase:
         # Output args for debugging
         self.logger.debug("parsed args:")
         for arg in self.args:
-            self.logger.debug("%s %s" % (arg, self.args[arg]))
+            if "password" in arg or "passwd" in arg:
+                tmp = "[REDACTED]"
+            else:
+                tmp = self.args[arg]
+            self.logger.debug("%s %s" % (arg, tmp))
 
-        if 'live' in self.args:
-            self.live = self.args['live']
-        else:
-            self.live = False
+        self.live = self.args['live']
 
 
 class karakuriclient(karakuribase):
@@ -100,16 +102,6 @@ class karakuriparser(argparse.ArgumentParser):
                                  default="INFO",
                                  help="{DEBUG,INFO,WARNING,ERROR,CRITICAL} "
                                       "(default=INFO)")
-        self.parser.add_argument("--karakuri-host", metavar="HOSTNAME",
-                                 default="localhost",
-                                 help="specify the karakuri hostname "
-                                      "(default=localhost)")
-        self.parser.add_argument("--karakuri-port", metavar="PORT", type=int,
-                                 default=8080,
-                                 help="specify the karakuri port "
-                                      "(default=8080)")
-        self.parser.add_argument("-l", "--limit", metavar="NUMBER", type=int,
-                                 help="limit process'ing to NUMBER tickets")
         self.parser.add_argument("--live", action="store_true",
                                  help="do what you do irl")
 
@@ -125,7 +117,11 @@ class karakuriparser(argparse.ArgumentParser):
         argparse.ArgumentParser.__init__(self, **self.kwargs)
 
     def parse_args(self):
-        args = argparse.ArgumentParser.parse_args(self)
+        if len(sys.argv) == 1:
+            # n00bs need help!
+            args = argparse.ArgumentParser.parse_args(self, ['--help'])
+        else:
+            args = argparse.ArgumentParser.parse_args(self)
 
         # Configuration error found, aborting
         error = False
