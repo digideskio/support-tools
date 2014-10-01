@@ -1,16 +1,14 @@
 #!/usr/bin/env python
 
-import argparse
+
 import bottle
 import bson
 import bson.json_util
 import karakuricommon
 import logging
-import os
 import pymongo
 import sys
 
-from configparser import ConfigParser
 from datetime import datetime, timedelta
 from jirapp import jirapp
 from supportissue import SupportIssue
@@ -23,7 +21,17 @@ class karakuri(karakuricommon.karakuribase):
 
         self.issuer = None
 
-        # initialize dbs and collections
+        # By default limit is infinite
+        if self.args['limit'] is None:
+            self.limit = sys.maxint
+        else:
+            self.limit = self.args['limit']
+
+        # Track the tickets processed per processing
+        # Client will be cut off at self.limit
+        self.process_count = 0
+
+        # Initialize dbs and collections
         # TODO try except this
         self.mongo = pymongo.MongoClient(self.args['mongo_host'],
                                          self.args['mongo_port'])
@@ -177,7 +185,8 @@ class karakuri(karakuricommon.karakuribase):
             _res = self.queueTicket(issue.id, issue.key, workflow['name'])
             res &= _res['ok']
             if _res['ok']:
-                tickets.append(_res['payload'])
+                if _res['payload'] is not None:
+                    tickets.append(_res['payload'])
             else:
                 # We will return a potentially multi-line message
                 # of workflow failures
@@ -223,7 +232,7 @@ class karakuri(karakuricommon.karakuribase):
 
     def forListOfTicketIds(self, action, tids, **kwargs):
         """ Perform the given action for the specified tickets """
-        self.logger.debug("forListOfTicketIds(%s,%s)", action, tids)
+        self.logger.debug("forListOfTicketIds(%s,%s)", action.__name__, tids)
         res = True
         tickets = []
         message = ""
@@ -235,13 +244,14 @@ class karakuri(karakuricommon.karakuribase):
             if _res['ok']:
                 # In the case that res == True, this is part of the payload
                 # of 'tickets' delivered
-                tickets.append(_res['payload'])
+                if _res['payload'] is not None:
+                    tickets.append(_res['payload'])
             else:
                 # Otherwise, we will return a potentially multi-line message
                 # of action-tid failures
                 if message != "":
                     message += "\n"
-                message += "action '%s' failed for ticket '%s'" % (action, tid)
+                message += _res['payload']
 
         # Again, we return False for a single failure, regardless of how many
         # actions completed successfully
@@ -352,7 +362,7 @@ class karakuri(karakuricommon.karakuribase):
         if workflow is not None:
             return {'ok': True, 'payload': workflow}
 
-        message = "workflow '%s' not found!" % workflowName
+        message = "workflow '%s' not found" % workflowName
         self.logger.warning(message)
         return {'ok': False, 'payload': message}
 
@@ -499,6 +509,12 @@ class karakuri(karakuricommon.karakuribase):
     def processTicket(self, tid):
         """ Process the specified ticket """
         self.logger.debug("processTicket(%s)", tid)
+        # Cut off client at self.limit
+        if self.process_count == self.limit:
+            self.logger.warning("Processing limit reached, skipping %s", tid)
+            return {'ok': True, 'payload': None}
+        self.process_count += 1
+
         res = self.getObjectId(tid)
         if not res['ok']:
             return res
@@ -549,11 +565,10 @@ class karakuri(karakuricommon.karakuribase):
         match = {'iid': iid, 'workflow': workflowName, 'active': True,
                  'done': False}
         if self.coll_queue.find(match).count() != 0:
-            message = "workflow '%s' already queued for issue '%s'" %\
-                (workflowName, iid)
-            self.logger.info(message)
+            self.logger.warning("workflow '%s' already queued for issue '%s', "
+                                "skipping", workflowName, iid)
             self._log(iid, workflowName, 'queue', False)
-            return {'ok': False, 'payload': message}
+            return {'ok': True, 'payload': None}
 
         now = datetime.utcnow()
         ticket = {'iid': iid, 'key': key, 'workflow': workflowName,
@@ -806,7 +821,7 @@ class karakuri(karakuricommon.karakuribase):
         return self._error(res['payload'])
 
     def _queue_response(self, method, **kwargs):
-        self.logger.debug("_queue_response(%s)", method)
+        self.logger.debug("_queue_response(%s)", method.__name__)
         res = self.getListOfReadyTicketIds()
         if res['ok']:
             res = self.forListOfTicketIds(method, res['payload'], **kwargs)
@@ -827,6 +842,8 @@ class karakuri(karakuricommon.karakuribase):
     def _queue_process(self):
         """ Process all ready tickets """
         self.logger.debug("_queue_process()")
+        # rest process count
+        self.process_count = 0
         return self._queue_response(self.processTicket)
 
     def _queue_remove(self):
@@ -845,7 +862,7 @@ class karakuri(karakuricommon.karakuribase):
         return self._queue_response(self.wakeTicket)
 
     def _ticket_response(self, method, id, **kwargs):
-        self.logger.debug("_ticket_response(%s,%s)", method, id)
+        self.logger.debug("_ticket_response(%s,%s)", method.__name__, id)
         res = method(id, **kwargs)
         if res['ok']:
             return self._success({'ticket': res['payload']})
@@ -869,6 +886,8 @@ class karakuri(karakuricommon.karakuribase):
     def _ticket_process(self, id):
         """ Process the ticket """
         self.logger.debug("_ticket_process(%s)", id)
+        # rest process count
+        self.process_count = 0
         return self._ticket_response(self.processTicket, id)
 
     def _ticket_remove(self, id):
@@ -895,12 +914,12 @@ class karakuri(karakuricommon.karakuribase):
         return self._error()
 
     def _workflow_response(self, method, name, **kwargs):
-        self.logger.debug("_workflow_response(%s,%s)", method, name)
+        self.logger.debug("_workflow_response(%s,%s)", method.__name__, name)
         res = self.getListOfReadyWorkflowTicketIds(name)
         if res['ok']:
             res = self.forListOfTicketIds(method, res['payload'], **kwargs)
             if res['ok']:
-                return self._success({'workflow': res['payload']})
+                return self._success({'tickets': res['payload']})
         return self._error(res['payload'])
 
     def _workflow_get(self, name):
@@ -921,14 +940,16 @@ class karakuri(karakuricommon.karakuribase):
     def _workflow_find(self, name):
         """ Find and queue new tickets for the workflow """
         self.logger.debug("_workflow_find()")
-        tickets = self.findWorkflowTickets(name)
-        if tickets is not None:
-            return self._success({'tickets': tickets})
+        res = self.findWorkflowTickets(name)
+        if res['ok']:
+            return self._success({'tickets': res['payload']})
         return self._error()
 
     def _workflow_process(self, name):
         """ Process all ready tickets for the workflow """
         self.logger.debug("_workflow_process(%s)", name)
+        # rest process count
+        self.process_count = 0
         return self._workflow_response(self.processTicket, name)
 
     def _workflow_remove(self, name):
@@ -947,22 +968,26 @@ class karakuri(karakuricommon.karakuribase):
         return self._workflow_response(self.wakeTicket, name)
 
 if __name__ == "__main__":
-    parser = karakuricommon.karakuriparser(description="An automaton: http://en"
-                                                       ".wikipedia.org/wiki/Kar"
-                                                       "akuri_ningy%C5%8D")
+    parser = karakuricommon.karakuriparser(description="An automaton: http://e"
+                                                       "n.wikipedia.org/wiki/K"
+                                                       "arakuri_ningy%C5%8D")
+    parser.add_config_argument("--limit", metavar="NUMBER", type=int,
+                               help="limit process'ing to NUMBER tickets")
     parser.add_config_argument("--mongo-host", metavar="HOSTNAME",
                                default="localhost",
                                help="specify the MongoDB hostname (default="
                                     "localhost)")
     parser.add_config_argument("--mongo-port", metavar="PORT", default=27017,
-                                type=int,
-                                help="specify the MongoDB port (default=27017)")
+                               type=int,
+                               help="specify the MongoDB port (default=27017)")
     parser.add_config_argument("--jira-password", metavar="PASSWORD",
                                help="specify a JIRA password")
     parser.add_config_argument("--jira-username", metavar="USERNAME",
                                help="specify a JIRA username")
-    parser.add_config_argument("--rest-port",  metavar="PORT", default=8080, type=int,
-                               help="the RESTful interface port (default=8080)")
+    parser.add_config_argument("--rest-port",  metavar="PORT", default=8080,
+                               type=int,
+                               help="the RESTful interface port "
+                                    "(default=8080)")
 
     args = parser.parse_args()
 

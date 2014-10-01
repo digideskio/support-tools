@@ -2,7 +2,21 @@
 
 import karakuricommon
 import logging
+import pprint
 import sys
+
+
+def printRequest(request):
+    if request['status'] == 'success':
+        print "success, tasks affected: %i" % len(request['data'][
+            'tickets'])
+    elif request['status'] == 'error':
+        print "error, %s" % request['message']
+    elif request['status'] == 'fail':
+        print "fail:"
+        pprint.pprint(request['data'])
+    else:
+        print "error, unknown status type %s" % request['status']
 
 
 class kli(karakuricommon.karakuriclient):
@@ -15,18 +29,14 @@ class kli(karakuricommon.karakuriclient):
             res = self.workflowRequest(workflow, 'find')
         else:
             res = self.queueRequest('find')
-
         if res['status'] != "success":
-            print(res)
-            return
-        tickets = res['data']['tickets']
-        print "Found %i tickets" % len(tickets)
+            self.printRequest(res)
+        print "success, found %i tasks" % len(res['data']['tickets'])
 
     def list(self):
         res = self.queueRequest()
         if res['status'] != "success":
-            print(res)
-            return
+            self.printRequest(res)
         tickets = res['data']['tickets']
 
         print "\tTICKET ID\t\t\tISSUE KEY\tWORKFLOW\tAPPROVED?\tIN PROGRESS?\t"\
@@ -44,6 +54,13 @@ class kli(karakuricommon.karakuriclient):
 if __name__ == "__main__":
     parser = karakuricommon.karakuriparser(description="A cli interface for "
                                                        "karakuri")
+    parser.add_config_argument("--karakuri-host", metavar="HOSTNAME",
+                               default="localhost",
+                               help="specify the karakuri hostname "
+                                    "(default=localhost)")
+    parser.add_config_argument("--karakuri-port", metavar="PORT", type=int,
+                               default=8080,
+                               help="specify the karakuri port (default=8080)")
     subparsers = parser.add_subparsers(dest="command",
                                        help='{command} -h for help')
 
@@ -145,13 +162,14 @@ if __name__ == "__main__":
 
         if args.tickets is not None:
             args.tickets = args.tickets.split(',')
-            k.ticketsRequest(args.tickets, args.command)
+            res = k.ticketsRequest(args.tickets, args.command)
         elif args.workflow is not None:
-            k.workflowRequest(args.workflow, args.command)
+            res = k.workflowRequest(args.workflow, args.command)
         elif args.all is not None:
-            k.queueRequest(args.command)
+            res = k.queueRequest(args.command)
         else:
             print "%s is not a supported command" % args.command
             sys.exit(2)
 
+        printRequest(res)
     sys.exit(0)
