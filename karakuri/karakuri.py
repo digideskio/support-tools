@@ -277,11 +277,15 @@ class karakuri:
             return {'ok': True, 'payload': [t['_id'] for t in res['payload']]}
         return res
 
-    def getListOfTickets(self, match={}, proj={}):
+    def getListOfTickets(self, match={}, proj=None):
         self.logger.debug("getListOfTickets(%s,%s)", match, proj)
         try:
-            curs_queue = self.coll_queue.find(match, proj).\
-                sort('start', pymongo.ASCENDING)
+            if proj is not None:
+                curs_queue = self.coll_queue.find(match, proj).\
+                    sort('start', pymongo.ASCENDING)
+            else:
+                curs_queue = self.coll_queue.find(match).\
+                    sort('start', pymongo.ASCENDING)
             return {'ok': True, 'payload': [t for t in curs_queue]}
         except pymongo.errors.PyMongoError as e:
             self.logger.exception(e)
