@@ -564,10 +564,10 @@ class karakuri(karakuricommon.karakuribase):
         match = {'iid': iid, 'workflow': workflowName, 'active': True,
                  'done': False}
         if self.coll_queue.find(match).count() != 0:
-            self.logger.warning"workflow '%s' already queued for issue '%s', "
-                               "skipping", workflowName, iid)
+            self.logger.warning("workflow '%s' already queued for issue '%s', "
+                                "skipping", workflowName, iid)
             self._log(iid, workflowName, 'queue', False)
-            return {'ok': True, payload: None}
+            return {'ok': True, 'payload': None}
 
         now = datetime.utcnow()
         ticket = {'iid': iid, 'key': key, 'workflow': workflowName,
