@@ -1,3 +1,2 @@
 log             karakurid.log
-log-level       DEBUG
 pid             /tmp/karakurid.pid
