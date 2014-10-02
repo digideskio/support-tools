@@ -39,6 +39,8 @@ class karakuri(karakuricommon.karakuribase):
         self.coll_workflows = self.mongo.karakuri.workflows
         self.coll_log = self.mongo.karakuri.log
         self.coll_queue = self.mongo.karakuri.queue
+        # For authentication and auditing
+        self.coll_users = self.mongo.karakuri.users
 
     def approveTicket(self, tid):
         """ Approve the ticket for processing """
@@ -431,7 +433,8 @@ class karakuri(karakuricommon.karakuribase):
 
     def performWorkflow(self, iid, workflowName):
         """ Perform the specified workflow for the given issue """
-        self.logger.debug("performWorkflow(%s,%s)", iid, workflowName)
+        self.logger.info("performWorkflow(%s,%s)", iid, workflowName)
+
         res = self.getObjectId(iid)
         if not res['ok']:
             self._log(iid, workflowName, 'perform', False)
@@ -443,8 +446,6 @@ class karakuri(karakuricommon.karakuribase):
             self._log(iid, workflowName, 'perform', False)
             return res
         issue = res['payload']
-
-        self.logger.info("that is %s, mind you", issue.key)
 
         res = self.getWorkflow(workflowName)
         if not res['ok']:
@@ -715,45 +716,67 @@ class karakuri(karakuricommon.karakuribase):
 
         # These are the RESTful API endpoints. There are many like it, but
         # these are them
-        b.route('/issue', callback=self._issue_list)
-        b.route('/issue/<id>', callback=self._issue_get)
-        b.route('/issue/<id>/sleep', callback=self._issue_sleep)
-        b.route('/issue/<id>/sleep/<seconds:int>', callback=self._issue_sleep)
-        b.route('/issue/<id>/wake', callback=self._issue_wake)
-        b.route('/queue', callback=self._queue_list)
-        b.route('/queue/approve', callback=self._queue_approve)
-        b.route('/queue/disapprove', callback=self._queue_disapprove)
-        b.route('/queue/find', callback=self._queue_find)
-        b.route('/queue/process', callback=self._queue_process)
-        b.route('/queue/remove', callback=self._queue_remove)
-        b.route('/queue/sleep', callback=self._queue_sleep)
-        b.route('/queue/sleep/<seconds:int>', callback=self._queue_sleep)
-        b.route('/queue/wake', callback=self._queue_wake)
+        b.route('/issue', 'POST', callback=self._issue_list)
+        b.route('/issue/<id>', 'POST', callback=self._issue_get)
+        b.route('/issue/<id>/sleep', 'POST', callback=self._issue_sleep)
+        b.route('/issue/<id>/sleep/<seconds:int>', 'POST',
+                callback=self._issue_sleep)
+        b.route('/issue/<id>/wake', 'POST', callback=self._issue_wake)
+        b.route('/queue', 'POST', callback=self._queue_list)
+        b.route('/queue/approve', 'POST', callback=self._queue_approve)
+        b.route('/queue/disapprove', 'POST', callback=self._queue_disapprove)
+        b.route('/queue/find', 'POST', callback=self._queue_find)
+        b.route('/queue/process', 'POST', callback=self._queue_process)
+        b.route('/queue/remove', 'POST', callback=self._queue_remove)
+        b.route('/queue/sleep', 'POST', callback=self._queue_sleep)
+        b.route('/queue/sleep/<seconds:int>', 'POST',
+                callback=self._queue_sleep)
+        b.route('/queue/wake', 'POST', callback=self._queue_wake)
         # a repete ;)
-        b.route('/ticket', callback=self._queue_list)
-        b.route('/ticket/<id>', callback=self._ticket_get)
-        b.route('/ticket/<id>/approve', callback=self._ticket_approve)
-        b.route('/ticket/<id>/disapprove', callback=self._ticket_disapprove)
-        b.route('/ticket/<id>/process', callback=self._ticket_process)
-        b.route('/ticket/<id>/remove', callback=self._ticket_remove)
-        b.route('/ticket/<id>/sleep', callback=self._ticket_sleep)
-        b.route('/ticket/<id>/sleep/<seconds:int>',
+        b.route('/ticket', 'POST', callback=self._queue_list)
+        b.route('/ticket/<id>', 'POST', callback=self._ticket_get)
+        b.route('/ticket/<id>/approve', 'POST', callback=self._ticket_approve)
+        b.route('/ticket/<id>/disapprove', 'POST',
+                callback=self._ticket_disapprove)
+        b.route('/ticket/<id>/process', 'POST', callback=self._ticket_process)
+        b.route('/ticket/<id>/remove', 'POST', callback=self._ticket_remove)
+        b.route('/ticket/<id>/sleep', 'POST', callback=self._ticket_sleep)
+        b.route('/ticket/<id>/sleep/<seconds:int>', 'POST',
                 callback=self._ticket_sleep)
-        b.route('/ticket/<id>/wake', callback=self._ticket_wake)
-        b.route('/workflow', callback=self._workflow_list)
-        b.route('/workflow/<name>', callback=self._workflow_get)
-        b.route('/workflow/<name>/approve', callback=self._workflow_approve)
-        b.route('/workflow/<name>/disapprove',
+        b.route('/ticket/<id>/wake', 'POST', callback=self._ticket_wake)
+        b.route('/workflow', 'POST', callback=self._workflow_list)
+        b.route('/workflow/<name>', 'POST', callback=self._workflow_get)
+        b.route('/workflow/<name>/approve', 'POST',
+                callback=self._workflow_approve)
+        b.route('/workflow/<name>/disapprove', 'POST',
                 callback=self._workflow_disapprove)
-        b.route('/workflow/<name>/find', callback=self._workflow_find)
-        b.route('/workflow/<name>/process', callback=self._workflow_process)
-        b.route('/workflow/<name>/remove', callback=self._workflow_remove)
-        b.route('/workflow/<name>/sleep', callback=self._workflow_sleep)
-        b.route('/workflow/<name>/sleep/<seconds:int>',
+        b.route('/workflow/<name>/find', 'POST', callback=self._workflow_find)
+        b.route('/workflow/<name>/process', 'POST',
+                callback=self._workflow_process)
+        b.route('/workflow/<name>/remove', 'POST',
+                callback=self._workflow_remove)
+        b.route('/workflow/<name>/sleep', 'POST',
                 callback=self._workflow_sleep)
-        b.route('/workflow/<name>/wake', callback=self._workflow_wake)
+        b.route('/workflow/<name>/sleep/<seconds:int>', 'POST',
+                callback=self._workflow_sleep)
+        b.route('/workflow/<name>/wake', 'POST', callback=self._workflow_wake)
 
         b.run(host='localhost', port=self.args['rest_port'])
+
+    def _authenticated(func):
+        """ A decorator for bottle-route callback functions that require
+        authentication """
+        def wrapped(self, *args, **kwargs):
+            # Determine whether or not I am allowed to execute this action
+            token = bottle.request.params.get('token')
+            match = {'token': token,
+                     'token_expiry_date': {"$gt": datetime.utcnow()}}
+            doc = self.coll_users.find_one(match)
+            if not doc:
+                bottle.abort(401)
+            else:
+                return func(self, *args, **kwargs)
+        return wrapped
 
     def _success(self, data=None):
         self.logger.debug("_success(%s)", data)
@@ -770,6 +793,7 @@ class karakuri(karakuricommon.karakuribase):
         ret = {'status': 'error', 'message': str(message)}
         return bson.json_util.dumps(ret)
 
+    @_authenticated
     def _issue_list(self):
         """ Return no-way, Jose 404 """
         self.logger.debug("_issue_list()")
@@ -785,6 +809,7 @@ class karakuri(karakuricommon.karakuribase):
 
     # TODO make new getIssue so you can use _issue_response here instead of
     # getSupportIssue
+    @_authenticated
     def _issue_get(self, id):
         """ Return the issue """
         self.logger.debug("_issue_get(%s)", id)
@@ -793,16 +818,19 @@ class karakuri(karakuricommon.karakuribase):
             return self._success({'issue': res['payload'].doc})
         return self._error(res['payload'])
 
+    @_authenticated
     def _issue_sleep(self, id, seconds=sys.maxint):
         """ Sleep the issue. A sleeping issue cannot have tickets queued """
         self.logger.debug("_issue_sleep(%s,%s)", id, seconds)
         return self._issue_response(self.sleepIssue, id, seconds=seconds)
 
+    @_authenticated
     def _issue_wake(self, id):
         """ Wake the issue, i.e. unsleep it """
         self.logger.debug("_issue_wake(%s)", id)
         return self._issue_response(self.wakeIssue, id)
 
+    @_authenticated
     def _queue_list(self):
         """ Return a list of all active tickets """
         self.logger.debug("_queue_list()")
@@ -812,6 +840,7 @@ class karakuri(karakuricommon.karakuribase):
             return self._success({'tickets': res['payload']})
         return self._error(res['payload'])
 
+    @_authenticated
     def _queue_find(self):
         """ Find and queue new tickets """
         self.logger.debug("_queue_find()")
@@ -829,16 +858,19 @@ class karakuri(karakuricommon.karakuribase):
                 return self._success({'tickets': res['payload']})
         return self._error(res['payload'])
 
+    @_authenticated
     def _queue_approve(self):
         """ Approve all ready tickets """
         self.logger.debug("_queue_approve()")
         return self._queue_response(self.approveTicket)
 
+    @_authenticated
     def _queue_disapprove(self):
         """ Disapprove all ready tickets """
         self.logger.debug("_queue_disapprove()")
         return self._queue_response(self.disapproveTicket)
 
+    @_authenticated
     def _queue_process(self):
         """ Process all ready tickets """
         self.logger.debug("_queue_process()")
@@ -846,16 +878,19 @@ class karakuri(karakuricommon.karakuribase):
         self.process_count = 0
         return self._queue_response(self.processTicket)
 
+    @_authenticated
     def _queue_remove(self):
         """ Remove all ready tickets """
         self.logger.debug("_queue_remove()")
         return self._queue_response(self.removeTicket)
 
+    @_authenticated
     def _queue_sleep(self, seconds=sys.maxint):
         """ Sleep all ready tickets """
         self.logger.debug("_queue_sleep(%s)", seconds)
         return self._queue_response(self.sleepTicket, seconds=seconds)
 
+    @_authenticated
     def _queue_wake(self):
         """ Wake all ready tickets """
         self.logger.debug("_queue_wake()")
@@ -868,21 +903,25 @@ class karakuri(karakuricommon.karakuribase):
             return self._success({'ticket': res['payload']})
         return self._error(res['payload'])
 
+    @_authenticated
     def _ticket_get(self, id):
         """ Return the ticket """
         self.logger.debug("_ticket_get(%s)", id)
         return self._ticket_response(self.getTicket, id)
 
+    @_authenticated
     def _ticket_approve(self, id):
         """ Approve the ticket """
         self.logger.debug("_ticket_approve(%s)", id)
         return self._ticket_response(self.approveTicket, id)
 
+    @_authenticated
     def _ticket_disapprove(self, id):
         """ Disapprove the ticket """
         self.logger.debug("_ticket_disapprove(%s)", id)
         return self._ticket_response(self.disapproveTicket, id)
 
+    @_authenticated
     def _ticket_process(self, id):
         """ Process the ticket """
         self.logger.debug("_ticket_process(%s)", id)
@@ -890,21 +929,25 @@ class karakuri(karakuricommon.karakuribase):
         self.process_count = 0
         return self._ticket_response(self.processTicket, id)
 
+    @_authenticated
     def _ticket_remove(self, id):
         """ Remove the ticket """
         self.logger.debug("_ticket_remove(%s)", id)
         return self._ticket_response(self.removeTicket, id)
 
+    @_authenticated
     def _ticket_sleep(self, id, seconds=sys.maxint):
         """ Sleep the ticket. A sleeping ticket cannot be processed """
         self.logger.debug("_ticket_sleep(%s,%s)", id, seconds)
         return self._ticket_response(self.sleepTicket, id, seconds=seconds)
 
+    @_authenticated
     def _ticket_wake(self, id):
         """ Wake the ticket, i.e. unsleep it """
         self.logger.debug("_ticket_wake(%s)", id)
         return self._ticket_response(self.wakeTicket, id)
 
+    @_authenticated
     def _workflow_list(self):
         """ Return a list of workflows """
         self.logger.debug("_workflow_list()")
@@ -922,21 +965,25 @@ class karakuri(karakuricommon.karakuribase):
                 return self._success({'tickets': res['payload']})
         return self._error(res['payload'])
 
+    @_authenticated
     def _workflow_get(self, name):
         """ Return the workflow """
         self.logger.debug("_workflow_get(%s)", name)
         return self._workflow_response(self.getWorkflow, name)
 
+    @_authenticated
     def _workflow_approve(self, name):
         """ Approve all ready tickets for the workflow """
         self.logger.debug("_workflow_approve(%s)", name)
         return self._workflow_response(self.approveTicket, name)
 
+    @_authenticated
     def _workflow_disapprove(self, name):
         """ Disapprove all ready tickets for the workflow """
         self.logger.debug("_workflow_disapprove(%s)", name)
         return self._workflow_response(self.disapproveTicket, name)
 
+    @_authenticated
     def _workflow_find(self, name):
         """ Find and queue new tickets for the workflow """
         self.logger.debug("_workflow_find()")
@@ -945,6 +992,7 @@ class karakuri(karakuricommon.karakuribase):
             return self._success({'tickets': res['payload']})
         return self._error()
 
+    @_authenticated
     def _workflow_process(self, name):
         """ Process all ready tickets for the workflow """
         self.logger.debug("_workflow_process(%s)", name)
@@ -952,16 +1000,19 @@ class karakuri(karakuricommon.karakuribase):
         self.process_count = 0
         return self._workflow_response(self.processTicket, name)
 
+    @_authenticated
     def _workflow_remove(self, name):
         """ Remove all ready tickets for the workflow """
         self.logger.debug("_workflow_remove(%s)", name)
         return self._workflow_response(self.removeTicket, name)
 
+    @_authenticated
     def _workflow_sleep(self, name, seconds=sys.maxint):
         """ Sleep all ready tickets for the workflow """
         self.logger.debug("_workflow_sleep(%s,%s)", name, seconds)
         return self._workflow_response(self.sleepTicket, name, seconds=seconds)
 
+    @_authenticated
     def _workflow_wake(self, name):
         """ Wake all ready tickets for the workflow """
         self.logger.debug("_workflow_wake(%s)", name)
