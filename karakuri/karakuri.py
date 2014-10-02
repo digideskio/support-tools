@@ -761,7 +761,7 @@ class karakuri(karakuricommon.karakuribase):
                 callback=self._workflow_sleep)
         b.route('/workflow/<name>/wake', 'POST', callback=self._workflow_wake)
 
-        b.run(host='localhost', port=self.args['rest_port'])
+        b.run(host='0.0.0.0', port=self.args['rest_port'])
 
     def _authenticated(func):
         """ A decorator for bottle-route callback functions that require
