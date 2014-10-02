@@ -195,7 +195,7 @@ msection sensors sensors
 msection mcelog getfiles /var/log/mcelog
 
 # Process/kernel info
-msection procinfo getfiles /proc/mounts /proc/self/mountinfo /proc/cpuinfo /proc/meminfo /proc/zoneinfo /proc/swaps /proc/modules /proc/vmstat /proc/loadavg
+msection procinfo getfiles /proc/mounts /proc/self/mountinfo /proc/cpuinfo /proc/meminfo /proc/zoneinfo /proc/swaps /proc/modules /proc/vmstat /proc/loadavg /proc/cgroups
 msection transparent_hugepage getfilesfromcommand find /sys/kernel/mm/{redhat_,}transparent_hugepage -type f
 msection ps ps -eLFww
 
@@ -223,6 +223,7 @@ for pid in $mongo_pids; do
 	getfiles /proc/$pid/limits /proc/$pid/mounts /proc/$pid/mountinfo /proc/$pid/smaps /proc/$pid/numa_maps
 	lsfiles /proc/$pid/fd 
 	getfiles /proc/$pid/fdinfo/*
+	getfiles /proc/$pid/cgroup
 	EOF
 done
 msection global_mongodb_conf getfiles /etc/mongodb.conf /etc/mongod.conf
