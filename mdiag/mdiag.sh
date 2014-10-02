@@ -134,7 +134,7 @@ msection localtime lsfiles /etc/localtime
 msection localtime_matches find /usr/share/zoneinfo -type f -exec cmp -s \{\} /etc/localtime \; -print
 
 # Block device/filesystem info
-msection scsi getfiles /proc/scsi
+msection scsi getfiles /proc/scsi/scsi
 DISK_DEVS=$(cat /proc/partitions | awk 'match($4, /^[sh]d[a-z]$/) { print $4 }')
 OUT_S=
 for disk in $DISK_DEVS; do
