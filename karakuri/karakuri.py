@@ -760,7 +760,7 @@ class karakuri(karakuricommon.karakuribase):
                 callback=self._workflow_sleep)
         b.route('/workflow/<name>/wake', 'POST', callback=self._workflow_wake)
 
-        b.run(host='0.0.0.0', port=self.args['rest_port'])
+        b.run(host=self.args['rest_host'], port=self.args['rest_port'])
 
     def _authenticated(func):
         """ A decorator for bottle-route callback functions that require
@@ -1034,6 +1034,10 @@ if __name__ == "__main__":
                                help="specify a JIRA password")
     parser.add_config_argument("--jira-username", metavar="USERNAME",
                                help="specify a JIRA username")
+    parser.add_config_argument("--rest-host",  metavar="HOSTNAME",
+                               default="localhost",
+                               help="the RESTful interface hostname "
+                               "(default=localhost)")
     parser.add_config_argument("--rest-port",  metavar="PORT", default=8080,
                                type=int,
                                help="the RESTful interface port "
