@@ -67,22 +67,22 @@ class karakuriclient(karakuribase):
             endpoint = '/queue/%s' % command
         return self.request(endpoint)
 
-    def ticketRequest(self, ticket, command=None):
+    def taskRequest(self, task, command=None):
         if command is None:
-            endpoint = '/ticket/%s' % ticket
+            endpoint = '/task/%s' % task
         else:
-            endpoint = '/ticket/%s/%s' % (ticket, command)
+            endpoint = '/task/%s/%s' % (task, command)
         return self.request(endpoint)
 
-    def ticketsRequest(self, tickets, command=None):
-        _tickets = []
-        for ticket in tickets:
-            res = self.ticketRequest(ticket, command)
+    def tasksRequest(self, tasks, command=None):
+        _tasks = []
+        for task in tasks:
+            res = self.taskRequest(task, command)
             if res['status'] == 'success':
-                _tickets.append(res['data']['ticket'])
+                _tasks.append(res['data']['task'])
             else:
                 return res
-        return {'status': 'success', 'data': {'tickets': _tickets}}
+        return {'status': 'success', 'data': {'tasks': _tasks}}
 
     def workflowRequest(self, workflow, command=None):
         if command is None:

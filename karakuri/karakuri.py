@@ -27,7 +27,7 @@ class karakuri(karakuricommon.karakuribase):
         else:
             self.limit = self.args['limit']
 
-        # Track the tickets processed per processing
+        # Track the tasks processed per processing
         # Client will be cut off at self.limit
         self.process_count = 0
 
@@ -42,11 +42,11 @@ class karakuri(karakuricommon.karakuribase):
         # For authentication and auditing
         self.coll_users = self.mongo.karakuri.users
 
-    def approveTicket(self, tid):
-        """ Approve the ticket for processing """
-        self.logger.debug("approveTicket(%s)", tid)
+    def approveTask(self, tid):
+        """ Approve the task for processing """
+        self.logger.debug("approveTask(%s)", tid)
         updoc = {"$set": {'approved': True}}
-        return self.updateTicket(tid, updoc)
+        return self.updateTask(tid, updoc)
 
     def _buildValidateQuery(self, workflow, iid=None):
         """ Return a MongoDB query that accounts for the workflow prerequisites
@@ -98,11 +98,11 @@ class karakuri(karakuricommon.karakuribase):
 
         return match
 
-    def disapproveTicket(self, tid):
-        """ Disapprove the ticket for processing """
-        self.logger.debug("disapproveTicket(%s)", tid)
+    def disapproveTask(self, tid):
+        """ Disapprove the task for processing """
+        self.logger.debug("disapproveTask(%s)", tid)
         updoc = {"$set": {'approved': False}}
-        return self.updateTicket(tid, updoc)
+        return self.updateTask(tid, updoc)
 
     def find_and_modify(self, collection, match, updoc):
         """ Wrapper for find_and_modify that handles exceptions """
@@ -126,10 +126,10 @@ class karakuri(karakuricommon.karakuribase):
             updoc["$set"] = {'updated': datetime.utcnow()}
         return self.find_and_modify(self.coll_issues, match, updoc)
 
-    def find_and_modify_ticket(self, match, updoc):
+    def find_and_modify_task(self, match, updoc):
         """ find_and_modify for karakuri.queue that automatically updates the
         't' timestamp """
-        self.logger.debug("find_and_modify_ticket(%s,%s)", match, updoc)
+        self.logger.debug("find_and_modify_task(%s,%s)", match, updoc)
         if "$set" in updoc:
             updoc["$set"]['t'] = datetime.utcnow()
         else:
@@ -146,9 +146,9 @@ class karakuri(karakuricommon.karakuribase):
             self.logger.exception(e)
             return {'ok': False, 'payload': e}
 
-    def findWorkflowTickets(self, workflowNameORworkflow):
-        """ Find and queue new tickets that satisfy the workflow """
-        self.logger.debug("findWorkflowTickets('%s')", workflowNameORworkflow)
+    def findWorkflowTasks(self, workflowNameORworkflow):
+        """ Find and queue new tasks that satisfy the workflow """
+        self.logger.debug("findWorkflowTasks('%s')", workflowNameORworkflow)
         if isinstance(workflowNameORworkflow, dict):
             workflow = workflowNameORworkflow
         else:
@@ -156,7 +156,7 @@ class karakuri(karakuricommon.karakuribase):
             if not res['ok']:
                 return res
             workflow = res['payload']
-        self.logger.info("Finding tickets for workflow '%s'", workflow['name'])
+        self.logger.info("Finding tasks for workflow '%s'", workflow['name'])
 
         match = self._buildValidateQuery(workflow)
 
@@ -168,7 +168,7 @@ class karakuri(karakuricommon.karakuribase):
             return {'ok': False, 'payload': e}
 
         res = True
-        tickets = []
+        tasks = []
         message = ""
         for i in curs_issues:
             issue = SupportIssue()
@@ -176,7 +176,7 @@ class karakuri(karakuricommon.karakuribase):
 
             # we only support JIRA at the moment
             if not issue.hasJIRA():
-                self.logger.warning("Skipping unsupported ticketing type!")
+                self.logger.warning("Skipping unsupported ticket type!")
                 continue
 
             # check for karakuri sleepy time
@@ -184,11 +184,11 @@ class karakuri(karakuricommon.karakuribase):
                 self.logger.info("Skipping %s as it is not active" % issue.key)
                 continue
 
-            _res = self.queueTicket(issue.id, issue.key, workflow['name'])
+            _res = self.queueTask(issue.id, issue.key, workflow['name'])
             res &= _res['ok']
             if _res['ok']:
                 if _res['payload'] is not None:
-                    tickets.append(_res['payload'])
+                    tasks.append(_res['payload'])
             else:
                 # We will return a potentially multi-line message
                 # of workflow failures
@@ -197,14 +197,14 @@ class karakuri(karakuricommon.karakuribase):
                 message += _res['payload']
 
         if res:
-            payload = tickets
+            payload = tasks
         else:
             payload = message
         return {'ok': res, 'payload': payload}
 
-    def findTickets(self):
-        """ Find and queue new tickets """
-        self.logger.debug("findTickets()")
+    def findTasks(self):
+        """ Find and queue new tasks """
+        self.logger.debug("findTasks()")
 
         res = self.getListOfWorkflows()
         if not res['ok']:
@@ -212,13 +212,13 @@ class karakuri(karakuricommon.karakuribase):
         workflows = res['payload']
 
         res = True
-        tickets = []
+        tasks = []
         message = ""
         for workflow in workflows:
-            _res = self.findWorkflowTickets(workflow)
+            _res = self.findWorkflowTasks(workflow)
             res &= _res['ok']
             if _res['ok']:
-                tickets += _res['payload']
+                tasks += _res['payload']
             else:
                 # We will return a potentially multi-line message
                 # of workflow failures
@@ -227,27 +227,27 @@ class karakuri(karakuricommon.karakuribase):
                 message += _res['payload']
 
         if res:
-            payload = tickets
+            payload = tasks
         else:
             payload = message
         return {'ok': res, 'payload': payload}
 
-    def forListOfTicketIds(self, action, tids, **kwargs):
-        """ Perform the given action for the specified tickets """
-        self.logger.debug("forListOfTicketIds(%s,%s)", action.__name__, tids)
+    def forListOfTaskIds(self, action, tids, **kwargs):
+        """ Perform the given action for the specified tasks """
+        self.logger.debug("forListOfTaskIds(%s,%s)", action.__name__, tids)
         res = True
-        tickets = []
+        tasks = []
         message = ""
-        # Note that we will not exit on action failure. All tickets will get
+        # Note that we will not exit on action failure. All tasks will get
         # a shot at the action ;)
         for tid in tids:
             _res = action(tid, **kwargs)
             res &= _res['ok']
             if _res['ok']:
                 # In the case that res == True, this is part of the payload
-                # of 'tickets' delivered
+                # of 'tasks' delivered
                 if _res['payload'] is not None:
-                    tickets.append(_res['payload'])
+                    tasks.append(_res['payload'])
             else:
                 # Otherwise, we will return a potentially multi-line message
                 # of action-tid failures
@@ -258,20 +258,20 @@ class karakuri(karakuricommon.karakuribase):
         # Again, we return False for a single failure, regardless of how many
         # actions completed successfully
         if res:
-            payload = tickets
+            payload = tasks
         else:
             payload = message
         return {'ok': res, 'payload': payload}
 
-    def getListOfTicketIds(self, match={}):
-        self.logger.debug("getListOfTicketIds(%s)", match)
-        res = self.getListOfTickets(match, {'_id': 1})
+    def getListOfTaskIds(self, match={}):
+        self.logger.debug("getListOfTaskIds(%s)", match)
+        res = self.getListOfTasks(match, {'_id': 1})
         if res['ok']:
             return {'ok': True, 'payload': [t['_id'] for t in res['payload']]}
         return res
 
-    def getListOfTickets(self, match={}, proj=None):
-        self.logger.debug("getListOfTickets(%s,%s)", match, proj)
+    def getListOfTasks(self, match={}, proj=None):
+        self.logger.debug("getListOfTasks(%s,%s)", match, proj)
         try:
             if proj is not None:
                 curs_queue = self.coll_queue.find(match, proj).\
@@ -284,16 +284,16 @@ class karakuri(karakuricommon.karakuribase):
             self.logger.exception(e)
             return {'ok': False, 'payload': e}
 
-    def getListOfReadyTicketIds(self):
-        self.logger.debug("getListOfReadyTicketIds()")
+    def getListOfReadyTaskIds(self):
+        self.logger.debug("getListOfReadyTaskIds()")
         match = {'active': True, 'done': False, 'inProg': False}
-        return self.getListOfTicketIds(match)
+        return self.getListOfTaskIds(match)
 
-    def getListOfReadyWorkflowTicketIds(self, name):
-        self.logger.debug("getListOfReadyWorkflowTicketIds(%s)", name)
+    def getListOfReadyWorkflowTaskIds(self, name):
+        self.logger.debug("getListOfReadyWorkflowTaskIds(%s)", name)
         match = {'active': True, 'done': False, 'inProg': False,
                  'workflow': name}
-        return self.getListOfTicketIds(match)
+        return self.getListOfTaskIds(match)
 
     def getListOfWorkflows(self):
         self.logger.debug("getListOfWorkflows()")
@@ -333,9 +333,9 @@ class karakuri(karakuricommon.karakuribase):
         self.logger.warning(message)
         return {'ok': False, 'payload': message}
 
-    def getTicket(self, tid):
-        """ Return the specified ticket """
-        self.logger.debug("getTicket(%s)", tid)
+    def getTask(self, tid):
+        """ Return the specified task """
+        self.logger.debug("getTask(%s)", tid)
         res = self.getObjectId(tid)
         if not res['ok']:
             return res
@@ -344,12 +344,12 @@ class karakuri(karakuricommon.karakuribase):
         res = self.find_one(self.coll_queue, {'_id': tid})
         if not res['ok']:
             return res
-        ticket = res['payload']
+        task = res['payload']
 
-        if ticket is not None:
-            return {'ok': True, 'payload': ticket}
+        if task is not None:
+            return {'ok': True, 'payload': task}
 
-        message = "ticket '%s' not found" % tid
+        message = "task '%s' not found" % tid
         self.logger.warning(message)
         return {'ok': False, 'payload': message}
 
@@ -507,9 +507,9 @@ class karakuri(karakuricommon.karakuribase):
 
         return {'ok': True, 'payload': None}
 
-    def processTicket(self, tid):
-        """ Process the specified ticket """
-        self.logger.debug("processTicket(%s)", tid)
+    def performTask(self, tid):
+        """ Perfom the specified task """
+        self.logger.debug("performTask(%s)", tid)
         # Cut off client at self.limit
         if self.process_count == self.limit:
             self.logger.warning("Processing limit reached, skipping %s", tid)
@@ -524,45 +524,44 @@ class karakuri(karakuricommon.karakuribase):
         match = {'_id': tid, 'active': True, 'done': False, 'inProg': False,
                  'approved': True}
         updoc = {"$set": {'inProg': True}}
-        res = self.find_and_modify_ticket(match, updoc)
+        res = self.find_and_modify_task(match, updoc)
         if not res['ok']:
             return res
-        ticket = res['payload']
+        task = res['payload']
 
-        if ticket is None:
-            # most likely the ticket hasn't been approved
-            message = "unable to put ticket '%s' in to progress" % tid
+        if task is None:
+            # most likely the task hasn't been approved
+            message = "unable to put task '%s' in to progress" % tid
             self.logger.warning(message)
             return {'ok': False, 'payload': message}
 
-        res = self.performWorkflow(ticket['iid'], ticket['workflow'])
+        res = self.performWorkflow(task['iid'], task['workflow'])
         if not res['ok']:
             return res
-        res = bool(res['payload'])
 
         match = {'_id': tid}
-        updoc = {"$set": {'done': res, 'inProg': False}}
-        res = self.find_and_modify_ticket(match, updoc)
+        updoc = {"$set": {'done': True, 'inProg': False}}
+        res = self.find_and_modify_task(match, updoc)
         if not res['ok']:
             return res
-        ticket = res['payload']
+        task = res['payload']
 
-        if ticket is None:
-            message = "unable to take ticket %s out of progress" % tid
+        if task is None:
+            message = "unable to take task %s out of progress" % tid
             self.logger.exception(message)
             return {'ok': False, 'payload': message}
 
-        return {'ok': True, 'payload': ticket}
+        return {'ok': True, 'payload': task}
 
-    def queueTicket(self, iid, key, workflowName):
-        """ Create a ticket for the given issue and workflow """
-        self.logger.info("queueTicket(%s,%s,%s)", iid, key, workflowName)
+    def queueTask(self, iid, key, workflowName):
+        """ Create a task for the given issue and workflow """
+        self.logger.info("queueTask(%s,%s,%s)", iid, key, workflowName)
         res = self.getObjectId(iid)
         if not res['ok']:
             return res
         iid = res['payload']
 
-        # don't queue a ticket that is already queued
+        # don't queue a task that is already queued
         match = {'iid': iid, 'workflow': workflowName, 'active': True,
                  'done': False}
         if self.coll_queue.find(match).count() != 0:
@@ -572,12 +571,12 @@ class karakuri(karakuricommon.karakuribase):
             return {'ok': True, 'payload': None}
 
         now = datetime.utcnow()
-        ticket = {'iid': iid, 'key': key, 'workflow': workflowName,
-                  'approved': False, 'done': False, 'inProg': False, 't': now,
-                  'start': now, 'active': True}
+        task = {'iid': iid, 'key': key, 'workflow': workflowName,
+                'approved': False, 'done': False, 'inProg': False, 't': now,
+                'start': now, 'active': True}
 
         try:
-            self.coll_queue.insert(ticket)
+            self.coll_queue.insert(task)
         except pymongo.errors.PyMongoError as e:
             self.logger.exception(e)
             self._log(iid, workflowName, 'queue', False)
@@ -585,13 +584,13 @@ class karakuri(karakuricommon.karakuribase):
 
         self._log(iid, workflowName, 'queue', True)
 
-        return {'ok': True, 'payload': ticket}
+        return {'ok': True, 'payload': task}
 
-    def removeTicket(self, tid):
-        """ Remove the ticket from the queue """
-        self.logger.debug("removeTicket(%s)", tid)
+    def removeTask(self, tid):
+        """ Remove the task from the queue """
+        self.logger.debug("removeTask(%s)", tid)
         updoc = {"$set": {'active': False}}
-        return self.updateTicket(tid, updoc)
+        return self.updateTask(tid, updoc)
 
     def setIssuer(self, issuer):
         """ Set issue tracking system """
@@ -611,9 +610,9 @@ class karakuri(karakuricommon.karakuribase):
         updoc = {"$set": {'karakuri.sleep': wakeDate}}
         return self.updateIssue(iid, updoc)
 
-    def sleepTicket(self, tid, seconds):
-        """ Sleep the ticket, i.e. assign a wake date """
-        self.logger.debug("sleepTicket(%s)", tid)
+    def sleepTask(self, tid, seconds):
+        """ Sleep the task, i.e. assign a wake date """
+        self.logger.debug("sleepTask(%s)", tid)
         seconds = int(seconds)
         now = datetime.utcnow()
 
@@ -624,7 +623,7 @@ class karakuri(karakuricommon.karakuribase):
             wakeDate = now + diff
 
         updoc = {"$set": {'start': wakeDate}}
-        return self.updateTicket(tid, updoc)
+        return self.updateTask(tid, updoc)
 
     def updateIssue(self, iid, updoc):
         """ They see me rollin' """
@@ -641,9 +640,9 @@ class karakuri(karakuricommon.karakuribase):
             return {'ok': True, 'payload': res['payload']}
         return res
 
-    def updateTicket(self, tid, updoc):
+    def updateTask(self, tid, updoc):
         """ They hatin' """
-        self.logger.debug("updateTicket(%s,%s)", tid, updoc)
+        self.logger.debug("updateTask(%s,%s)", tid, updoc)
 
         res = self.getObjectId(tid)
         if not res['ok']:
@@ -651,7 +650,7 @@ class karakuri(karakuricommon.karakuribase):
         tid = res['payload']
         match = {'_id': tid}
 
-        res = self.find_and_modify_ticket(match, updoc)
+        res = self.find_and_modify_task(match, updoc)
         if res['ok']:
             return {'ok': True, 'payload': res['payload']}
         return res
@@ -695,11 +694,11 @@ class karakuri(karakuricommon.karakuribase):
             self.logger.info("Workflow failed validation")
             return False
 
-    def wakeTicket(self, tid):
-        """ Wake the ticket, i.e. mark it ready to go """
-        self.logger.debug("wakeTicket(%s)", tid)
+    def wakeTask(self, tid):
+        """ Wake the task, i.e. mark it ready to go """
+        self.logger.debug("wakeTask(%s)", tid)
         updoc = {"$set": {'start': datetime.utcnow()}}
-        return self.updateTicket(tid, updoc)
+        return self.updateTask(tid, updoc)
 
     def wakeIssue(self, iid):
         """ Wake the issue """
@@ -733,17 +732,17 @@ class karakuri(karakuricommon.karakuribase):
                 callback=self._queue_sleep)
         b.route('/queue/wake', 'POST', callback=self._queue_wake)
         # a repete ;)
-        b.route('/ticket', 'POST', callback=self._queue_list)
-        b.route('/ticket/<id>', 'POST', callback=self._ticket_get)
-        b.route('/ticket/<id>/approve', 'POST', callback=self._ticket_approve)
-        b.route('/ticket/<id>/disapprove', 'POST',
-                callback=self._ticket_disapprove)
-        b.route('/ticket/<id>/process', 'POST', callback=self._ticket_process)
-        b.route('/ticket/<id>/remove', 'POST', callback=self._ticket_remove)
-        b.route('/ticket/<id>/sleep', 'POST', callback=self._ticket_sleep)
-        b.route('/ticket/<id>/sleep/<seconds:int>', 'POST',
-                callback=self._ticket_sleep)
-        b.route('/ticket/<id>/wake', 'POST', callback=self._ticket_wake)
+        b.route('/task', 'POST', callback=self._queue_list)
+        b.route('/task/<id>', 'POST', callback=self._task_get)
+        b.route('/task/<id>/approve', 'POST', callback=self._task_approve)
+        b.route('/task/<id>/disapprove', 'POST',
+                callback=self._task_disapprove)
+        b.route('/task/<id>/process', 'POST', callback=self._task_process)
+        b.route('/task/<id>/remove', 'POST', callback=self._task_remove)
+        b.route('/task/<id>/sleep', 'POST', callback=self._task_sleep)
+        b.route('/task/<id>/sleep/<seconds:int>', 'POST',
+                callback=self._task_sleep)
+        b.route('/task/<id>/wake', 'POST', callback=self._task_wake)
         b.route('/workflow', 'POST', callback=self._workflow_list)
         b.route('/workflow/<name>', 'POST', callback=self._workflow_get)
         b.route('/workflow/<name>/approve', 'POST',
@@ -820,7 +819,7 @@ class karakuri(karakuricommon.karakuribase):
 
     @_authenticated
     def _issue_sleep(self, id, seconds=sys.maxint):
-        """ Sleep the issue. A sleeping issue cannot have tickets queued """
+        """ Sleep the issue. A sleeping issue cannot have tasks queued """
         self.logger.debug("_issue_sleep(%s,%s)", id, seconds)
         return self._issue_response(self.sleepIssue, id, seconds=seconds)
 
@@ -832,120 +831,120 @@ class karakuri(karakuricommon.karakuribase):
 
     @_authenticated
     def _queue_list(self):
-        """ Return a list of all active tickets """
+        """ Return a list of all active tasks """
         self.logger.debug("_queue_list()")
         match = {'active': True}
-        res = self.getListOfTickets(match)
+        res = self.getListOfTasks(match)
         if res['ok']:
-            return self._success({'tickets': res['payload']})
+            return self._success({'tasks': res['payload']})
         return self._error(res['payload'])
 
     @_authenticated
     def _queue_find(self):
-        """ Find and queue new tickets """
+        """ Find and queue new tasks """
         self.logger.debug("_queue_find()")
-        res = self.findTickets()
+        res = self.findTasks()
         if res['ok']:
-            return self._success({'tickets': res['payload']})
+            return self._success({'tasks': res['payload']})
         return self._error(res['payload'])
 
     def _queue_response(self, method, **kwargs):
         self.logger.debug("_queue_response(%s)", method.__name__)
-        res = self.getListOfReadyTicketIds()
+        res = self.getListOfReadyTaskIds()
         if res['ok']:
-            res = self.forListOfTicketIds(method, res['payload'], **kwargs)
+            res = self.forListOfTaskIds(method, res['payload'], **kwargs)
             if res['ok']:
-                return self._success({'tickets': res['payload']})
+                return self._success({'tasks': res['payload']})
         return self._error(res['payload'])
 
     @_authenticated
     def _queue_approve(self):
-        """ Approve all ready tickets """
+        """ Approve all ready tasks """
         self.logger.debug("_queue_approve()")
-        return self._queue_response(self.approveTicket)
+        return self._queue_response(self.approveTask)
 
     @_authenticated
     def _queue_disapprove(self):
-        """ Disapprove all ready tickets """
+        """ Disapprove all ready tasks """
         self.logger.debug("_queue_disapprove()")
-        return self._queue_response(self.disapproveTicket)
+        return self._queue_response(self.disapproveTask)
 
     @_authenticated
     def _queue_process(self):
-        """ Process all ready tickets """
+        """ Process all ready tasks """
         self.logger.debug("_queue_process()")
         # rest process count
         self.process_count = 0
-        return self._queue_response(self.processTicket)
+        return self._queue_response(self.performTask)
 
     @_authenticated
     def _queue_remove(self):
-        """ Remove all ready tickets """
+        """ Remove all ready tasks """
         self.logger.debug("_queue_remove()")
-        return self._queue_response(self.removeTicket)
+        return self._queue_response(self.removeTask)
 
     @_authenticated
     def _queue_sleep(self, seconds=sys.maxint):
-        """ Sleep all ready tickets """
+        """ Sleep all ready tasks """
         self.logger.debug("_queue_sleep(%s)", seconds)
-        return self._queue_response(self.sleepTicket, seconds=seconds)
+        return self._queue_response(self.sleepTask, seconds=seconds)
 
     @_authenticated
     def _queue_wake(self):
-        """ Wake all ready tickets """
+        """ Wake all ready tasks """
         self.logger.debug("_queue_wake()")
-        return self._queue_response(self.wakeTicket)
+        return self._queue_response(self.wakeTask)
 
-    def _ticket_response(self, method, id, **kwargs):
-        self.logger.debug("_ticket_response(%s,%s)", method.__name__, id)
+    def _task_response(self, method, id, **kwargs):
+        self.logger.debug("_task_response(%s,%s)", method.__name__, id)
         res = method(id, **kwargs)
         if res['ok']:
-            return self._success({'ticket': res['payload']})
+            return self._success({'task': res['payload']})
         return self._error(res['payload'])
 
     @_authenticated
-    def _ticket_get(self, id):
-        """ Return the ticket """
-        self.logger.debug("_ticket_get(%s)", id)
-        return self._ticket_response(self.getTicket, id)
+    def _task_get(self, id):
+        """ Return the task """
+        self.logger.debug("_task_get(%s)", id)
+        return self._task_response(self.getTask, id)
 
     @_authenticated
-    def _ticket_approve(self, id):
-        """ Approve the ticket """
-        self.logger.debug("_ticket_approve(%s)", id)
-        return self._ticket_response(self.approveTicket, id)
+    def _task_approve(self, id):
+        """ Approve the task """
+        self.logger.debug("_task_approve(%s)", id)
+        return self._task_response(self.approveTask, id)
 
     @_authenticated
-    def _ticket_disapprove(self, id):
-        """ Disapprove the ticket """
-        self.logger.debug("_ticket_disapprove(%s)", id)
-        return self._ticket_response(self.disapproveTicket, id)
+    def _task_disapprove(self, id):
+        """ Disapprove the task """
+        self.logger.debug("_task_disapprove(%s)", id)
+        return self._task_response(self.disapproveTask, id)
 
     @_authenticated
-    def _ticket_process(self, id):
-        """ Process the ticket """
-        self.logger.debug("_ticket_process(%s)", id)
+    def _task_process(self, id):
+        """ Process the task """
+        self.logger.debug("_task_process(%s)", id)
         # rest process count
         self.process_count = 0
-        return self._ticket_response(self.processTicket, id)
+        return self._task_response(self.performTask, id)
 
     @_authenticated
-    def _ticket_remove(self, id):
-        """ Remove the ticket """
-        self.logger.debug("_ticket_remove(%s)", id)
-        return self._ticket_response(self.removeTicket, id)
+    def _task_remove(self, id):
+        """ Remove the task """
+        self.logger.debug("_task_remove(%s)", id)
+        return self._task_response(self.removeTask, id)
 
     @_authenticated
-    def _ticket_sleep(self, id, seconds=sys.maxint):
-        """ Sleep the ticket. A sleeping ticket cannot be processed """
-        self.logger.debug("_ticket_sleep(%s,%s)", id, seconds)
-        return self._ticket_response(self.sleepTicket, id, seconds=seconds)
+    def _task_sleep(self, id, seconds=sys.maxint):
+        """ Sleep the task. A sleeping task cannot be processed """
+        self.logger.debug("_task_sleep(%s,%s)", id, seconds)
+        return self._task_response(self.sleepTask, id, seconds=seconds)
 
     @_authenticated
-    def _ticket_wake(self, id):
-        """ Wake the ticket, i.e. unsleep it """
-        self.logger.debug("_ticket_wake(%s)", id)
-        return self._ticket_response(self.wakeTicket, id)
+    def _task_wake(self, id):
+        """ Wake the task, i.e. unsleep it """
+        self.logger.debug("_task_wake(%s)", id)
+        return self._task_response(self.wakeTask, id)
 
     @_authenticated
     def _workflow_list(self):
@@ -958,11 +957,11 @@ class karakuri(karakuricommon.karakuribase):
 
     def _workflow_response(self, method, name, **kwargs):
         self.logger.debug("_workflow_response(%s,%s)", method.__name__, name)
-        res = self.getListOfReadyWorkflowTicketIds(name)
+        res = self.getListOfReadyWorkflowTaskIds(name)
         if res['ok']:
-            res = self.forListOfTicketIds(method, res['payload'], **kwargs)
+            res = self.forListOfTaskIds(method, res['payload'], **kwargs)
             if res['ok']:
-                return self._success({'tickets': res['payload']})
+                return self._success({'tasks': res['payload']})
         return self._error(res['payload'])
 
     @_authenticated
@@ -973,57 +972,57 @@ class karakuri(karakuricommon.karakuribase):
 
     @_authenticated
     def _workflow_approve(self, name):
-        """ Approve all ready tickets for the workflow """
+        """ Approve all ready tasks for the workflow """
         self.logger.debug("_workflow_approve(%s)", name)
-        return self._workflow_response(self.approveTicket, name)
+        return self._workflow_response(self.approveTask, name)
 
     @_authenticated
     def _workflow_disapprove(self, name):
-        """ Disapprove all ready tickets for the workflow """
+        """ Disapprove all ready tasks for the workflow """
         self.logger.debug("_workflow_disapprove(%s)", name)
-        return self._workflow_response(self.disapproveTicket, name)
+        return self._workflow_response(self.disapproveTask, name)
 
     @_authenticated
     def _workflow_find(self, name):
-        """ Find and queue new tickets for the workflow """
+        """ Find and queue new tasks for the workflow """
         self.logger.debug("_workflow_find()")
-        res = self.findWorkflowTickets(name)
+        res = self.findWorkflowTasks(name)
         if res['ok']:
-            return self._success({'tickets': res['payload']})
+            return self._success({'tasks': res['payload']})
         return self._error()
 
     @_authenticated
     def _workflow_process(self, name):
-        """ Process all ready tickets for the workflow """
+        """ Process all ready tasks for the workflow """
         self.logger.debug("_workflow_process(%s)", name)
         # rest process count
         self.process_count = 0
-        return self._workflow_response(self.processTicket, name)
+        return self._workflow_response(self.performTask, name)
 
     @_authenticated
     def _workflow_remove(self, name):
-        """ Remove all ready tickets for the workflow """
+        """ Remove all ready tasks for the workflow """
         self.logger.debug("_workflow_remove(%s)", name)
-        return self._workflow_response(self.removeTicket, name)
+        return self._workflow_response(self.removeTask, name)
 
     @_authenticated
     def _workflow_sleep(self, name, seconds=sys.maxint):
-        """ Sleep all ready tickets for the workflow """
+        """ Sleep all ready tasks for the workflow """
         self.logger.debug("_workflow_sleep(%s,%s)", name, seconds)
-        return self._workflow_response(self.sleepTicket, name, seconds=seconds)
+        return self._workflow_response(self.sleepTask, name, seconds=seconds)
 
     @_authenticated
     def _workflow_wake(self, name):
-        """ Wake all ready tickets for the workflow """
+        """ Wake all ready tasks for the workflow """
         self.logger.debug("_workflow_wake(%s)", name)
-        return self._workflow_response(self.wakeTicket, name)
+        return self._workflow_response(self.wakeTask, name)
 
 if __name__ == "__main__":
     parser = karakuricommon.karakuriparser(description="An automaton: http://e"
                                                        "n.wikipedia.org/wiki/K"
                                                        "arakuri_ningy%C5%8D")
     parser.add_config_argument("--limit", metavar="NUMBER", type=int,
-                               help="limit process'ing to NUMBER tickets")
+                               help="limit process'ing to NUMBER tasks")
     parser.add_config_argument("--mongo-host", metavar="HOSTNAME",
                                default="localhost",
                                help="specify the MongoDB hostname (default="
