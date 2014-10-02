@@ -30,13 +30,13 @@ class kli(karakuricommon.karakuriclient):
         else:
             res = self.queueRequest('find')
         if res['status'] != "success":
-            self.printRequest(res)
+            return printRequest(res)
         print "success, found %i tasks" % len(res['data']['tickets'])
 
     def list(self):
         res = self.queueRequest()
         if res['status'] != "success":
-            self.printRequest(res)
+            return printRequest(res)
         tickets = res['data']['tickets']
 
         print "\tTICKET ID\t\t\tISSUE KEY\tWORKFLOW\tAPPROVED?\tIN PROGRESS?\t"\
@@ -52,15 +52,8 @@ class kli(karakuricommon.karakuriclient):
                    ticket['_id'].generation_time.isoformat())
 
 if __name__ == "__main__":
-    parser = karakuricommon.karakuriparser(description="A cli interface for "
-                                                       "karakuri")
-    parser.add_config_argument("--karakuri-host", metavar="HOSTNAME",
-                               default="localhost",
-                               help="specify the karakuri hostname "
-                                    "(default=localhost)")
-    parser.add_config_argument("--karakuri-port", metavar="PORT", type=int,
-                               default=8080,
-                               help="specify the karakuri port (default=8080)")
+    parser = karakuricommon.karakuriclientparser(description="A cli interface "
+                                                             "for karakuri")
     subparsers = parser.add_subparsers(dest="command",
                                        help='{command} -h for help')
 

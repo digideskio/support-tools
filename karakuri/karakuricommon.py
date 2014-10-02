@@ -27,7 +27,7 @@ class karakuribase:
         # Output args for debugging
         self.logger.debug("parsed args:")
         for arg in self.args:
-            if "password" in arg or "passwd" in arg:
+            if "password" in arg or "passwd" in arg or "token" in arg:
                 tmp = "[REDACTED]"
             else:
                 tmp = self.args[arg]
@@ -40,12 +40,18 @@ class karakuriclient(karakuribase):
     """ A base class for karakuri clients """
     def __init__(self, *args, **kwargs):
         karakuribase.__init__(self, *args, **kwargs)
+        self.token = self.args['token']
 
     def request(self, endpoint):
         url = "http://%s:%i%s" % (self.args['karakuri_host'],
                                   self.args['karakuri_port'], endpoint)
-        res = requests.get(url).content
-        return bson.json_util.loads(res)
+        params = {'token': self.token}
+        res = requests.post(url, params=params)
+        if res.status_code == requests.codes.ok:
+            return bson.json_util.loads(res.content)
+        else:
+            message = "received HTTP status code %i" % res.status_code
+            return {'status': 'error', 'message': message}
 
     def issueRequest(self, issue, command=None):
         if command is None:
@@ -152,3 +158,18 @@ class karakuriparser(argparse.ArgumentParser):
             sys.exit(2)
 
         return args
+
+
+class karakuriclientparser(karakuriparser):
+    def __init__(self, *args, **kwargs):
+        karakuriparser.__init__(self, *args, **kwargs)
+        self.add_config_argument("--karakuri-host", metavar="HOSTNAME",
+                                 default="localhost",
+                                 help="specify the karakuri hostname "
+                                      "(default=localhost)")
+        self.add_config_argument("--karakuri-port", metavar="PORT", type=int,
+                                 default=8080,
+                                 help="specify the karakuri port "
+                                      "(default=8080)")
+        self.add_config_argument("--token", metavar="TOKEN",
+                                 help="specify a CROWD user token")

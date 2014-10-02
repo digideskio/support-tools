@@ -21,15 +21,8 @@ class karakurid(karakuricommon.karakuriclient):
             time.sleep(5)
 
 if __name__ == "__main__":
-    parser = karakuricommon.karakuriparser(description="A scary karakuri "
-                                                       "daemon")
-    parser.add_config_argument("--karakuri-host", metavar="HOSTNAME",
-                               default="localhost",
-                               help="specify the karakuri hostname "
-                                    "(default=localhost)")
-    parser.add_config_argument("--karakuri-port", metavar="PORT", type=int,
-                               default=8080,
-                               help="specify the karakuri port (default=8080)")
+    parser = karakuricommon.karakuriclientparser(description="A scary karakuri"
+                                                             " daemon")
     parser.add_config_argument("--pid", metavar="FILE",
                                default="/tmp/karakurid.pid",
                                help="specify a PID file "
