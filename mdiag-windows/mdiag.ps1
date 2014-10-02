@@ -84,7 +84,7 @@ Function runcommand( $preferred_cmd, $fallback_cmd = $null ) {
 	$startts = _jsondate # { $date: seconds-since-epoch }
 	$cmdobj = _docmd "$preferred_cmd" # Quotes stringify the object
 
-	if( !( $cmdobj.ok ) -and ( "" -ne $fallback_cmd ) ) {
+	if( !( $cmdobj.ok ) -and ( $null -ne $fallback_cmd ) ) {
 		# preferred cmd failed and we have a fallback, so try that
 		echo " | Preference attempt failed, but have a fallback to try..."
 		
@@ -290,28 +290,6 @@ $error.Clear();
 # section above. 
 
 #
-#section stuff
-#	runcommand date
-#	runcommand uname -a
-#	runcommand stuff
-#endsection
-#
-#section stuff2
-#	runcommand date +%s
-#endsection
-#
-#section stuff3
-#	subsection bit1
-#		runcommand date
-#	endsubsection
-#	subsection bit2
-#		runcommand uname -a
-#	endsubsection
-#	subsection bit3
-#		runjsoncommand "systeminfo /fo csv | ConvertFrom-Csv"
-#	endsubsection
-#endsection
-#
 #section stuff4
 #	getfiles sample.txt
 #	getfiles /etc/*release*
@@ -320,7 +298,17 @@ $error.Clear();
 
 section fingerprint
 $startts = _jsondate
-$obj = @{ command = ""; ok = True; output = @{ host = "Windows"; shell = "powershell"; script = "mdiag"; version = "1.0" } }
+$obj = @{
+	command = $False;
+	ok = $True;
+	output = @{
+		os = "Windows";
+		shell = "powershell";
+		script = "mdiag";
+		version = "1.1";
+		revdate = "2014-10-02";
+	}
+}
 emitdocument $startts $obj
 endsection
 
@@ -330,7 +318,7 @@ runcommand $cmd
 endsection
 
 section tasklist
-$cmd = "Get-Process | Select __NounName,Name,Handles,VM,WS,PM,NPM,Path,Company,CPU,FileVersion,ProductVersion,Description,Product,Id,PriorityClass,TotalProcessorTime,BasePriority,PeakWorkingSet64,PeakVirtualMemorySize64,StartTime,@{Name='Threads';Expression={`$_.Threads.Count}}"
+$cmd = "Get-Process | Select Name,Handles,VM,WS,PM,NPM,Path,Company,CPU,FileVersion,ProductVersion,Description,Product,Id,PriorityClass,TotalProcessorTime,BasePriority,PeakWorkingSet64,PeakVirtualMemorySize64,StartTime,@{Name='Threads';Expression={`$_.Threads.Count}}"
 runcommand $cmd
 endsection
 
@@ -357,9 +345,21 @@ $fbc = "Get-WmiObject Win32_LogicalDisk | Select Compressed,Description,DeviceID
 runcommand $cmd $fbc
 endsection
 
+section environment
+runcommand "Get-WMIObject Win32_UserAccount | Select Caption,Name,Domain,Description,AccountType,Disabled,LocalAccount,Lockout,SID,Status"
+# Get-Content env:username / env:userdomain <- this is just a difficult way of doing whoami
+runcommand "whoami"
+endsection
+
+section drivers
+runcommand "Get-WmiObject -Class Win32_SystemDriver | Where-Object -FilterScript {`$_.State -eq 'Running'} | Select Name,Status,Description"
+endsection
+
 
 ###############
 # Final
 # complete the JSON array, making the whole document a valid JSON value
 #
 Add-Content $diagfile "]`n"
+
+echo "Finished. Please attach $diagfile to the support case $ticket."
