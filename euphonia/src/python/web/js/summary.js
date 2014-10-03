@@ -49,3 +49,25 @@ $('#groupSearch').typeahead(
     return false;
   }
 });
+
+function showPage(context, url, issue) {
+    $('#ticketList').find('tr').each(function(){$(this).removeClass('info');});
+    $(context).closest('tr').addClass('info')
+    $('#ticketFrame').attr('src','');
+    $('#ticketFrame').attr('src',url);
+    $('#ticketList').addClass('col-lg-6');
+    $('#ticketList').removeClass('col-lg-12');
+    $('#ticketTitle > span').text('Jira view of ' + issue);
+    $('#ticketContent').addClass('col-lg-6');
+    $('#ticketContent').height(Math.max($('#ticketList').height(),600));
+    $('#ticketContent').show();
+    //$('#ticketFrame').height(Math.max($('#ticketList').height() - 100,550));
+    //$('#ticketFrame').width($('#ticketList').width() - 30);
+}
+
+function closePage() {
+    $('#ticketList').find('tr').each(function(){$(this).removeClass('info');});
+    $('#ticketList').addClass('col-lg-12');
+    $('#ticketList').removeClass('col-lg-6');
+    $('#ticketContent').hide();
+}

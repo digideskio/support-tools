@@ -76,3 +76,22 @@
   text-decoration: none;
   color: #000;
 }
+
+#ticketFrame {
+    width: 1000px;
+    height:2000px;
+}
+
+#ticketFrame {
+    zoom: 1.0;
+    -moz-transform: scale(0.75);
+    -moz-transform-origin: 0 0;
+    -o-transform: scale(0.75);
+    -o-transform-origin: 0 0;
+    -webkit-transform: scale(0.75);
+    -webkit-transform-origin: 0 0;
+}
+
+@media screen and (-webkit-min-device-pixel-ratio:0) {
+    #ticketFrame  { zoom: 1;}
+}

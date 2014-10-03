@@ -71,7 +71,7 @@ def failedTestsSummary():
 @app.route('/issues')
 def issueSummary(workflow=None, page=1):
     query = None
-    if workflow != None:
+    if workflow is not None:
         query = {"workflow": {"$in": [workflow]}}
     limit = 25
     if page == '':
@@ -79,23 +79,27 @@ def issueSummary(workflow=None, page=1):
     page = int(page)
     ticketSummary = karakuri.getQueues()
     ticketWorkflows = karakuri.getWorkflows()
-    print ticketWorkflows
+    if 'workflows' in ticketWorkflows and len(ticketWorkflows['workflows']) > 0:
+        ticketWorkflows = ticketWorkflows['workflows']
+    else:
+        ticketWorkflows = []
     issueObjs = {}
-    if ticketSummary is not None:
+    if 'tasks' in ticketSummary and len(ticketSummary['tasks']) > 0:
+        ticketSummary = ticketSummary['tasks']
         for ticket in ticketSummary:
             if 'start' in ticket:
-                ticket['startDate'] = datetime.strftime(ticket['start'],"%Y-%m-%d %H:%M")
+                ticket['startDate'] = datetime.strftime(ticket['start'], "%Y-%m-%d %H:%M")
                 starttz = ticket['start'].tzinfo
                 endOfTime = utc.localize(datetime.max).astimezone(starttz)
-                endOfTime = datetime.strftime(endOfTime,"%Y-%m-%d %H:%M")
+                endOfTime = datetime.strftime(endOfTime, "%Y-%m-%d %H:%M")
                 ticket['removed'] = True if ticket['startDate'] == endOfTime else False
-                print ticket['start']
-                print utc.localize(datetime.max).astimezone(starttz)
             else:
                 ticket['startDate'] = ""
                 ticket['removed'] = False
-            ticket['updateDate'] = datetime.strftime(ticket['t'],"%Y-%m-%d %H:%M")
-            issueObjs[str(ticket['iid'])] = karakuri.getIssue(str(ticket['iid']))['jira']
+            ticket['updateDate'] = datetime.strftime(ticket['t'], "%Y-%m-%d %H:%M")
+            issueObjs[str(ticket['iid'])] = karakuri.getIssue(str(ticket['iid']))['issue']['jira']
+    else:
+        ticketSummary = []
     return template('base_page', renderpage="tickets", ticketSummary=ticketSummary, issues=issueObjs, ticketWorkflows=ticketWorkflows)
 
 @app.route('/ticket/<ticket>/process')

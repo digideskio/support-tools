@@ -8,7 +8,8 @@ class karakuriDAO:
 
     def executeKarakuriCall(self, url):
         try:
-            r = requests.get(url)
+            payload = {"token":"paulstoken"}
+            r = requests.post(url,data=payload)
             response = loads(r.text)
             if 'data' in response:
                 return response['data']
@@ -95,32 +96,32 @@ class karakuriDAO:
 
     # TICKET FUNCTIONS
     def getTicket(self, ticketId):
-        getUrl = "%s/ticket/%s" % (self.SERVER, ticketId)
+        getUrl = "%s/task/%s" % (self.SERVER, ticketId)
         response = self.executeKarakuriCall(getUrl)
         return response
 
     def processTicket(self, ticketId):
-        getUrl = "%s/ticket/%s/process" % (self.SERVER, ticketId)
+        getUrl = "%s/task/%s/process" % (self.SERVER, ticketId)
         response = self.executeKarakuriCall(getUrl)
         return response
 
     def approveTicket(self, ticketId):
-        getUrl = "%s/ticket/%s/approve" % (self.SERVER, ticketId)
+        getUrl = "%s/task/%s/approve" % (self.SERVER, ticketId)
         response = self.executeKarakuriCall(getUrl)
         return response
 
     def disapproveTicket(self, ticketId):
-        getUrl = "%s/ticket/%s/disapprove" % (self.SERVER, ticketId)
+        getUrl = "%s/task/%s/disapprove" % (self.SERVER, ticketId)
         response = self.executeKarakuriCall(getUrl)
         return response
 
     def removeTicket(self, ticketId):
-        getUrl = "%s/ticket/%s/remove" % (self.SERVER, ticketId)
+        getUrl = "%s/task/%s/remove" % (self.SERVER, ticketId)
         response = self.executeKarakuriCall(getUrl)
         return response
 
     def sleepTicket(self, ticketId, seconds=86400):
-        getUrl = "%s/ticket/%s/sleep/%s" % (self.SERVER, ticketId, seconds)
+        getUrl = "%s/task/%s/sleep/%s" % (self.SERVER, ticketId, seconds)
         response = self.executeKarakuriCall(getUrl)
         return response
 

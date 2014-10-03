@@ -5,9 +5,10 @@
         </div>
     </div>
     <div class="row">
-        <div class="panel-group" id="accordion">
+        <div id="ticketList" class="col-lg-12">
+            <div class="panel-group" id="accordion">
             <%
-                if ticketWorkflows is not None:
+                if len(ticketWorkflows) > 0:
                     for workflow in ticketWorkflows:
                         previous = ""
                         try:
@@ -55,6 +56,7 @@
                                         <tbody>
                                         <%
                                         for ticket in ticketSummary:
+                                            print ticket
                                             if ticket['workflow'] == workflow['name']:
                                                 issue = issues[str(ticket['iid'])]
                                                 doneDisabled = False
@@ -68,7 +70,7 @@
                                                 end
                                         %>
                                                 <tr>
-                                                    <td><a target="_blank" href="http://jira.mongodb.org/browse/{{issue['key']}}">{{issue['key']}}</a></td>
+                                                    <td><a href="javascript:void(0);" onclick="showPage(this,'http://jira.mongodb.org/browse/{{issue['key']}}','{{issue['key']}}');">{{issue['key']}}</a></td>
                                                     <td>{{ticket['approved']}}</td>
                                                     <td>{{ticket['inProg']}}</td>
                                                     <td>{{ticket['done']}}</td>
@@ -118,6 +120,23 @@
                     end
                 end
             %>
+        </div>
+        </div>
+        <div id="ticketContent" style="display:none">
+            <div class="panel-group" id="accordion">
+                <div class="panel panel-default">
+                    <div class="panel-heading">
+                        <h4 id="ticketTitle" class="panel-title">
+                            <span></span>
+                            <div class="pull-right"><a href="javascript:void(0);" onclick="closePage();"><i class="glyphicon glyphicon-remove"></i></a></div>
+                        </h4>
+                        <div style="clear:both"></div>
+                    </div>
+                    <div class="panel-body">
+                        <iframe src="" id="ticketFrame"></iframe>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
