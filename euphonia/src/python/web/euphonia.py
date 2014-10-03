@@ -122,9 +122,9 @@ def removeTicket(ticket):
     karakuri.removeTicket(ticket)
     return redirect('/issues')
 
-@app.route('/ticket/<ticket>/sleep/<days>')
-def delayTicket(ticket,days):
-    seconds = int(days) * 86400
+@app.route('/ticket/<ticket>/sleep/<seconds>')
+def delayTicket(ticket,seconds):
+    seconds = int(seconds)
     karakuri.sleepTicket(ticket,seconds)
     return redirect('/issues')
 

@@ -27,13 +27,14 @@
                                         <div class="btn-group">
                                             <button type="button" class="btn btn-warning dropdown-toggle" data-toggle="dropdown"><i class="glyphicon glyphicon-time"></i>&nbsp;<span class="caret"></span></button>
                                             <ul class="dropdown-menu dropdown-menu-right" role="menu">
-                                                <li><a href="/workflow/{{workflow['name']}}/sleep/1">Sleep 1 Day</a></li>
-                                                <li><a href="/workflow/{{workflow['name']}}/sleep/3">Sleep 3 Days</a></li>
-                                                <li><a href="/workflow/{{workflow['name']}}/sleep/7">Sleep 1 Week</a></li>
+                                                <li><a href="/workflow/{{workflow['name']}}/wake">Wake All!</a></li>
+                                                <li><a href="/workflow/{{workflow['name']}}/sleep/86400">Sleep 1 Day</a></li>
+                                                <li><a href="/workflow/{{workflow['name']}}/sleep/259200">Sleep 3 Days</a></li>
+                                                <li><a href="/workflow/{{workflow['name']}}/sleep/604800">Sleep 1 Week</a></li>
                                             </ul>
                                         </div>
                                     </i>
-                                    <a class="btn btn-danger metadata" data-toggle="tooltip" data-placement="top" title="Remove All" href="/workflow/{{workflow['name']}}/remove"><i class="glyphicon glyphicon-remove"></i></a>
+                                    <a class="btn btn-danger metadata" data-toggle="tooltip" data-placement="top" title="Remove All" href="/workflow/{{workflow['name']}}/remove"><i class="glyphicon glyphicon-trash"></i></a>
                                 </div>
                             </h4>
                             <div style="clear:both"></div>
@@ -45,12 +46,9 @@
                                         <thead>
                                             <tr>
                                                 <th>Ticket</th>
-                                                <th>Approved</th>
-                                                <th>In Progress</th>
-                                                <th>Done</th>
                                                 <th>Start</th>
-                                                <th>Properties</th>
-                                                <th><span class="pull-right">Action</span></th>
+                                                <th>Status</th>
+                                                <th><span class="pull-right">Actions</span></th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -71,38 +69,39 @@
                                         %>
                                                 <tr>
                                                     <td><a href="javascript:void(0);" onclick="showPage(this,'http://jira.mongodb.org/browse/{{issue['key']}}','{{issue['key']}}');">{{issue['key']}}</a></td>
-                                                    <td>{{ticket['approved']}}</td>
-                                                    <td>{{ticket['inProg']}}</td>
-                                                    <td>{{ticket['done']}}</td>
                                                     <td>{{ticket['startDate']}}</td>
                                                     <td>
                                                         <i class="glyphicon glyphicon-time metadata" data-toggle="tooltip" data-placement="top" title="Last Updated: {{ticket['updateDate']}}"></i>
                                                         % if ticket['removed'] == True:
-                                                        <i class="glyphicon glyphicon-remove metadata" data-toggle="tooltip" data-placement="top" title="Removed: {{ticket['updateDate']}}"></i>
-                                                        % end
-                                                        % if ticket['done'] == True:
+                                                            <i class="glyphicon glyphicon-trash metadata" data-toggle="tooltip" data-placement="top" title="Removed: {{ticket['updateDate']}}"></i>
+                                                        % elif ticket['done'] == True:
 	                                                        <i class="glyphicon glyphicon-ok metadata" data-toggle="tooltip" data-placement="top" title="Done: {{ticket['updateDate']}}"></i>
-	                                                    % end
+	                                                    % elif ticket['inProg'] == True:
+                                                            <i class="glyphicon glyphicon-refresh metadata" data-toggle="tooltip" data-placement="top" title="In Progress since: {{ticket['updateDate']}}"></i>
+                                                        % elif ticket['approved'] == True:
+                                                            <i class="glyphicon glyphicon-thumbs-up metadata" data-toggle="tooltip" data-placement="top" title="Approved, not Done since: {{ticket['updateDate']}}"></i>
+                                                        % end
                                                     </td>
                                                     <td>
                                                         <div class="pull-right">
-                                                            <a class="btn btn-xs btn-primary metadata" data-toggle="tooltip" data-placement="top" title="Process" href="/ticket/{{ticket['_id']}}/process"><i class="glyphicon glyphicon-play-circle"></i></a>
+                                                            <a class="btn btn-xs btn-primary metadata {{doneDisabled}}" data-toggle="tooltip" data-placement="top" title="Process" href="/ticket/{{ticket['_id']}}/process"><i class="glyphicon glyphicon-play"></i></a>
                                                         % if ticket['approved'] == True:
-                                                            <a class="btn btn-xs btn-default metadata" data-toggle="tooltip" data-placement="top" title="Disapprove" href="/ticket/{{ticket['_id']}}/disapprove"><i class="glyphicon glyphicon-ok"></i></a>
+                                                            <a class="btn btn-xs btn-default metadata {{doneDisabled}}" data-toggle="tooltip" data-placement="top" title="Disapprove" href="/ticket/{{ticket['_id']}}/disapprove"><i class="glyphicon glyphicon-ok"></i></a>
                                                         % else:
-                                                            <a class="btn btn-xs btn-success metadata" data-toggle="tooltip" data-placement="top" title="Approve" href="/ticket/{{ticket['_id']}}/approve"><i class="glyphicon glyphicon-ok"></i></a>
+                                                            <a class="btn btn-xs btn-success metadata {{doneDisabled}}" data-toggle="tooltip" data-placement="top" title="Approve" href="/ticket/{{ticket['_id']}}/approve"><i class="glyphicon glyphicon-ok"></i></a>
                                                         % end
                                                         <i class="metadata" data-toggle="tooltip" data-placement="top" title="Sleep">
                                                             <div class="btn-group">
-                                                                <button type="button" class="btn btn-xs btn-warning dropdown-toggle" data-toggle="dropdown"><i class="glyphicon glyphicon-time"></i>&nbsp;<span class="caret"></span></button>
-                                                                <ul class="dropdown-menu dropdown-menu-right" role="menu">
-                                                                    <li><a href="/ticket/{{ticket['_id']}}/sleep/1">Sleep 1 Day</a></li>
-                                                                    <li><a href="/ticket/{{ticket['_id']}}/sleep/3">Sleep 3 Days</a></li>
-                                                                    <li><a href="/ticket/{{ticket['_id']}}/sleep/7">Sleep 1 Week</a></li>
+                                                                <button type="button" class="btn btn-xs btn-warning dropdown-toggle {{doneDisabled}}" data-toggle="dropdown"><i class="glyphicon glyphicon-time"></i>&nbsp;<span class="caret"></span></button>
+                                                                <ul class="dropdown-menu dropdown-menu-right {{doneDisabled}}" role="menu">
+                                                                    <li><a href="/ticket/{{ticket['_id']}}/wake">Wake Up!</a></li>
+                                                                    <li><a href="/ticket/{{ticket['_id']}}/sleep/86400">Sleep 1 Day</a></li>
+                                                                    <li><a href="/ticket/{{ticket['_id']}}/sleep/259200">Sleep 3 Days</a></li>
+                                                                    <li><a href="/ticket/{{ticket['_id']}}/sleep/604800">Sleep 1 Week</a></li>
                                                                 </ul>
                                                             </div>
                                                         </i>
-                                                        <a class="btn btn-xs btn-danger metadata {{doneDisabled}}" data-toggle="tooltip" data-placement="top" title="Remove" href="/ticket/{{ticket['_id']}}/remove"><i class="glyphicon glyphicon-remove"></i></a>
+                                                        <a class="btn btn-xs btn-danger metadata {{doneDisabled}}" data-toggle="tooltip" data-placement="top" title="Remove" href="/ticket/{{ticket['_id']}}/remove"><i class="glyphicon glyphicon-trash"></i></a>
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -128,7 +127,10 @@
                     <div class="panel-heading">
                         <h4 id="ticketTitle" class="panel-title">
                             <span></span>
-                            <div class="pull-right"><a href="javascript:void(0);" onclick="closePage();"><i class="glyphicon glyphicon-remove"></i></a></div>
+                            <div class="pull-right">
+                                <a target="_blank" id="ticketLink" href=""><i class="glyphicon glyphicon-share"></i></a>
+                                <a href="javascript:void(0);" onclick="closePage();"><i class="glyphicon glyphicon-remove"></i></a>
+                            </div>
                         </h4>
                         <div style="clear:both"></div>
                     </div>

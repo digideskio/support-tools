@@ -55,6 +55,7 @@ function showPage(context, url, issue) {
     $(context).closest('tr').addClass('info')
     $('#ticketFrame').attr('src','');
     $('#ticketFrame').attr('src',url);
+    $('#ticketLink').attr('href',url);
     $('#ticketList').addClass('col-lg-6');
     $('#ticketList').removeClass('col-lg-12');
     $('#ticketTitle > span').text('Jira view of ' + issue);
