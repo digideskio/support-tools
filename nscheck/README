@@ -1,121 +1,5 @@
 *** THIS IS A WORK IN PROGRESS - DO NOT USE YET! ***
 
-The nscheck tool checks for .ns file corruption related to HELP-661:
-on certain platforms TBD (involving certain Linux kernel versions and
-VMWare) the .ns file is not properly initialized to 0s by the o/s, and
-the resulting garbage hashtable entries cause an assertion failure.
-
-NOTE: the following assumes that the customer has installed a kernel
-update that addresses this issue, or has installed a release from us
-that works around the issue (2.4.12 or 2.6.5). It is not advisable to
-attempt any recovery until this is the case as once the problem occurs
-it is reproducible.
-
-(One possible exception to the above: if a customer encounters a
-production-down situation before a fix is available, it may be
-necessary to use nscheck to do a repair. As long as the customer does
-not create any additional databases (including doing initial sync
-operations) they should not be at risk of additional problems due to
-this issue even if they haven't addressed the underlying problem, so
-repairing existing .ns files will get them back in operation.)
-
-
-DETECTION FOR 2.6 USERS
-
-The damage is introduced at the time the .ns file is created. The
-underlying issue is sensitive to the pattern of writes to the .ns
-file, and since the .ns file is a hashtable, the occurrence of the
-issue is very dependent on the details of the collections and indexes
-created. However, given the right conditions, the occurrence of the
-problem is reproducible; for example, it might occur every time a db
-is restored from backup, or otherwise created from scratch; and if it
-occurs on one node of a replica set it is likely to occur on
-others. Once the damage has been done to the .ns file, various
-failures may occur, including fatal assertion on startup, and failures
-of commands such as db.stats(), db.repairDatabase(), db.dropDatabase(),
-and possibly others. Diagnose the problem as follows:
-
-* Failures accompanied by op result messages or log messages including:
-  * "errmsg" : "exception: assertion src/mongo/db/catalog/database.cpp:472",
-  * Assertion failure _name == nsToDatabaseSubstring( ns ) src/mongo/db/catalog/database.cpp 472
-  * exception: nsToDatabase: db too long
-  * Fatal Assertion 16253
-  * and possibly others indicating a .ns file problem
-
-* use nscheck to check the .ns file to verify the problem (see below)
-
-
-DETECTION FOR USERS UPGRADING FROM 2.4 TO 2.6
-
-The problem has been observed to cause a fatal assertion upon startup
-immediately after upgrading from 2.4. to 2.6. This indicates that the
-problem can occur under 2.4 and go undetected, as 2.6 adds assertion
-checks.
-
-* fassert upon upgrade to 2.6, with the log signatures as listed
-  above.
-
-* use nscheck to check the .ns file prior to upgrade (see below)
-
-
-DETECTION FOR 2.4 USERS
-
-As detailed above, the issue is believed to occur under 2.4 as well,
-but may go undetected as 2.4 lacks some checks that were introduced in
-2.6. More work is required to determine whether the issue may cause
-more subtle problems under 2.4.
-
-* The following problems were produced in 2.4 by simulating .ns file
-  corruption:
-
-  * in dbHash command: ERROR: Uncaught std::exception:
-    basic_string::substr, terminating
-  * db.stats(): { "ok" : 0, "errmsg" : "missing ns: ..." }
-
-* use nscheck to check the .ns file (see below).
-
-
-RECOVERY PROCEDURE
-
-* Upon detecting a problem customer should immediately contact MongoDB
-  support and we will direct them through the following steps.
-
-* First step is to implement kernel fixes TBD from Ubuntu or upgrade
-  to MongoDB 2.4.12 or 2.6.5; do not proceed with recovery until this
-  has been done, as the problem is likely to recur without
-  this. (Exception: in a production-down situation, nscheck --repair
-  could get the customer operational again, with minimal risk of
-  further issues provided they don't create any new databases,
-  including by resyncing.)
-
-* For 2.4 users (who are not upgrading at the moment), until we
-  determine that this issue causes problems under 2.4, the most
-  conservative course is to stop here, and do not do any repair at
-  this point.
-
-* Obtain *all* .ns files from each node of the affect cluster and run
-  nscheck on each to determine the health, or ask the customer to do
-  this.
-
-* If there is a healthy node (defined as: nscheck declares *all* .ns
-  files to be OK), resyncing from that node is an option. NOTE: this
-  option especially *should not be done* until the underlying issue on
-  is addressed, as the problem is likely to occur during the resync.
-
-* If there is no healthy node, or resyncing is otherwise an
-  undesirable option for the customer, or if a production-down
-  situation occurs and a fix is yet not available, instruct the
-  customer to
-
-  * shut down mongod
-  * back up the entire database
-  * use nscheck with the --repair option to repair the .ns files
-  * restart mongod.
-
-
-
-USING THE NSCHECK TOOL
-
 NAME
     nscheck - tool to examine .ns file for certain kinds of corruption
 
@@ -123,6 +7,11 @@ SYNOPSIS
     python nscheck.py [--detail] [--repair] file_or_directory ...
 
 DESCRIPTION
+
+    The nscheck tool checks for namespace (.ns) file corruption
+    detailed at [1]. Please read the information at that page before
+    using this tool.
+
     Each file listed on the command line is checked for errors. If a
     directory is specified it is recursively traversed to find .ns
     files to check. For example,
@@ -149,7 +38,10 @@ DESCRIPTION
 
     --repair
 
-        Repairs invalid entries by zeroing them. To use this mongod
-        *must not* be running.
+        Repairs invalid entries by zeroing them. Use this option with
+        caution.  To use this mongod *must not* be running. Take
+        backups first. See additional information at [1] and contact
+        me (Bruce Lucas) first if possible before using.
 
-        
+REFERENCES
+    [1] https://wiki.mongodb.com/pages/viewpage.action?pageId=80807447.
