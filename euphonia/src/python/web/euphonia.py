@@ -91,11 +91,11 @@ def issueSummary(workflow=None, page=1):
                 ticket['startDate'] = datetime.strftime(ticket['start'], "%Y-%m-%d %H:%M")
                 starttz = ticket['start'].tzinfo
                 endOfTime = utc.localize(datetime.max).astimezone(starttz)
-                endOfTime = datetime.strftime(endOfTime, "%Y-%m-%d %H:%M")
-                ticket['removed'] = True if ticket['startDate'] == endOfTime else False
+                endOfTimeStr = datetime.strftime(endOfTime, "%Y-%m-%d %H:%M")
+                ticket['frozen'] = True if ticket['startDate'] == endOfTimeStr else False
             else:
                 ticket['startDate'] = ""
-                ticket['removed'] = False
+                ticket['frozen'] = False
             ticket['updateDate'] = datetime.strftime(ticket['t'], "%Y-%m-%d %H:%M")
             issueObjs[str(ticket['iid'])] = karakuri.getIssue(str(ticket['iid']))['issue']['jira']
     else:
@@ -122,10 +122,15 @@ def removeTicket(ticket):
     karakuri.removeTicket(ticket)
     return redirect('/issues')
 
+@app.route('/ticket/<ticket>/sleep')
+def delayTicket(ticket):
+    karakuri.sleepTicket(ticket)
+    return redirect('/issues')
+
 @app.route('/ticket/<ticket>/sleep/<seconds>')
 def delayTicket(ticket,seconds):
     seconds = int(seconds)
-    karakuri.sleepTicket(ticket,seconds)
+    karakuri.sleepTicket(ticket, seconds)
     return redirect('/issues')
 
 @app.route('/workflow/<workflow>/process')

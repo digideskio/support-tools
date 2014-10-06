@@ -43,8 +43,11 @@ class karakuriDAO:
         response = self.executeKarakuriCall(getUrl)
         return response
 
-    def sleepQueue(self, queueId, seconds=86400):
-        getUrl = "%s/queue/%s/sleep/%s" % (self.SERVER, queueId, seconds)
+    def sleepQueue(self, queueId, seconds=None):
+        if seconds is None:
+            getUrl = "%s/queue/%s/sleep" % (self.SERVER, queueId)
+        else:
+            getUrl = "%s/queue/%s/sleep/%s" % (self.SERVER, queueId, seconds)
         response = self.executeKarakuriCall(getUrl)
         return response
 
@@ -84,8 +87,11 @@ class karakuriDAO:
         response = self.executeKarakuriCall(getUrl)
         return response
 
-    def sleepWorkflow(self, workflowId, seconds=86400):
-        getUrl = "%s/workflow/%s/sleep/%s" % (self.SERVER, workflowId, seconds)
+    def sleepWorkflow(self, workflowId, seconds=None):
+        if seconds is None:
+            getUrl = "%s/workflow/%s/sleep" % (self.SERVER, workflowId)
+        else:
+            getUrl = "%s/workflow/%s/sleep/%s" % (self.SERVER, workflowId, seconds)
         response = self.executeKarakuriCall(getUrl)
         return response
 
@@ -120,8 +126,11 @@ class karakuriDAO:
         response = self.executeKarakuriCall(getUrl)
         return response
 
-    def sleepTicket(self, ticketId, seconds=86400):
-        getUrl = "%s/task/%s/sleep/%s" % (self.SERVER, ticketId, seconds)
+    def sleepTicket(self, ticketId, seconds=None):
+        if seconds is None:
+            getUrl = "%s/task/%s/sleep" % (self.SERVER, ticketId)
+        else:
+            getUrl = "%s/task/%s/sleep/%s" % (self.SERVER, ticketId, seconds)
         response = self.executeKarakuriCall(getUrl)
         return response
 

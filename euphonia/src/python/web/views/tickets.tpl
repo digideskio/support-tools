@@ -21,7 +21,6 @@
                         <div class="panel-heading">
                             <h4 class="panel-title"><span style="color:#aaaaaa;">{{previous}}</span>{{workflow['name']}}
                                 <div class="pull-right">
-                                    <a class="btn btn-primary metadata" data-toggle="tooltip" data-placement="top" title="Process All" href="/workflow/{{workflow['name']}}/process"><i class="glyphicon glyphicon-play-circle"></i></a>
                                     <a class="btn btn-success metadata" data-toggle="tooltip" data-placement="top" title="Approve All" href="/workflow/{{workflow['name']}}/approve"><i class="glyphicon glyphicon-ok"></i></a>
                                     <i class="metadata" data-toggle="tooltip" data-placement="top" title="Sleep All">
                                         <div class="btn-group">
@@ -66,14 +65,19 @@
                                                 else:
                                                     doneDisabled = ""
                                                 end
+                                                if ticket['frozen'] == True:
+                                                    hidden = "class=frozen style=display:none"
+                                                else:
+                                                    hidden = ""
+                                                end
                                         %>
-                                                <tr>
+                                                <tr {{hidden}}>
                                                     <td><a href="javascript:void(0);" onclick="showPage(this,'http://jira.mongodb.org/browse/{{issue['key']}}','{{issue['key']}}');">{{issue['key']}}</a></td>
                                                     <td>{{ticket['startDate']}}</td>
                                                     <td>
                                                         <i class="glyphicon glyphicon-time metadata" data-toggle="tooltip" data-placement="top" title="Last Updated: {{ticket['updateDate']}}"></i>
-                                                        % if ticket['removed'] == True:
-                                                            <i class="glyphicon glyphicon-trash metadata" data-toggle="tooltip" data-placement="top" title="Removed: {{ticket['updateDate']}}"></i>
+                                                        % if ticket['frozen'] == True:
+                                                            <i class="glyphicon glyphicon-trash metadata" data-toggle="tooltip" data-placement="top" title="Frozen: {{ticket['updateDate']}}"></i>
                                                         % elif ticket['done'] == True:
 	                                                        <i class="glyphicon glyphicon-ok metadata" data-toggle="tooltip" data-placement="top" title="Done: {{ticket['updateDate']}}"></i>
 	                                                    % elif ticket['inProg'] == True:
@@ -84,7 +88,6 @@
                                                     </td>
                                                     <td>
                                                         <div class="pull-right">
-                                                            <a class="btn btn-xs btn-primary metadata {{doneDisabled}}" data-toggle="tooltip" data-placement="top" title="Process" href="/ticket/{{ticket['_id']}}/process"><i class="glyphicon glyphicon-play"></i></a>
                                                         % if ticket['approved'] == True:
                                                             <a class="btn btn-xs btn-default metadata {{doneDisabled}}" data-toggle="tooltip" data-placement="top" title="Disapprove" href="/ticket/{{ticket['_id']}}/disapprove"><i class="glyphicon glyphicon-ok"></i></a>
                                                         % else:
@@ -98,6 +101,7 @@
                                                                     <li><a href="/ticket/{{ticket['_id']}}/sleep/86400">Sleep 1 Day</a></li>
                                                                     <li><a href="/ticket/{{ticket['_id']}}/sleep/259200">Sleep 3 Days</a></li>
                                                                     <li><a href="/ticket/{{ticket['_id']}}/sleep/604800">Sleep 1 Week</a></li>
+                                                                    <li><a href="/ticket/{{ticket['_id']}}/sleep">Freeze</a></li>
                                                                 </ul>
                                                             </div>
                                                         </i>
@@ -113,6 +117,10 @@
                                     </table>
                                 </div>
                             </div>
+                        </div>
+                        <div class="panel-footer">
+                            <div class="pull-right"><a href="javascript:void(0);" onclick="$(this).closest('.panel').find('.frozen').toggle(400);">Show/Hide Frozen Tasks</a></div>
+                            <div style="clear:both"></div>
                         </div>
                     </div>
             <%
