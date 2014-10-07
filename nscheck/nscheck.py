@@ -25,6 +25,7 @@ def escape(s):
         else: return '\\x%02x' % ord(c)
     return ''.join(esc(c) for c in s)
 
+# check a single .ns file
 class NsFile:
 
     # cumulative state per ns file
@@ -121,6 +122,9 @@ class NsFile:
                 else:
                     backup_fn = old_fn + '.backup'
                     try:
+                        if os.path.exists(backup_fn):
+                            raise Exception('%s exists; not renaming to complete repair' % \
+                                            backup_fn)
                         os.rename(old_fn, backup_fn)
                         os.rename(new_fn, old_fn)
                         print '%s has been repaired; old file has been saved as %s' % \
