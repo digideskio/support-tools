@@ -1,10 +1,10 @@
 *** THIS IS A WORK IN PROGRESS - DO NOT USE YET! ***
 
 NAME
-    nscheck - tool to examine .ns file for certain kinds of corruption
+    nscheck - tool to repair certain .ns file corruption
 
 SYNOPSIS
-    python nscheck.py [--detail] [--repair] file_or_directory ...
+    python nscheck.py [--repair] file_or_directory ...
 
 DESCRIPTION
 
@@ -20,28 +20,24 @@ DESCRIPTION
 
     will check all .ns files in $dbpath.
 
-    By default, for each file a line is printed indicating either that
-    it is OK, or if not listing the number of errors found.
-
-    The error check can be run on a live system, with a very small
-    chance of a temporary false ERROR report if a namespace (db,
-    collection, index) is being added while nscheck is running. Run it
-    a second time to screen out false positives.
+    A line is printed for each non-empty entry in the .ns file,
+    showing the namespace name for that entry and a message indicating
+    the status of the entry.
 
     The repair procedure *must* be run with mongod shut down.
 
-    --detail
-
-        With this option a line is printed for each non-empty entry in
-        the .ns file.  For valid entries the namespace name is
-        printed. For invalid entries "ERROR" is displayed.
-
     --repair
 
-        Repairs invalid entries by zeroing them. Use this option with
-        caution.  To use this mongod *must not* be running. Take
-        backups first. See additional information at [1] and contact
-        me (Bruce Lucas) first if possible before using.
+        Repairs each nsfile the file as follows:
+
+          * create a new file with the name $nsfile.repaired and
+            initialize it to zeroes
+
+          * copy all good entries from $nsfile to $nsfile.repaired.
+
+          * rename $nsfile to $nsfile.backup and rename
+            $nsfile.repaired to $nsfile.
+
 
 REFERENCES
     [1] https://wiki.mongodb.com/pages/viewpage.action?pageId=80807447.

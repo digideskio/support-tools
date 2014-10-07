@@ -3,59 +3,158 @@ import sys
 import mmap
 import os
 import traceback
+import string
 
-entry_len = 628
+# for initializing repaired file
+zeros = '\0' * (1024*1024)
 
-def check(m, db):
-    at = 0
-    errors = 0
-    while at+entry_len <= len(m):
-        hash, name = struct.unpack('< I 128s', m[at:at+132])
-        if hash:
-            name = name[0:name.find('\0')]
-            if not name.startswith(db + '.'):
-                err = 'ERROR'
-                if repair:
-                    m[at:at+entry_len] = '\0' * entry_len
-                    err += ' - REPAIRED'
-                if detail:
-                    print '%08x: namespace %s' % (at, err)
-                errors += 1
+# entry classifications
+empty, good, repairable, irreparable = range(4)
+
+# hash a namespace name (see Namespace::hash() in namespace-inl.h)
+def ns_hash(name):
+    x = 0
+    for c in name:
+        x = x * 131 + ord(c)
+    return (x & 0x7fffffff) | 0x8000000
+
+# xxx built-in to do this?
+def escape(s):
+    def esc(c):
+        if ord(c)>=32 and ord(c)<=126: return c
+        else: return '\\x%02x' % ord(c)
+    return ''.join(esc(c) for c in s)
+
+class NsFile:
+
+    # cumulative state per ns file
+    def __init__(self):
+        self.seen_names = set()
+        self.n_repairable = 0
+        self.n_irreparable = 0
+
+    # classify an entry
+    def classify(self, view, at, db):
+    
+        # extract entry info
+        hash, name = struct.unpack('< I 128s', view[at:at+132])
+        try: name = name[0:name.index('\0')]
+        except ValueError: pass
+    
+        # classify
+        classification = good
+        message = 'OK'
+        if not hash:
+            classification = empty
+        elif not name.startswith(db + '.'):
+            classification = repairable
+            message = 'BAD NAME'
+        elif hash != ns_hash(name):
+            classification = irreparable
+            message = 'BAD HASH'
+        elif name in self.seen_names:
+            classification = irreparable
+            message = 'DUPLICATE NAME'
+    
+        # update cumulative state, finish
+        self.seen_names.add(name)
+        if classification == repairable:
+            self.n_repairable += 1
+        if classification == irreparable:
+            self.n_irreparable += 1
+        return name, classification, message
+
+    def check(self, fn, old_view, new_view):
+        db = os.path.basename(fn).split('.')[0]
+        entry_len = 628
+        at = 0
+        while at+entry_len <= len(old_view):
+            name, classification, message = self.classify(old_view, at, db)
+            if repair:
+                if classification == repairable:
+                    message += ' - REPAIRED'
+                elif classification == irreparable:
+                    message += ' - NOT REPAIRED'
+                if classification==good or classification==irreparable:
+                    new_view[at:at+entry_len] = old_view[at:at+entry_len]
             else:
-                if detail:
-                    print '%08x: namespace name=%s OK' % (at, name)
-        at += entry_len
-    return errors
+                if classification == repairable:
+                    message += ' - REPAIRABLE'
+                elif classification == irreparable:
+                    message += ' - NOT REPAIRABLE'
+            if classification!=empty:
+                print '%08x: namespace name=%s  %s' % (at, escape(name), message)
+            at += entry_len
+    
+    def open_and_check(self, old_fn):
+
+        print 'checking %s' % old_fn        
+        old_f = new_f = old_view = new_view = None
+
+        try:
+
+            # map old file for reading
+            old_f = open(old_fn, 'rb')
+            sz = os.fstat(old_f.fileno()).st_size
+            old_view = mmap.mmap(old_f.fileno(), sz, prot=mmap.PROT_READ)
+
+            # open repaired file for writing, zero it, map it
+            if repair:
+                new_fn = old_fn + '.repaired'
+                new_f = open(new_fn, 'w+b')
+                i = 0
+                while i < sz:
+                    l = min(len(zeros), sz-i)
+                    new_f.write(zeros[0:l])
+                    i += l
+                new_view = mmap.mmap(new_f.fileno(), sz, prot=mmap.PROT_WRITE)
+
+            # check it
+            self.check(old_fn, old_view, new_view)
+
+            # summarize status
+            if repair:
+                print '%d errors were detected and repaired' % self.n_repairable
+                if self.n_irreparable:
+                    print '%d errors could not be repaired - please contact MongoDB support' % \
+                        self.n_irreparable
+                else:
+                    backup_fn = old_fn + '.backup'
+                    try:
+                        os.rename(old_fn, backup_fn)
+                        os.rename(new_fn, old_fn)
+                        print '%s has been repaired; old file has been saved as %s' % \
+                            (old_fn, backup_fn)
+                    except Exception, e:
+                        print 'could not rename files to complete repair: %s' % e
+            else:
+                print '%d detected errors need repair' % self.n_repairable
+                if self.n_irreparable:
+                    print '%d errors cannot be repaired - please contact MongoDB support' % \
+                        self.n_irreparable
+            print
+
+        except Exception, e:
+            print 'could not check %s: %s' % (old_fn, e)
+            traceback.print_exc()
+
+        # close stuff
+        if old_view: old_view.close()
+        if old_f: old_f.close()
+        if new_view: new_view.close()
+        if new_f: new_f.close()
+
 
 def walk(fn):
     if os.path.isdir(fn):
         for n in os.listdir(fn):
             walk(os.path.join(fn, n))
     elif fn.endswith('.ns'):
-        if detail:
-            print 'checking %s' % fn
-        f = m = None
-        try:
-            mode, prot = 'rb', mmap.PROT_READ
-            if repair:
-                mode, prot = 'a+b', mmap.PROT_READ | mmap.PROT_WRITE
-            f = open(fn, mode)
-            sz = os.fstat(f.fileno()).st_size # 2.4 won't accept 0
-            m = mmap.mmap(f.fileno(), sz, prot=prot)
-            errors = check(m, os.path.basename(fn).split('.')[0])
-            if errors:
-                print 'checked %s: %d ERRORS' % (fn, errors)
-            else:
-                print 'checked %s: OK' % (fn)
-        except Exception, e:
-            print 'problem checking %s: %s' % (fn, e)
-            #traceback.print_exc()
-        if m: m.close()
-        if f: f.close()
+        NsFile().open_and_check(fn)
 
 repair = '--repair' in sys.argv[1:]
-detail = '--detail' in sys.argv[1:] or repair
 
-for fn in sys.argv[1:]:
-    if not fn.startswith('--'):
-        walk(fn)
+if __name__ == "__main__":
+    for fn in sys.argv[1:]:
+        if not fn.startswith('--'):
+            walk(fn)

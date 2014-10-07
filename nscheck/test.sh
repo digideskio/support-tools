@@ -8,9 +8,9 @@ function test2 {
     python2.6 nscheck.py test
 }
 
-# test list of file names, --detail
+# test list of file names
 function test3 {
-    python nscheck.py test/*.ns --detail
+    python nscheck.py test/*.ns
 }
 
 # test repair
@@ -21,7 +21,8 @@ function test4 {
     python nscheck.py --repair repair
     echo === checking
     python nscheck.py repair
-    rm -rf repair
+    echo === ls
+    ls -Rs repair
 }
 
 # create db with collections with:
@@ -43,7 +44,7 @@ function test5 {
 
 function dotest {
     $1 >/tmp/$1.out
-    if ! diff /tmp/$1.out expected/$1.out; then
+    if ! diff -b /tmp/$1.out expected/$1.out; then
         echo $1 FAIL
     else
         echo $1 PASS
