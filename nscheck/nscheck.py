@@ -43,19 +43,15 @@ class NsFile:
         except ValueError: pass
     
         # classify
-        classification = good
-        message = 'OK'
+        classification, message = good, 'OK'
         if not hash:
-            classification = empty
+            classification, message = empty, 'OK'
         elif not name.startswith(db + '.'):
-            classification = repairable
-            message = 'BAD NAME'
+            classification, message = repairable, 'BAD NAME'
         elif hash != ns_hash(name):
-            classification = irreparable
-            message = 'BAD HASH'
+            classification, message = irreparable, 'BAD HASH'
         elif name in self.seen_names:
-            classification = irreparable
-            message = 'DUPLICATE NAME'
+            classification, message = irreparable, 'DUPLICATE NAME'
     
         # update cumulative state, finish
         self.seen_names.add(name)
@@ -83,7 +79,7 @@ class NsFile:
                     message += ' - REPAIRABLE'
                 elif classification == irreparable:
                     message += ' - NOT REPAIRABLE'
-            if classification!=empty:
+            if classification != empty:
                 print '%08x: namespace name=%s  %s' % (at, escape(name), message)
             at += entry_len
     
@@ -140,7 +136,7 @@ class NsFile:
 
         except Exception, e:
             print 'could not check %s: %s' % (old_fn, e)
-            traceback.print_exc()
+            #traceback.print_exc()
 
         # close stuff
         if old_view: old_view.close()
