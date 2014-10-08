@@ -1,3 +1,4 @@
+=== recursive nscheck, python 2.4
 checking test/ccs.ns
 000ab90c: namespace name=ccs.system.namespaces  OK
 0024e970: namespace name=ccs.connectionTicket.$expiry_1  OK
@@ -5117,4 +5118,5 @@ checking test/summics.ns
 00fd8654: namespace name=summics.help.$timestamp_1  OK
 00fecf0c: namespace name=summics.triggeredAlert.$_id_  OK
 336 detected errors need repair
+
 

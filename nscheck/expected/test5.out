@@ -1,3 +1,4 @@
+=== check edge cases - 10 indexes, dropped collections, should all be ok
 checking db/test.ns
 000b3140: namespace name=test.c3.$x7_1  OK
 001dd97c: namespace name=test.c3.$x4_1  OK
@@ -23,4 +24,5 @@ checking db/test.ns
 00dae9a4: namespace name=test.$freelist  OK
 00f32cf4: namespace name=test.c2.$x0_1  OK
 0 detected errors need repair
+
 

@@ -1,4 +1,4 @@
-=== repairing
+=== do repair
 checking repair/ccs.ns
 000ab90c: namespace name=ccs.system.namespaces  OK
 0024e970: namespace name=ccs.connectionTicket.$expiry_1  OK
@@ -5128,7 +5128,8 @@ checking repair/summics.ns
 336 errors were detected and repaired
 repair/summics.ns has been repaired; old file has been saved as repair/summics.ns.backup
 
-=== checking
+
+=== check repaired
 checking repair/ccs.ns
 000ab90c: namespace name=ccs.system.namespaces  OK
 0024e970: namespace name=ccs.connectionTicket.$expiry_1  OK
@@ -6074,7 +6075,8 @@ checking repair/summics.ns
 00fecf0c: namespace name=summics.triggeredAlert.$_id_  OK
 0 detected errors need repair
 
-=== ls
+
+=== check for expected .backup files
 16777216 repair/ccs.ns
 16777216 repair/ccs.ns.backup
 16777216 repair/d1/admin.ns
@@ -6093,3 +6095,4 @@ checking repair/summics.ns
 16777216 repair/mms-prod.ns.backup
 16777216 repair/summics.ns
 16777216 repair/summics.ns.backup
+

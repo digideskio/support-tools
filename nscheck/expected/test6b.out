@@ -1,3 +1,4 @@
+=== make sure test.z got inserted
 {
 	"ns" : "test.z",
 	"count" : 1,
@@ -16,6 +17,8 @@
 	},
 	"ok" : 1
 }
+
+=== repair damage
 checking db/test.ns
 006afd24: namespace name=test.c  OK
 006b30a8: namespace name=xyz  BAD NAME - REPAIRED
@@ -33,6 +36,8 @@ checking db/test.ns
 7 errors were detected and repaired
 db/test.ns has been repaired; old file has been saved as db/test.ns.backup
 
+
+=== test.c and test.z should be accessible
 {
 	"ns" : "test.c",
 	"count" : 1,
@@ -69,3 +74,4 @@ db/test.ns has been repaired; old file has been saved as db/test.ns.backup
 	},
 	"ok" : 1
 }
+

@@ -1,3 +1,4 @@
+=== repair of bad hash should fail
 checking db/test.ns
 006afd24: namespace name=test.c  BAD HASH - NOT REPAIRED
 00b57460: namespace name=test.c.$_id_  OK
@@ -6,10 +7,15 @@ checking db/test.ns
 0 errors were detected and repaired
 1 errors could not be repaired - please contact MongoDB support
 
+
+=== .repaired file should be present
 16777216 db/local.0
 16777216 db/local.ns
 0 db/mongod.lock
 16777216 db/test.0
 16777216 db/test.ns
 16777216 db/test.ns.repaired
+
+=== test.ns file should not be changed
 test.ns was not changed
+

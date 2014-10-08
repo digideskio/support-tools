@@ -1,5 +1,7 @@
-expecting assertion in log:
+=== should see assertion in log
 Assertion: 10078:nsToDatabase: db too long
+
+=== repair damage
 checking db/mms-dev.ns
 0000112c: namespace name=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  BAD NAME - REPAIRED
 000013a0: namespace name=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  BAD NAME - REPAIRED
@@ -48,8 +50,11 @@ checking db/mms-dev.ns
 39 errors were detected and repaired
 db/mms-dev.ns has been repaired; old file has been saved as db/mms-dev.ns.backup
 
-expecting only one assertion in log
+
+=== should see only one assertion in log
 Assertion: 10078:nsToDatabase: db too long
+
+=== access collection via {$natural:1} and {i:1}
 [
 	{
 		"_id" : 0,
@@ -94,3 +99,4 @@ Assertion: 10078:nsToDatabase: db too long
 		"i" : 4
 	}
 ]
+

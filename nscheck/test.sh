@@ -14,37 +14,34 @@ elif [[ $(hostname) == reboot.local ]]; then
     python26=python2.6
 fi
 
+# portable ls, shows sizes
 function list {
     ls -l $(echo "${@}" | sort) | awk '{print $5, $9}'
 }
 
 # test recursive directory traversal, Python 2.4
 function test1 {
-    $python24 nscheck.py test | check
+    $python24 nscheck.py test | check "recursive nscheck, python 2.4"
 }
 
 # test recursive directory traversal, Python 2.6
 function test2 {
-    $python26 nscheck.py test | check
+    $python26 nscheck.py test | check "recursive nscheck, python 2.4"
 }
 
 # test list of file names
 function test3 {
-    python nscheck.py test/*.ns | check
+    python nscheck.py test/*.ns | check "nscheck list of names"
 }
 
 # test repair
 function test4 {
-    (
-        rm -rf repair
-        cp -r test repair
-        echo === repairing
-        python nscheck.py --repair repair
-        echo === checking
-        python nscheck.py repair
-        echo === ls
-        list $(find repair -type f)
-    ) | check
+    rm -rf repair
+    cp -r test repair
+    echo === repairing
+    python nscheck.py --repair repair | check "do repair"
+    python nscheck.py repair | check "check repaired"
+    list $(find repair -type f) | check "check for expected .backup files"
 }
 
 function fresh {
@@ -75,9 +72,9 @@ function stop {
 function test5 {
     fresh
     start $mongod24
-    $mongo generate.js
+    $mongo test5.js
     stop
-    python nscheck.py db/test.ns | check
+    python nscheck.py db/test.ns | check "check edge cases - 10 indexes, dropped collections, should all be ok"
 }
 
 # synthetic damage, basic case: damage 8KB region
@@ -100,16 +97,18 @@ function test6_ {
     start $mongod24
     $mongo --eval 'db.adminCommand("listDatabases")' # why is this needed?
     $mongo --eval 'printjson(db.z.insert({}))'
-    $mongo --quiet --eval 'printjson(db.z.stats())' | check
+    $mongo --quiet --eval 'printjson(db.z.stats())' | check "make sure test.z got inserted"
 
     # 4. repair
     stop
-    python nscheck.py --repair db/test.ns | check
+    python nscheck.py --repair db/test.ns | check "repair damage"
 
     # 5. check live operations
     start $mongod
-    $mongo --quiet --eval 'printjson(db.c.stats())' | check
-    $mongo --quiet --eval 'printjson(db.z.stats())' | check
+    (
+        $mongo --quiet --eval 'printjson(db.c.stats())'
+        $mongo --quiet --eval 'printjson(db.z.stats())'
+    ) | check "test.c and test.z should be accessible"
 }        
 
 # test6 using 2.4
@@ -138,39 +137,37 @@ function test7 {
 
     # 3. attempt repair, should fail
     stop
-    python nscheck.py --repair db/test.ns | check
+    python nscheck.py --repair db/test.ns | check "repair of bad hash should fail"
 
     # 4. check that .repaired file is present, but .ns file was not changed
-    (
-        list $(find db -type f)
-        new=$(md5 db/test.ns)
-        if [[ $new == $old ]]; then
-            echo test.ns was not changed
-        else
-            echo test.ns was changed!
-            echo old: $old
-            echo new: $new
-        fi
-    ) | check
+    list $(find db -type f) | check ".repaired file should be present"
+    new=$(md5 db/test.ns)
+    if [[ $new == $old ]]; then
+        echo test.ns was not changed
+    else
+        echo test.ns was changed!
+        echo old: $old
+        echo new: $new
+    fi | check "test.ns file should not be changed"
 }        
 
 # problem file
 function test8 {
-    python nscheck.py nonexistentfile.ns | check
+    python nscheck.py nonexistentfile.ns | check "should fail due to nonexistent file"
 }
 
 # existing .backup file
 function test9 {
-    (
-        rm -rf repair
-        mkdir repair
-        cp test/ccs.ns repair
-        touch repair/ccs.ns.backup
-        python nscheck.py --repair repair/ccs.ns
-        list $(find repair -type f | sort)
-        cp repair/ccs.ns.repaired repair/ccs.ns
-        python nscheck.py repair/ccs.ns
-    ) | check
+    rm -rf repair
+    mkdir repair
+    cp test/ccs.ns repair
+    touch repair/ccs.ns.backup
+    python nscheck.py --repair repair/ccs.ns | check "should fail due to existing .backup file"
+
+    list $(find repair -type f | sort) | check ".repaired file should exist"
+
+    cp repair/ccs.ns.repaired repair/ccs.ns
+    python nscheck.py repair/ccs.ns | check ".ns file should be ok after copying .repaired file over it"
 }
 
 # customer repro - must run on 2.6 mongod <2.6.5, unpatched kernel
@@ -192,35 +189,30 @@ function test10 {
 
     # check that mongod sees the corruption
     start $mongod26
-    (
-        sleep 2
-        echo "expecting assertion in log:"
-        egrep -o 'Assertion: 10078.*' db.log
-    ) | check
+    sleep 2
+    egrep -o 'Assertion: 10078.*' db.log | check "should see assertion in log"
 
     # repair
     stop
-    python nscheck.py --repair db/mms-dev.ns | check
+    python nscheck.py --repair db/mms-dev.ns | check "repair damage"
 
     # check that mongod no longer sees corruption, and collections and indexes can be accessed
     start $mongod26
-    (
-        sleep 2
-        echo "expecting only one assertion in log"
-        egrep -o 'Assertion: 10078.*' db.log
-        $mongo --quiet mms-dev --eval 'load("test10.js"); check()'
-    ) | check
-
+    sleep 2
+    egrep -o 'Assertion: 10078.*' db.log | check "should see only one assertion in log"
+    $mongo --quiet mms-dev --eval 'load("test10.js"); check()' | check 'access collection via {$natural:1} and {i:1}'
 }
 
 
 
 function check {
+    echo === "$*" >>$test_fn
     if [[ $dbg == "yes" ]]; then
         cat 2>&1 | tee -a $test_fn
     else
         cat >>$test_fn 2>&1
     fi
+    echo >>$test_fn
 }
 
 function dotest {

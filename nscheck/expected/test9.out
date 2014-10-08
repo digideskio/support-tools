@@ -1,3 +1,4 @@
+=== should fail due to existing .backup file
 checking repair/ccs.ns
 000ab90c: namespace name=ccs.system.namespaces  OK
 0024e970: namespace name=ccs.connectionTicket.$expiry_1  OK
@@ -42,9 +43,13 @@ checking repair/ccs.ns
 27 errors were detected and repaired
 could not rename files to complete repair: repair/ccs.ns.backup already exists
 
+
+=== .repaired file should exist
 16777216 repair/ccs.ns
 0 repair/ccs.ns.backup
 16777216 repair/ccs.ns.repaired
+
+=== .ns file should be ok after copying .repaired file over it
 checking repair/ccs.ns
 000ab90c: namespace name=ccs.system.namespaces  OK
 0024e970: namespace name=ccs.connectionTicket.$expiry_1  OK
@@ -60,4 +65,5 @@ checking repair/ccs.ns
 00f2d98c: namespace name=ccs.deviceLogEntry.$serialNumber  OK
 00f75a84: namespace name=ccs.connectionTicket  OK
 0 detected errors need repair
+
 
