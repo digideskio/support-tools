@@ -42,10 +42,9 @@ checking repair/ccs.ns
 27 errors were detected and repaired
 could not rename files to complete repair: repair/ccs.ns.backup already exists
 
-total 65536
-32768 ccs.ns
-    0 ccs.ns.backup
-32768 ccs.ns.repaired
+16777216 repair/ccs.ns
+0 repair/ccs.ns.backup
+16777216 repair/ccs.ns.repaired
 checking repair/ccs.ns
 000ab90c: namespace name=ccs.system.namespaces  OK
 0024e970: namespace name=ccs.connectionTicket.$expiry_1  OK

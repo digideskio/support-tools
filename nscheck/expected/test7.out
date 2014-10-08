@@ -6,17 +6,10 @@ checking db/test.ns
 0 errors were detected and repaired
 1 errors could not be repaired - please contact MongoDB support
 
-total 163840
-    0 _tmp
-    0 journal
-32768 local.0
-32768 local.ns
-    0 mongod.lock
-32768 test.0
-32768 test.ns
-32768 test.ns.repaired
-
-db/_tmp:
-
-db/journal:
+16777216 db/local.0
+16777216 db/local.ns
+0 db/mongod.lock
+16777216 db/test.0
+16777216 db/test.ns
+16777216 db/test.ns.repaired
 test.ns was not changed

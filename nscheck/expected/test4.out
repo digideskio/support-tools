@@ -6075,30 +6075,21 @@ checking repair/summics.ns
 0 detected errors need repair
 
 === ls
-total 327680
-32768 ccs.ns
-32768 ccs.ns.backup
-    0 d1
-    0 d2
-32768 dw3.ns
-32768 dw3.ns.backup
-32768 mms-dev.ns
-32768 mms-dev.ns.backup
-32768 mms-prod.ns
-32768 mms-prod.ns.backup
-32768 summics.ns
-32768 summics.ns.backup
-
-repair/d1:
-total 131072
-32768 admin.ns
-32768 admin.ns.backup
-32768 stg_mig.ns
-32768 stg_mig.ns.backup
-
-repair/d2:
-total 131072
-32768 admin.ns
-32768 admin.ns.backup
-32768 stg_mig.ns
-32768 stg_mig.ns.backup
+16777216 repair/ccs.ns
+16777216 repair/ccs.ns.backup
+16777216 repair/d1/admin.ns
+16777216 repair/d1/admin.ns.backup
+16777216 repair/d1/stg_mig.ns
+16777216 repair/d1/stg_mig.ns.backup
+16777216 repair/d2/admin.ns
+16777216 repair/d2/admin.ns.backup
+16777216 repair/d2/stg_mig.ns
+16777216 repair/d2/stg_mig.ns.backup
+16777216 repair/dw3.ns
+16777216 repair/dw3.ns.backup
+16777216 repair/mms-dev.ns
+16777216 repair/mms-dev.ns.backup
+16777216 repair/mms-prod.ns
+16777216 repair/mms-prod.ns.backup
+16777216 repair/summics.ns
+16777216 repair/summics.ns.backup

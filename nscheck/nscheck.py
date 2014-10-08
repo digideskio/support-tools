@@ -146,7 +146,7 @@ class NsFile:
 
 def walk(fn):
     if os.path.isdir(fn):
-        for n in os.listdir(fn):
+        for n in sorted(os.listdir(fn)):
             walk(os.path.join(fn, n))
     elif fn.endswith('.ns'):
         NsFile().open_and_check(fn)
