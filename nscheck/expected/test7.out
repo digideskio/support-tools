@@ -1,0 +1,22 @@
+checking db/test.ns
+006afd24: namespace name=test.c  BAD HASH - NOT REPAIRED
+00b57460: namespace name=test.c.$_id_  OK
+00b8e024: namespace name=test.system.indexes  OK
+00c8888c: namespace name=test.system.namespaces  OK
+0 errors were detected and repaired
+1 errors could not be repaired - please contact MongoDB support
+
+total 163840
+    0 _tmp
+    0 journal
+32768 local.0
+32768 local.ns
+    0 mongod.lock
+32768 test.0
+32768 test.ns
+32768 test.ns.repaired
+
+db/_tmp:
+
+db/journal:
+test.ns was not changed

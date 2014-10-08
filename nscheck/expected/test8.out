@@ -1,0 +1,2 @@
+checking nonexistentfile.ns
+could not check nonexistentfile.ns: [Errno 2] No such file or directory: 'nonexistentfile.ns'
