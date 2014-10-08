@@ -144,6 +144,21 @@ function test8 {
     python nscheck.py nonexistentfile.ns | check
 }
 
+# existing .backup file
+function test9 {
+    (
+        rm -rf repair
+        mkdir repair
+        cp test/ccs.ns repair
+        touch repair/ccs.ns.backup
+        python nscheck.py --repair repair/ccs.ns
+        ls -Rs repair
+        cp repair/ccs.ns.repaired repair/ccs.ns
+        python nscheck.py repair/ccs.ns
+    ) | check
+}
+
+
 function check {
     if [[ $dbg == "yes" ]]; then
         cat 2>&1 | tee -a $test_fn
@@ -181,6 +196,7 @@ function main {
     dotest test6b
     dotest test7
     dotest test8
+    dotest test9
     exit $rc
 }
 

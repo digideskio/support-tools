@@ -1,0 +1,64 @@
+checking repair/ccs.ns
+000ab90c: namespace name=ccs.system.namespaces  OK
+0024e970: namespace name=ccs.connectionTicket.$expiry_1  OK
+004ab978: namespace name=ccs.deviceLogEntry.$date  OK
+00598c74: namespace name=ccs.system.indexes  OK
+0063de78: namespace name=ccs.customer.$_id_  OK
+0064e9dc: namespace name=ccs.customer.$uniqueSerialNumberIndex  OK
+0086baf0: namespace name=ccs.deviceLogEntry.$expiry_1  OK
+009297e8: namespace name=ccs.customer  OK
+00961264: namespace name=ccs.deviceLogEntry  OK
+009905f4: namespace name=ccs.deviceLogEntry.$_id_  OK
+00f26b28: namespace name=ccs.connectionTicket.$_id_  OK
+00f27010: namespace name=\x01  BAD NAME - REPAIRED
+00f27284: namespace name=a\x16\x04  BAD NAME - REPAIRED
+00f274f8: namespace name=9f3a6d095da05eba782056  BAD NAME - REPAIRED
+00f2776c: namespace name=b4dc8c0b2db669459f4bf6  BAD NAME - REPAIRED
+00f279e0: namespace name=ReleaseCandidate1.ds2  BAD NAME - REPAIRED
+00f27c54: namespace name=06dfcec92ac19afea9ae  BAD NAME - REPAIRED
+00f27ec8: namespace name=80614-1  BAD NAME - REPAIRED
+00f2813c: namespace name=fox-launchpad-plugin  BAD NAME - REPAIRED
+00f283b0: namespace name=irmware-tools-cli  BAD NAME - REPAIRED
+00f28624: namespace name=e9976d53e981ef57  BAD NAME - REPAIRED
+00f28898: namespace name=4  BAD NAME - REPAIRED
+00f28b0c: namespace name=129e  BAD NAME - REPAIRED
+00f28d80: namespace name=8-1  BAD NAME - REPAIRED
+00f294dc: namespace name=o\x1d\x02  BAD NAME - REPAIRED
+00f299c4: namespace name=\xe2e\x11  BAD NAME - REPAIRED
+00f29c38: namespace name=  BAD NAME - REPAIRED
+00f2a120: namespace name=  BAD NAME - REPAIRED
+00f2a394: namespace name=\x11\x0c\x02  BAD NAME - REPAIRED
+00f2aaf0: namespace name=8&\x02  BAD NAME - REPAIRED
+00f2afd8: namespace name=\xa7g\x0a  BAD NAME - REPAIRED
+00f2b734: namespace name=\x02\x9a\x01  BAD NAME - REPAIRED
+00f2b9a8: namespace name=-\xa0\x05  BAD NAME - REPAIRED
+00f2bc1c: namespace name=  BAD NAME - REPAIRED
+00f2be90: namespace name=  BAD NAME - REPAIRED
+00f2c378: namespace name=  BAD NAME - REPAIRED
+00f2c5ec: namespace name=\x97\xf8  BAD NAME - REPAIRED
+00f2cd48: namespace name=8&\x02  BAD NAME - REPAIRED
+00f2d98c: namespace name=ccs.deviceLogEntry.$serialNumber  OK
+00f75a84: namespace name=ccs.connectionTicket  OK
+27 errors were detected and repaired
+could not rename files to complete repair: repair/ccs.ns.backup already exists
+
+total 65536
+32768 ccs.ns
+    0 ccs.ns.backup
+32768 ccs.ns.repaired
+checking repair/ccs.ns
+000ab90c: namespace name=ccs.system.namespaces  OK
+0024e970: namespace name=ccs.connectionTicket.$expiry_1  OK
+004ab978: namespace name=ccs.deviceLogEntry.$date  OK
+00598c74: namespace name=ccs.system.indexes  OK
+0063de78: namespace name=ccs.customer.$_id_  OK
+0064e9dc: namespace name=ccs.customer.$uniqueSerialNumberIndex  OK
+0086baf0: namespace name=ccs.deviceLogEntry.$expiry_1  OK
+009297e8: namespace name=ccs.customer  OK
+00961264: namespace name=ccs.deviceLogEntry  OK
+009905f4: namespace name=ccs.deviceLogEntry.$_id_  OK
+00f26b28: namespace name=ccs.connectionTicket.$_id_  OK
+00f2d98c: namespace name=ccs.deviceLogEntry.$serialNumber  OK
+00f75a84: namespace name=ccs.connectionTicket  OK
+0 detected errors need repair
+
