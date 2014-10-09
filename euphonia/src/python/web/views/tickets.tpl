@@ -30,6 +30,7 @@
                                                 <li><a href="/workflow/{{workflow['name']}}/sleep/86400">Sleep 1 Day</a></li>
                                                 <li><a href="/workflow/{{workflow['name']}}/sleep/259200">Sleep 3 Days</a></li>
                                                 <li><a href="/workflow/{{workflow['name']}}/sleep/604800">Sleep 1 Week</a></li>
+                                                <li><a href="/workflow/{{workflow['name']}}/sleep/604800">Freeze</a></li>
                                             </ul>
                                         </div>
                                     </i>
@@ -71,41 +72,69 @@
                                                     hidden = ""
                                                 end
                                         %>
-                                                <tr {{hidden}}>
+                                                <tr id="{{ticket['_id']}}" {{hidden}}>
                                                     <td><a href="javascript:void(0);" onclick="showPage(this,'http://jira.mongodb.org/browse/{{issue['key']}}','{{issue['key']}}');">{{issue['key']}}</a></td>
-                                                    <td>{{ticket['startDate']}}</td>
+                                                    <td class="startdate">{{ticket['startDate']}}</td>
                                                     <td>
-                                                        <i class="glyphicon glyphicon-time metadata" data-toggle="tooltip" data-placement="top" title="Last Updated: {{ticket['updateDate']}}"></i>
-                                                        % if ticket['frozen'] == True:
-                                                            <i class="glyphicon glyphicon-trash metadata" data-toggle="tooltip" data-placement="top" title="Frozen: {{ticket['updateDate']}}"></i>
-                                                        % elif ticket['done'] == True:
-	                                                        <i class="glyphicon glyphicon-ok metadata" data-toggle="tooltip" data-placement="top" title="Done: {{ticket['updateDate']}}"></i>
-	                                                    % elif ticket['inProg'] == True:
-                                                            <i class="glyphicon glyphicon-refresh metadata" data-toggle="tooltip" data-placement="top" title="In Progress since: {{ticket['updateDate']}}"></i>
-                                                        % elif ticket['approved'] == True:
-                                                            <i class="glyphicon glyphicon-thumbs-up metadata" data-toggle="tooltip" data-placement="top" title="Approved, not Done since: {{ticket['updateDate']}}"></i>
-                                                        % end
+                                                        <i id="{{ticket['_id']}}-time" class="glyphicon glyphicon-time metadata" data-toggle="tooltip" data-placement="top" title="Last Updated: {{ticket['updateDate']}}"></i>
+                                                        <%
+                                                            hidden = "display:none"
+                                                            if ticket['frozen'] == True:
+                                                                hidden = ""
+                                                            end
+                                                        %>
+                                                        <i id="{{ticket['_id']}}-frozen" class="glyphicon glyphicon-certificate metadata stats" style="{{hidden}}" data-toggle="tooltip" data-placement="top" title="Frozen"></i>
+                                                        <%
+                                                            hidden = "display:none"
+                                                            if ticket['done'] == True:
+                                                                hidden = ""
+                                                            end
+                                                        %>
+	                                                    <i id="{{ticket['_id']}}-done" class="glyphicon glyphicon-ok metadata stats" style="{{hidden}}" data-toggle="tooltip" data-placement="top" title="Done"></i>
+	                                                    <%
+                                                            hidden = "display:none"
+                                                            if ticket['inProg'] == True:
+                                                                hidden = ""
+                                                            end
+                                                        %>
+                                                        <i id="{{ticket['_id']}}-inprogress" class="glyphicon glyphicon-refresh metadata stats" style="{{hidden}}" data-toggle="tooltip" data-placement="top" title="In Progress"></i>
+                                                        <%
+                                                            hidden = "display:none"
+                                                            if ticket['approved'] == True:
+                                                                hidden = ""
+                                                            end
+                                                        %>
+                                                        <i id="{{ticket['_id']}}-approve" class="glyphicon glyphicon-thumbs-up metadata stats" style="{{hidden}}" data-toggle="tooltip" data-placement="top" title="Approved, not Done"></i>
                                                     </td>
                                                     <td>
                                                         <div class="pull-right">
-                                                        % if ticket['approved'] == True:
-                                                            <a class="btn btn-xs btn-default metadata {{doneDisabled}}" data-toggle="tooltip" data-placement="top" title="Disapprove" href="/ticket/{{ticket['_id']}}/disapprove"><i class="glyphicon glyphicon-ok"></i></a>
-                                                        % else:
-                                                            <a class="btn btn-xs btn-success metadata {{doneDisabled}}" data-toggle="tooltip" data-placement="top" title="Approve" href="/ticket/{{ticket['_id']}}/approve"><i class="glyphicon glyphicon-ok"></i></a>
-                                                        % end
+                                                        <%
+                                                            hidden = "display:none"
+                                                            if ticket['approved'] == True:
+                                                                hidden = ""
+                                                            end
+                                                        %>
+                                                            <a id="{{ticket['_id']}}-approve-btn" class="btn btn-xs btn-default metadata approve {{doneDisabled}}" style="{{hidden}}" data-toggle="tooltip" data-placement="top" title="Disapprove" href="javascript:void(0);" onclick="disapproveTask('{{ticket['_id']}}');"><i class="glyphicon glyphicon-ok"></i></a>
+                                                        <%
+                                                            hidden = "display:none"
+                                                            if ticket['approved'] == False:
+                                                                hidden = ""
+                                                            end
+                                                        %>
+                                                            <a id="{{ticket['_id']}}-approve-btn" class="btn btn-xs btn-success metadata approve {{doneDisabled}}" style="{{hidden}}" data-toggle="tooltip" data-placement="top" title="Approve" href="javascript:void(0);" onclick="approveTask('{{ticket['_id']}}');"><i class="glyphicon glyphicon-ok"></i></a>
                                                         <i class="metadata" data-toggle="tooltip" data-placement="top" title="Sleep">
                                                             <div class="btn-group">
                                                                 <button type="button" class="btn btn-xs btn-warning dropdown-toggle {{doneDisabled}}" data-toggle="dropdown"><i class="glyphicon glyphicon-time"></i>&nbsp;<span class="caret"></span></button>
                                                                 <ul class="dropdown-menu dropdown-menu-right {{doneDisabled}}" role="menu">
-                                                                    <li><a href="/ticket/{{ticket['_id']}}/wake">Wake Up!</a></li>
-                                                                    <li><a href="/ticket/{{ticket['_id']}}/sleep/86400">Sleep 1 Day</a></li>
-                                                                    <li><a href="/ticket/{{ticket['_id']}}/sleep/259200">Sleep 3 Days</a></li>
-                                                                    <li><a href="/ticket/{{ticket['_id']}}/sleep/604800">Sleep 1 Week</a></li>
-                                                                    <li><a href="/ticket/{{ticket['_id']}}/sleep">Freeze</a></li>
+                                                                    <li><a href="javascript:void(0);" onclick="wakeTask('{{ticket['_id']}}');">Wake Up!</a></li>
+                                                                    <li><a href="javascript:void(0);" onclick="sleepTask('{{ticket['_id']}}',86400);">Sleep 1 Day</a></li>
+                                                                    <li><a href="javascript:void(0);" onclick="sleepTask('{{ticket['_id']}}',259200);">Sleep 3 Days</a></li>
+                                                                    <li><a href="javascript:void(0);" onclick="sleepTask('{{ticket['_id']}}',604800);">Sleep 1 Week</a></li>
+                                                                    <li><a href="javascript:void(0);" onclick="sleepTask('{{ticket['_id']}}');">Freeze</a></li>
                                                                 </ul>
                                                             </div>
                                                         </i>
-                                                        <a class="btn btn-xs btn-danger metadata {{doneDisabled}}" data-toggle="tooltip" data-placement="top" title="Remove" href="/ticket/{{ticket['_id']}}/remove"><i class="glyphicon glyphicon-trash"></i></a>
+                                                        <a class="btn btn-xs btn-danger metadata {{doneDisabled}}" data-toggle="tooltip" data-placement="top" title="Remove" href="javascript:void(0);" onclick="removeTask('{{ticket['_id']}}');"><i class="glyphicon glyphicon-trash"></i></a>
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -123,6 +152,7 @@
                             <div style="clear:both"></div>
                         </div>
                     </div>
+                    <br/>
             <%
                     end
                 end
