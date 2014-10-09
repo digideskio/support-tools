@@ -100,7 +100,7 @@
                                                         <i id="{{ticket['_id']}}-inprogress" class="glyphicon glyphicon-refresh metadata stats" style="{{hidden}}" data-toggle="tooltip" data-placement="top" title="In Progress"></i>
                                                         <%
                                                             hidden = "display:none"
-                                                            if ticket['approved'] == True:
+                                                            if ticket['approved'] == True and ticket['done'] == False:
                                                                 hidden = ""
                                                             end
                                                         %>
