@@ -6,7 +6,7 @@ if [[ $(hostname) == vm-ubuntu-2 ]]; then
     python24=python # not available on later ubuntu, so punt
     python26=python
     vulnerable=yes
-elif [[ $(hostname) == reboot.local ]]; then
+elif [[ $(hostname) == reboot.local || $(hostname) == reboot.home ]]; then
     mongod24=~/mongodb/mongodb-osx-x86_64-2.4.10/bin/mongod
     mongod26=~/mongodb/mongodb-osx-x86_64-2.6.4/bin/mongod
     mongo=~/mongodb/mongodb-osx-x86_64-2.4.10/bin/mongo

@@ -18,13 +18,6 @@ def ns_hash(name):
         x = x * 131 + ord(c)
     return (x & 0x7fffffff) | 0x8000000
 
-# xxx built-in to do this?
-def escape(s):
-    def esc(c):
-        if ord(c)>=32 and ord(c)<=126: return c
-        else: return '\\x%02x' % ord(c)
-    return ''.join(esc(c) for c in s)
-
 # check a single .ns file
 class NsFile:
 
@@ -80,7 +73,7 @@ class NsFile:
                 elif classification == irreparable:
                     message += ' - NOT REPAIRABLE'
             if classification != empty:
-                print '%08x: namespace name=%s  %s' % (at, escape(name), message)
+                print '%08x: namespace name=%s  %s' % (at, repr(name)[1:-1], message)
             at += entry_len
     
     def open_and_check(self, old_fn):
@@ -104,6 +97,7 @@ class NsFile:
                     l = min(len(zeros), sz-i)
                     new_f.write(zeros[0:l])
                     i += l
+                new_f.flush() # ensure everything actually written to file
                 new_view = mmap.mmap(new_f.fileno(), sz, prot=mmap.PROT_WRITE)
 
             # check it
@@ -111,6 +105,7 @@ class NsFile:
 
             # summarize status
             if repair:
+                os.fsync(new_f.fileno()) # ensure all changes flushed to disk
                 print '%d errors were detected and repaired' % self.n_repairable
                 if self.n_irreparable:
                     print '%d errors could not be repaired - please contact MongoDB support' % \
@@ -135,7 +130,7 @@ class NsFile:
 
         except Exception, e:
             print 'could not check %s: %s' % (old_fn, e)
-            #traceback.print_exc()
+            traceback.print_exc()
 
         # close stuff
         if old_view: old_view.close()

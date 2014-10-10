@@ -30,7 +30,7 @@ checking repair/ccs.ns
 00f2a120: namespace name=  BAD NAME - REPAIRED
 00f2a394: namespace name=\x11\x0c\x02  BAD NAME - REPAIRED
 00f2aaf0: namespace name=8&\x02  BAD NAME - REPAIRED
-00f2afd8: namespace name=\xa7g\x0a  BAD NAME - REPAIRED
+00f2afd8: namespace name=\xa7g\n  BAD NAME - REPAIRED
 00f2b734: namespace name=\x02\x9a\x01  BAD NAME - REPAIRED
 00f2b9a8: namespace name=-\xa0\x05  BAD NAME - REPAIRED
 00f2bc1c: namespace name=  BAD NAME - REPAIRED
