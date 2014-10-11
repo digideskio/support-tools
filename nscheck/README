@@ -1,4 +1,5 @@
-*** THIS IS A WORK IN PROGRESS - DO NOT USE YET! ***
+*** NSCHECK IS READY FOR LIMITED BETA
+*** PLEASE CONTACT ME SO I CAN ADVISE AND MONITOR
 
 NAME
     nscheck - tool to repair certain .ns file corruption
@@ -24,7 +25,18 @@ DESCRIPTION
     showing the namespace name for that entry and a message indicating
     the status of the entry.
 
-    The repair procedure *must* be run with mongod shut down.
+    Note that nscheck has limited value as a diagnostic tool:
+    * it cannot determine vulnerability to future damage
+    * it may miss current damage unless you drop file caches,
+      but that would be very disruptive on a production cluster
+    * it can be used however to confirm a diagnosis based on observed
+      symptoms without dropping file caches. When used this way
+      on a live system it may show false positives if it catches
+      ns file changes in progress; run a second time to screen out
+
+    The repair procedure *must* be run with mongod shut down. Please
+    proceed with extreme caution when using for a repair; see [1] for
+    more details.
 
     --repair
 
