@@ -96,6 +96,14 @@ if __name__ == "__main__":
                                 help="process all active tasks in the "
                                      "workflow")
 
+    parser_prune = subparsers.add_parser('prune')
+    parser_prune.add_argument("tasks", nargs='?',
+                              help="tasks to prune (comma separated)")
+    parser_prune.add_argument("--all", action="store_true",
+                              help="prune all active tasks")
+    parser_prune.add_argument("--workflow", metavar="WORKFLOW",
+                              help="prune all active tasks in the workflow")
+
     parser_remove = subparsers.add_parser('remove')
     parser_remove.add_argument("tasks", nargs='?',
                                help="tasks to remove (comma separated)")

@@ -79,7 +79,8 @@ class karakuriclient(karakuribase):
         for task in tasks:
             res = self.taskRequest(task, command)
             if res['status'] == 'success':
-                _tasks.append(res['data']['task'])
+                if res['data']['task'] is not None:
+                    _tasks.append(res['data']['task'])
             else:
                 return res
         return {'status': 'success', 'data': {'tasks': _tasks}}

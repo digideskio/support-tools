@@ -16,9 +16,14 @@ class karakurid(karakuricommon.karakuriclient):
         karakuricommon.karakuriclient.__init__(self, *args, **kwargs)
 
     def run(self):
-        while (1):
-            self.logger.info("The Loop, the Loop, the Loop is on fire!")
-            time.sleep(5)
+        while 1:
+            self.logger.info("Pruning tasks...")
+            self.queueRequest("prune")
+            self.logger.info("Finding tasks...")
+            self.queueRequest("find")
+            #self.logger.info("Processing tasks...")
+            #self.queueRequest("process")
+            time.sleep(60)
 
 if __name__ == "__main__":
     parser = karakuricommon.karakuriclientparser(description="A scary karakuri"
