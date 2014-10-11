@@ -117,10 +117,10 @@ class karakuri(karakuricommon.karakuribase):
                           updoc)
         try:
             # return the 'new' updated document
-            self.debug.info(match)
-            self.debug.info(updoc)
+            self.logger.debug(match)
+            self.logger.debug(updoc)
             doc = collection.find_and_modify(match, updoc, new=True)
-            self.debug.info(doc)
+            self.logger.debug(doc)
             return {'ok': True, 'payload': doc}
         except pymongo.errors.PyMongoError as e:
             self.logger.exception(e)
