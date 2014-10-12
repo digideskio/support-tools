@@ -377,8 +377,9 @@ class karakuri(karakuricommon.karakuribase):
                 return ""
             company = res['payload']
 
-            if 'sales' in company:
-                sales = ['[~' + name + ']' for name in res['payload']['sales']]
+            if 'sales' in company and company['sales'] is not None:
+                sales = ['[~' + name.split("@")[0] + ']' for name in res[
+                    'payload']['sales']]
                 return string.join(sales, ', ')
             else:
                 return ""
