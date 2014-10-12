@@ -13,6 +13,7 @@ import issueDAO
 import ticketDAO
 import karakuriDAO
 from daemon import Daemon
+from bson import json_util
 
 utc = pytz.UTC
 app = Bottle()
@@ -25,6 +26,7 @@ def index(page=1):
 # GROUP-RELATED ROUTES
 @app.route('/groups/<page:re:\d*>/<query>')
 @app.route('/groups')
+@app.route('/groups/')
 @app.route('/test/<test>')
 def groups(page=1, test=None, query=None):
     query = None
@@ -79,12 +81,12 @@ def issueSummary(workflow=None, page=1):
     page = int(page)
     ticketSummary = karakuri.getQueues()
     ticketWorkflows = karakuri.getWorkflows()
-    if 'workflows' in ticketWorkflows and len(ticketWorkflows['workflows']) > 0:
+    if ticketWorkflows is not None and 'workflows' in ticketWorkflows and len(ticketWorkflows['workflows']) > 0:
         ticketWorkflows = ticketWorkflows['workflows']
     else:
         ticketWorkflows = []
     issueObjs = {}
-    if 'tasks' in ticketSummary and len(ticketSummary['tasks']) > 0:
+    if ticketSummary is not None and 'tasks' in ticketSummary and len(ticketSummary['tasks']) > 0:
         ticketSummary = ticketSummary['tasks']
         for ticket in ticketSummary:
             if 'start' in ticket:
@@ -102,61 +104,54 @@ def issueSummary(workflow=None, page=1):
         ticketSummary = []
     return template('base_page', renderpage="tickets", ticketSummary=ticketSummary, issues=issueObjs, ticketWorkflows=ticketWorkflows)
 
-@app.route('/ticket/<ticket>/process')
-def processTicket(ticket):
-    karakuri.processTicket(ticket)
-    return redirect('/issues')
+@app.route('/task/<task>/process')
+def processTicket(task):
+    return json_util.dumps(karakuri.processTicket(task))
 
-@app.route('/ticket/<ticket>/approve')
-def approveTicket(ticket):
-    karakuri.approveTicket(ticket)
-    return redirect('/issues')
+@app.route('/task/<task>/approve')
+def approveTicket(task):
+    return json_util.dumps(karakuri.approveTicket(task))
 
-@app.route('/ticket/<ticket>/disapprove')
-def disapproveTicket(ticket):
-    karakuri.disapproveTicket(ticket)
-    return redirect('/issues')
+@app.route('/task/<task>/disapprove')
+def disapproveTicket(task):
+    return json_util.dumps(karakuri.disapproveTicket(task))
 
-@app.route('/ticket/<ticket>/remove')
-def removeTicket(ticket):
-    karakuri.removeTicket(ticket)
-    return redirect('/issues')
+@app.route('/task/<task>/remove')
+def removeTicket(task):
+    return json_util.dumps(karakuri.removeTicket(task))
 
-@app.route('/ticket/<ticket>/sleep')
-def delayTicket(ticket):
-    karakuri.sleepTicket(ticket)
-    return redirect('/issues')
+@app.route('/task/<task>/sleep')
+def delayTicket(task):
+    return json_util.dumps(karakuri.sleepTicket(task))
 
-@app.route('/ticket/<ticket>/sleep/<seconds>')
-def delayTicket(ticket,seconds):
+@app.route('/task/<task>/wake')
+def wakeTicket(task):
+    return json_util.dumps(karakuri.wakeTicket(task))
+
+@app.route('/task/<task>/sleep/<seconds>')
+def delayTicket(task, seconds):
     seconds = int(seconds)
-    karakuri.sleepTicket(ticket, seconds)
-    return redirect('/issues')
+    return json_util.dumps(karakuri.sleepTicket(task, seconds))
 
 @app.route('/workflow/<workflow>/process')
 def processWorkflow(workflow):
-    karakuri.processWorkflow(workflow)
-    return redirect('/issues')
+    return karakuri.processWorkflow(workflow)
 
 @app.route('/workflow/<workflow>/approve')
 def approveWorkflow(workflow):
-    karakuri.approveWorkflow(workflow)
-    return redirect('/issues')
+    return karakuri.approveWorkflow(workflow)
 
 @app.route('/workflow/<workflow>/disapprove')
 def disapproveWorkflow(workflow):
-    karakuri.disapproveWorkflow(workflow)
-    return redirect('/issues')
+    return karakuri.disapproveWorkflow(workflow)
 
 @app.route('/workflow/<workflow>/remove')
 def removeWorkflow(workflow):
-    karakuri.removeWorkflow(workflow)
-    return redirect('/issues')
+    return karakuri.removeWorkflow(workflow)
 
 @app.route('/workflow/<workflow>/sleep/<days>')
-def delayWorkflow(workflow,days):
-    karakuri.sleepWorkflow(workflow,days)
-    return redirect('/issues')
+def delayWorkflow(workflow, days):
+    return karakuri.sleepWorkflow(workflow, days)
 
 # AUTOCOMPLETE SEARCH
 @app.route('/search/<query>')

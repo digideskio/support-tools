@@ -1,5 +1,5 @@
 import requests
-from bson.json_util import loads
+from bson import json_util
 
 class karakuriDAO:
 
@@ -8,12 +8,13 @@ class karakuriDAO:
 
     def executeKarakuriCall(self, url):
         try:
-            payload = {"token":"paulstoken"}
-            r = requests.post(url,data=payload)
-            response = loads(r.text)
+            payload = {"token": "paulstoken"}
+            r = requests.post(url, data=payload)
+            response = json_util.loads(r.text)
             if 'data' in response:
                 return response['data']
-
+            else:
+                return response
         except:
             print "Failed to call: " + url
 
@@ -135,7 +136,7 @@ class karakuriDAO:
         return response
 
     def wakeTicket(self, ticketId):
-        getUrl = "%s/issue/%s/wake" % (self.SERVER, ticketId)
+        getUrl = "%s/task/%s/wake" % (self.SERVER, ticketId)
         response = self.executeKarakuriCall(getUrl)
         return response
 
