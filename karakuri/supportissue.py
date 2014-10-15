@@ -494,7 +494,7 @@ class SupportIssue:
         fields['summary'] = summary
 
     def setJIRACompanyGroups(self, fields, companyGroups):
-        fields['customfield_10850'] = companyGroups
+        fields['customfield_10850'] = {'name': companyGroups}
 
     #
     # Karakuri specific
