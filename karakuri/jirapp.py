@@ -3,7 +3,6 @@ import pymongo
 
 from jira.client import JIRA
 from jira.exceptions import JIRAError
-from pprint import pprint
 
 
 class jirapp(JIRA):
@@ -42,7 +41,7 @@ class jirapp(JIRA):
         try:
             issue = self.issue(key)
         except JIRAError as e:
-            raise e
+            return {'ok': False, 'payload': e}
 
         project = issue.fields.project.key
         status = issue.fields.status.name
@@ -50,27 +49,25 @@ class jirapp(JIRA):
         # transition id
         tid = None
 
-        logging.info("Finding %s transition id for project:'%s', "
-                     "status:'%s'" % (transition, project, status))
+        logging.debug("Finding %s transition id for project:'%s', "
+                      "status:'%s'" % (transition, project, status))
 
         try:
             coll_transitions = self.db_jirameta.transitions
             match = {'pkey': project, 'sname': status, 'tname': transition}
             proj = {'tid': 1, '_id': 0}
             doc = coll_transitions.find_one(match, proj)
-
         except pymongo.errors.PyMongoError as e:
-            raise e
+            return {'ok': False, 'payload': e}
 
         if doc and 'tid' in doc and doc['tid'] is not None:
             tid = doc['tid']
             logging.info("Found transition id:%s" % tid)
-
         else:
-            logging.info("Transition id not found. Most likely issue is "
-                         "already in the desired state.")
+            logging.warning("Transition id not found. Most likely issue is "
+                            "already in the desired state.")
 
-        return tid
+        return {'ok': True, 'payload': tid}
 
     def addPublicComment(self, key, comment):
         """ This method adds a public-facing comment to a JIRA issue """
@@ -81,9 +78,9 @@ class jirapp(JIRA):
             try:
                 self.add_comment(key, comment)
             except JIRAError as e:
-                raise e
+                return {'ok': False, 'payload': e}
 
-        return True
+        return {'ok': True, 'payload': True}
 
     def addDeveloperComment(self, key, comment):
         """ This method adds a developer-only comment to a JIRA issue """
@@ -95,9 +92,9 @@ class jirapp(JIRA):
                 self.add_comment(key, comment, visibility={'type': 'role',
                                  'value': 'Developers'})
             except JIRAError as e:
-                raise e
+                return {'ok': False, 'payload': e}
 
-        return True
+        return {'ok': True, 'payload': True}
 
     def closeIssue(self, key):
         """ This method closes a JIRA issue """
@@ -109,9 +106,9 @@ class jirapp(JIRA):
                 try:
                     self.transition_issue(key, tid)
                 except JIRAError as e:
-                    raise e
+                    return {'ok': False, 'payload': e}
 
-        return True
+        return {'ok': True, 'payload': True}
 
     def createIssue(self, fields={}):
         """ This method creates a JIRA issue. Assume fields is in a format that
@@ -119,9 +116,11 @@ class jirapp(JIRA):
         """
         # Use createmeta to identify required fields for ticket creation
         if 'project' not in fields or 'issuetype' not in fields:
-            raise Exception("project and issuetype required for createmeta")
+            return {'ok': False, 'payload': 'project and issuetype required '
+                                            'for createmeta'}
 
         coll_createmeta = self.db_jirameta.createmeta
+
         match = {'pkey': fields['project']['key'], 'itname':
                  fields['issuetype']['name']}
         proj = {'required': 1, '_id': 0}
@@ -135,38 +134,33 @@ class jirapp(JIRA):
         try:
             doc = coll_createmeta.find_one(match, proj)
         except pymongo.errors.PyMongoError as e:
-            raise e
+            return {'ok': False, 'payload': e}
 
         if doc and 'required' in doc:
             required_fields = doc['required']
 
         if required_fields is not None:
-            # In case there are errors we'll find them all before failing
-            raiseexception = False
-
             for f in required_fields:
                 if f not in fields:
-                    logging.info("Error: %s required to create JIRA %s %s"
-                                 "issue" % (f, fields['issuetype']['name'],
-                                            fields['project']['key']))
-                    raiseexception = True
-
-            if raiseexception is True:
-                raise Exception("jira.createmeta validation failed")
+                    message = "%s required to create JIRA issue of type '%s' "\
+                              "in project '%s'" % (f,
+                                                   fields['issuetype']['name'],
+                                                   fields['project']['key'])
+                    logging.warning(message)
+                    return {'ok': False, 'payload': message}
 
         logging.info("Creating JIRA issue...")
 
         if self.live:
             try:
                 issue = self.create_issue(fields=fields)
+                logging.info("Created %s" % issue.key)
+                return {'ok': True, 'payload': issue.key}
             except JIRAError as e:
-                raise e
-
-            logging.info("Created %s" % issue.key)
-            return issue
-
+                return {'ok': False, 'payload': e}
         else:
-            pprint(fields)
+            logging.debug(fields)
+            return {'ok': True, 'payload': 'CS-XXXXX'}
 
     def resolveIssue(self, key, resolution):
         """ This method resolves a JIRA issue with the given resolution """
@@ -184,8 +178,8 @@ class jirapp(JIRA):
         if resolution in res_map:
             rid = res_map[resolution]
         else:
-            raise Exception("%s is not a supported resolution type" %
-                            resolution)
+            return {'ok': False, 'payload': "%s is not a supported resolution "
+                                            "type" % resolution}
 
         logging.info("Resolving %s" % key)
 
@@ -195,9 +189,9 @@ class jirapp(JIRA):
                 try:
                     self.transition_issue(key, tid, resolution={'id': rid})
                 except JIRAError as e:
-                    raise e
+                    return {'ok': False, 'payload': e}
 
-        return True
+        return {'ok': True, 'payload': True}
 
     def setLabels(self, key, labels):
         """ This method sets the labels in a JIRA issue """
@@ -207,14 +201,14 @@ class jirapp(JIRA):
         try:
             issue = self.issue(key)
         except JIRAError as e:
-            raise e
+            return {'ok': False, 'payload': e}
 
         try:
             issue.update(labels=labels.split(','))
         except JIRAError as e:
-            raise e
+            return {'ok': False, 'payload': e}
 
-        return True
+        return {'ok': True, 'payload': True}
 
     def setLive(self, b):
         """ Lock and load? """
@@ -233,9 +227,9 @@ class jirapp(JIRA):
                 try:
                     self.transition_issue(key, tid, fields=fields)
                 except JIRAError as e:
-                    raise e
+                    return {'ok': False, 'payload': e}
 
-        return True
+        return {'ok': True, 'payload': True}
 
     def wfcIssue(self, key):
         """ This method sets the status of a ticket to Wait for Customer """
@@ -247,6 +241,6 @@ class jirapp(JIRA):
                 try:
                     self.transition_issue(key, tid)
                 except JIRAError as e:
-                    raise e
+                    return {'ok': False, 'payload': e}
 
-        return True
+        return {'ok': True, 'payload': True}

@@ -105,6 +105,33 @@ class karakuri(karakuricommon.karakuribase):
 
         return match
 
+    def createIssue(self, fields):
+        """ Create a new issue """
+        self.logger.debug("createIssue(%s)", fields)
+        fields = SupportIssue(fields).getJIRAFields()
+        return self.issuer.createIssue(fields)
+
+    def createWorkflow(self, fields):
+        """ Create a new workflow """
+        self.logger.debug("createWorkflow(%s)", fields)
+        # TODO implement preliminary validation
+        if 'name' not in fields:
+            return {'ok': False, 'payload': 'workflow must have a name'}
+
+        # does a workflow with this name already exist?
+        res = self.getWorkflow(fields['name'])
+        if res['ok']:
+            return {'ok': False, 'payload': "workflow '%s' already exists"
+                    % fields['name']}
+
+        try:
+            # TODO modify this to return workflow in payload instead
+            # of just a bool
+            self.coll_workflows.insert(fields)
+            return {'ok': True, 'payload': True}
+        except pymongo.errors.PyMongoError as e:
+            return {'ok': False, 'payload': e}
+
     def disapproveTask(self, tid):
         """ Disapprove the task for processing """
         self.logger.debug("disapproveTask(%s)", tid)
@@ -145,6 +172,16 @@ class karakuri(karakuricommon.karakuribase):
         else:
             updoc["$set"] = {'t': datetime.utcnow()}
         return self.find_and_modify(self.coll_queue, match, updoc)
+
+    def find_and_modify_workflow(self, match, updoc):
+        """ find_and_modify for karakuri.workflow that automatically updates
+        the 't' timestamp """
+        self.logger.debug("find_and_modify_workflow(%s,%s)", match, updoc)
+        if "$set" in updoc:
+            updoc["$set"]['t'] = datetime.utcnow()
+        else:
+            updoc["$set"] = {'t': datetime.utcnow()}
+        return self.find_and_modify(self.coll_workflows, match, updoc)
 
     def find_one(self, collection, match):
         """ Wrapper for find_one that handles exceptions """
@@ -332,8 +369,6 @@ class karakuri(karakuricommon.karakuribase):
             self.logger.exception(e)
             return {'ok': False, 'payload': e}
 
-        # TODO verify that find_one returns None for null
-        # and modify conditional to reflect that
         if doc:
             issue = SupportIssue()
             issue.fromDoc(doc)
@@ -378,8 +413,8 @@ class karakuri(karakuricommon.karakuribase):
             company = res['payload']
 
             if 'sales' in company and company['sales'] is not None:
-                sales = ['[~' + name.split("@")[0] + ']' for name in res[
-                    'payload']['sales']]
+                sales = ['[~' + name['jira'] + ']' for name in res['payload'][
+                    'sales']]
                 return string.join(sales, ', ')
             else:
                 return ""
@@ -476,7 +511,7 @@ class karakuri(karakuricommon.karakuribase):
             res = method(*newargs)
         else:
             # simulate success
-            res = True
+            res = {'ok': True, 'payload': True}
 
         return res
 
@@ -520,9 +555,9 @@ class karakuri(karakuricommon.karakuribase):
                 action['args'] = [issue.key]
 
             res = self._processAction(action, issue)
-            self._log(iid, workflowName, action['name'], res)
+            self._log(iid, workflowName, action['name'], res['ok'])
 
-            if not res:
+            if not res['ok']:
                 success = False
                 break
 
@@ -698,11 +733,7 @@ class karakuri(karakuricommon.karakuribase):
             return res
         iid = res['payload']
         match = {'_id': iid}
-
-        res = self.find_and_modify_issue(match, updoc)
-        if res['ok']:
-            return {'ok': True, 'payload': res['payload']}
-        return res
+        return self.find_and_modify_issue(match, updoc)
 
     def updateTask(self, tid, updoc):
         """ They hatin' """
@@ -713,11 +744,14 @@ class karakuri(karakuricommon.karakuribase):
             return res
         tid = res['payload']
         match = {'_id': tid}
+        return self.find_and_modify_task(match, updoc)
 
-        res = self.find_and_modify_task(match, updoc)
-        if res['ok']:
-            return {'ok': True, 'payload': res['payload']}
-        return res
+    def updateWorkflow(self, name, updoc):
+        """ Update an existing workflow """
+        self.logger.debug("updateWorkflow(%s,%s)", name, updoc)
+        # TODO implement preliminary validation
+        match = {'name': name}
+        return self.find_and_modify_workflow(match, updoc)
 
     def validateTask(self, tid):
         """ Validate the task, i.e. that the issue satisfies the requirements
@@ -775,54 +809,62 @@ class karakuri(karakuricommon.karakuribase):
 
         # These are the RESTful API endpoints. There are many like it, but
         # these are them
-        b.route('/issue', 'POST', callback=self._issue_list)
-        b.route('/issue/<id>', 'POST', callback=self._issue_get)
-        b.route('/issue/<id>/sleep', 'POST', callback=self._issue_sleep)
-        b.route('/issue/<id>/sleep/<seconds:int>', 'POST',
+        #########
+        #  GET  #
+        #########
+        b.route('/issue', 'GET', callback=self._issue_list)
+        b.route('/issue/<id>', 'GET', callback=self._issue_get)
+        b.route('/issue/<id>/sleep', 'GET', callback=self._issue_sleep)
+        b.route('/issue/<id>/sleep/<seconds:int>', 'GET',
                 callback=self._issue_sleep)
-        b.route('/issue/<id>/wake', 'POST', callback=self._issue_wake)
-        b.route('/queue', 'POST', callback=self._queue_list)
-        b.route('/queue/approve', 'POST', callback=self._queue_approve)
-        b.route('/queue/disapprove', 'POST', callback=self._queue_disapprove)
-        b.route('/queue/find', 'POST', callback=self._queue_find)
-        b.route('/queue/process', 'POST', callback=self._queue_process)
-        b.route('/queue/prune', 'POST', callback=self._queue_prune)
-        b.route('/queue/remove', 'POST', callback=self._queue_remove)
-        b.route('/queue/sleep', 'POST', callback=self._queue_sleep)
-        b.route('/queue/sleep/<seconds:int>', 'POST',
+        b.route('/issue/<id>/wake', 'GET', callback=self._issue_wake)
+        b.route('/queue', 'GET', callback=self._queue_list)
+        b.route('/queue/approve', 'GET', callback=self._queue_approve)
+        b.route('/queue/disapprove', 'GET', callback=self._queue_disapprove)
+        b.route('/queue/find', 'GET', callback=self._queue_find)
+        b.route('/queue/process', 'GET', callback=self._queue_process)
+        b.route('/queue/prune', 'GET', callback=self._queue_prune)
+        b.route('/queue/remove', 'GET', callback=self._queue_remove)
+        b.route('/queue/sleep', 'GET', callback=self._queue_sleep)
+        b.route('/queue/sleep/<seconds:int>', 'GET',
                 callback=self._queue_sleep)
-        b.route('/queue/wake', 'POST', callback=self._queue_wake)
+        b.route('/queue/wake', 'GET', callback=self._queue_wake)
         # a repete ;)
-        b.route('/task', 'POST', callback=self._queue_list)
-        b.route('/task/<id>', 'POST', callback=self._task_get)
-        b.route('/task/<id>/approve', 'POST', callback=self._task_approve)
-        b.route('/task/<id>/disapprove', 'POST',
-                callback=self._task_disapprove)
-        b.route('/task/<id>/process', 'POST', callback=self._task_process)
-        b.route('/task/<id>/prune', 'POST', callback=self._task_prune)
-        b.route('/task/<id>/remove', 'POST', callback=self._task_remove)
-        b.route('/task/<id>/sleep', 'POST', callback=self._task_sleep)
-        b.route('/task/<id>/sleep/<seconds:int>', 'POST',
+        b.route('/task', 'GET', callback=self._queue_list)
+        b.route('/task/<id>', 'GET', callback=self._task_get)
+        b.route('/task/<id>/approve', 'GET', callback=self._task_approve)
+        b.route('/task/<id>/disapprove', 'GET', callback=self._task_disapprove)
+        b.route('/task/<id>/process', 'GET', callback=self._task_process)
+        b.route('/task/<id>/prune', 'GET', callback=self._task_prune)
+        b.route('/task/<id>/remove', 'GET', callback=self._task_remove)
+        b.route('/task/<id>/sleep', 'GET', callback=self._task_sleep)
+        b.route('/task/<id>/sleep/<seconds:int>', 'GET',
                 callback=self._task_sleep)
-        b.route('/task/<id>/wake', 'POST', callback=self._task_wake)
-        b.route('/workflow', 'POST', callback=self._workflow_list)
-        b.route('/workflow/<name>', 'POST', callback=self._workflow_get)
-        b.route('/workflow/<name>/approve', 'POST',
+        b.route('/task/<id>/wake', 'GET', callback=self._task_wake)
+        b.route('/workflow', 'GET', callback=self._workflow_list)
+        b.route('/workflow/<name>', 'GET', callback=self._workflow_get)
+        b.route('/workflow/<name>/approve', 'GET',
                 callback=self._workflow_approve)
-        b.route('/workflow/<name>/disapprove', 'POST',
+        b.route('/workflow/<name>/disapprove', 'GET',
                 callback=self._workflow_disapprove)
-        b.route('/workflow/<name>/find', 'POST', callback=self._workflow_find)
-        b.route('/workflow/<name>/process', 'POST',
+        b.route('/workflow/<name>/find', 'GET', callback=self._workflow_find)
+        b.route('/workflow/<name>/process', 'GET',
                 callback=self._workflow_process)
-        b.route('/workflow/<name>/prune', 'POST',
-                callback=self._workflow_prune)
-        b.route('/workflow/<name>/remove', 'POST',
+        b.route('/workflow/<name>/prune', 'GET', callback=self._workflow_prune)
+        b.route('/workflow/<name>/remove', 'GET',
                 callback=self._workflow_remove)
-        b.route('/workflow/<name>/sleep', 'POST',
+        b.route('/workflow/<name>/sleep', 'GET', callback=self._workflow_sleep)
+        b.route('/workflow/<name>/sleep/<seconds:int>', 'GET',
                 callback=self._workflow_sleep)
-        b.route('/workflow/<name>/sleep/<seconds:int>', 'POST',
-                callback=self._workflow_sleep)
-        b.route('/workflow/<name>/wake', 'POST', callback=self._workflow_wake)
+        b.route('/workflow/<name>/wake', 'GET', callback=self._workflow_wake)
+
+        ##########
+        #  POST  #
+        ##########
+        b.route('/issue', 'POST', callback=self._issue_create)
+        # TODO b.route('/issue/<id>', 'POST', callback=self._issue_update)
+        b.route('/workflow', 'POST', callback=self._workflow_create)
+        b.route('/workflow/<name>', 'POST', callback=self._workflow_update)
 
         b.run(host=self.args['rest_host'], port=self.args['rest_port'])
 
@@ -831,7 +873,11 @@ class karakuri(karakuricommon.karakuribase):
         authentication """
         def wrapped(self, *args, **kwargs):
             # Determine whether or not I am allowed to execute this action
-            token = bottle.request.params.get('token')
+            header = bottle.request.get_header('Authorization')
+            auth_dict = {kv[0]: kv[1] for kv in [keyValue.split(':') for
+                         keyValue in header.split(',')]}
+            token = auth_dict.get('auth_token', None)
+
             match = {'token': token,
                      'token_expiry_date': {"$gt": datetime.utcnow()}}
             doc = self.coll_users.find_one(match)
@@ -862,6 +908,22 @@ class karakuri(karakuricommon.karakuribase):
         self.logger.debug("_issue_list()")
         # TODO implement no-way, Jose 404
         return self._fail()
+
+    @_authenticated
+    def _issue_create(self):
+        """ Create a JIRA issue """
+        self.logger.debug("_issue_create()")
+        body = bottle.request.body.read()
+
+        try:
+            fields = bson.json_util.loads(body)
+        except Exception as e:
+            return {'ok': False, 'payload': e}
+
+        res = self.createIssue(fields)
+        if res['ok']:
+            return self._success({'issue': res['payload']})
+        return self._error(res['payload'])
 
     def _issue_response(self, method, id, **kwargs):
         self.logger.debug("_issue_response(%s,%s)", method, id)
@@ -1029,7 +1091,40 @@ class karakuri(karakuricommon.karakuribase):
         res = self.getListOfWorkflows()
         if res['ok']:
             return self._success({'workflows': res['payload']})
-        return self._error()
+        return self._error(res['payload'])
+
+    @_authenticated
+    def _workflow_create(self):
+        """ Create a workflow """
+        self.logger.debug("_workflow_create()")
+        body = bottle.request.body.read()
+
+        try:
+            fields = bson.json_util.loads(body)
+        except Exception as e:
+            return {'ok': False, 'payload': e}
+
+        res = self.createWorkflow(fields)
+        if res['ok']:
+            return self._success({'workflow': res['payload']})
+        return self._error(res['payload'])
+
+    @_authenticated
+    def _workflow_update(self, name):
+        """ Update a workflow """
+        self.logger.debug("_workflow_update()")
+        body = bottle.request.body.read()
+
+        try:
+            fields = bson.json_util.loads(body)
+        except Exception as e:
+            return {'ok': False, 'payload': e}
+
+        updoc = {"$set": fields}
+        res = self.updateWorkflow(name, updoc)
+        if res['ok']:
+            return self._success({'workflow': res['payload']})
+        return self._error(res['payload'])
 
     def _workflow_response(self, method, name, **kwargs):
         self.logger.debug("_workflow_response(%s,%s)", method.__name__, name)
@@ -1065,7 +1160,7 @@ class karakuri(karakuricommon.karakuribase):
         res = self.findWorkflowTasks(name)
         if res['ok']:
             return self._success({'tasks': res['payload']})
-        return self._error()
+        return self._error(res['payload'])
 
     @_authenticated
     def _workflow_process(self, name):
