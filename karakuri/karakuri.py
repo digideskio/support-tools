@@ -105,6 +105,14 @@ class karakuri(karakuricommon.karakuribase):
 
         return match
 
+    def createIssue(self, fields):
+        self.logger.debug("createIssue(%s)", fields)
+        fields = SupportIssue(fields).getJIRAFields()
+        res = self.issuer.createIssue(fields)
+        if not res['ok']:
+            return res
+        return {'ok': True, 'payload': res['payload']}
+
     def disapproveTask(self, tid):
         """ Disapprove the task for processing """
         self.logger.debug("disapproveTask(%s)", tid)
@@ -378,8 +386,8 @@ class karakuri(karakuricommon.karakuribase):
             company = res['payload']
 
             if 'sales' in company and company['sales'] is not None:
-                sales = ['[~' + name.split("@")[0] + ']' for name in res[
-                    'payload']['sales']]
+                sales = ['[~' + name['jira'] + ']' for name in res['payload'][
+                    'sales']]
                 return string.join(sales, ', ')
             else:
                 return ""
@@ -476,7 +484,7 @@ class karakuri(karakuricommon.karakuribase):
             res = method(*newargs)
         else:
             # simulate success
-            res = True
+            res = {'ok': True, 'payload': True}
 
         return res
 
@@ -520,9 +528,9 @@ class karakuri(karakuricommon.karakuribase):
                 action['args'] = [issue.key]
 
             res = self._processAction(action, issue)
-            self._log(iid, workflowName, action['name'], res)
+            self._log(iid, workflowName, action['name'], res['ok'])
 
-            if not res:
+            if not res['ok']:
                 success = False
                 break
 
@@ -776,6 +784,7 @@ class karakuri(karakuricommon.karakuribase):
         # These are the RESTful API endpoints. There are many like it, but
         # these are them
         b.route('/issue', 'POST', callback=self._issue_list)
+        b.route('/issue/create', 'POST', callback=self._issue_create)
         b.route('/issue/<id>', 'POST', callback=self._issue_get)
         b.route('/issue/<id>/sleep', 'POST', callback=self._issue_sleep)
         b.route('/issue/<id>/sleep/<seconds:int>', 'POST',
@@ -862,6 +871,22 @@ class karakuri(karakuricommon.karakuribase):
         self.logger.debug("_issue_list()")
         # TODO implement no-way, Jose 404
         return self._fail()
+
+    @_authenticated
+    def _issue_create(self):
+        """ Create a JIRA issue """
+        self.logger.debug("_issue_create()")
+        fields = bottle.request.params.get('fields')
+
+        try:
+            fields = bson.json_util.loads(fields)
+        except Exception as e:
+            return {'ok': False, 'payload': e}
+
+        res = self.createIssue(fields)
+        if res['ok']:
+            return self._success({'issue': res['payload']})
+        return self._error(res['payload'])
 
     def _issue_response(self, method, id, **kwargs):
         self.logger.debug("_issue_response(%s,%s)", method, id)
