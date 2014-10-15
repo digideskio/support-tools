@@ -108,20 +108,6 @@ def issueSummary(workflow=None, page=1):
 def editWorkflows():
     return template('base_page', renderpage="workflows")
 
-@post('/editworkflow')
-def edit_workflow():
-    formcontent = request.body.read()
-    formjson = json_util.loads(formcontent)
-    print formjson
-    for workflow in formjson.get('workflow'):
-        if '_id' in workflow:
-            workflowId = json_util.ObjectId(workflow.get('_id'))
-            workflow['_id'] = workflowId
-            print workflow
-            connection.mongo.karakuri.workflows.update({'_id': workflowId}, workflow)
-        else:
-            connection.mongo.karakuri.workflows.insert(workflow)
-
 @app.route('/task/<task>/process')
 def processTicket(task):
     return json_util.dumps(karakuri.processTicket(task))
@@ -150,6 +136,21 @@ def wakeTicket(task):
 def delayTicket(task, seconds):
     seconds = int(seconds)
     return json_util.dumps(karakuri.sleepTicket(task, seconds))
+
+@app.post('/workflow')
+def edit_workflow():
+    formcontent = request.body.read()
+    formjson = json_util.loads(formcontent)
+    print formjson
+    for wf in formjson:
+        workflow = formjson[wf]
+        if '_id' in workflow:
+            workflowId = json_util.ObjectId(workflow.get('_id'))
+            workflow['_id'] = workflowId
+            print workflow
+            connection.karakuri.workflows.update({'_id': workflowId}, workflow)
+        else:
+            connection.karakuri.workflows.insert(workflow)
 
 @app.route('/workflow')
 @app.route('/workflow/')

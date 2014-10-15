@@ -33,10 +33,23 @@
                             </div>
                         </div>
                         <div class="form-group">
-                            <label for="prereqs" class="col-sm-2 control-label">Prereqs</label>
+                            <label for="prereqs" class="col-sm-2 control-label">Prerequisites</label>
                             <div class="col-sm-10">
-                                <select multiple="true" class="form-control" name="workflow.prereqs" id="workflow.prereqs">
-                                </select>
+                                <table class="table table table-condensed table-bordered">
+                                    <thead>
+                                        <tr>
+                                            <th class="col-sm-6">Name</th>
+                                            <th class="col-sm-6">Time Elapsed</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="prereqsList" name="prereqsList">
+                                        <tr id="addPrereq-link">
+                                            <td colspan="2">
+                                                <a id="add-prereq-btn" href="javascript:void(0);" data-toggle="tooltip" data-placement="top" title="Add Prerequisite"><i class="glyphicon glyphicon-plus"></i></a>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                         <div class="form-group">
@@ -65,6 +78,16 @@
                                 </table>
                             </div>
                         </div>
+                    </div>
+                    <div class="btn-group pull-right">
+                        <button id="save-link" type="button" class="btn btn-primary">Save Workflow&nbsp;<i class="glyphicon glyphicon-cloud-upload"></i></button>
+                        <button type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown">
+                            <span class="caret"></span>
+                            <span class="sr-only">Toggle Dropdown</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-right" role="menu">
+                            <li><a id="save-copy-link" href="javascript:void(0);">Save as New Workflow</a></li>
+                        </ul>
                     </div>
                 </div>
             </form>

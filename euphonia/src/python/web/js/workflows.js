@@ -10,9 +10,18 @@ $(document).ready(function() {
             function(){$(this).closest('tr').addClass('bg-success')},
             function(){$(this).closest('tr').removeClass('bg-success')}
     );
+    $('#add-prereq-btn').click(function(){addPrereq()})
+        .tooltip()
+        .hover(
+            function(){$(this).closest('tr').addClass('bg-success')},
+            function(){$(this).closest('tr').removeClass('bg-success')}
+    );
+    $('#save-link').click(function(){saveChanges($(this).closest('form'));})
+    $('#save-copy-link').click(function(){saveChangesNew($(this).closest('form'));})
 });
 
 function renderList(workflows) {
+    $('#existingflows').empty();
     for(var wf in workflows){
         var workflow = workflows[wf];
         var el = $('<li></li>');
@@ -48,14 +57,7 @@ function renderWorkflow(wfid) {
     $(":input[id='workflow.name']").val(workflow['name']);
     $(":input[id='workflow._id']").val(workflow['_id']['$oid']);
     $(":input[id='workflow.time_elapsed']").val(workflow['time_elapsed']);
-    for (var wf in workflows) {
-        $('<option></option>').text(workflows[wf]['name']).val(workflows[wf]['name']).appendTo($(":input[id='workflow.prereqs']"))
-    }
-    var prereqs = workflow['prereqs'];
-    for (var prereq in prereqs) {
-        console.log(prereqs[prereq]);
-        $(":input[id='workflow.prereqs']").find("option[value ='" + prereqs[prereq] + "']").attr('selected','true');
-    }
+    renderPrereqs(workflow['prereqs']);
     var jstring = JSON.stringify(workflow['query_string'],null,4);
     $(":input[id='workflow.query_string']").val(workflow['query_string']);
     renderActions(workflow['actions']);
@@ -83,8 +85,8 @@ function removeWorkflow(wfid){
 
 function clearForm(){
     $(':input').val("");
-    $(":input[id='workflow.prereqs']").empty()
-    $("#actionsList").empty()
+    $("#prereqsList").empty();
+    $("#actionsList").empty();
 }
 
 function renderActions(actions) {
@@ -151,6 +153,44 @@ function actionArgHtml(actionindex,argindex){
     return root;
 }
 
+function renderPrereqs(prereqs) {
+    var parent = $('#prereqsList');
+    for (var prereq in prereqs) {
+        var root = renderPrereq(prereqs,prereq);
+        root.appendTo(parent);
+    }
+    var addprereq = renderAddPrereq();
+    addprereq.appendTo(parent);
+}
+
+
+function renderPrereq(prereqs,index){
+    var prereq = null;
+    if(prereqs && prereqs[index]){
+        prereq = prereqs[index];
+    }
+    var root = $('<tr id="prereq-' + index + '"></tr>');
+    var col1 = $('<td class="col-sm-6"></td>');
+    var col2 = $('<td class="col-sm-6"></td>');
+    var content1 = $('<select id="workflow.prereqs[' + index +'].name" name="workflow.prereqs[' + index +'].name" class="form-control"></select');
+    var content2 = $('<input id="workflow.prereqs[' + index +'].time_elapsed" name="workflow.prereqs[' + index +'].time_elapsed" class="form-control"/>');
+    $('<option></option>').val("").appendTo(content1);
+    for (var wf in workflows) {
+        $('<option></option>').text(workflows[wf]['name']).val(workflows[wf]['name']).appendTo(content1);
+    }
+    if(prereq && prereq['name']){
+        content1.val(prereq['name']);
+    }
+    if(prereq && prereq['time_elapsed']){
+        content2.val(prereq['time_elapsed']);
+    }
+    content1.appendTo(col1);
+    content2.appendTo(col2);
+    col1.appendTo(root);
+    col2.appendTo(root);
+    return root;
+}
+
 function renderAddAction(){
     var root = $('<tr id="addAction-link"></tr>');
     var col = $('<td colspan="2"></td>');
@@ -169,11 +209,25 @@ function renderAddActionArg(actionindex){
     return root;
 }
 
+function renderAddPrereq(){
+    var root = $('<tr id="addPrereq-link"></tr>');
+    var col = $('<td colspan="2"></td>');
+    var link = $('<a href="javascript:void(0);" data-toggle="tooltip" data-placement="top" title="Add Prerequisite"><i class="glyphicon glyphicon-plus"></i></a>').tooltip().hover(function(){$(this).closest('tr').addClass('bg-success')},function(){$(this).closest('tr').removeClass('bg-success')});
+    link.click(function(){addPrereq()});
+    link.appendTo(col);
+    col.appendTo(root);
+    return root;
+}
+
 function removeAction(parent){
     $(parent).remove();
 }
 
 function removeActionArg(parent) {
+    $(parent).remove();
+}
+
+function removePrereq(parent){
     $(parent).remove();
 }
 
@@ -201,34 +255,44 @@ function addActionArg(actionindex){
     }
 }
 
+function addPrereq(){
+    var link = $('#addPrereq-link');
+    var container = link.parent();
+    var argindex = container.children().length - 1;
+    var content = renderPrereq(null);
+    if(argindex == 0){
+        container.prepend(content);
+    } else {
+        link.prev().after(content);
+    }
+}
+
 function saveChanges(form) {
     var formid = $(form).attr('id');
     var jsonform = form2js(document.getElementById(formid),".",true,undefined,true,true);
-    formdata = JSON.stringify(jsonform,null,4);
-    /*
-    $.ajax({
-       type : "POST",
-       url : "/editworkflow",
-       data : formdata
-    }).success(function(){
-        getWorkflowList();
-    });
-    */
-    alert("Saved workflow");
+    var formdata = JSON.stringify(jsonform,null,4);
+    saveWorkflow(formdata);
 }
 
 function saveChangesNew(form) {
     var formid = $(form).attr('id');
     var jsonform = form2js(document.getElementById(formid),".",true,undefined,true,true);
-    formdata = JSON.stringify(jsonform,null,4);
-    /*
+    delete jsonform.workflow._id;
+    var formdata = JSON.stringify(jsonform,null,4);
+    saveWorkflow(formdata);
+}
+
+function saveWorkflow(content){
     $.ajax({
-       type : "POST",
-       url : "/editworkflow",
-       data : formdata
+        type : "POST",
+        url : "/workflow",
+        data : content
     }).success(function(){
         getWorkflowList();
+        alert("Saved workflow");
+        clearForm();
+    }).error(function(e){
+        alert("Workflow was NOT saved for the following reason:\n" + e.status + " : " + e.statusText );
+        console.log(e);
     });
-    */
-    alert("Saved workflow as a new copy");
 }
