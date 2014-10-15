@@ -203,6 +203,17 @@ function test10 {
     $mongo --quiet mms-dev --eval 'load("test10.js"); check()' | check 'access collection via {$natural:1} and {i:1}'
 }
 
+# symbolic links
+function test11 {
+    rm -rf repair repair.linked
+    cp -r test repair
+    mkdir repair.linked
+    (cd repair.linked; ln -s ../repair/{d1,d2} .)
+    python nscheck.py --repair repair.linked | check 'repair via symbolic links'
+    list repair/{d1,d2} | check '.ns and .backup files should exist'
+    python nscheck.py repair/{d1,d2} | check 'files should be repaired'
+}
+
 
 
 function check {
@@ -248,6 +259,7 @@ function main {
     if [[ $vulnerable == yes ]]; then
         dotest test10
     fi
+    dotest test11
     exit $rc
 }
 
