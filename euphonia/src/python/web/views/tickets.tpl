@@ -180,3 +180,4 @@
         </div>
     </div>
 </div>
+<script src="/js/tickets.js"></script>

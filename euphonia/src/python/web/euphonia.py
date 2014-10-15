@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from bottle import run, redirect, error, route, template, static_file, Bottle
+from bottle import run, redirect, post, request, error, route, template, static_file, Bottle
 import pymongo
 import logging
 import sys
@@ -104,6 +104,24 @@ def issueSummary(workflow=None, page=1):
         ticketSummary = []
     return template('base_page', renderpage="tickets", ticketSummary=ticketSummary, issues=issueObjs, ticketWorkflows=ticketWorkflows)
 
+@app.route('/workflows')
+def editWorkflows():
+    return template('base_page', renderpage="workflows")
+
+@post('/editworkflow')
+def edit_workflow():
+    formcontent = request.body.read()
+    formjson = json_util.loads(formcontent)
+    print formjson
+    for workflow in formjson.get('workflow'):
+        if '_id' in workflow:
+            workflowId = json_util.ObjectId(workflow.get('_id'))
+            workflow['_id'] = workflowId
+            print workflow
+            connection.mongo.karakuri.workflows.update({'_id': workflowId}, workflow)
+        else:
+            connection.mongo.karakuri.workflows.insert(workflow)
+
 @app.route('/task/<task>/process')
 def processTicket(task):
     return json_util.dumps(karakuri.processTicket(task))
@@ -132,6 +150,11 @@ def wakeTicket(task):
 def delayTicket(task, seconds):
     seconds = int(seconds)
     return json_util.dumps(karakuri.sleepTicket(task, seconds))
+
+@app.route('/workflow')
+@app.route('/workflow/')
+def getWorkflows():
+    return json_util.dumps(karakuri.getWorkflows())
 
 @app.route('/workflow/<workflow>/process')
 def processWorkflow(workflow):
