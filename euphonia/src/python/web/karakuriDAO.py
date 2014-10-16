@@ -6,13 +6,13 @@ class karakuriDAO:
     def __init__(self, server):
         self.SERVER = server
 
-    def executeKarakuriCall(self, url, method="GET"):
+    def executeKarakuriCall(self, url, method="GET", data=None):
         try:
             auth_header = {"Authorization":"auth_token=paulstoken"}
             if method == "GET":
                 r = requests.get(url, headers=auth_header)
             elif method == "POST":
-                r = requests.post(url, headers=auth_header)
+                r = requests.post(url, headers=auth_header, data=data)
             else:
                 r = None
             if r is not None:
@@ -73,7 +73,7 @@ class karakuriDAO:
 
     def createWorkflow(self,workflow=None):
         getUrl = "%s/workflow" % (self.SERVER)
-        response = self.executeKarakuriCall(getUrl, "POST")
+        response = self.executeKarakuriCall(getUrl, method="POST", data=workflow)
         return response
 
     def getWorkflow(self, workflowId):
@@ -83,7 +83,7 @@ class karakuriDAO:
 
     def updateWorkflow(self, workflowName, workflow):
         getUrl = "%s/workflow/%s" % (self.SERVER, workflowName)
-        response = self.executeKarakuriCall(getUrl, "POST")
+        response = self.executeKarakuriCall(getUrl ,method="POST", data=workflow)
         return response
 
     def processWorkflow(self, workflowId):

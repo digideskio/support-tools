@@ -104,14 +104,13 @@ def issueSummary(workflow=None, page=1):
                 ticket['startDate'] = ""
                 ticket['frozen'] = False
             ticket['updateDate'] = datetime.strftime(ticket['t'], "%Y-%m-%d %H:%M")
-            issueObjs[str(ticket['iid'])] = karakuri.getIssue(str(ticket['iid']))['issue']['jira']
+            issue = karakuri.getIssue(str(ticket['iid']))
+            print issue
+            if issue is not None and 'issue' in issue:
+                issueObjs[str(ticket['iid'])] = issue['issue']['jira']
     else:
         ticketSummary = []
     return template('base_page', renderpage="tickets", ticketSummary=ticketSummary, issues=issueObjs, ticketWorkflows=ticketWorkflows)
-
-@app.route('/workflows')
-def editWorkflows():
-    return template('base_page', renderpage="workflows")
 
 @app.route('/task/<task>/process')
 def processTicket(task):
@@ -142,15 +141,25 @@ def delayTicket(task, seconds):
     seconds = int(seconds)
     return json_util.dumps(karakuri.sleepTicket(task, seconds))
 
+@app.route('/workflows')
+def editWorkflows():
+    return template('base_page', renderpage="workflows")
+
 @app.post('/workflow')
 def createWorkflow():
     formcontent = request.body.read()
-    return json_util.dumps(karakuri.createWorkflow(formcontent))
+    workflow = json_util.loads(formcontent)['workflow']
+    print workflow
+    return json_util.dumps(karakuri.createWorkflow(json_util.dumps(workflow)))
 
-@app.post('/workflow/<workflow>')
-def createWorkflow(workflow):
+@app.post('/workflow/<wfname>')
+def updateWorkflow(wfname):
     formcontent = request.body.read()
-    return json_util.dumps(karakuri.updateWorkflow(workflow, formcontent))
+    workflow = json_util.loads(formcontent)['workflow']
+    workflowId = json_util.ObjectId(workflow['_id'])
+    workflow['_id'] = workflowId
+    print workflow
+    return json_util.dumps(karakuri.updateWorkflow(wfname, json_util.dumps(workflow)))
 
 @app.route('/workflow')
 @app.route('/workflow/')

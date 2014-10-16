@@ -10,6 +10,7 @@
             <ul id="existingflows" class="nav">
             </ul>
             <button id="create-btn" class="btn btn-primary col-sm-12">Create New Workflow</button>
+            <div style="clear:both;"></div>
         </div>
         <div class="col-lg-10">
             <form class="form-horizontal" role="form" id="form">

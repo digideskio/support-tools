@@ -26,7 +26,7 @@ function renderList(workflows) {
         var workflow = workflows[wf];
         var el = $('<li></li>');
         var item = $('<a href="javascript:void(0);" class="col-sm-10">' + workflow['name'] + '</a>');
-        var removelink = $('<a href="javascript:void(0);" class="text-danger col-sm-2" data-toggle="tooltip" data-placement="top" title="Remove Workflow"><i class="glyphicon glyphicon-trash"></i></a>').tooltip();
+        var removelink = $('<a href="javascript:void(0);" class="text-danger col-sm-1" data-toggle="tooltip" data-placement="top" title="Remove Workflow"><i class="glyphicon glyphicon-trash"></i></a>').tooltip();
         removelink.click(wf,function(e){removeWorkflow(e.data)});
         item.click(wf,function(e){renderWorkflow(e.data);});
         item.appendTo(el);
@@ -87,6 +87,8 @@ function clearForm(){
     $(':input').val("");
     $("#prereqsList").empty();
     $("#actionsList").empty();
+    renderActions();
+    renderPrereqs();
 }
 
 function renderActions(actions) {
@@ -100,7 +102,7 @@ function renderActions(actions) {
 }
 
 function renderAction(action,index){
-    var root = $('<tr id="action-' + index + '"></tr>');
+    var root = $('<tr id="action-' + index + '" class="action"></tr>');
     var namenode = renderActionName(action, index);
     var argsnode = renderActionArgs(action, index);
     namenode.appendTo(root);
@@ -169,7 +171,7 @@ function renderPrereq(prereqs,index){
     if(prereqs && prereqs[index]){
         prereq = prereqs[index];
     }
-    var root = $('<tr id="prereq-' + index + '"></tr>');
+    var root = $('<tr id="prereq-' + index + '" class="prereq"></tr>');
     var col1 = $('<td class="col-sm-6"></td>');
     var col2 = $('<td class="col-sm-6"></td>');
     var content1 = $('<select id="workflow.prereqs[' + index +'].name" name="workflow.prereqs[' + index +'].name" class="form-control"></select');
@@ -271,7 +273,8 @@ function saveChanges(form) {
     var formid = $(form).attr('id');
     var jsonform = form2js(document.getElementById(formid),".",true,undefined,true,true);
     var formdata = JSON.stringify(jsonform,null,4);
-    saveWorkflow(formdata);
+    var url = "/workflow/" + jsonform.workflow.name;
+    saveWorkflow(formdata,url);
 }
 
 function saveChangesNew(form) {
@@ -279,13 +282,14 @@ function saveChangesNew(form) {
     var jsonform = form2js(document.getElementById(formid),".",true,undefined,true,true);
     delete jsonform.workflow._id;
     var formdata = JSON.stringify(jsonform,null,4);
-    saveWorkflow(formdata);
+    var url = "/workflow"
+    saveWorkflow(formdata,url);
 }
 
-function saveWorkflow(content){
+function saveWorkflow(content,url){
     $.ajax({
         type : "POST",
-        url : "/workflow",
+        url : url,
         data : content
     }).success(function(){
         getWorkflowList();

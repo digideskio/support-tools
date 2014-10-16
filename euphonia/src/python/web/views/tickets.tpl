@@ -55,7 +55,7 @@
                                         <%
                                         for ticket in ticketSummary:
                                             print ticket
-                                            if ticket['workflow'] == workflow['name']:
+                                            if ticket['workflow'] == workflow['name'] and str(ticket['iid']) in issues:
                                                 issue = issues[str(ticket['iid'])]
                                                 doneDisabled = False
                                                 if 'done' in ticket:
@@ -138,6 +138,10 @@
                                                         </div>
                                                     </td>
                                                 </tr>
+                                        <%
+                                            elif ticket['workflow'] == workflow['name'] and str(ticket['iid']) not in issues:
+                                        %>
+                                                <tr id="{{ticket['_id']}}"><td colspan="4" class="bg-danger">Ticket {{ticket['_id']}} not found</td></tr>
                                         <%
                                             end
                                         end
