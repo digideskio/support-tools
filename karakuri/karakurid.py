@@ -17,12 +17,12 @@ class karakurid(karakuricommon.karakuriclient):
 
     def run(self):
         while 1:
-            self.logger.info("Pruning tasks...")
+            self.logger.info("Pruning existing tasks...")
             self.queueRequest("prune")
-            self.logger.info("Finding tasks...")
+            self.logger.info("Finding new tasks...")
             self.queueRequest("find")
-            #self.logger.info("Processing tasks...")
-            #self.queueRequest("process")
+            self.logger.info("Processing approved tasks...")
+            self.queueRequest("process")
             time.sleep(60)
 
 if __name__ == "__main__":
