@@ -6,15 +6,23 @@ class karakuriDAO:
     def __init__(self, server):
         self.SERVER = server
 
-    def executeKarakuriCall(self, url):
+    def executeKarakuriCall(self, url, method="GET"):
         try:
-            payload = {"token": "paulstoken"}
-            r = requests.post(url, data=payload)
-            response = json_util.loads(r.text)
-            if 'data' in response:
-                return response['data']
+            auth_header = {"Authorization":"auth_token=paulstoken"}
+            if method == "GET":
+                r = requests.get(url, headers=auth_header)
+            elif method == "POST":
+                r = requests.post(url, headers=auth_header)
             else:
-                return response
+                r = None
+            if r is not None:
+                response = json_util.loads(r.text)
+                if 'data' in response:
+                    return response['data']
+                else:
+                    return response
+            else:
+                return None
         except:
             print "Failed to call: " + url
 
@@ -63,9 +71,19 @@ class karakuriDAO:
         response = self.executeKarakuriCall(getUrl)
         return response
 
+    def createWorkflow(self,workflow=None):
+        getUrl = "%s/workflow" % (self.SERVER)
+        response = self.executeKarakuriCall(getUrl, "POST")
+        return response
+
     def getWorkflow(self, workflowId):
         getUrl = "%s/workflow/%s" % (self.SERVER, workflowId)
         response = self.executeKarakuriCall(getUrl)
+        return response
+
+    def updateWorkflow(self, workflowName, workflow):
+        getUrl = "%s/workflow/%s" % (self.SERVER, workflowName)
+        response = self.executeKarakuriCall(getUrl, "POST")
         return response
 
     def processWorkflow(self, workflowId):

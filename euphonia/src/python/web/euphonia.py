@@ -12,11 +12,16 @@ import groupDAO
 import issueDAO
 import ticketDAO
 import karakuriDAO
+import salesforceDAO
 from daemon import Daemon
 from bson import json_util
 
 utc = pytz.UTC
 app = Bottle()
+
+@app.route('/test')
+def getContacts():
+    return sf.getContacts()
 
 # ROOT/SUMMARY PAGE
 @app.route('/<page:re:\d*>')
@@ -138,19 +143,14 @@ def delayTicket(task, seconds):
     return json_util.dumps(karakuri.sleepTicket(task, seconds))
 
 @app.post('/workflow')
-def edit_workflow():
+def createWorkflow():
     formcontent = request.body.read()
-    formjson = json_util.loads(formcontent)
-    print formjson
-    for wf in formjson:
-        workflow = formjson[wf]
-        if '_id' in workflow:
-            workflowId = json_util.ObjectId(workflow.get('_id'))
-            workflow['_id'] = workflowId
-            print workflow
-            connection.karakuri.workflows.update({'_id': workflowId}, workflow)
-        else:
-            connection.karakuri.workflows.insert(workflow)
+    return json_util.dumps(karakuri.createWorkflow(formcontent))
+
+@app.post('/workflow/<workflow>')
+def createWorkflow(workflow):
+    formcontent = request.body.read()
+    return json_util.dumps(karakuri.updateWorkflow(workflow, formcontent))
 
 @app.route('/workflow')
 @app.route('/workflow/')
@@ -222,6 +222,8 @@ if __name__ == "__main__":
     failedTests = failedTestDAO.FailedTestDAO(euphoniaDB)
     issues = issueDAO.IssueDAO(supportDB)
     tickets = ticketDAO.TicketDAO(karakuri)
+
+    sf = salesforceDAO.salesforceDAO()
 
     daemon = automaton('euphonia.pid')
     if len(sys.argv) == 2:
