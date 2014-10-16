@@ -45,8 +45,8 @@ class karakuriclient(karakuribase):
     def request(self, endpoint):
         url = "http://%s:%i%s" % (self.args['karakuri_host'],
                                   self.args['karakuri_port'], endpoint)
-        params = {'token': self.token}
-        res = requests.post(url, params=params)
+        headers = {'Authorization': "auth_token=%s" % self.token}
+        res = requests.get(url, headers=headers)
         if res.status_code == requests.codes.ok:
             return bson.json_util.loads(res.content)
         else:

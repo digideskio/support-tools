@@ -60,7 +60,11 @@ class karakuri(karakuricommon.karakuribase):
         """
         self.logger.debug("_buildValidateQuery(%s,%s)", workflow['name'], iid)
         query_string = workflow['query_string']
-        match = bson.json_util.loads(query_string)
+
+        try:
+            match = bson.json_util.loads(query_string)
+        except Exception as e:
+            return {'ok': False, 'payload': e}
 
         # issue must exist!
         match['deleted'] = False
@@ -87,7 +91,7 @@ class karakuri(karakuricommon.karakuribase):
             # the specified issue must return in the query!
             res = self.getObjectId(iid)
             if not res['ok']:
-                return None
+                return res
             iid = res['payload']
             match['_id'] = iid
 
@@ -103,7 +107,7 @@ class karakuri(karakuricommon.karakuribase):
                                      {"$elemMatch": {'name': prereq['name'],
                                                      'lid': {"$lte": start}}}})
 
-        return match
+        return {'ok': True, 'payload': match}
 
     def createIssue(self, fields):
         """ Create a new issue """
@@ -114,9 +118,9 @@ class karakuri(karakuricommon.karakuribase):
     def createWorkflow(self, fields):
         """ Create a new workflow """
         self.logger.debug("createWorkflow(%s)", fields)
-        # TODO implement preliminary validation
-        if 'name' not in fields:
-            return {'ok': False, 'payload': 'workflow must have a name'}
+        res = self.validateWorkflow(fields)
+        if not res['ok']:
+            return res
 
         # does a workflow with this name already exist?
         res = self.getWorkflow(fields['name'])
@@ -193,8 +197,27 @@ class karakuri(karakuricommon.karakuribase):
             self.logger.exception(e)
             return {'ok': False, 'payload': e}
 
+    def findWorkflowIssues(self, workflow):
+        """ Find issues that satisfy the workflow """
+        self.logger.debug("findWorkflowIssues(%s)", workflow)
+        if not isinstance(workflow, dict):
+            return {'ok': False, 'payload': 'workflow is not of type dict'}
+
+        res = self._buildValidateQuery(workflow)
+        if not res['ok']:
+            return res
+        match = res['payload']
+
+        # find 'em and get 'er done!
+        try:
+            curs_issues = self.coll_issues.find(match)
+        except pymongo.errors.PyMongoError as e:
+            self.logger.exception(e)
+            return {'ok': False, 'payload': e}
+        return {'ok': True, 'payload': [issue for issue in curs_issues]}
+
     def findWorkflowTasks(self, workflowNameORworkflow):
-        """ Find and queue new tasks that satisfy the workflow """
+        """ Find issues that satisfy the workflow and queue new tasks """
         self.logger.debug("findWorkflowTasks(%s)", workflowNameORworkflow)
         if isinstance(workflowNameORworkflow, dict):
             workflow = workflowNameORworkflow
@@ -203,21 +226,16 @@ class karakuri(karakuricommon.karakuribase):
             if not res['ok']:
                 return res
             workflow = res['payload']
-        self.logger.info("Finding tasks for workflow '%s'", workflow['name'])
 
-        match = self._buildValidateQuery(workflow)
-
-        # find 'em and get 'er done!
-        try:
-            curs_issues = self.coll_issues.find(match)
-        except pymongo.errors.PyMongoError as e:
-            self.logger.exception(e)
-            return {'ok': False, 'payload': e}
+        res = self.findWorkflowIssues(workflow)
+        if not res['ok']:
+            return res
+        issues = res['payload']
 
         res = True
         tasks = []
         message = ""
-        for i in curs_issues:
+        for i in issues:
             issue = SupportIssue()
             issue.fromDoc(i)
 
@@ -749,7 +767,13 @@ class karakuri(karakuricommon.karakuribase):
     def updateWorkflow(self, name, updoc):
         """ Update an existing workflow """
         self.logger.debug("updateWorkflow(%s,%s)", name, updoc)
-        # TODO implement preliminary validation
+        if 'name' not in updoc:
+            updoc['name'] = name
+
+        res = self.validateWorkflow(updoc)
+        if not res['ok']:
+            return res
+
         match = {'name': name}
         return self.find_and_modify_workflow(match, updoc)
 
@@ -770,7 +794,10 @@ class karakuri(karakuricommon.karakuribase):
             return res
         workflow = res['payload']
 
-        match = self._buildValidateQuery(workflow, iid)
+        res = self._buildValidateQuery(workflow, iid)
+        if not res['ok']:
+            return res
+        match = res['payload']
         self.logger.debug("validate query:")
         self.logger.debug(match)
 
@@ -787,6 +814,18 @@ class karakuri(karakuricommon.karakuribase):
         else:
             self.logger.debug("task !validated")
         return {'ok': True, 'payload': res}
+
+    def validateWorkflow(self, workflow):
+        self.logger.debug("validateWorkflow(%s)", workflow)
+        if not isinstance(workflow, dict):
+            return {'ok': False, 'payload': 'workflow is not of type dict'}
+        if 'name' not in workflow:
+            return {'ok': False, 'payload': "workflow missing 'name'"}
+        if 'query_string' not in workflow:
+            return {'ok': False, 'payload': "workflow missing 'query_string'"}
+        if 'time_elapsed' not in workflow:
+            return {'ok': False, 'payload': "workflow missing 'time_elapsed'"}
+        return {'ok': True, 'payload': True}
 
     def wakeTask(self, tid):
         """ Wake the task, i.e. mark it ready to go """
@@ -805,7 +844,7 @@ class karakuri(karakuricommon.karakuribase):
         self.logger.debug("start()")
         self.logger.info("karakuri is at REST")
 
-        b = bottle.Bottle()
+        b = bottle.Bottle(autojson=False)
 
         # These are the RESTful API endpoints. There are many like it, but
         # these are them
@@ -863,6 +902,7 @@ class karakuri(karakuricommon.karakuribase):
         ##########
         b.route('/issue', 'POST', callback=self._issue_create)
         # TODO b.route('/issue/<id>', 'POST', callback=self._issue_update)
+        b.route('/testworkflow', 'POST', callback=self._workflow_test)
         b.route('/workflow', 'POST', callback=self._workflow_create)
         b.route('/workflow/<name>', 'POST', callback=self._workflow_update)
 
@@ -874,8 +914,14 @@ class karakuri(karakuricommon.karakuribase):
         def wrapped(self, *args, **kwargs):
             # Determine whether or not I am allowed to execute this action
             header = bottle.request.get_header('Authorization')
-            auth_dict = {kv[0]: kv[1] for kv in [keyValue.split(':') for
-                         keyValue in header.split(',')]}
+            if not header:
+                bottle.abort(401)
+            keyValuePairs = [kv for kv in [keyValue.split('=') for keyValue in
+                                           header.split(',')]]
+            auth_dict = {}
+            for kv in keyValuePairs:
+                if len(kv) == 2:
+                    auth_dict = {kv[0]: kv[1]}
             token = auth_dict.get('auth_token', None)
 
             match = {'token': token,
@@ -1107,6 +1153,26 @@ class karakuri(karakuricommon.karakuribase):
         res = self.createWorkflow(fields)
         if res['ok']:
             return self._success({'workflow': res['payload']})
+        return self._error(res['payload'])
+
+    @_authenticated
+    def _workflow_test(self):
+        """ Return a list of tickets that satisfy the workflow requirements """
+        self.logger.debug("_workflow_test()")
+        body = bottle.request.body.read()
+
+        try:
+            fields = bson.json_util.loads(body)
+        except Exception as e:
+            return self._error(e)
+
+        res = self.validateWorkflow(fields)
+        if not res['ok']:
+            return self._error(res['payload'])
+
+        res = self.findWorkflowIssues(fields)
+        if res['ok']:
+            return self._success({'issues': res['payload']})
         return self._error(res['payload'])
 
     @_authenticated
