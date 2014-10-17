@@ -14,6 +14,12 @@ class jirapp(JIRA):
         # All talk, no walk
         self.live = False
 
+        # Log what your mother gave you
+        #logLevel = self.args['log_level']
+        logging.basicConfig()
+        self.logger = logging.getLogger('logger')
+        #self.logger.setLevel(logLevel)
+
         if mongo is not None:
             # jirameta
             self.db_jirameta = mongo.jirameta
