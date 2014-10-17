@@ -490,7 +490,7 @@ class karakuri(karakuricommon.karakuribase):
 
     def _processAction(self, action, issue):
         """ Do it like they do on the discovery channel """
-        self.logger.debug("_processAction(%s)", action['name'])
+        self.logger.debug("_processAction(%s,%s)", action['name'], issue)
 
         # action must be defined for this issuing system
         if not hasattr(self.issuer, action['name']):
@@ -618,9 +618,6 @@ class karakuri(karakuricommon.karakuribase):
             self._log(iid, workflowName, 'process', False)
             return {'ok': False, 'payload': message}
 
-        # so far so good
-        success = True
-
         for action in workflow['actions']:
             # first argument is issuer-dependent
             # JIRA takes a key
@@ -633,26 +630,23 @@ class karakuri(karakuricommon.karakuribase):
             self._log(iid, workflowName, action['name'], res['ok'])
 
             if not res['ok']:
-                success = False
-                break
+                lid = self._log(iid, workflowName, 'process', False)
+                return res
 
-        lid = self._log(iid, workflowName, 'process', success)
+        lid = self._log(iid, workflowName, 'process', True)
+        if self.live:
+            match = {'_id': iid}
+            updoc = {'$push': {'karakuri.workflows_performed':
+                               {'name': workflowName, 'lid': lid}}}
+            res = self.find_and_modify_issue(match, updoc)
+            if not res['ok'] or res['payload'] is None:
+                message = "unable to record workflow '%s' in issue '%s'"\
+                    % (workflowName, iid)
+                self.logger.exception(message)
+                self._log(iid, workflowName, 'record', False)
+                return {'ok': False, 'payload': message}
 
-        if success:
-            if self.live:
-                match = {'_id': iid}
-                updoc = {'$push': {'karakuri.workflows_performed':
-                                   {'name': workflowName, 'lid': lid}}}
-                res = self.find_and_modify_issue(match, updoc)
-                if not res['ok'] or res['payload'] is None:
-                    message = "unable to record workflow '%s' in issue '%s'"\
-                        % (workflowName, iid)
-                    self.logger.exception(message)
-                    self._log(iid, workflowName, 'record', False)
-                    return {'ok': False, 'payload': message}
-
-                self._log(iid, workflowName, 'record', True)
-
+            self._log(iid, workflowName, 'record', True)
         return {'ok': True, 'payload': None}
 
     def pruneTask(self, tid):
