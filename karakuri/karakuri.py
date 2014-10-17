@@ -29,10 +29,6 @@ class karakuri(karakuricommon.karakuribase):
         else:
             self.limit = self.args['limit']
 
-        # Track the tasks processed per processing
-        # Client will be cut off at self.limit
-        self.process_count = 0
-
         # Initialize dbs and collections
         try:
             self.mongo = pymongo.MongoClient(self.args['mongo_host'],
@@ -49,22 +45,44 @@ class karakuri(karakuricommon.karakuribase):
         # For authentication and auditing
         self.coll_users = self.mongo.karakuri.users
 
+        # Initialize throttle
+        self.throttle = {}
+
+    def _amiThrottling(self):
+        """ Have we reached the daily processing limit? Returns bool """
+        self.logger.debug("_amiThrottling()")
+        self.throttleRefresh()
+        return self.throttle['daily'] >= self.limit
+
     def approveTask(self, tid):
         """ Approve the task for processing """
         self.logger.debug("approveTask(%s)", tid)
         updoc = {"$set": {'approved': True}}
         return self.updateTask(tid, updoc)
 
-    def _buildValidateQuery(self, workflow, iid=None):
+    def buildValidateQuery(self, workflowNameORworkflow, iid=None):
         """ Return a MongoDB query that accounts for the workflow prerequisites
         """
-        self.logger.debug("_buildValidateQuery(%s,%s)", workflow['name'], iid)
+        self.logger.debug("buildValidateQuery(%s,%s)", workflowNameORworkflow,
+                          iid)
+        if isinstance(workflowNameORworkflow, dict):
+            workflow = workflowNameORworkflow
+        else:
+            res = self.getWorkflow(workflowNameORworkflow)
+            if not res['ok']:
+                return res
+            workflow = res['payload']
+
+        res = self.validateWorkflow(workflow)
+        if not res['ok']:
+            return res
+
         query_string = workflow['query_string']
 
-        try:
-            match = bson.json_util.loads(query_string)
-        except Exception as e:
-            return {'ok': False, 'payload': e}
+        res = self.loadJson(query_string)
+        if not res['ok']:
+            return res
+        match = res['payload']
 
         # issue must exist!
         match['deleted'] = False
@@ -129,12 +147,10 @@ class karakuri(karakuricommon.karakuribase):
                     % fields['name']}
 
         try:
-            # TODO modify this to return workflow in payload instead
-            # of just a bool
             self.coll_workflows.insert(fields)
-            return {'ok': True, 'payload': True}
         except pymongo.errors.PyMongoError as e:
             return {'ok': False, 'payload': e}
+        return {'ok': True, 'payload': fields}
 
     def disapproveTask(self, tid):
         """ Disapprove the task for processing """
@@ -148,14 +164,11 @@ class karakuri(karakuricommon.karakuribase):
                           updoc)
         try:
             # return the 'new' updated document
-            self.logger.debug(match)
-            self.logger.debug(updoc)
             doc = collection.find_and_modify(match, updoc, new=True)
-            self.logger.debug(doc)
-            return {'ok': True, 'payload': doc}
         except pymongo.errors.PyMongoError as e:
             self.logger.exception(e)
             return {'ok': False, 'payload': e}
+        return {'ok': True, 'payload': doc}
 
     def find_and_modify_issue(self, match, updoc):
         """ find_and_modify for support.issues that automatically updates the
@@ -178,7 +191,7 @@ class karakuri(karakuricommon.karakuribase):
         return self.find_and_modify(self.coll_queue, match, updoc)
 
     def find_and_modify_workflow(self, match, updoc):
-        """ find_and_modify for karakuri.workflow that automatically updates
+        """ find_and_modify for karakuri.workflows that automatically updates
         the 't' timestamp """
         self.logger.debug("find_and_modify_workflow(%s,%s)", match, updoc)
         if "$set" in updoc:
@@ -192,18 +205,33 @@ class karakuri(karakuricommon.karakuribase):
         self.logger.debug("find_one(%s,%s)", collection, match)
         try:
             doc = collection.find_one(match)
-            return {'ok': True, 'payload': doc}
         except pymongo.errors.PyMongoError as e:
             self.logger.exception(e)
             return {'ok': False, 'payload': e}
+        return {'ok': True, 'payload': doc}
+
+    def findTasks(self):
+        """ Find and queue new tasks """
+        self.logger.debug("findTasks()")
+
+        res = self.getListOfWorkflows()
+        if not res['ok']:
+            return res
+        workflows = res['payload']
+
+        tasks = []
+        for workflow in workflows:
+            res = self.findWorkflowTasks(workflow)
+            if not res['ok']:
+                return res
+
+            tasks += res['payload']
+        return {'ok': True, 'payload': tasks}
 
     def findWorkflowIssues(self, workflow):
-        """ Find issues that satisfy the workflow """
+        """ Return list of issues that satisfy the workflow """
         self.logger.debug("findWorkflowIssues(%s)", workflow)
-        if not isinstance(workflow, dict):
-            return {'ok': False, 'payload': 'workflow is not of type dict'}
-
-        res = self._buildValidateQuery(workflow)
+        res = self.buildValidateQuery(workflow)
         if not res['ok']:
             return res
         match = res['payload']
@@ -232,9 +260,7 @@ class karakuri(karakuricommon.karakuribase):
             return res
         issues = res['payload']
 
-        res = True
         tasks = []
-        message = ""
         for i in issues:
             issue = SupportIssue()
             issue.fromDoc(i)
@@ -249,91 +275,80 @@ class karakuri(karakuricommon.karakuribase):
                 self.logger.info("Skipping %s as it is not active" % issue.key)
                 continue
 
-            _res = self.queueTask(issue.id, issue.key, workflow['name'])
-            res &= _res['ok']
-            if _res['ok']:
-                if _res['payload'] is not None:
-                    tasks.append(_res['payload'])
-            else:
-                # We will return a potentially multi-line message
-                # of workflow failures
-                if message != "":
-                    message += "\n"
-                message += _res['payload']
+            res = self.queueTask(issue.id, issue.key, workflow['name'])
+            if not res['ok']:
+                return res
 
-        if res:
-            payload = tasks
-        else:
-            payload = message
-        return {'ok': res, 'payload': payload}
-
-    def findTasks(self):
-        """ Find and queue new tasks """
-        self.logger.debug("findTasks()")
-
-        res = self.getListOfWorkflows()
-        if not res['ok']:
-            return res
-        workflows = res['payload']
-
-        res = True
-        tasks = []
-        message = ""
-        for workflow in workflows:
-            _res = self.findWorkflowTasks(workflow)
-            res &= _res['ok']
-            if _res['ok']:
-                tasks += _res['payload']
-            else:
-                # We will return a potentially multi-line message
-                # of workflow failures
-                if message != "":
-                    message += "\n"
-                message += _res['payload']
-
-        if res:
-            payload = tasks
-        else:
-            payload = message
-        return {'ok': res, 'payload': payload}
+            if res['payload'] is not None:
+                tasks.append(res['payload'])
+        return {'ok': True, 'payload': tasks}
 
     def forListOfTaskIds(self, action, tids, **kwargs):
         """ Perform the given action for the specified tasks """
         self.logger.debug("forListOfTaskIds(%s,%s)", action.__name__, tids)
-        res = True
         tasks = []
-        message = ""
-        # Note that we will not exit on action failure. All tasks will get
-        # a shot at the action ;)
         for tid in tids:
-            _res = action(tid, **kwargs)
-            res &= _res['ok']
-            if _res['ok']:
-                # In the case that res == True, this is part of the payload
-                # of 'tasks' delivered
-                if _res['payload'] is not None:
-                    tasks.append(_res['payload'])
-            else:
-                # Otherwise, we will return a potentially multi-line message
-                # of action-tid failures
-                if message != "":
-                    message += "\n"
-                message += _res['payload']
+            res = action(tid, **kwargs)
+            if not res['ok']:
+                return res
 
-        # Again, we return False for a single failure, regardless of how many
-        # actions completed successfully
-        if res:
-            payload = tasks
-        else:
-            payload = message
-        return {'ok': res, 'payload': payload}
+            if res['payload'] is not None:
+                tasks.append(res['payload'])
+        return {'ok': True, 'payload': tasks}
+
+    def getIssue(self, iid):
+        """ Return issue for the given iid """
+        self.logger.debug("getIssue(%s)", iid)
+        res = self.getObjectId(iid)
+        if not res['ok']:
+            return res
+        iid = res['payload']
+
+        res = self.find_one(self.coll_issues, {'_id': iid})
+        if not res['ok']:
+            return res
+        doc = res['payload']
+
+        if doc is None:
+            message = "issue %s not found" % iid
+            self.logger.warning(message)
+            return {'ok': False, 'payload': message}
+        return {'ok': True, 'payload': doc}
+
+    # TODO move to an external library?
+    def getObjectId(self, id):
+        """ Return an ObjectId for the given id """
+        self.logger.debug("getObjectId(%s)", id)
+        if not isinstance(id, bson.ObjectId):
+            try:
+                id = bson.ObjectId(id)
+            except Exception as e:
+                self.logger.error(e)
+                return {'ok': False, 'payload': e}
+        return {'ok': True, 'payload': id}
+
+    def getListOfReadyTaskIds(self, approvedOnly=False):
+        self.logger.debug("getListOfReadyTaskIds(%s)", approvedOnly)
+        match = {'active': True, 'done': False, 'inProg': False}
+        if approvedOnly:
+            match['approved'] = True
+        return self.getListOfTaskIds(match)
+
+    def getListOfReadyWorkflowTaskIds(self, name, approvedOnly=False):
+        self.logger.debug("getListOfReadyWorkflowTaskIds(%s,%s)", name,
+                          approvedOnly)
+        match = {'active': True, 'done': False, 'inProg': False,
+                 'workflow': name}
+        if approvedOnly:
+            match['approved'] = True
+        return self.getListOfTaskIds(match)
 
     def getListOfTaskIds(self, match={}):
         self.logger.debug("getListOfTaskIds(%s)", match)
         res = self.getListOfTasks(match, {'_id': 1})
-        if res['ok']:
-            return {'ok': True, 'payload': [t['_id'] for t in res['payload']]}
-        return res
+        if not res['ok']:
+            return res
+        return {'ok': True, 'payload': [t['_id'] for t in res['payload']]}
 
     def getListOfTasks(self, match={}, proj=None):
         self.logger.debug("getListOfTasks(%s,%s)", match, proj)
@@ -344,31 +359,20 @@ class karakuri(karakuricommon.karakuribase):
             else:
                 curs_queue = self.coll_queue.find(match).\
                     sort('start', pymongo.ASCENDING)
-            return {'ok': True, 'payload': [t for t in curs_queue]}
         except pymongo.errors.PyMongoError as e:
             self.logger.exception(e)
             return {'ok': False, 'payload': e}
-
-    def getListOfReadyTaskIds(self):
-        self.logger.debug("getListOfReadyTaskIds()")
-        match = {'active': True, 'done': False, 'inProg': False}
-        return self.getListOfTaskIds(match)
-
-    def getListOfReadyWorkflowTaskIds(self, name):
-        self.logger.debug("getListOfReadyWorkflowTaskIds(%s)", name)
-        match = {'active': True, 'done': False, 'inProg': False,
-                 'workflow': name}
-        return self.getListOfTaskIds(match)
+        return {'ok': True, 'payload': [t for t in curs_queue]}
 
     def getListOfWorkflows(self):
         self.logger.debug("getListOfWorkflows()")
         try:
             # TODO add sort
             curs_workflows = self.coll_workflows.find()
-            return {'ok': True, 'payload': [w for w in curs_workflows]}
         except pymongo.errors.PyMongoError as e:
             self.logger.exception(e)
             return {'ok': False, 'payload': e}
+        return {'ok': True, 'payload': [w for w in curs_workflows]}
 
     def getSupportIssue(self, iid):
         """ Return a SupportIssue for the given iid """
@@ -378,23 +382,18 @@ class karakuri(karakuricommon.karakuribase):
             return res
         iid = res['payload']
 
-        try:
-            res = self.find_one(self.coll_issues, {'_id': iid})
-            if not res['ok']:
-                return res
-            doc = res['payload']
-        except pymongo.errors.PyMongoError as e:
-            self.logger.exception(e)
-            return {'ok': False, 'payload': e}
+        res = self.find_one(self.coll_issues, {'_id': iid})
+        if not res['ok']:
+            return res
+        doc = res['payload']
 
-        if doc:
-            issue = SupportIssue()
-            issue.fromDoc(doc)
-            return {'ok': True, 'payload': issue}
-
-        message = "issue '%s' not found" % iid
-        self.logger.warning(message)
-        return {'ok': False, 'payload': message}
+        if doc is None:
+            message = "issue '%s' not found" % iid
+            self.logger.warning(message)
+            return {'ok': False, 'payload': message}
+        issue = SupportIssue()
+        issue.fromDoc(doc)
+        return {'ok': True, 'payload': issue}
 
     def getTask(self, tid):
         """ Return the specified task """
@@ -409,35 +408,31 @@ class karakuri(karakuricommon.karakuribase):
             return res
         task = res['payload']
 
-        if task is not None:
-            return {'ok': True, 'payload': task}
-
-        message = "task '%s' not found" % tid
-        self.logger.warning(message)
-        return {'ok': False, 'payload': message}
+        if task is None:
+            message = "task '%s' not found" % tid
+            self.logger.warning(message)
+            return {'ok': False, 'payload': message}
+        return {'ok': True, 'payload': task}
 
     def _getTemplateValue(self, var, issue):
         """ Return a value for the given template variable. A finite number of
         such template variables are supported and defined below """
         self.logger.debug("_getTemplateValue(%s,%s)", var, issue)
         if var == "COMPANY":
-            return issue.company
+            return {'ok': True, 'payload': issue.company}
         elif var == "SALES_REP":
             match = {'_id': issue.company}
             res = self.find_one(self.coll_companies, match)
-            self.logger.info(res)
             if not res['ok']:
-                return ""
+                return res
             company = res['payload']
 
-            if 'sales' in company and company['sales'] is not None:
-                sales = ['[~' + name['jira'] + ']' for name in res['payload'][
+            if company is not None and 'sales' in company and\
+                    company['sales'] is not None:
+                sales = ['[~' + name['jira'] + ']' for name in company[
                     'sales']]
-                return string.join(sales, ', ')
-            else:
-                return ""
-        else:
-            return None
+                return {'ok': True, 'payload': string.join(sales, ', ')}
+        return {'ok': False, 'payload': None}
 
     def getWorkflow(self, workflowName):
         """ Return the specified workflow """
@@ -447,24 +442,19 @@ class karakuri(karakuricommon.karakuribase):
             return res
         workflow = res['payload']
 
-        if workflow is not None:
-            return {'ok': True, 'payload': workflow}
+        if workflow is None:
+            message = "workflow '%s' not found" % workflowName
+            self.logger.warning(message)
+            return {'ok': False, 'payload': message}
+        return {'ok': True, 'payload': workflow}
 
-        message = "workflow '%s' not found" % workflowName
-        self.logger.warning(message)
-        return {'ok': False, 'payload': message}
-
-    # TODO move to an external library?
-    def getObjectId(self, id):
-        """ Return an ObjectId for the given id """
-        self.logger.debug("getObjectId(%s)", id)
-        if not isinstance(id, bson.ObjectId):
-            try:
-                id = bson.ObjectId(id)
-            except Exception as e:
-                self.logger.error(e)
-                return {'ok': False, 'payload': e}
-        return {'ok': True, 'payload': id}
+    def loadJson(self, string):
+        """ Return a JSON-validated dict for the string """
+        try:
+            res = bson.json_util.loads(string)
+        except Exception as e:
+            return {'ok': False, 'payload': e}
+        return {'ok': True, 'payload': res}
 
     def _log(self, iid, workflowName, action, success):
         """ Log to karakuri.log <-- that's a collection! """
@@ -509,12 +499,11 @@ class karakuri(karakuricommon.karakuribase):
             # Use a set to remove repeats
             matches = set(pattern.findall(arg))
             for match in matches:
-                val = self._getTemplateValue(match, issue)
-                if val is not None:
-                    arg = arg.replace('[[%s]]' % match, val)
-                else:
-                    self.logger.warning("unable to get value for template "
-                                        "variable '%s'" % match)
+                res = self._getTemplateValue(match, issue)
+                if not res['ok']:
+                    return res
+                val = res['payload']
+                arg = arg.replace('[[%s]]' % match, val)
             newargs.append(arg)
 
         # For the sake of logging reduce string arguments
@@ -533,7 +522,66 @@ class karakuri(karakuricommon.karakuribase):
 
         return res
 
-    def processWorkflow(self, iid, workflowName):
+    def processTask(self, tid, **kwargs):
+        """ Process the specified task """
+        self.logger.debug("processTask(%s)", tid)
+        if self._amiThrottling():
+            message = "processing limit reached, skipping %s" % tid
+            self.logger.warning(message)
+            return {'ok': False, 'payload': message}
+
+        res = self.getObjectId(tid)
+        if not res['ok']:
+            return res
+        tid = res['payload']
+
+        res = self.getTask(tid)
+        if not res['ok']:
+            return res
+        task = res['payload']
+
+        # validate that this is still worth running
+        res = self.validateTask(tid)
+        # whether or not validateTask ran
+        if not res['ok']:
+            return res
+        # whether or not the task is validated
+        if not res['payload']:
+            return {'ok': False, 'payload': 'validation failed'}
+
+        match = {'_id': tid, 'active': True, 'done': False, 'inProg': False,
+                 'approved': True}
+        updoc = {"$set": {'inProg': True}}
+        res = self.find_and_modify_task(match, updoc)
+        if not res['ok']:
+            return res
+        task = res['payload']
+
+        if task is None:
+            # most likely the task hasn't been approved
+            message = "unable to put task '%s' in to progress" % tid
+            self.logger.warning(message)
+            return {'ok': False, 'payload': message}
+
+        res = self.processWorkflow(task['iid'], task['workflow'])
+        if not res['ok']:
+            return res
+
+        match = {'_id': tid}
+        updoc = {"$set": {'done': True, 'inProg': False}}
+        res = self.find_and_modify_task(match, updoc)
+        if not res['ok']:
+            return res
+        task = res['payload']
+
+        if task is None:
+            message = "unable to take task %s out of progress" % tid
+            self.logger.exception(message)
+            return {'ok': False, 'payload': message}
+
+        return {'ok': True, 'payload': task}
+
+    def processWorkflow(self, iid, workflowName, **kwargs):
         """ Perform the specified workflow for the given issue """
         self.logger.info("processWorkflow(%s,%s)", iid, workflowName)
 
@@ -597,66 +645,6 @@ class karakuri(karakuricommon.karakuribase):
                 self._log(iid, workflowName, 'record', True)
 
         return {'ok': True, 'payload': None}
-
-    def processTask(self, tid):
-        """ Process the specified task """
-        self.logger.debug("processTask(%s)", tid)
-        # Cut off client at self.limit
-        if self.process_count == self.limit:
-            self.logger.warning("Processing limit reached, skipping %s", tid)
-            return {'ok': True, 'payload': None}
-        self.process_count += 1
-
-        res = self.getObjectId(tid)
-        if not res['ok']:
-            return res
-        tid = res['payload']
-
-        res = self.getTask(tid)
-        if not res['ok']:
-            return res
-        task = res['payload']
-
-        # validate that this is still worth running
-        res = self.validateTask(tid)
-        # whether or not validateTask ran
-        if not res['ok']:
-            return res
-        # whether or not the task is validated
-        if not res['payload']:
-            return {'ok': False, 'payload': 'validation failed'}
-
-        match = {'_id': tid, 'active': True, 'done': False, 'inProg': False,
-                 'approved': True}
-        updoc = {"$set": {'inProg': True}}
-        res = self.find_and_modify_task(match, updoc)
-        if not res['ok']:
-            return res
-        task = res['payload']
-
-        if task is None:
-            # most likely the task hasn't been approved
-            message = "unable to put task '%s' in to progress" % tid
-            self.logger.warning(message)
-            return {'ok': False, 'payload': message}
-
-        res = self.processWorkflow(task['iid'], task['workflow'])
-        if not res['ok']:
-            return res
-
-        match = {'_id': tid}
-        updoc = {"$set": {'done': True, 'inProg': False}}
-        res = self.find_and_modify_task(match, updoc)
-        if not res['ok']:
-            return res
-        task = res['payload']
-
-        if task is None:
-            message = "unable to take task %s out of progress" % tid
-            self.logger.exception(message)
-            return {'ok': False, 'payload': message}
-
-        return {'ok': True, 'payload': task}
 
     def pruneTask(self, tid):
         """ Remove task if it fails validation """
@@ -742,6 +730,19 @@ class karakuri(karakuricommon.karakuribase):
         updoc = {"$set": {'start': wakeDate}}
         return self.updateTask(tid, updoc)
 
+    def throttleRefresh(self):
+        oneDayAgo = datetime.utcnow()+timedelta(days=-1)
+        # tickets processed successfully in the last day
+        match = {"_id": {"$gt": bson.ObjectId.from_datetime(oneDayAgo)},
+                 "action": "process", "p": True}
+        try:
+            self.throttle['daily'] = self.coll_log.find(match).count()
+        except pymongo.errors.PyMongoError as e:
+            self.logger.exception(e)
+            raise e
+        self.logger.info("daily throttle set to %i",
+                         self.throttle['daily'])
+
     def updateIssue(self, iid, updoc):
         """ They see me rollin' """
         self.logger.debug("updateIssue(%s,%s)", iid, updoc)
@@ -794,7 +795,7 @@ class karakuri(karakuricommon.karakuribase):
             return res
         workflow = res['payload']
 
-        res = self._buildValidateQuery(workflow, iid)
+        res = self.buildValidateQuery(workflow, iid)
         if not res['ok']:
             return res
         match = res['payload']
@@ -825,19 +826,19 @@ class karakuri(karakuricommon.karakuribase):
             return {'ok': False, 'payload': "workflow missing 'query_string'"}
         if 'time_elapsed' not in workflow:
             return {'ok': False, 'payload': "workflow missing 'time_elapsed'"}
-        return {'ok': True, 'payload': True}
-
-    def wakeTask(self, tid):
-        """ Wake the task, i.e. mark it ready to go """
-        self.logger.debug("wakeTask(%s)", tid)
-        updoc = {"$set": {'start': datetime.utcnow()}}
-        return self.updateTask(tid, updoc)
+        return {'ok': True, 'payload': workflow}
 
     def wakeIssue(self, iid):
         """ Wake the issue """
         self.logger.debug("wakeIssue(%s)", iid)
         updoc = {"$unset": {'karakuri.sleep': ""}}
         return self.updateIssue(iid, updoc)
+
+    def wakeTask(self, tid):
+        """ Wake the task, i.e. mark it ready to go """
+        self.logger.debug("wakeTask(%s)", tid)
+        updoc = {"$set": {'start': datetime.utcnow()}}
+        return self.updateTask(tid, updoc)
 
     def start(self):
         """ Start the RESTful interface """
@@ -949,44 +950,39 @@ class karakuri(karakuricommon.karakuribase):
         return bson.json_util.dumps(ret)
 
     @_authenticated
-    def _issue_list(self):
-        """ Return no-way, Jose 404 """
-        self.logger.debug("_issue_list()")
-        # TODO implement no-way, Jose 404
-        return self._fail()
-
-    @_authenticated
     def _issue_create(self):
         """ Create a JIRA issue """
         self.logger.debug("_issue_create()")
         body = bottle.request.body.read()
 
-        try:
-            fields = bson.json_util.loads(body)
-        except Exception as e:
-            return {'ok': False, 'payload': e}
+        res = self.loadJson(body)
+        if not res['ok']:
+            return res
+        fields = res['payload']
 
         res = self.createIssue(fields)
         if res['ok']:
             return self._success({'issue': res['payload']})
         return self._error(res['payload'])
 
+    @_authenticated
+    def _issue_get(self, id):
+        """ Return the issue """
+        self.logger.debug("_issue_get(%s)", id)
+        return self._issue_response(self.getIssue, id)
+
+    @_authenticated
+    def _issue_list(self):
+        """ Return no-way, Jose 404 """
+        self.logger.debug("_issue_list()")
+        # TODO implement no-way, Jose 404
+        return self._fail()
+
     def _issue_response(self, method, id, **kwargs):
         self.logger.debug("_issue_response(%s,%s)", method, id)
         res = method(id, **kwargs)
         if res['ok']:
             return self._success({'issue': res['payload']})
-        return self._error(res['payload'])
-
-    # TODO make new getIssue so you can use _issue_response here instead of
-    # getSupportIssue
-    @_authenticated
-    def _issue_get(self, id):
-        """ Return the issue """
-        self.logger.debug("_issue_get(%s)", id)
-        res = self.getSupportIssue(id)
-        if res['ok']:
-            return self._success({'issue': res['payload'].doc})
         return self._error(res['payload'])
 
     @_authenticated
@@ -1002,34 +998,6 @@ class karakuri(karakuricommon.karakuribase):
         return self._issue_response(self.wakeIssue, id)
 
     @_authenticated
-    def _queue_list(self):
-        """ Return a list of all active tasks """
-        self.logger.debug("_queue_list()")
-        match = {'active': True}
-        res = self.getListOfTasks(match)
-        if res['ok']:
-            return self._success({'tasks': res['payload']})
-        return self._error(res['payload'])
-
-    @_authenticated
-    def _queue_find(self):
-        """ Find and queue new tasks """
-        self.logger.debug("_queue_find()")
-        res = self.findTasks()
-        if res['ok']:
-            return self._success({'tasks': res['payload']})
-        return self._error(res['payload'])
-
-    def _queue_response(self, method, **kwargs):
-        self.logger.debug("_queue_response(%s)", method.__name__)
-        res = self.getListOfReadyTaskIds()
-        if res['ok']:
-            res = self.forListOfTaskIds(method, res['payload'], **kwargs)
-            if res['ok']:
-                return self._success({'tasks': res['payload']})
-        return self._error(res['payload'])
-
-    @_authenticated
     def _queue_approve(self):
         """ Approve all ready tasks """
         self.logger.debug("_queue_approve()")
@@ -1042,12 +1010,29 @@ class karakuri(karakuricommon.karakuribase):
         return self._queue_response(self.disapproveTask)
 
     @_authenticated
+    def _queue_find(self):
+        """ Find and queue new tasks """
+        self.logger.debug("_queue_find()")
+        res = self.findTasks()
+        if res['ok']:
+            return self._success({'tasks': res['payload']})
+        return self._error(res['payload'])
+
+    @_authenticated
+    def _queue_list(self):
+        """ Return a list of all active tasks """
+        self.logger.debug("_queue_list()")
+        match = {'active': True}
+        res = self.getListOfTasks(match)
+        if res['ok']:
+            return self._success({'tasks': res['payload']})
+        return self._error(res['payload'])
+
+    @_authenticated
     def _queue_process(self):
         """ Process all ready tasks """
         self.logger.debug("_queue_process()")
-        # rest process count
-        self.process_count = 0
-        return self._queue_response(self.processTask)
+        return self._queue_response(self.processTask, approvedOnly=True)
 
     @_authenticated
     def _queue_prune(self):
@@ -1061,6 +1046,15 @@ class karakuri(karakuricommon.karakuribase):
         self.logger.debug("_queue_remove()")
         return self._queue_response(self.removeTask)
 
+    def _queue_response(self, method, **kwargs):
+        self.logger.debug("_queue_response(%s)", method.__name__)
+        res = self.getListOfReadyTaskIds(**kwargs)
+        if res['ok']:
+            res = self.forListOfTaskIds(method, res['payload'], **kwargs)
+            if res['ok']:
+                return self._success({'tasks': res['payload']})
+        return self._error(res['payload'])
+
     @_authenticated
     def _queue_sleep(self, seconds=sys.maxint):
         """ Sleep all ready tasks """
@@ -1072,19 +1066,6 @@ class karakuri(karakuricommon.karakuribase):
         """ Wake all ready tasks """
         self.logger.debug("_queue_wake()")
         return self._queue_response(self.wakeTask)
-
-    def _task_response(self, method, id, **kwargs):
-        self.logger.debug("_task_response(%s,%s)", method.__name__, id)
-        res = method(id, **kwargs)
-        if res['ok']:
-            return self._success({'task': res['payload']})
-        return self._error(res['payload'])
-
-    @_authenticated
-    def _task_get(self, id):
-        """ Return the task """
-        self.logger.debug("_task_get(%s)", id)
-        return self._task_response(self.getTask, id)
 
     @_authenticated
     def _task_approve(self, id):
@@ -1099,12 +1080,16 @@ class karakuri(karakuricommon.karakuribase):
         return self._task_response(self.disapproveTask, id)
 
     @_authenticated
+    def _task_get(self, id):
+        """ Return the task """
+        self.logger.debug("_task_get(%s)", id)
+        return self._task_response(self.getTask, id)
+
+    @_authenticated
     def _task_process(self, id):
         """ Process the task """
         self.logger.debug("_task_process(%s)", id)
-        # rest process count
-        self.process_count = 0
-        return self._task_response(self.processTask, id)
+        return self._task_response(self.processTask, id, approvedOnly=True)
 
     @_authenticated
     def _task_prune(self, id):
@@ -1117,6 +1102,13 @@ class karakuri(karakuricommon.karakuribase):
         """ Remove the task """
         self.logger.debug("_task_remove(%s)", id)
         return self._task_response(self.removeTask, id)
+
+    def _task_response(self, method, id, **kwargs):
+        self.logger.debug("_task_response(%s,%s)", method.__name__, id)
+        res = method(id, **kwargs)
+        if res['ok']:
+            return self._success({'task': res['payload']})
+        return self._error(res['payload'])
 
     @_authenticated
     def _task_sleep(self, id, seconds=sys.maxint):
@@ -1131,13 +1123,10 @@ class karakuri(karakuricommon.karakuribase):
         return self._task_response(self.wakeTask, id)
 
     @_authenticated
-    def _workflow_list(self):
-        """ Return a list of workflows """
-        self.logger.debug("_workflow_list()")
-        res = self.getListOfWorkflows()
-        if res['ok']:
-            return self._success({'workflows': res['payload']})
-        return self._error(res['payload'])
+    def _workflow_approve(self, name):
+        """ Approve all ready tasks for the workflow """
+        self.logger.debug("_workflow_approve(%s)", name)
+        return self._workflow_response(self.approveTask, name)
 
     @_authenticated
     def _workflow_create(self):
@@ -1145,73 +1134,15 @@ class karakuri(karakuricommon.karakuribase):
         self.logger.debug("_workflow_create()")
         body = bottle.request.body.read()
 
-        try:
-            fields = bson.json_util.loads(body)
-        except Exception as e:
-            return {'ok': False, 'payload': e}
+        res = self.loadJson(body)
+        if not res['ok']:
+            return res
+        fields = res['payload']
 
         res = self.createWorkflow(fields)
         if res['ok']:
             return self._success({'workflow': res['payload']})
         return self._error(res['payload'])
-
-    @_authenticated
-    def _workflow_test(self):
-        """ Return a list of tickets that satisfy the workflow requirements """
-        self.logger.debug("_workflow_test()")
-        body = bottle.request.body.read()
-
-        try:
-            fields = bson.json_util.loads(body)
-        except Exception as e:
-            return self._error(e)
-
-        res = self.validateWorkflow(fields)
-        if not res['ok']:
-            return self._error(res['payload'])
-
-        res = self.findWorkflowIssues(fields)
-        if res['ok']:
-            return self._success({'issues': res['payload']})
-        return self._error(res['payload'])
-
-    @_authenticated
-    def _workflow_update(self, name):
-        """ Update a workflow """
-        self.logger.debug("_workflow_update()")
-        body = bottle.request.body.read()
-
-        try:
-            fields = bson.json_util.loads(body)
-        except Exception as e:
-            return {'ok': False, 'payload': e}
-
-        updoc = {"$set": fields}
-        res = self.updateWorkflow(name, updoc)
-        if res['ok']:
-            return self._success({'workflow': res['payload']})
-        return self._error(res['payload'])
-
-    def _workflow_response(self, method, name, **kwargs):
-        self.logger.debug("_workflow_response(%s,%s)", method.__name__, name)
-        res = self.getListOfReadyWorkflowTaskIds(name)
-        if res['ok']:
-            res = self.forListOfTaskIds(method, res['payload'], **kwargs)
-            if res['ok']:
-                return self._success({'tasks': res['payload']})
-        return self._error(res['payload'])
-
-    @_authenticated
-    def _workflow_get(self, name):
-        """ Return the workflow """
-        self.logger.debug("_workflow_get(%s)", name)
-        return self._workflow_response(self.getWorkflow, name)
-
-    @_authenticated
-    def _workflow_approve(self, name):
-        """ Approve all ready tasks for the workflow """
-        self.logger.debug("_workflow_approve(%s)", name)
-        return self._workflow_response(self.approveTask, name)
 
     @_authenticated
     def _workflow_disapprove(self, name):
@@ -1229,12 +1160,29 @@ class karakuri(karakuricommon.karakuribase):
         return self._error(res['payload'])
 
     @_authenticated
+    def _workflow_get(self, name):
+        """ Return the workflow """
+        self.logger.debug("_workflow_get(%s)", name)
+        res = self.getWorkflow(name)
+        if res['ok']:
+            return self._success({'workflow': res['payload']})
+        return self._error(res['payload'])
+
+    @_authenticated
+    def _workflow_list(self):
+        """ Return a list of workflows """
+        self.logger.debug("_workflow_list()")
+        res = self.getListOfWorkflows()
+        if res['ok']:
+            return self._success({'workflows': res['payload']})
+        return self._error(res['payload'])
+
+    @_authenticated
     def _workflow_process(self, name):
         """ Process all ready tasks for the workflow """
         self.logger.debug("_workflow_process(%s)", name)
-        # rest process count
-        self.process_count = 0
-        return self._workflow_response(self.processTask, name)
+        return self._workflow_response(self.processTask, name,
+                                       approvedOnly=True)
 
     @_authenticated
     def _workflow_prune(self, name):
@@ -1248,11 +1196,56 @@ class karakuri(karakuricommon.karakuribase):
         self.logger.debug("_workflow_remove(%s)", name)
         return self._workflow_response(self.removeTask, name)
 
+    def _workflow_response(self, method, name, **kwargs):
+        self.logger.debug("_workflow_response(%s,%s)", method.__name__, name)
+        res = self.getListOfReadyWorkflowTaskIds(name, **kwargs)
+        if res['ok']:
+            res = self.forListOfTaskIds(method, res['payload'], **kwargs)
+            if res['ok']:
+                return self._success({'tasks': res['payload']})
+        return self._error(res['payload'])
+
     @_authenticated
     def _workflow_sleep(self, name, seconds=sys.maxint):
         """ Sleep all ready tasks for the workflow """
         self.logger.debug("_workflow_sleep(%s,%s)", name, seconds)
         return self._workflow_response(self.sleepTask, name, seconds=seconds)
+
+    @_authenticated
+    def _workflow_test(self):
+        """ Return a list of tickets that satisfy the workflow requirements """
+        self.logger.debug("_workflow_test()")
+        body = bottle.request.body.read()
+
+        res = self.loadJson(body)
+        if not res['ok']:
+            return res
+        fields = res['payload']
+
+        res = self.validateWorkflow(fields)
+        if not res['ok']:
+            return self._error(res['payload'])
+
+        res = self.findWorkflowIssues(fields)
+        if res['ok']:
+            return self._success({'issues': res['payload']})
+        return self._error(res['payload'])
+
+    @_authenticated
+    def _workflow_update(self, name):
+        """ Update a workflow """
+        self.logger.debug("_workflow_update()")
+        body = bottle.request.body.read()
+
+        res = self.loadJson(body)
+        if not res['ok']:
+            return res
+        fields = res['payload']
+
+        res = self.updateWorkflow(name, fields)
+        if res['ok']:
+            return self._success({'workflow': res['payload']})
+        return self._error(res['payload'])
 
     @_authenticated
     def _workflow_wake(self, name):
