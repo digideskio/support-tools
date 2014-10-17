@@ -152,6 +152,15 @@ class karakuri(karakuricommon.karakuribase):
             return {'ok': False, 'payload': e}
         return {'ok': True, 'payload': fields}
 
+    def deleteWorkflow(self, name):
+        """ Delete the workflow """
+        try:
+            self.coll_workflows.remove({'name': name})
+        except pymongo.errors.PyMongoError as e:
+            self.logger.exception(e)
+            return {'ok': False, 'payload': e}
+        return {'ok': True, 'payload': None}
+
     def disapproveTask(self, tid):
         """ Disapprove the task for processing """
         self.logger.debug("disapproveTask(%s)", tid)
@@ -907,6 +916,11 @@ class karakuri(karakuricommon.karakuribase):
         b.route('/workflow', 'POST', callback=self._workflow_create)
         b.route('/workflow/<name>', 'POST', callback=self._workflow_update)
 
+        ###########
+        #  DELETE #
+        ###########
+        b.route('/workflow/<name>', 'DELETE', callback=self._workflow_delete)
+
         b.run(host=self.args['rest_host'], port=self.args['rest_port'])
 
     def _authenticated(func):
@@ -1140,6 +1154,15 @@ class karakuri(karakuricommon.karakuribase):
         fields = res['payload']
 
         res = self.createWorkflow(fields)
+        if res['ok']:
+            return self._success({'workflow': res['payload']})
+        return self._error(res['payload'])
+
+    @_authenticated
+    def _workflow_delete(self, name):
+        """ Delete the workflow """
+        self.logger.debug("_workflow_delete(%s)", name)
+        res = self.deleteWorkflow(name)
         if res['ok']:
             return self._success({'workflow': res['payload']})
         return self._error(res['payload'])
