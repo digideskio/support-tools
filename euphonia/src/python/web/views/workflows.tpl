@@ -13,7 +13,7 @@
             <div style="clear:both;"></div>
         </div>
         <div class="col-lg-10">
-            <form class="form-horizontal" role="form" id="form">
+            <form class="form-horizontal" role="form" id="workflow-form" name="workflow-form">
                 <input type="hidden" id="workflow._id" name="workflow._id" value=""/>
                 <div class="panel panel-default">
                     <div class="panel-heading">
@@ -81,6 +81,7 @@
                         </div>
                     </div>
                     <div class="btn-group pull-right">
+                        <button id="testworkflow-link" type="button" class="btn btn-warning">Test Workflow&nbsp;<i class="glyphicon glyphicon-cog"></i></button>
                         <button id="save-link" type="button" class="btn btn-primary">Save Workflow&nbsp;<i class="glyphicon glyphicon-cloud-upload"></i></button>
                         <button type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown">
                             <span class="caret"></span>
@@ -95,4 +96,38 @@
         </div>
     </div>
     <div class="row" style="height:40px;"><div class="col-sm-12"></div></div>
+    <div class="row">
+        <div class="col-lg-2"></div>
+        <div id="test-workflow-form" class="col-lg-10" style="display:none">
+            <div class="panel-group" id="accordion">
+                <div class="panel panel-default">
+                    <div class="panel-heading">
+                        <h4 class="panel-title">
+                            <span>Test Results</span>
+                            <div class="pull-right">
+                                <button id="testworkflow-close" type="button" class="close"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+                            </div>
+                        </h4>
+                        <div style="clear:both"></div>
+                    </div>
+                    <div class="panel-body">
+                        <h4>Test Summary</h4>
+                        <div id="test-workflow-summary"></div>
+                        <h4>Matching Tickets</h4>
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Ticket</th>
+                                    <th>Workflows Performed</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="test-workflow-results">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>

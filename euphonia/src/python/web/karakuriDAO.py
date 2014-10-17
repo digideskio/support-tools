@@ -13,14 +13,13 @@ class karakuriDAO:
                 r = requests.get(url, headers=auth_header)
             elif method == "POST":
                 r = requests.post(url, headers=auth_header, data=data)
+            elif method == "DELETE":
+                r = requests.delete(url, headers=auth_header)
             else:
                 r = None
             if r is not None:
                 response = json_util.loads(r.text)
-                if 'data' in response:
-                    return response['data']
-                else:
-                    return response
+                return response
             else:
                 return None
         except:
@@ -83,7 +82,17 @@ class karakuriDAO:
 
     def updateWorkflow(self, workflowName, workflow):
         getUrl = "%s/workflow/%s" % (self.SERVER, workflowName)
-        response = self.executeKarakuriCall(getUrl ,method="POST", data=workflow)
+        response = self.executeKarakuriCall(getUrl, method="POST", data=workflow)
+        return response
+
+    def deleteWorkflow(self, workflowName):
+        getUrl = "%s/workflow/%s" % (self.SERVER, workflowName)
+        response = self.executeKarakuriCall(getUrl, method="DELETE")
+        return response
+
+    def testWorkflow(self, workflow):
+        getUrl = "%s/testworkflow" % (self.SERVER)
+        response = self.executeKarakuriCall(getUrl, method="POST", data=workflow)
         return response
 
     def processWorkflow(self, workflowId):

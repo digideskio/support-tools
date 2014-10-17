@@ -3,7 +3,7 @@ var workflows = [];
 
 $(document).ready(function() {
     getWorkflowList();
-    $('.create-btn').click(function(){clearForm()});
+    $('#create-btn').click(function(){clearForm()});
     $('#add-action-btn').click(function(){addAction()})
         .tooltip()
         .hover(
@@ -16,8 +16,10 @@ $(document).ready(function() {
             function(){$(this).closest('tr').addClass('bg-success')},
             function(){$(this).closest('tr').removeClass('bg-success')}
     );
-    $('#save-link').click(function(){saveChanges($(this).closest('form'));})
-    $('#save-copy-link').click(function(){saveChangesNew($(this).closest('form'));})
+    $('#save-link').click(function(){saveChanges($(this).closest('form'));});
+    $('#save-copy-link').click(function(){saveChangesNew($(this).closest('form'));});
+    $('#testworkflow-link').click(function(){testWorkflow();});
+    $('#testworkflow-close').click(function(){$('#testworkflow-form').hide();});
 });
 
 function renderList(workflows) {
@@ -27,7 +29,7 @@ function renderList(workflows) {
         var el = $('<li></li>');
         var item = $('<a href="javascript:void(0);" class="col-sm-10">' + workflow['name'] + '</a>');
         var removelink = $('<a href="javascript:void(0);" class="text-danger col-sm-1" data-toggle="tooltip" data-placement="top" title="Remove Workflow"><i class="glyphicon glyphicon-trash"></i></a>').tooltip();
-        removelink.click(wf,function(e){removeWorkflow(e.data)});
+        removelink.click(workflow.name,function(e){removeWorkflow(e.data)});
         item.click(wf,function(e){renderWorkflow(e.data);});
         item.appendTo(el);
         removelink.appendTo(el);
@@ -41,13 +43,19 @@ function getWorkflowList(){
         url: "/workflow",
         datatype: "json"
     }).success(function(response){
-        workflowsObj = JSON.parse(response);
-        for(var wf in workflowsObj['workflows']){
-            var wfObj = workflowsObj['workflows'][wf];
-            var id = wfObj['_id']['$oid'];
-            workflows[id] = wfObj;
+        workflows = []
+        var responseObj = JSON.parse(response);
+        if(responseObj.status == "success") {
+            var workflowsObj = responseObj.data;
+            for (var wf in workflowsObj['workflows']) {
+                var wfObj = workflowsObj['workflows'][wf];
+                var id = wfObj['_id']['$oid'];
+                workflows[id] = wfObj;
+            }
+            renderList(workflows);
+        } else {
+            alert("Could not load workflow list.");
         }
-        renderList(workflows);
     });
 }
 
@@ -63,36 +71,34 @@ function renderWorkflow(wfid) {
     renderActions(workflow['actions']);
 }
 
-function removeWorkflow(wfid){
-    clearForm();
-    /*
-    $.ajax({
-        type: "DELETE",
-        url: "/workflow",
-        datatype: "json"
-    }).success(function(response){
-        workflowsObj = JSON.parse(response);
-        for(var wf in workflowsObj['workflows']){
-            var wfObj = workflowsObj['workflows'][wf];
-            var id = wfObj['_id']['$oid'];
-            workflows[id] = wfObj;
-        }
-        renderList(workflows);
-    });
-    */
-    alert("Deleted " + wfid);
+function removeWorkflow(wfname){
+    if(confirm("Are you sure you want to delete workflow " + wfname + "?")){
+        clearForm();
+        $.ajax({
+            type: "DELETE",
+            url: "/workflow/" + wfname,
+            datatype: "json"
+        }).success(function(response){
+            console.log("Deleted " + wfname);
+            getWorkflowList();
+        });
+    } else {
+        return false;
+    }
 }
 
 function clearForm(){
     $(':input').val("");
     $("#prereqsList").empty();
+    renderAddPrereq().appendTo($("#prereqsList"));
     $("#actionsList").empty();
-    renderActions();
-    renderPrereqs();
+    renderAddAction().appendTo($("#actionsList"));
+    $("#test-workflow-form").hide();
 }
 
 function renderActions(actions) {
     var parent = $('#actionsList');
+    parent.empty();
     for (var action in actions) {
         var root = renderAction(actions[action],action);
         root.appendTo(parent);
@@ -157,6 +163,7 @@ function actionArgHtml(actionindex,argindex){
 
 function renderPrereqs(prereqs) {
     var parent = $('#prereqsList');
+    parent.empty();
     for (var prereq in prereqs) {
         var root = renderPrereq(prereqs,prereq);
         root.appendTo(parent);
@@ -270,20 +277,52 @@ function addPrereq(){
 }
 
 function saveChanges(form) {
-    var formid = $(form).attr('id');
-    var jsonform = form2js(document.getElementById(formid),".",true,undefined,true,true);
-    var formdata = JSON.stringify(jsonform,null,4);
-    var url = "/workflow/" + jsonform.workflow.name;
-    saveWorkflow(formdata,url);
+    var test = testWorkflow();
+    if(test) {
+        var formid = $(form).attr('id');
+        var jsonform = form2js(document.getElementById(formid), ".", true, undefined, true, true);
+        var formdata = JSON.stringify(jsonform, null, 4);
+        var url = "/workflow/" + jsonform.workflow.name;
+        var exists = false;
+        for (wf in workflows) {
+            if (workflows[wf].name == jsonform.workflow.name && workflows[wf]['_id']['$oid'] != jsonform.workflow._id) {
+                exists = true;
+            }
+        }
+        if (exists) {
+            alert("A workflow named " + jsonform.workflow.name + " already exists. Changes have not been saved.");
+            return false;
+        } else {
+            saveWorkflow(formdata, url);
+        }
+    } else {
+        alert("This workflow did not validate. See error below for details.");
+    }
 }
 
 function saveChangesNew(form) {
-    var formid = $(form).attr('id');
-    var jsonform = form2js(document.getElementById(formid),".",true,undefined,true,true);
-    delete jsonform.workflow._id;
-    var formdata = JSON.stringify(jsonform,null,4);
-    var url = "/workflow"
-    saveWorkflow(formdata,url);
+    var test = testWorkflow();
+    if(test) {
+        var formid = $(form).attr('id');
+        var jsonform = form2js(document.getElementById(formid),".",true,undefined,true,true);
+        delete jsonform.workflow._id;
+        var formdata = JSON.stringify(jsonform,null,4);
+        var url = "/workflow"
+        var exists = false;
+        for(wf in workflows){
+            if(workflows[wf].name == jsonform.workflow.name){
+                exists = true;
+            }
+        }
+        if(exists){
+            alert("A workflow named " + jsonform.workflow.name + " already exists. Changes have not been saved.");
+            return false;
+        } else {
+            saveWorkflow(formdata, url);
+        }
+    } else {
+        alert("This workflow did not validate. See error below for details.");
+    }
 }
 
 function saveWorkflow(content,url){
@@ -299,4 +338,66 @@ function saveWorkflow(content,url){
         alert("Workflow was NOT saved for the following reason:\n" + e.status + " : " + e.statusText );
         console.log(e);
     });
+}
+
+function testWorkflow(){
+    var summary = $('#test-workflow-summary');
+    var issues = $('#test-workflow-results');
+    summary.empty();
+    issues.empty();
+    var jsonform = form2js(document.getElementById('workflow-form'),".",true,undefined,true,true);
+    var formdata = JSON.stringify(jsonform,null,4);
+    var url = "/testworkflow";
+    $.ajax({
+        type : "POST",
+        url : url,
+        data : formdata,
+        datatype : "json"
+    }).success(function(response){
+        var responseObj = JSON.parse(response);
+        renderTestSummary(responseObj, summary);
+        if(responseObj.status == "success") {
+            renderTickets(responseObj.data, issues);
+        }
+        $('#test-workflow-form').show();
+        if(responseObj.status == "success") {
+            return true;
+        } else {
+            return false;
+        }
+    }).error(function(e){
+        console.log(e);
+        return false;
+    });
+}
+
+function renderTickets(issues,container){
+    var issues = issues['issues'];
+    for(var i in issues){
+        var issue = issues[i];
+        var workflows = [];
+        if(issue != undefined && issue['karakuri'] != undefined && issue['karakuri']['workflows_performed'] != undefined) {
+            for (wf in issue.karakuri.workflows_performed) {
+                workflows.push(issue.karakuri.workflows_performed[wf].name);
+            }
+        }
+        var performed = workflows.join(", ");
+        $('<tr>' +
+            '<td>' +
+            '<a target="_blank" href="https://jira.mongodb.com/browse/' + issue.jira.key + '">' + issue.jira.key + '</a>' +
+            '</td>' +
+            '<td>' + performed + '</td>' +
+            '<td>' + issue.jira.fields.status.name + '</td>' +
+            '</tr>').appendTo(container);
+    }
+}
+
+function renderTestSummary(response,container){
+    var statusColor = "success";
+    var messageText = "All tests passed successfully!";
+    if(response.status == "error") {
+        statusColor = "danger";
+        messageText = response.message;
+    }
+    $('<div class="alert alert-' + statusColor + '">' + messageText + '</div>').appendTo(container);
 }
