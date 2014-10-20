@@ -707,6 +707,7 @@ class karakuri(karakuricommon.karakuribase):
     def sleepIssue(self, iid, seconds):
         """ Sleep the issue """
         self.logger.debug("sleepIssue(%s)", iid)
+        seconds = int(seconds)
         now = datetime.utcnow()
 
         if seconds > (datetime.max-now).total_seconds():
