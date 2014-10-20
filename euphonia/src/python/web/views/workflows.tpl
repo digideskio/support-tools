@@ -5,14 +5,14 @@
         </div>
     </div>
     <div class="row">
-        <div class="col-lg-2 sidebar well" id="sidebar" role="navigation">
+        <div class="col-md-2 sidebar well" id="sidebar" role="navigation">
             <h4>Existing Workflows</h4>
             <ul id="existingflows" class="nav">
             </ul>
-            <button id="create-btn" class="btn btn-primary col-sm-12">Create New Workflow</button>
+            <button id="create-btn" class="btn btn-primary col-sm-12">Create Workflow</button>
             <div style="clear:both;"></div>
         </div>
-        <div class="col-lg-10">
+        <div class="col-md-10">
             <form class="form-horizontal" role="form" id="workflow-form" name="workflow-form">
                 <input type="hidden" id="workflow._id" name="workflow._id" value=""/>
                 <div class="panel panel-default">
@@ -30,7 +30,7 @@
                         <div class="form-group">
                             <label for="name" class="col-sm-2 control-label">Time Elapsed</label>
                             <div class="col-sm-10">
-                                <input type="number" class="form-control" name="workflow.time_elapsed" id="workflow.time_elapsed" value="">
+                                <input type="number" class="form-control input-sm" name="workflow.time_elapsed" id="workflow.time_elapsed" value="">
                             </div>
                         </div>
                         <div class="form-group">
@@ -57,7 +57,7 @@
                         <div class="form-group">
                             <label for="name" class="col-sm-2 control-label">Query String</label>
                             <div class="col-sm-10">
-                                <textarea id="workflow.query_string" name="workflow.query_string" class="form-control" rows="10"></textarea>
+                                <textarea id="workflow.query_string" name="workflow.query_string" class="form-control input-sm" rows="10"></textarea>
                             </div>
                         </div>
                         <div class="form-group">
@@ -98,8 +98,7 @@
     </div>
     <div class="row" style="height:40px;"><div class="col-sm-12"></div></div>
     <div class="row">
-        <div class="col-lg-2"></div>
-        <div id="test-workflow-form" class="col-lg-10" style="display:none">
+        <div id="test-workflow-form" class="col-lg-10 col-md-10 col-lg-offset-2 col-md-offset-2" style="display:none">
             <div class="panel-group" id="accordion">
                 <div class="panel panel-default">
                     <div class="panel-heading">

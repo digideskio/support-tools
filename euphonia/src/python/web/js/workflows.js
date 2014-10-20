@@ -27,8 +27,9 @@ function renderList(workflows) {
     for(var wf in workflows){
         var workflow = workflows[wf];
         var el = $('<li></li>');
-        var item = $('<a href="javascript:void(0);" class="col-sm-10">' + workflow['name'] + '</a>');
-        var removelink = $('<a href="javascript:void(0);" class="text-danger col-sm-1" data-toggle="tooltip" data-placement="top" title="Remove Workflow"><i class="glyphicon glyphicon-trash"></i></a>').tooltip();
+        var item = $('<a href="javascript:void(0);" class="col-xs-9">' + workflow['name'] + '</a>');
+        var removelink = $('<a href="javascript:void(0);" class="text-danger col-xs-1"><i class="glyphicon glyphicon-trash" data-toggle="tooltip" data-placement="top" title="Remove Workflow"></i></a>');
+        removelink.find('i').tooltip();
         removelink.click(workflow.name,function(e){removeWorkflow(e.data)});
         item.click(wf,function(e){renderWorkflow(e.data);});
         item.appendTo(el);
@@ -118,7 +119,7 @@ function renderAction(action,index){
 
 function renderActionName(action, index){
     var root = $('<td class="col-sm-3"></td>');
-    var nameinput = $('<input id="workflow.actions[' + index +'].name" name="workflow.actions[' + index +'].name" class="form-control"/>');
+    var nameinput = $('<input id="workflow.actions[' + index +'].name" name="workflow.actions[' + index +'].name" class="form-control input-sm"/>');
     if(action && action['name']){
         nameinput.val(action['name']);
     }
@@ -147,13 +148,14 @@ function renderActionArgs(action,index){
 function actionArgHtml(actionindex,argindex){
     var content = '<div class="form-group"> \
                 <div class="col-sm-11"> \
-                    <textarea id="workflow.actions[' + actionindex + '].args[' + argindex + ']" name="workflow.actions[' + actionindex + '].args[' + argindex + ']" class="form-control" rows="10"></textarea> \
+                    <textarea id="workflow.actions[' + actionindex + '].args[' + argindex + ']" name="workflow.actions[' + actionindex + '].args[' + argindex + ']" class="form-control input-sm" rows="10"></textarea> \
                 </div> \
                 <div class="col-sm-1"> \
-                    <a href="javascript:void(0);" class="pull-right text-danger remove-argument-link" data-toggle="tooltip" data-placement="top" title="Remove Argument"><i class="glyphicon glyphicon-trash"></i></a> \
+                    <a href="javascript:void(0);" class="pull-right text-danger remove-argument-link"><i class="glyphicon glyphicon-trash" data-toggle="tooltip" data-placement="top" title="Remove Argument"></i></a> \
                 </div> \
             </div>';
     var root = $(content)
+    root.find('.remove-argument-link i').tooltip();
     root.find('.remove-argument-link')
         .click(function(){removeActionArg($(this).parent().parent())})
         .tooltip()
@@ -182,9 +184,10 @@ function renderPrereq(prereqs,index){
     var col1 = $('<td class="col-sm-1"></td>');
     var col2 = $('<td class="col-sm-6"></td>');
     var col3 = $('<td class="col-sm-5"></td>');
-    var content2 = $('<select id="workflow.prereqs[' + index +'].name" name="workflow.prereqs[' + index +'].name" class="form-control"></select');
-    var content3 = $('<input id="workflow.prereqs[' + index +'].time_elapsed" name="workflow.prereqs[' + index +'].time_elapsed" class="form-control"/>');
-    var removelink = $('<a href="javascript:void(0);" class="text-danger remove-row" data-toggle="tooltip" data-placement="top" title="Remove Prerequisite"><i class="glyphicon glyphicon-trash"></i></a>');
+    var content2 = $('<select id="workflow.prereqs[' + index +'].name" name="workflow.prereqs[' + index +'].name" class="form-control input-sm"></select');
+    var content3 = $('<input id="workflow.prereqs[' + index +'].time_elapsed" name="workflow.prereqs[' + index +'].time_elapsed" class="form-control input-sm"/>');
+    var removelink = $('<a href="javascript:void(0);" class="text-danger remove-row"><i class="glyphicon glyphicon-trash" data-toggle="tooltip" data-placement="top" title="Remove Prerequisite"></i></a>');
+    removelink.find('i').tooltip();
     removelink.click(function(){removePrereq($(this).parent().parent())})
         .tooltip()
         .hover(function(){$(this).closest('tr').addClass('bg-danger')},function(){$(this).closest('tr').removeClass('bg-danger')});
@@ -211,7 +214,12 @@ function renderPrereq(prereqs,index){
 function renderAddAction(){
     var root = $('<tr id="addAction-link"></tr>');
     var col = $('<td colspan="2"></td>');
-    var link = $('<a href="javascript:void(0);" data-toggle="tooltip" data-placement="top" title="Add Action"><i class="glyphicon glyphicon-plus"></i></a>').tooltip().hover(function(){$(this).closest('tr').addClass('bg-success')},function(){$(this).closest('tr').removeClass('bg-success')});
+    var link = $('<a href="javascript:void(0);"><i class="glyphicon glyphicon-plus" data-toggle="tooltip" data-placement="top" title="Add Action"></i></a>')
+    link.find('i').tooltip();
+    link.hover(
+        function(){$(this).closest('tr').addClass('bg-success')},
+        function(){$(this).closest('tr').removeClass('bg-success')}
+    );
     link.click(function(){addAction()});
     link.appendTo(col);
     col.appendTo(root);
@@ -220,7 +228,12 @@ function renderAddAction(){
 
 function renderAddActionArg(actionindex){
     var root = $('<div id="addActionArg-' + actionindex + '-link" class="pull-right"></div>');
-    var link = $('<a href="javascript:void(0);" data-toggle="tooltip" data-placement="top" title="Add Argument"><i class="glyphicon glyphicon-plus"></i></a>').tooltip().hover(function(){$(this).closest('td').addClass('bg-success')},function(){$(this).closest('td').removeClass('bg-success')});
+    var link = $('<a href="javascript:void(0);"><i class="glyphicon glyphicon-plus" data-toggle="tooltip" data-placement="top" title="Add Argument"></i></a>');
+    link.find('i').tooltip();
+    link.hover(
+        function(){$(this).closest('td').addClass('bg-success')},
+        function(){$(this).closest('td').removeClass('bg-success')}
+    );
     link.click(function(){addActionArg(actionindex)});
     link.appendTo(root);
     return root;
@@ -229,7 +242,12 @@ function renderAddActionArg(actionindex){
 function renderAddPrereq(){
     var root = $('<tr id="addPrereq-link"></tr>');
     var col = $('<td colspan="3"></td>');
-    var link = $('<a href="javascript:void(0);" data-toggle="tooltip" data-placement="top" title="Add Prerequisite"><i class="glyphicon glyphicon-plus"></i></a>').tooltip().hover(function(){$(this).closest('tr').addClass('bg-success')},function(){$(this).closest('tr').removeClass('bg-success')});
+    var link = $('<a href="javascript:void(0);"><i class="glyphicon glyphicon-plus" data-toggle="tooltip" data-placement="top" title="Add Prerequisite"></i></a>');
+    link.find('i').tooltip();
+    link.tooltip().hover(
+        function(){$(this).closest('tr').addClass('bg-success')},
+        function(){$(this).closest('tr').removeClass('bg-success')}
+    );
     link.click(function(){addPrereq()});
     link.appendTo(col);
     col.appendTo(root);
