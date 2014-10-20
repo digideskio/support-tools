@@ -106,7 +106,10 @@ class jirapp(JIRA):
         self.logger.info("Closing %s" % key)
 
         if self.live:
-            tid = self.__getTransitionId(key, 'Close Issue')
+            res = self.__getTransitionId(key, 'Close Issue')
+            if not res['ok']:
+                return res
+            tid = res['payload']
             if tid:
                 try:
                     self.transition_issue(key, tid)
@@ -189,7 +192,10 @@ class jirapp(JIRA):
         self.logger.info("Resolving %s" % key)
 
         if self.live:
-            tid = self.__getTransitionId(key, 'Resolve Issue')
+            res = self.__getTransitionId(key, 'Resolve Issue')
+            if not res['ok']:
+                return res
+            tid = res['payload']
             if tid:
                 try:
                     self.transition_issue(key, tid, resolution={'id': rid})
@@ -226,7 +232,10 @@ class jirapp(JIRA):
 
         if self.live:
             fields = {'customfield_10041': {'name': owner}}
-            tid = self.__getTransitionId(key, 'Internal Fields')
+            res = self.__getTransitionId(key, 'Internal Fields')
+            if not res['ok']:
+                return res
+            tid = res['payload']
 
             if tid:
                 try:
@@ -241,7 +250,10 @@ class jirapp(JIRA):
         self.logger.info("Setting %s to Wait for Customer" % key)
 
         if self.live:
-            tid = self.__getTransitionId(key, 'Wait for Customer')
+            res = self.__getTransitionId(key, 'Wait for Customer')
+            if not res['ok']:
+                return res
+            tid = res['payload']
             if tid:
                 try:
                     self.transition_issue(key, tid)
