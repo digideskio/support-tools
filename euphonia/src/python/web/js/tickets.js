@@ -1,3 +1,6 @@
+$(document).ready(function() {
+    window.setTimeout(function(){window.location.href = window.location.href},60000);
+});
 
 function showPage(context, url, issue) {
     $('#ticketList').find('tr').each(function(){$(this).removeClass('info');});

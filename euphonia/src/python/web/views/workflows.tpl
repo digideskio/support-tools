@@ -39,13 +39,14 @@
                                 <table class="table table table-condensed table-bordered">
                                     <thead>
                                         <tr>
+                                            <th class="col-sm-1"><i class="glyphicon glyphicon-cog"></i></th>
                                             <th class="col-sm-6">Name</th>
-                                            <th class="col-sm-6">Time Elapsed</th>
+                                            <th class="col-sm-5">Time Elapsed</th>
                                         </tr>
                                     </thead>
                                     <tbody id="prereqsList" name="prereqsList">
                                         <tr id="addPrereq-link">
-                                            <td colspan="2">
+                                            <td colspan="3">
                                                 <a id="add-prereq-btn" href="javascript:void(0);" data-toggle="tooltip" data-placement="top" title="Add Prerequisite"><i class="glyphicon glyphicon-plus"></i></a>
                                             </td>
                                         </tr>

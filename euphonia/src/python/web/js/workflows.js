@@ -179,24 +179,32 @@ function renderPrereq(prereqs,index){
         prereq = prereqs[index];
     }
     var root = $('<tr id="prereq-' + index + '" class="prereq"></tr>');
-    var col1 = $('<td class="col-sm-6"></td>');
+    var col1 = $('<td class="col-sm-1"></td>');
     var col2 = $('<td class="col-sm-6"></td>');
-    var content1 = $('<select id="workflow.prereqs[' + index +'].name" name="workflow.prereqs[' + index +'].name" class="form-control"></select');
-    var content2 = $('<input id="workflow.prereqs[' + index +'].time_elapsed" name="workflow.prereqs[' + index +'].time_elapsed" class="form-control"/>');
-    $('<option></option>').val("").appendTo(content1);
+    var col3 = $('<td class="col-sm-5"></td>');
+    var content2 = $('<select id="workflow.prereqs[' + index +'].name" name="workflow.prereqs[' + index +'].name" class="form-control"></select');
+    var content3 = $('<input id="workflow.prereqs[' + index +'].time_elapsed" name="workflow.prereqs[' + index +'].time_elapsed" class="form-control"/>');
+    var removelink = $('<a href="javascript:void(0);" class="text-danger remove-row" data-toggle="tooltip" data-placement="top" title="Remove Prerequisite"><i class="glyphicon glyphicon-trash"></i></a>');
+    removelink.click(function(){removePrereq($(this).parent().parent())})
+        .tooltip()
+        .hover(function(){$(this).closest('tr').addClass('bg-danger')},function(){$(this).closest('tr').removeClass('bg-danger')});
+
+    $('<option></option>').val("").appendTo(content2);
     for (var wf in workflows) {
-        $('<option></option>').text(workflows[wf]['name']).val(workflows[wf]['name']).appendTo(content1);
+        $('<option></option>').text(workflows[wf]['name']).val(workflows[wf]['name']).appendTo(content2);
     }
     if(prereq && prereq['name']){
-        content1.val(prereq['name']);
+        content2.val(prereq['name']);
     }
     if(prereq && prereq['time_elapsed']){
-        content2.val(prereq['time_elapsed']);
+        content3.val(prereq['time_elapsed']);
     }
-    content1.appendTo(col1);
+    removelink.appendTo(col1);
     content2.appendTo(col2);
+    content3.appendTo(col3);
     col1.appendTo(root);
     col2.appendTo(root);
+    col3.appendTo(root);
     return root;
 }
 
@@ -220,7 +228,7 @@ function renderAddActionArg(actionindex){
 
 function renderAddPrereq(){
     var root = $('<tr id="addPrereq-link"></tr>');
-    var col = $('<td colspan="2"></td>');
+    var col = $('<td colspan="3"></td>');
     var link = $('<a href="javascript:void(0);" data-toggle="tooltip" data-placement="top" title="Add Prerequisite"><i class="glyphicon glyphicon-plus"></i></a>').tooltip().hover(function(){$(this).closest('tr').addClass('bg-success')},function(){$(this).closest('tr').removeClass('bg-success')});
     link.click(function(){addPrereq()});
     link.appendTo(col);
