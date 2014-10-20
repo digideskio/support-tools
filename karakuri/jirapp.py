@@ -13,10 +13,10 @@ class jirapp(JIRA):
         self.live = False
 
         # Log what your mother gave you
-        #logLevel = self.args['log_level']
+        # logLevel = self.args['log_level']
         logging.basicConfig()
         self.logger = logging.getLogger('logger')
-        #self.logger.setLevel(logLevel)
+        # self.logger.setLevel(logLevel)
         self.logger.info("Initializing JIRA++")
 
         if mongo is not None:
@@ -55,7 +55,7 @@ class jirapp(JIRA):
         tid = None
 
         self.logger.debug("Finding %s transition id for project:'%s', "
-                      "status:'%s'" % (transition, project, status))
+                          "status:'%s'" % (transition, project, status))
 
         try:
             coll_transitions = self.db_jirameta.transitions
@@ -69,8 +69,8 @@ class jirapp(JIRA):
             tid = doc['tid']
             self.logger.info("Found transition id:%s" % tid)
         else:
-            self.logger.warning("Transition id not found. Most likely issue is "
-                            "already in the desired state.")
+            self.logger.warning("Transition id not found. Most likely issue is"
+                                " already in the desired state.")
 
         return {'ok': True, 'payload': tid}
 
@@ -136,8 +136,9 @@ class jirapp(JIRA):
         # required fields for issue creation
         required_fields = None
 
-        self.logger.info("Getting createmeta data for project:%s, issuetype:%s" % (
-                     fields['project']['key'], fields['issuetype']['name']))
+        self.logger.info("Getting createmeta data for project:%s, issuetype:%s"
+                         % (fields['project']['key'],
+                            fields['issuetype']['name']))
 
         try:
             doc = coll_createmeta.find_one(match, proj)
