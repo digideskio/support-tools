@@ -18,8 +18,8 @@ $(document).ready(function() {
     );
     $('#save-link').click(function(){saveChanges($(this).closest('form'));});
     $('#save-copy-link').click(function(){saveChangesNew($(this).closest('form'));});
-    $('#testworkflow-link').click(function(){testWorkflow();});
-    $('#testworkflow-close').click(function(){$('#testworkflow-form').hide();});
+    $('#test-workflow-link').click(function(){testWorkflow();});
+    $('#test-workflow-close').click(function(){$('#test-workflow-form').hide();});
 });
 
 function renderList(workflows) {
@@ -277,8 +277,7 @@ function addPrereq(){
 }
 
 function saveChanges(form) {
-    var test = testWorkflow();
-    if(test) {
+    var saveCallback = function() {
         var formid = $(form).attr('id');
         var jsonform = form2js(document.getElementById(formid), ".", true, undefined, true, true);
         var formdata = JSON.stringify(jsonform, null, 4);
@@ -295,52 +294,60 @@ function saveChanges(form) {
         } else {
             saveWorkflow(formdata, url);
         }
+    };
+    if(testWorkflow(saveCallback)){
+        return true;
     } else {
-        alert("This workflow did not validate. See error below for details.");
+        return false;
     }
 }
 
 function saveChangesNew(form) {
-    var test = testWorkflow();
-    if(test) {
+    var saveCallback = function() {
         var formid = $(form).attr('id');
-        var jsonform = form2js(document.getElementById(formid),".",true,undefined,true,true);
+        var jsonform = form2js(document.getElementById(formid), ".", true, undefined, true, true);
         delete jsonform.workflow._id;
-        var formdata = JSON.stringify(jsonform,null,4);
+        var formdata = JSON.stringify(jsonform, null, 4);
         var url = "/workflow"
         var exists = false;
-        for(wf in workflows){
-            if(workflows[wf].name == jsonform.workflow.name){
+        for (wf in workflows) {
+            if (workflows[wf].name == jsonform.workflow.name) {
                 exists = true;
             }
         }
-        if(exists){
+        if (exists) {
             alert("A workflow named " + jsonform.workflow.name + " already exists. Changes have not been saved.");
             return false;
         } else {
             saveWorkflow(formdata, url);
         }
+    };
+    if(testWorkflow(saveCallback)){
+        return true;
     } else {
-        alert("This workflow did not validate. See error below for details.");
+        return false;
     }
 }
 
 function saveWorkflow(content,url){
+    var lsave = Ladda.create(document.querySelector('#save-link'));
+	lsave.start();
     $.ajax({
         type : "POST",
         url : url,
         data : content
     }).success(function(){
         getWorkflowList();
-        alert("Saved workflow");
         clearForm();
     }).error(function(e){
         alert("Workflow was NOT saved for the following reason:\n" + e.status + " : " + e.statusText );
         console.log(e);
+    }).always(function(){
+        lsave.stop();
     });
 }
 
-function testWorkflow(){
+function testWorkflow(callback){
     var summary = $('#test-workflow-summary');
     var issues = $('#test-workflow-results');
     summary.empty();
@@ -348,11 +355,14 @@ function testWorkflow(){
     var jsonform = form2js(document.getElementById('workflow-form'),".",true,undefined,true,true);
     var formdata = JSON.stringify(jsonform,null,4);
     var url = "/testworkflow";
+    var l = Ladda.create(document.querySelector('#test-workflow-link'));
+	l.start();
     $.ajax({
         type : "POST",
         url : url,
         data : formdata,
-        datatype : "json"
+        datatype : "json",
+        async: true
     }).success(function(response){
         var responseObj = JSON.parse(response);
         renderTestSummary(responseObj, summary);
@@ -361,13 +371,19 @@ function testWorkflow(){
         }
         $('#test-workflow-form').show();
         if(responseObj.status == "success") {
+            if(typeof callback === "function") {
+                callback();
+            }
             return true;
         } else {
+            alert("This workflow did not validate. See error below for details.");
             return false;
         }
     }).error(function(e){
         console.log(e);
         return false;
+    }).always(function(){
+        l.stop();
     });
 }
 

@@ -81,8 +81,8 @@
                         </div>
                     </div>
                     <div class="btn-group pull-right">
-                        <button id="testworkflow-link" type="button" class="btn btn-warning">Test Workflow&nbsp;<i class="glyphicon glyphicon-cog"></i></button>
-                        <button id="save-link" type="button" class="btn btn-primary">Save Workflow&nbsp;<i class="glyphicon glyphicon-cloud-upload"></i></button>
+                        <button id="test-workflow-link" type="button" class="btn btn-warning ladda-button" data-style="slide-left"><span class="ladda-label">Test Workflow&nbsp;<i class="glyphicon glyphicon-cog"></i></span></button>
+                        <button id="save-link" type="button" class="btn btn-primary ladda-button" data-style="slide-left"><span class="ladda-label">Save Workflow&nbsp;<i class="glyphicon glyphicon-cloud-upload"></i></span></button>
                         <button type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown">
                             <span class="caret"></span>
                             <span class="sr-only">Toggle Dropdown</span>
@@ -105,7 +105,7 @@
                         <h4 class="panel-title">
                             <span>Test Results</span>
                             <div class="pull-right">
-                                <button id="testworkflow-close" type="button" class="close"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+                                <button id="test-workflow-close" type="button" class="close"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
                             </div>
                         </h4>
                         <div style="clear:both"></div>
