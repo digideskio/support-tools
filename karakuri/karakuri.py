@@ -769,13 +769,25 @@ class karakuri(karakuricommon.karakuribase):
         match = {'_id': tid}
         return self.find_and_modify_task(match, updoc)
 
-    def updateWorkflow(self, name, updoc):
+    def updateWorkflow(self, name, fields):
         """ Update an existing workflow """
-        self.logger.debug("updateWorkflow(%s,%s)", name, updoc)
-        if 'name' not in updoc:
-            updoc['name'] = name
+        self.logger.debug("updateWorkflow(%s,%s)", name, fields)
 
-        res = self.validateWorkflow(updoc)
+        if "$set" not in fields:
+            updoc = {"$set": fields}
+        else:
+            updoc = fields
+
+        res = self.getWorkflow(name)
+        if not res['ok']:
+            return res
+        workflow = res['payload']
+
+        for key in updoc["$set"]:
+            workflow[key] = updoc["$set"][key]
+
+        # validate the workflow to be
+        res = self.validateWorkflow(workflow)
         if not res['ok']:
             return res
 
