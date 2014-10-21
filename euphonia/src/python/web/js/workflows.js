@@ -35,7 +35,7 @@ function renderList(workflows) {
         item.click(wf,function(e){renderWorkflow(e.data);});
         item.appendTo(el);
         removelink.appendTo(el);
-        el.appendTo($('#existingflows'));
+        el.appendTo(list);
     }
 }
 
@@ -47,11 +47,11 @@ function getWorkflowList(){
     }).success(function(response){
         workflows = [];
         var responseObj = JSON.parse(response);
-        if(responseObj.status == "success") {
+        if (responseObj.status == "success") {
             var workflowsObj = responseObj.data;
-            for (var wf = 0; wf < workflowsObj['workflows'].length; wf++){
-                var wfObj = workflowsObj['workflows'][wf];
-                var id = wfObj['_id']['$oid'];
+            for (var wf = 0; wf < workflowsObj['workflows'].length; wf++) {
+                var wfObj;
+                wfObj = workflowsObj['workflows'][wf];
                 workflows[wf] = wfObj;
             }
             renderList(workflows);

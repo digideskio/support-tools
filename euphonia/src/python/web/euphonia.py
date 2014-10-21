@@ -25,8 +25,8 @@ def get_contacts():
 
 # ROOT/SUMMARY PAGE
 @app.route('/')
-def index(page=1):
-    return redirect('/'.join(['/tasks', page]))
+def index():
+    return redirect('/tasks')
 
 
 # GROUP-RELATED ROUTES
