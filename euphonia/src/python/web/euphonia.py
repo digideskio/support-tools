@@ -7,10 +7,10 @@ import sys
 import json
 import pytz
 from datetime import datetime
-import FailedTestDAO
-import GroupDAO
-import KarakuriDAO
-import SalesforceDAO
+import failedtests
+import groups
+import karakuri_client
+import salesforce_client
 from daemon import Daemon
 from bson import json_util
 
@@ -302,11 +302,11 @@ if __name__ == "__main__":
     euphoniaDB = connection.euphonia
     supportDB = connection.support
 
-    karakuri = KarakuriDAO.Karakuri(karakuri_connection_string)
-    groups = GroupDAO.Groups(euphoniaDB)
-    failedTests = FailedTestDAO.FailedTests(euphoniaDB)
+    karakuri = karakuri_client.Karakuri(karakuri_connection_string)
+    groups = groups.Groups(euphoniaDB)
+    failedTests = failedtests.FailedTests(euphoniaDB)
 
-    sf = SalesforceDAO.Salesforce()
+    sf = salesforce_client.Salesforce()
 
     daemon = Automaton('euphonia.pid')
     if len(sys.argv) == 2:
