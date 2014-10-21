@@ -1,14 +1,15 @@
 import requests
 from bson import json_util
 
-class karakuriDAO:
+
+class Karakuri:
 
     def __init__(self, server):
         self.SERVER = server
 
     def executeKarakuriCall(self, url, method="GET", data=None):
         try:
-            auth_header = {"Authorization":"auth_token=paulstoken"}
+            auth_header = {"Authorization": "auth_token=paulstoken"}
             if method == "GET":
                 r = requests.get(url, headers=auth_header)
             elif method == "POST":
@@ -70,9 +71,11 @@ class karakuriDAO:
         response = self.executeKarakuriCall(getUrl)
         return response
 
-    def createWorkflow(self,workflow=None):
+    def createWorkflow(self, workflow=None):
         getUrl = "%s/workflow" % (self.SERVER)
-        response = self.executeKarakuriCall(getUrl, method="POST", data=workflow)
+        response = self.executeKarakuriCall(getUrl,
+                                            method="POST",
+                                            data=workflow)
         return response
 
     def getWorkflow(self, workflowId):
@@ -82,17 +85,22 @@ class karakuriDAO:
 
     def updateWorkflow(self, workflowName, workflow):
         getUrl = "%s/workflow/%s" % (self.SERVER, workflowName)
-        response = self.executeKarakuriCall(getUrl, method="POST", data=workflow)
+        response = self.executeKarakuriCall(getUrl,
+                                            method="POST",
+                                            data=workflow)
         return response
 
     def deleteWorkflow(self, workflowName):
         getUrl = "%s/workflow/%s" % (self.SERVER, workflowName)
-        response = self.executeKarakuriCall(getUrl, method="DELETE")
+        response = self.executeKarakuriCall(getUrl,
+                                            method="DELETE")
         return response
 
     def testWorkflow(self, workflow):
         getUrl = "%s/testworkflow" % (self.SERVER)
-        response = self.executeKarakuriCall(getUrl, method="POST", data=workflow)
+        response = self.executeKarakuriCall(getUrl,
+                                            method="POST",
+                                            data=workflow)
         return response
 
     def processWorkflow(self, workflowId):
@@ -119,7 +127,9 @@ class karakuriDAO:
         if seconds is None:
             getUrl = "%s/workflow/%s/sleep" % (self.SERVER, workflowId)
         else:
-            getUrl = "%s/workflow/%s/sleep/%s" % (self.SERVER, workflowId, seconds)
+            getUrl = "%s/workflow/%s/sleep/%s" % (self.SERVER,
+                                                  workflowId,
+                                                  seconds)
         response = self.executeKarakuriCall(getUrl)
         return response
 
