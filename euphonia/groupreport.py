@@ -1,5 +1,13 @@
+import pymongo
+
 from groupreport_tests import GroupReportTests
 
+try:
+    mongo = pymongo.MongoClient()
+    db_euphonia = mongo.euphonia
+    coll_tests = db_euphonia.mmsgroupreporttests
+except pymongo.errors.PyMongoError as e:
+    raise e
 
 class GroupReport:
     def __init__(self, group):
@@ -7,19 +15,8 @@ class GroupReport:
         # TODO validate named fields to guarantee schema across reports
         self.group = group
         # Currently supported tests, not all tests in GroupReportTests
-        self.tests = {
-                        'EvenVotingNumberReplicaSets':'high',
-                        'LimitsStartupWarning':'medium',
-                        'Mongo22Idempotency':'high',
-                        'Mongo24DbhashCache':'high',
-                        'Mongo24InitialSync':'medium',
-                        'Mongo26':'low',
-                        'NMonitoringAgents':'low',
-                        'NumaStartupWarning':'medium',
-                        'StartupWarning':'low',
-                        'NumHostWithVotesMoreThanOne':'medium',
-                        'NumReplicaSetWithMoreThanOneArbiter':'low'
-                    }
+        match = {'active': True}
+        self.tests = {test['name']:test for test in coll_tests.find(match)}
         self.testPriorityScores = {'low':2.0,'medium':4.0,'high':8.0}
         self.verbose = False
 
