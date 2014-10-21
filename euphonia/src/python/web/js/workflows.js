@@ -23,8 +23,9 @@ $(document).ready(function() {
 });
 
 function renderList(workflows) {
-    $('#existingflows').empty();
-    for(var wf in workflows){
+    var list = $('#existingflows');
+    list.empty();
+    for(var wf = 0; wf < workflows.length; wf++){
         var workflow = workflows[wf];
         var el = $('<li></li>');
         var item = $('<a href="javascript:void(0);" class="col-xs-9">' + workflow['name'] + '</a>');
@@ -44,14 +45,14 @@ function getWorkflowList(){
         url: "/workflow",
         datatype: "json"
     }).success(function(response){
-        workflows = []
+        workflows = [];
         var responseObj = JSON.parse(response);
         if(responseObj.status == "success") {
             var workflowsObj = responseObj.data;
-            for (var wf in workflowsObj['workflows']) {
+            for (var wf = 0; wf < workflowsObj['workflows'].length; wf++){
                 var wfObj = workflowsObj['workflows'][wf];
                 var id = wfObj['_id']['$oid'];
-                workflows[id] = wfObj;
+                workflows[wf] = wfObj;
             }
             renderList(workflows);
         } else {
@@ -67,7 +68,6 @@ function renderWorkflow(wfid) {
     $(":input[id='workflow._id']").val(workflow['_id']['$oid']);
     $(":input[id='workflow.time_elapsed']").val(workflow['time_elapsed']);
     renderPrereqs(workflow['prereqs']);
-    var jstring = JSON.stringify(workflow['query_string'],null,4);
     $(":input[id='workflow.query_string']").val(workflow['query_string']);
     renderActions(workflow['actions']);
 }
@@ -79,7 +79,7 @@ function removeWorkflow(wfname){
             type: "DELETE",
             url: "/workflow/" + wfname,
             datatype: "json"
-        }).success(function(response){
+        }).success(function(){
             console.log("Deleted " + wfname);
             getWorkflowList();
         });
@@ -90,22 +90,22 @@ function removeWorkflow(wfname){
 
 function clearForm(){
     $(':input').val("");
-    $("#prereqsList").empty();
-    renderAddPrereq().appendTo($("#prereqsList"));
-    $("#actionsList").empty();
-    renderAddAction().appendTo($("#actionsList"));
+    $("#prereqsList").empty().append(renderAddPrereq());
+    $("#actionsList").empty().append(renderAddAction());
     $("#test-workflow-form").hide();
 }
 
 function renderActions(actions) {
     var parent = $('#actionsList');
     parent.empty();
-    for (var action in actions) {
-        var root = renderAction(actions[action],action);
-        root.appendTo(parent);
+    if(actions != undefined) {
+        for (var action = 0; action < actions.length; action++) {
+            var root = renderAction(actions[action], action);
+            root.appendTo(parent);
+        }
+        var addaction = renderAddAction();
+        addaction.appendTo(parent);
     }
-    var addaction = renderAddAction();
-    addaction.appendTo(parent);
 }
 
 function renderAction(action,index){
@@ -134,13 +134,13 @@ function renderActionName(action, index){
 function renderActionArgs(action,index){
     var root = $('<td id="action-"' + index + '-args" class="col-sm-9">');
     if(action && action['args']) {
-        for (arg in action['args']) {
+        for (var arg = 0; arg < action['args'].length; arg++) {
             var arginput = actionArgHtml(index,arg);
             arginput.find('textarea').val(action['args'][arg]);
             arginput.appendTo(root);
         }
     }
-    addarg = renderAddActionArg(index);
+    var addarg = renderAddActionArg(index);
     addarg.appendTo(root);
     return root;
 }
@@ -154,7 +154,7 @@ function actionArgHtml(actionindex,argindex){
                     <a href="javascript:void(0);" class="pull-right text-danger remove-argument-link"><i class="glyphicon glyphicon-trash" data-toggle="tooltip" data-placement="top" title="Remove Argument"></i></a> \
                 </div> \
             </div>';
-    var root = $(content)
+    var root = $(content);
     root.find('.remove-argument-link i').tooltip();
     root.find('.remove-argument-link')
         .click(function(){removeActionArg($(this).parent().parent())})
@@ -166,12 +166,14 @@ function actionArgHtml(actionindex,argindex){
 function renderPrereqs(prereqs) {
     var parent = $('#prereqsList');
     parent.empty();
-    for (var prereq in prereqs) {
-        var root = renderPrereq(prereqs,prereq);
-        root.appendTo(parent);
+    if(prereqs != undefined) {
+        for (var prereq = 0; prereq < prereqs.length; prereqs++) {
+            var root = renderPrereq(prereqs, prereq);
+            root.appendTo(parent);
+        }
+        var addprereq = renderAddPrereq();
+        addprereq.appendTo(parent);
     }
-    var addprereq = renderAddPrereq();
-    addprereq.appendTo(parent);
 }
 
 
@@ -193,7 +195,7 @@ function renderPrereq(prereqs,index){
         .hover(function(){$(this).closest('tr').addClass('bg-danger')},function(){$(this).closest('tr').removeClass('bg-danger')});
 
     $('<option></option>').val("").appendTo(content2);
-    for (var wf in workflows) {
+    for (var wf = 0; wf < workflows.length; wf++) {
         $('<option></option>').text(workflows[wf]['name']).val(workflows[wf]['name']).appendTo(content2);
     }
     if(prereq && prereq['name']){
@@ -214,7 +216,7 @@ function renderPrereq(prereqs,index){
 function renderAddAction(){
     var root = $('<tr id="addAction-link"></tr>');
     var col = $('<td colspan="2"></td>');
-    var link = $('<a href="javascript:void(0);"><i class="glyphicon glyphicon-plus" data-toggle="tooltip" data-placement="top" title="Add Action"></i></a>')
+    var link = $('<a href="javascript:void(0);"><i class="glyphicon glyphicon-plus" data-toggle="tooltip" data-placement="top" title="Add Action"></i></a>');
     link.find('i').tooltip();
     link.hover(
         function(){$(this).closest('tr').addClass('bg-success')},
@@ -307,52 +309,44 @@ function saveChanges(form) {
         var formid = $(form).attr('id');
         var jsonform = form2js(document.getElementById(formid), ".", true, undefined, true, true);
         var formdata = JSON.stringify(jsonform, null, 4);
-        var url = "/workflow/" + jsonform.workflow.name;
+        var url = "/workflow/" + jsonform['workflow']['name'];
         var exists = false;
-        for (wf in workflows) {
-            if (workflows[wf].name == jsonform.workflow.name && workflows[wf]['_id']['$oid'] != jsonform.workflow._id) {
+        for (var wf = 0; wf < workflows.length; wf++) {
+            if (workflows[wf]['name'] == jsonform['workflow']['name'] && workflows[wf]['_id']['$oid'] != jsonform['workflow']['_id']) {
                 exists = true;
             }
         }
         if (exists) {
-            alert("A workflow named " + jsonform.workflow.name + " already exists. Changes have not been saved.");
+            alert("A workflow named " + jsonform['workflow']['name']+ " already exists. Changes have not been saved.");
             return false;
         } else {
             saveWorkflow(formdata, url);
         }
     };
-    if(testWorkflow(saveCallback)){
-        return true;
-    } else {
-        return false;
-    }
+    return testWorkflow(saveCallback);
 }
 
 function saveChangesNew(form) {
     var saveCallback = function() {
         var formid = $(form).attr('id');
         var jsonform = form2js(document.getElementById(formid), ".", true, undefined, true, true);
-        delete jsonform.workflow._id;
+        delete jsonform['workflow']['_id'];
         var formdata = JSON.stringify(jsonform, null, 4);
-        var url = "/workflow"
+        var url = "/workflow";
         var exists = false;
-        for (wf in workflows) {
-            if (workflows[wf].name == jsonform.workflow.name) {
+        for (var wf = 0; wf < workflows.length; wf++) {
+            if (workflows[wf]['name'] == jsonform['workflow']['name']) {
                 exists = true;
             }
         }
         if (exists) {
-            alert("A workflow named " + jsonform.workflow.name + " already exists. Changes have not been saved.");
+            alert("A workflow named " + jsonform['workflow']['name'] + " already exists. Changes have not been saved.");
             return false;
         } else {
             saveWorkflow(formdata, url);
         }
     };
-    if(testWorkflow(saveCallback)){
-        return true;
-    } else {
-        return false;
-    }
+    return testWorkflow(saveCallback);
 }
 
 function saveWorkflow(content,url){
@@ -414,22 +408,22 @@ function testWorkflow(callback){
 }
 
 function renderTickets(issues,container){
-    var issues = issues['issues'];
-    for(var i in issues){
+    issues = issues['issues'];
+    for(var i=0; i < issues.length; i++){
         var issue = issues[i];
         var workflows = [];
         if(issue != undefined && issue['karakuri'] != undefined && issue['karakuri']['workflows_performed'] != undefined) {
-            for (wf in issue.karakuri.workflows_performed) {
-                workflows.push(issue.karakuri.workflows_performed[wf].name);
+            for (var wf = 0; wf < issue['karakuri']['workflows_performed']; wf++) {
+                workflows.push(issue['karakuri']['workflows_performed'][wf].name);
             }
         }
         var performed = workflows.join(", ");
         $('<tr>' +
             '<td>' +
-            '<a target="_blank" href="https://jira.mongodb.com/browse/' + issue.jira.key + '">' + issue.jira.key + '</a>' +
+            '<a target="_blank" href="https://jira.mongodb.com/browse/' + issue['jira']['key'] + '">' + issue['jira']['key'] + '</a>' +
             '</td>' +
             '<td>' + performed + '</td>' +
-            '<td>' + issue.jira.fields.status.name + '</td>' +
+            '<td>' + issue['jira']['fields']['status']['name'] + '</td>' +
             '</tr>').appendTo(container);
     }
 }

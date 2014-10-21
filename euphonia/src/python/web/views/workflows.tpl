@@ -18,7 +18,7 @@
                 <div class="panel panel-default">
                     <div class="panel-heading">
                         <div class="form-group">
-                            <label for="name" class="col-sm-2 control-label">Workflow Name</label>
+                            <label for="workflow.name" class="col-sm-2 control-label">Workflow Name</label>
                             <div class="col-sm-10">
                                 <h4 class="panel-title editable">
                                     <input type="text" class="form-control" name="workflow.name" id="workflow.name" value="">
@@ -28,7 +28,7 @@
                     </div>
                     <div class="panel-body">
                         <div class="form-group">
-                            <label for="name" class="col-sm-2 control-label">Time Elapsed</label>
+                            <label for="workflow.time_elapsed" class="col-sm-2 control-label">Time Elapsed</label>
                             <div class="col-sm-10">
                                 <input type="number" class="form-control input-sm" name="workflow.time_elapsed" id="workflow.time_elapsed" value="">
                             </div>
@@ -44,10 +44,12 @@
                                             <th class="col-sm-5">Time Elapsed</th>
                                         </tr>
                                     </thead>
-                                    <tbody id="prereqsList" name="prereqsList">
+                                    <tbody id="prereqsList">
                                         <tr id="addPrereq-link">
                                             <td colspan="3">
-                                                <a id="add-prereq-btn" href="javascript:void(0);" data-toggle="tooltip" data-placement="top" title="Add Prerequisite"><i class="glyphicon glyphicon-plus"></i></a>
+                                                <a id="add-prereq-btn" href="javascript:void(0);" data-toggle="tooltip" data-placement="top" title="Add Prerequisite">
+                                                    <i class="glyphicon glyphicon-plus"></i>
+                                                </a>
                                             </td>
                                         </tr>
                                     </tbody>
@@ -55,7 +57,7 @@
                             </div>
                         </div>
                         <div class="form-group">
-                            <label for="name" class="col-sm-2 control-label">Query String</label>
+                            <label for="workflow.query_string" class="col-sm-2 control-label">Query String</label>
                             <div class="col-sm-10">
                                 <textarea id="workflow.query_string" name="workflow.query_string" class="form-control input-sm" rows="10"></textarea>
                             </div>
@@ -70,10 +72,12 @@
                                             <th class="col-sm-9">Args</th>
                                         </tr>
                                     </thead>
-                                    <tbody id="actionsList" name="actionsList">
+                                    <tbody id="actionsList">
                                         <tr id="addAction-link">
                                             <td colspan="2">
-                                                <a id="add-action-btn" href="javascript:void(0);" data-toggle="tooltip" data-placement="top" title="Add Action"><i class="glyphicon glyphicon-plus"></i></a>
+                                                <a id="add-action-btn" href="javascript:void(0);" data-toggle="tooltip" data-placement="top" title="Add Action">
+                                                    <i class="glyphicon glyphicon-plus"></i>
+                                                </a>
                                             </td>
                                         </tr>
                                     </tbody>

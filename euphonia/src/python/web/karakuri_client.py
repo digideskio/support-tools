@@ -7,7 +7,8 @@ class Karakuri:
     def __init__(self, server):
         self.SERVER = server
 
-    def executeKarakuriCall(self, url, method="GET", data=None):
+    @staticmethod
+    def execute_karakuri_call(url, method="GET", data=None):
         try:
             auth_header = {"Authorization": "auth_token=paulstoken"}
             if method == "GET":
@@ -23,162 +24,162 @@ class Karakuri:
                 return response
             else:
                 return None
-        except:
+        except RuntimeError:
             print "Failed to call: " + url
 
     # QUEUE FUNCTIONS
-    def getQueues(self):
-        getUrl = "%s/queue" % (self.SERVER)
-        response = self.executeKarakuriCall(getUrl)
+    def get_queues(self):
+        get_url = "%s/queue" % self.SERVER
+        response = self.execute_karakuri_call(get_url)
         return response
 
-    def getQueue(self, queueId):
-        getUrl = "%s/queue/%s" % (self.SERVER, queueId)
-        response = self.executeKarakuriCall(getUrl)
+    def get_queue(self, queue_id):
+        get_url = "%s/queue/%s" % (self.SERVER, queue_id)
+        response = self.execute_karakuri_call(get_url)
         return response
 
-    def approveQueue(self, queueId):
-        getUrl = "%s/queue/%s/approve" % (self.SERVER, queueId)
-        response = self.executeKarakuriCall(getUrl)
+    def approve_queue(self, queue_id):
+        get_url = "%s/queue/%s/approve" % (self.SERVER, queue_id)
+        response = self.execute_karakuri_call(get_url)
         return response
 
-    def disapproveQueue(self, queueId):
-        getUrl = "%s/queue/%s/disapprove" % (self.SERVER, queueId)
-        response = self.executeKarakuriCall(getUrl)
+    def disapprove_queue(self, queue_id):
+        get_url = "%s/queue/%s/disapprove" % (self.SERVER, queue_id)
+        response = self.execute_karakuri_call(get_url)
         return response
 
-    def removeQueue(self, queueId):
-        getUrl = "%s/queue/%s/remove" % (self.SERVER, queueId)
-        response = self.executeKarakuriCall(getUrl)
+    def remove_queue(self, queue_id):
+        get_url = "%s/queue/%s/remove" % (self.SERVER, queue_id)
+        response = self.execute_karakuri_call(get_url)
         return response
 
-    def sleepQueue(self, queueId, seconds=None):
+    def sleep_queue(self, queue_id, seconds=None):
         if seconds is None:
-            getUrl = "%s/queue/%s/sleep" % (self.SERVER, queueId)
+            get_url = "%s/queue/%s/sleep" % (self.SERVER, queue_id)
         else:
-            getUrl = "%s/queue/%s/sleep/%s" % (self.SERVER, queueId, seconds)
-        response = self.executeKarakuriCall(getUrl)
+            get_url = "%s/queue/%s/sleep/%s" % (self.SERVER, queue_id, seconds)
+        response = self.execute_karakuri_call(get_url)
         return response
 
-    def wakeQueue(self, queueId):
-        getUrl = "%s/queue/%s/wake" % (self.SERVER, queueId)
-        response = self.executeKarakuriCall(getUrl)
+    def wake_queue(self, queue_id):
+        get_url = "%s/queue/%s/wake" % (self.SERVER, queue_id)
+        response = self.execute_karakuri_call(get_url)
         return response
 
-    # WORKFLOW FUNCTIONS
-    def getWorkflows(self):
-        getUrl = "%s/workflow" % (self.SERVER)
-        response = self.executeKarakuriCall(getUrl)
+    # WORKFLO_w FUNC_tIONS
+    def get_workflows(self):
+        get_url = "%s/workflow" % self.SERVER
+        response = self.execute_karakuri_call(get_url)
         return response
 
-    def createWorkflow(self, workflow=None):
-        getUrl = "%s/workflow" % (self.SERVER)
-        response = self.executeKarakuriCall(getUrl,
-                                            method="POST",
-                                            data=workflow)
+    def create_workflow(self, workflow=None):
+        get_url = "%s/workflow" % self.SERVER
+        response = self.execute_karakuri_call(get_url,
+                                              method="POST",
+                                              data=workflow)
         return response
 
-    def getWorkflow(self, workflowId):
-        getUrl = "%s/workflow/%s" % (self.SERVER, workflowId)
-        response = self.executeKarakuriCall(getUrl)
+    def get_workflow(self, workflow_id):
+        get_url = "%s/workflow/%s" % (self.SERVER, workflow_id)
+        response = self.execute_karakuri_call(get_url)
         return response
 
-    def updateWorkflow(self, workflowName, workflow):
-        getUrl = "%s/workflow/%s" % (self.SERVER, workflowName)
-        response = self.executeKarakuriCall(getUrl,
-                                            method="POST",
-                                            data=workflow)
+    def update_workflow(self, workflow_name, workflow):
+        get_url = "%s/workflow/%s" % (self.SERVER, workflow_name)
+        response = self.execute_karakuri_call(get_url,
+                                              method="POST",
+                                              data=workflow)
         return response
 
-    def deleteWorkflow(self, workflowName):
-        getUrl = "%s/workflow/%s" % (self.SERVER, workflowName)
-        response = self.executeKarakuriCall(getUrl,
-                                            method="DELETE")
+    def delete_workflow(self, workflow_name):
+        get_url = "%s/workflow/%s" % (self.SERVER, workflow_name)
+        response = self.execute_karakuri_call(get_url,
+                                              method="DELETE")
         return response
 
-    def testWorkflow(self, workflow):
-        getUrl = "%s/testworkflow" % (self.SERVER)
-        response = self.executeKarakuriCall(getUrl,
-                                            method="POST",
-                                            data=workflow)
+    def test_workflow(self, workflow):
+        get_url = "%s/testworkflow" % self.SERVER
+        response = self.execute_karakuri_call(get_url,
+                                              method="POST",
+                                              data=workflow)
         return response
 
-    def processWorkflow(self, workflowId):
-        getUrl = "%s/workflow/%s/process" % (self.SERVER, workflowId)
-        response = self.executeKarakuriCall(getUrl)
+    def process_workflow(self, workflow_id):
+        get_url = "%s/workflow/%s/process" % (self.SERVER, workflow_id)
+        response = self.execute_karakuri_call(get_url)
         return response
 
-    def approveWorkflow(self, workflowId):
-        getUrl = "%s/workflow/%s/approve" % (self.SERVER, workflowId)
-        response = self.executeKarakuriCall(getUrl)
+    def approve_workflow(self, workflow_id):
+        get_url = "%s/workflow/%s/approve" % (self.SERVER, workflow_id)
+        response = self.execute_karakuri_call(get_url)
         return response
 
-    def disapproveWorkflow(self, workflowId):
-        getUrl = "%s/workflow/%s/disapprove" % (self.SERVER, workflowId)
-        response = self.executeKarakuriCall(getUrl)
+    def disapprove_workflow(self, workflow_id):
+        get_url = "%s/workflow/%s/disapprove" % (self.SERVER, workflow_id)
+        response = self.execute_karakuri_call(get_url)
         return response
 
-    def removeWorkflow(self, workflowId):
-        getUrl = "%s/workflow/%s/remove" % (self.SERVER, workflowId)
-        response = self.executeKarakuriCall(getUrl)
+    def remove_workflow(self, workflow_id):
+        get_url = "%s/workflow/%s/remove" % (self.SERVER, workflow_id)
+        response = self.execute_karakuri_call(get_url)
         return response
 
-    def sleepWorkflow(self, workflowId, seconds=None):
+    def sleep_workflow(self, workflow_id, seconds=None):
         if seconds is None:
-            getUrl = "%s/workflow/%s/sleep" % (self.SERVER, workflowId)
+            get_url = "%s/workflow/%s/sleep" % (self.SERVER, workflow_id)
         else:
-            getUrl = "%s/workflow/%s/sleep/%s" % (self.SERVER,
-                                                  workflowId,
-                                                  seconds)
-        response = self.executeKarakuriCall(getUrl)
+            get_url = "%s/workflow/%s/sleep/%s" % (self.SERVER,
+                                                   workflow_id,
+                                                   seconds)
+        response = self.execute_karakuri_call(get_url)
         return response
 
-    def wakeWorkflow(self, workflowId):
-        getUrl = "%s/workflow/%s/wake" % (self.SERVER, workflowId)
-        response = self.executeKarakuriCall(getUrl)
+    def wake_workflow(self, workflow_id):
+        get_url = "%s/workflow/%s/wake" % (self.SERVER, workflow_id)
+        response = self.execute_karakuri_call(get_url)
         return response
 
     # TICKET FUNCTIONS
-    def getTicket(self, ticketId):
-        getUrl = "%s/task/%s" % (self.SERVER, ticketId)
-        response = self.executeKarakuriCall(getUrl)
+    def get_task(self, ticket_id):
+        get_url = "%s/task/%s" % (self.SERVER, ticket_id)
+        response = self.execute_karakuri_call(get_url)
         return response
 
-    def processTicket(self, ticketId):
-        getUrl = "%s/task/%s/process" % (self.SERVER, ticketId)
-        response = self.executeKarakuriCall(getUrl)
+    def process_task(self, ticket_id):
+        get_url = "%s/task/%s/process" % (self.SERVER, ticket_id)
+        response = self.execute_karakuri_call(get_url)
         return response
 
-    def approveTicket(self, ticketId):
-        getUrl = "%s/task/%s/approve" % (self.SERVER, ticketId)
-        response = self.executeKarakuriCall(getUrl)
+    def approve_task(self, ticket_id):
+        get_url = "%s/task/%s/approve" % (self.SERVER, ticket_id)
+        response = self.execute_karakuri_call(get_url)
         return response
 
-    def disapproveTicket(self, ticketId):
-        getUrl = "%s/task/%s/disapprove" % (self.SERVER, ticketId)
-        response = self.executeKarakuriCall(getUrl)
+    def disapprove_task(self, ticket_id):
+        get_url = "%s/task/%s/disapprove" % (self.SERVER, ticket_id)
+        response = self.execute_karakuri_call(get_url)
         return response
 
-    def removeTicket(self, ticketId):
-        getUrl = "%s/task/%s/remove" % (self.SERVER, ticketId)
-        response = self.executeKarakuriCall(getUrl)
+    def remove_task(self, ticket_id):
+        get_url = "%s/task/%s/remove" % (self.SERVER, ticket_id)
+        response = self.execute_karakuri_call(get_url)
         return response
 
-    def sleepTicket(self, ticketId, seconds=None):
+    def sleep_task(self, ticket_id, seconds=None):
         if seconds is None:
-            getUrl = "%s/task/%s/sleep" % (self.SERVER, ticketId)
+            get_url = "%s/task/%s/sleep" % (self.SERVER, ticket_id)
         else:
-            getUrl = "%s/task/%s/sleep/%s" % (self.SERVER, ticketId, seconds)
-        response = self.executeKarakuriCall(getUrl)
+            get_url = "%s/task/%s/sleep/%s" % (self.SERVER, ticket_id, seconds)
+        response = self.execute_karakuri_call(get_url)
         return response
 
-    def wakeTicket(self, ticketId):
-        getUrl = "%s/task/%s/wake" % (self.SERVER, ticketId)
-        response = self.executeKarakuriCall(getUrl)
+    def wake_task(self, ticket_id):
+        get_url = "%s/task/%s/wake" % (self.SERVER, ticket_id)
+        response = self.execute_karakuri_call(get_url)
         return response
 
     # ISSUE FUNCTIONS
-    def getIssue(self, issueId):
-        getUrl = "%s/issue/%s" % (self.SERVER, issueId)
-        response = self.executeKarakuriCall(getUrl)
+    def get_issue(self, issue_id):
+        get_url = "%s/issue/%s" % (self.SERVER, issue_id)
+        response = self.execute_karakuri_call(get_url)
         return response

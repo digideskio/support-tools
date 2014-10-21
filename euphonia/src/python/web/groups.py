@@ -1,5 +1,4 @@
 import pymongo
-import bson
 
 
 class Groups:
@@ -7,38 +6,38 @@ class Groups:
     def __init__(self, database):
         self.collection = database.groupsummaries
 
-    def getGroupSummary(self, gid):
+    def get_group_summary(self, gid):
         query = {"GroupId": gid}
         results = self.collection.find(query)\
                       .sort("priority", pymongo.DESCENDING)\
                       .limit(1)
-        groupSummary = next(results, None)
-        return groupSummary
+        group_summary = next(results, None)
+        return group_summary
 
-    def getFailedTestsSummary(self, sortField,
-                              order=pymongo.ASCENDING, skip=0,
-                              limit=10, query=None):
+    def get_failed_tests_summary(self, sort_field,
+                                 order=pymongo.ASCENDING, skip=0,
+                                 limit=10, query=None):
         fquery = {}
         if query is not None:
             fquery = query
-        results = self.collection.find(fquery, as_class=bson.son.SON)\
-                      .sort(sortField, order)\
+        results = self.collection.find(fquery)\
+                      .sort(sort_field, order)\
                       .skip(skip)\
                       .limit(limit)
-        groupCount = results.count()
+        group_count = results.count()
         groups = []
         group = next(results, None)
         while group is not None:
             groups.append(group)
             group = next(results, None)
-        return {"groups": groups, "count": groupCount}
+        return {"groups": groups, "count": group_count}
 
-    def ignoreTest(self, gid, test):
+    def ignore_test(self, gid, test):
         match = {"GroupId": gid, "failedTests.test": test}
         update = {"$set": {"failedTests.$.ignore": 1}}
         self.collection.update(match, update)
 
-    def includeTest(self, gid, test):
+    def include_test(self, gid, test):
         match = {"GroupId": gid, "failedTests.test": test}
         update = {"$set": {"failedTests.$.ignore": 0}}
         self.collection.update(match, update)
