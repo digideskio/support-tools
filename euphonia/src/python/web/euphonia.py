@@ -1,26 +1,21 @@
 #!/usr/bin/env python
 
-from bottle import redirect, request, template, static_file, Bottle
-import pymongo
 import logging
 import sys
 import json
-import pytz
 from datetime import datetime
-import failedtests
-import groups
-import karakuri_client
-import salesforce_client
-from daemon import Daemon
+
+import pymongo
+import pytz
 from bson import json_util
+
+from daemon import Daemon
+from bottle import redirect, request, template, static_file, Bottle
+from models import karakuri_client, failedtests, salesforce_client, tests, groups
+
 
 utc = pytz.UTC
 app = Bottle()
-
-
-@app.route('/test')
-def get_contacts():
-    return sf.getcontacts()
 
 
 # ROOT/SUMMARY PAGE
@@ -33,7 +28,6 @@ def index():
 @app.route('/groups/<page>/<query>')
 @app.route('/groups')
 @app.route('/groups/')
-@app.route('/test/<test>')
 def get_groups(page=1, test=None, query=None):
     if query is not None:
         query = {"GroupName": query}
@@ -78,7 +72,7 @@ def include_test(gid, test):
     return redirect('/group/%s' % gid)
 
 
-# FAILEDTEST-RELATED ROUTES
+# TEST-RELATED ROUTES
 @app.route('/tests')
 def get_failed_tests_summary():
     failed_tests_summary = failedTests.getFailedTestsSummary()
@@ -86,6 +80,54 @@ def get_failed_tests_summary():
     return template('base_page', renderpage="tests",
                     testSummary=failed_tests_summary, topTests=top_failed_tests,
                     descriptionCache=descriptionCache)
+
+
+@app.route('/test')
+def get_tests():
+    tobj = t.get_tests()
+    output = {"status": "success", "data": {"tests": tobj}}
+    return json_util.dumps(output)
+
+
+@app.route('/defined_tests')
+def get_tests():
+    tobj = t.get_defined_tests()
+    output = {"status": "success", "data": {"defined_tests": tobj}}
+    print output
+    return json_util.dumps(output)
+
+
+@app.route('/test/<test>')
+def get_matching_groups(test):
+    if test is not None:
+        query = {"failedTests.test": test}
+        tobj = g.get_failed_tests_summary("GroupName", skip=0, limit=10, query=query)
+        output = {"status": "success", "data": tobj}
+        return json_util.dumps(output)
+    else:
+        output = {"status": "success", "data": {}}
+        return json_util.dumps(output)
+
+
+@app.post('/test')
+def create_test():
+    formcontent = request.body.read()
+    test = json_util.loads(formcontent)['test']
+    return json_util.dumps(t.create_test(test))
+
+
+@app.post('/test/<test_name>')
+def update_test(test_name):
+    formcontent = request.body.read()
+    test = json_util.loads(formcontent)['test']
+    test_id = json_util.ObjectId(test['_id'])
+    test['_id'] = test_id
+    return json_util.dumps(t.update_test(test_name, test))
+
+
+@app.delete('/test/<test_name>')
+def delete_test(test_name):
+    return json_util.dumps(t.delete_test(test_name))
 
 
 # ISSUE ROUTES
@@ -301,6 +343,7 @@ if __name__ == "__main__":
 
     karakuri = karakuri_client.Karakuri(karakuri_connection_string)
     g = groups.Groups(euphoniaDB)
+    t = tests.Tests(euphoniaDB)
     failedTests = failedtests.FailedTests(euphoniaDB)
 
     sf = salesforce_client.Salesforce()

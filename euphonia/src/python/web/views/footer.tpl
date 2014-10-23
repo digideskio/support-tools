@@ -15,3 +15,4 @@ if defined('renderpage'):
 <%
 end
 %>
+<script src="/js/prettify.js"></script>
