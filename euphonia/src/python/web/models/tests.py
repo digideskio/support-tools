@@ -1,6 +1,8 @@
 import pymongo
 import inspect
-from groupreport_tests import GroupReportTests
+import imp
+# from groupreport_tests import GroupReportTests
+groupreport_tests = imp.load_source('groupreport_tests', '../../../groupreport_tests.py')
 
 
 class Tests:
@@ -31,7 +33,7 @@ class Tests:
 
     @staticmethod
     def get_defined_tests():
-        module = GroupReportTests()
+        module = groupreport_tests.GroupReportTests()
         functions = inspect.getmembers(module)
         tests = {}
         for key, value in functions:
