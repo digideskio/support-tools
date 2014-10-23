@@ -2,6 +2,7 @@ import pymongo
 import inspect
 from groupreport_tests import GroupReportTests
 
+
 class Tests:
 
     def __init__(self, database):
