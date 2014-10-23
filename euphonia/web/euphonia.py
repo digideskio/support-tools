@@ -11,7 +11,7 @@ from bson import json_util
 
 from daemon import Daemon
 from bottle import redirect, request, template, static_file, Bottle
-from models import karakuri_client, failedtests, salesforce_client, tests, groups
+from web.models import karakuri_client, failedtests, salesforce_client, tests, groups
 
 
 utc = pytz.UTC
