@@ -41,15 +41,15 @@
                 %   next = "disabled"
                 % end
                 % nextPage = page + 1
-                <li class="{{back}}"><a href="/{{prevPage}}">&laquo;</a></li>
+                <li class="{{back}}"><a href="/groups/page/{{prevPage}}">&laquo;</a></li>
                 % for i in range(1,11):
                 %   pClass = ""
                 %   if i == page:
                 %       pClass = "active"
                 %   end
-                    <li class="{{pClass}}"><a href="/{{i}}">{{i}}</a></li>
+                    <li class="{{pClass}}"><a href="/groups/page/{{i}}">{{i}}</a></li>
                 % end
-                <li class=""><a href="/{{nextPage}}">&raquo;</a></li>
+                <li class=""><a href="/groups/page/{{nextPage}}">&raquo;</a></li>
             </ul>
         </div>
     </div>

@@ -161,7 +161,8 @@
                     end
                 end
             %>
-        </div>
+            </div>
+
         </div>
         <div id="ticketContent" style="display:none">
             <div class="panel-group" id="accordion">
@@ -184,4 +185,3 @@
         </div>
     </div>
 </div>
-<script src="/js/tickets.js"></script>

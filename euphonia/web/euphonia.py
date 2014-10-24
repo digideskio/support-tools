@@ -26,6 +26,7 @@ def index():
 
 # GROUP-RELATED ROUTES
 @app.route('/groups/<page>/<query>')
+@app.route('/groups/page/<page>')
 @app.route('/groups')
 @app.route('/groups/')
 def get_groups(page=1, test=None, query=None):
@@ -346,7 +347,7 @@ if __name__ == "__main__":
     t = tests.Tests(euphoniaDB)
     failedTests = failedtests.FailedTests(euphoniaDB)
 
-    sf = salesforce_client.Salesforce()
+    # sf = salesforce_client.Salesforce()
 
     daemon = Automaton('euphonia.pid')
     if len(sys.argv) == 2:

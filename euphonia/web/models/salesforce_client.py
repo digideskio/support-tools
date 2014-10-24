@@ -7,8 +7,8 @@ class Salesforce:
         self.server = "https://mongodb.my.salesforce.com"
         self.session = "00DA0000000Kz0"
         self.connection = pyforce.PythonClient()
-        l = "paul.rooney@mongodb.com"
-        p = "Aequitas2852^sJB7qLmqKcuXGWLSmkAwTUGA"
+        l = "sfdctest@mongodb.com"
+        p = "SjdnWjkiej38hhkOj28JB7qLmqHFJDksje38e"
         self.connection.login(l, p)
 
     # QUEUE FUNCTIONS
