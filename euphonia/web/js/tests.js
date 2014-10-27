@@ -2,34 +2,8 @@ var testsObj = {};
 var tests = [];
 var defined_tests = {};
 
-$(document).ready(function() {
-    getTestList();
-    getDefinedTestList();
-    $('#create-btn').click(function(){clearForm()});
-    $('#save-link').click(function(){saveChanges($(this).closest('form'));});
-    $('#save-copy-link').click(function(){saveChangesNew($(this).closest('form'));});
-    $('#test-link').click(function(){testTest();});
-    $('#test-close').click(function(){$('#test-form').hide();});
-});
-
-function renderList(tests) {
-    var list = $('#existingtests');
-    list.empty();
-    for(var t = 0; t < tests.length; t++){
-        var test = tests[t];
-        var el = $('<li></li>');
-        var item = $('<a href="javascript:void(0);" class="col-xs-9">' + test['name'] + '</a>');
-        var removelink = $('<a href="javascript:void(0);" class="text-danger col-xs-1"><i class="glyphicon glyphicon-trash" data-toggle="tooltip" data-placement="top" title="Remove Test"></i></a>');
-        removelink.find('i').tooltip();
-        removelink.click(test.name,function(e){removeTest(e.data)});
-        item.click(t,function(e){renderTest(e.data);});
-        item.appendTo(el);
-        removelink.appendTo(el);
-        el.appendTo(list);
-    }
-}
-
 function getTestList(){
+    "use strict";
     $.ajax({
         type: "GET",
         url: "/test",
@@ -37,12 +11,12 @@ function getTestList(){
     }).success(function(response){
         tests = [];
         var responseObj = JSON.parse(response);
-        if (responseObj.status == "success") {
+        if (responseObj.status === "success") {
             testsObj = responseObj.data;
-            for (var t = 0; t < testsObj['tests'].length; t++) {
+            for (var t = 0; t < testsObj.tests.length; t++) {
                 var tObj;
-                tObj = testsObj['tests'][t];
-                tests[t] = tObj;
+                tObj = testsObj.tests[t];
+                tests[tObj.name] = tObj;
             }
             renderList(tests);
         } else {
@@ -52,6 +26,7 @@ function getTestList(){
 }
 
 function getDefinedTestList(){
+    "use strict";
     $.ajax({
         type: "GET",
         url: "/defined_tests",
@@ -59,10 +34,10 @@ function getDefinedTestList(){
     }).success(function(response){
         defined_tests = [];
         var responseObj = JSON.parse(response);
-        if (responseObj.status == "success") {
+        if (responseObj.status === "success") {
             var defined_testsObj = responseObj;
-            if(defined_testsObj['data']['defined_tests'] != undefined){
-                defined_tests = defined_testsObj['data']['defined_tests'];
+            if(defined_testsObj.data.defined_tests !== undefined){
+                defined_tests = defined_testsObj.data.defined_tests;
             }
         } else {
             alert("Could not load defined test list.");
@@ -73,28 +48,77 @@ function getDefinedTestList(){
 function renderTest(tid) {
     clearForm();
     var test = tests[tid];
-    console.log(tid);
-    var tname = test['name'];
+    var tname = test.name;
     var testobj = defined_tests[tname];
-    console.log(testobj);
     showTestExistsAlert(testobj);
-    $(":input[id='test.name']").val(test['name']);
-    $(":input[id='test._id']").val(test['_id']['$oid']);
-    $(":input[id='test.active']").prop('checked',test['active']);
-    $(":input[id='test.priority']").val(test['priority']);
-    $(":input[id='test.comment']").val(test['comment']);
+    $(":input[id='test.name']").val(test.name);
+    $(":input[id='test._id']").val(test._id.$oid);
+    $(":input[id='test.active']").prop('checked',test.active);
+    $(":input[id='test.priority']").val(test.priority);
+    $(":input[id='test.comment']").val(test.comment);
+    $(this).addClass("active");
+}
+
+function renderClick() {
+    return function(e){ renderTest(e.data); };
+}
+
+function renderRemoveClick() {
+    return function(e){ removeTest(e.data); };
+}
+
+function renderList(tests) {
+    "use strict";
+    var list = $('#existingtests');
+    list.empty();
+    var collections = {};
+    for (var t in tests){
+        var tt = tests[t];
+        var collname = tt.collection;
+        if(collname === undefined){
+            if(collections['No Collection'] === undefined) {
+                collections['No Collection'] = [];
+            }
+            collections['No Collection'].push(tt);
+        } else {
+            if(collections[collname] === undefined) {
+                collections[collname] = [];
+            }
+            collections[collname].push(tt);
+        }
+    }
+    console.log(collections);
+    for (var coll in collections) {
+        var colltests = collections[coll];
+        //var colldivider = $('<li class="nav-divider"></li>');
+        var colltitle = $('<li><span><i class="glyphicon glyphicon-folder-open"></i>' + "&nbsp; " + coll + '</span></li>');
+        //colldivider.appendTo(list);
+        colltitle.appendTo(list);
+        for (var ct = 0; ct < colltests.length; ct++) {
+            var test = colltests[ct];
+            var el = $('<li class="nav"></li>');
+            var item = $('<a href="javascript:void(0);" class="col-xs-9">' + test.name + '</a>');
+            var removelink = $('<a href="javascript:void(0);" class="text-danger col-xs-1"><i class="glyphicon glyphicon-trash" data-toggle="tooltip" data-placement="top" title="Remove Test"></i></a>');
+            removelink.find('i').tooltip();
+            removelink.click(test.name, renderRemoveClick());
+            item.click(test.name, renderClick());
+            item.appendTo(el);
+            removelink.appendTo(el);
+            el.appendTo(list);
+        }
+    }
 }
 
 function showTestExistsAlert(test){
     var container = $('#test-exists');
-    if(test != undefined){
+    if(test !== undefined){
         container.addClass("alert-success");
         container.removeClass("alert-danger");
         container.html('This test is defined and available for use:<br/><pre class="prettyprint">' + test + '</pre>');
     } else {
         container.addClass("alert-danger");
         container.removeClass("alert-success");
-        container.html("This test is NOT defined and cannot be used.")
+        container.html("This test is NOT defined and cannot be used.");
     }
     prettyPrint();
     container.show();
@@ -126,17 +150,19 @@ function clearForm(){
 function saveChanges(form) {
     var formid = $(form).attr('id');
     var jsonform = form2js(document.getElementById(formid), ".", true, undefined, true, true);
-    jsonform['test']['active'] = $(":input[id='test.active']").prop('checked');
+    jsonform.test.active = $(":input[id='test.active']").prop('checked');
     var formdata = JSON.stringify(jsonform, null, 4);
-    var url = "/test/" + jsonform['test']['name'];
+    var url = "/test";
     var exists = false;
     for (var t = 0; t < tests.length; t++) {
-        if (tests[t]['name'] == jsonform['test']['name'] && tests[t]['_id']['$oid'] != jsonform['test']['_id']) {
+        if (tests[t].name === jsonform.test.name && tests[t]._id.$oid != jsonform.test._id) {
             exists = true;
+        } else if (tests[t].name === jsonform.test.name) {
+            url = "/test/" + jsonform.test.name;
         }
     }
     if (exists) {
-        alert("A test named " + jsonform['test']['name']+ " already exists. Changes have not been saved.");
+        alert("A test named " + jsonform.test.name + " already exists. Changes have not been saved.");
         return false;
     } else {
         saveTest(formdata, url);
@@ -146,18 +172,18 @@ function saveChanges(form) {
 function saveChangesNew(form) {
     var formid = $(form).attr('id');
     var jsonform = form2js(document.getElementById(formid), ".", true, undefined, true, true);
-    delete jsonform['test']['_id'];
-    jsonform['test']['active'] = $(":input[id='test.active']").prop('checked');
+    delete jsonform.test._id;
+    jsonform.test.active = $(":input[id='test.active']").prop('checked');
     var formdata = JSON.stringify(jsonform, null, 4);
     var url = "/test";
     var exists = false;
     for (var t = 0; t < tests.length; t++) {
-        if (tests[t]['name'] == jsonform['test']['name']) {
+        if (tests[t].name === jsonform.test.name) {
             exists = true;
         }
     }
     if (exists) {
-        alert("A test named " + jsonform['test']['name'] + " already exists. Changes have not been saved.");
+        alert("A test named " + jsonform.test.name + " already exists. Changes have not been saved.");
         return false;
     } else {
         saveTest(formdata, url);
@@ -186,7 +212,7 @@ function testTest(){
     var groups = $('#test-results');
     groups.empty();
     var jsonform = form2js(document.getElementById('test-form'),".",true,undefined,true,true);
-    var url = "/test/" + jsonform['test']['name'];
+    var url = "/test/" + jsonform.test.name;
     var l = Ladda.create(document.querySelector('#test-link'));
 	l.start();
     $.ajax({
@@ -209,17 +235,43 @@ function testTest(){
 }
 
 function renderGroups(groups,container){
-    if(groups['groups'] != undefined) {
-        groups = groups['groups'];
+    "use strict";
+    if(groups.groups !== undefined) {
+        groups = groups.groups;
         for (var i = 0; i < groups.length; i++) {
             var group = groups[i];
             $('<tr>' +
             '<td>' +
-            '<a target="_blank" href="/group/' + group['GroupId'] + '">' + group['GroupName'] + '</a>' +
+            '<a target="_blank" href="/group/' + group.GroupId + '">' + group.GroupName + '</a>' +
             '</td>' +
-            '<td>' + '' + '</td>' +
-            '<td>' + '' + '</td>' +
+            '<td>' + group.priority + '</td>' +
+            '<td>' + replaceStartDate(group.LastPageView.$date) + '</td>' +
+            '<td>' + replaceStartDate(group.LastActiveAgentTime.$date) + '</td>' +
             '</tr>').appendTo(container);
         }
     }
 }
+
+function replaceStartDate(timestamp){
+    var dateObj = new Date(timestamp);
+    var year = dateObj.getUTCFullYear();
+    var month = dateObj.getUTCMonth() + 1;
+    if(month < 10){month = "0" + month;}
+    var date = dateObj.getUTCDate();
+    if(date < 10){date = "0" + date;}
+    var hours = dateObj.getUTCHours();
+    if(hours < 10){hours = "0" + hours;}
+    var minutes = dateObj.getUTCMinutes();
+    if(minutes < 10){minutes = "0" + minutes;}
+    return year + "-" + month + "-" + date + " " + hours + ":" + minutes;
+}
+
+$(document).ready(function() {
+    getTestList();
+    getDefinedTestList();
+    $('#create-btn').click(function () { clearForm(); });
+    $('#save-link').click(function () { saveChanges($(this).closest('form')); });
+    $('#save-copy-link').click(function () { saveChangesNew($(this).closest('form')); });
+    $('#test-link').click(function () { testTest(); });
+    $('#test-close').click(function () { $('#test-result-form').hide(); });
+});

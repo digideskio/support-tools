@@ -11,7 +11,8 @@ from bson import json_util
 
 from daemon import Daemon
 from bottle import redirect, request, template, static_file, Bottle
-from models import karakuri_client, failedtests, salesforce_client, tests, groups
+from models import karakuri_client, failedtests,\
+    salesforce_client, tests, groups
 
 
 utc = pytz.UTC
@@ -39,10 +40,8 @@ def get_groups(page=1, test=None, query=None):
         page = 1
     page = int(page)
     skip = (page - 1) * limit
-    sort_field = 'priority'
-    order = pymongo.DESCENDING
-    tests_summary = g.get_failed_tests_summary(sort_field=sort_field,
-                                               order=order,
+    sort = ("priority", pymongo.DESCENDING)
+    tests_summary = g.get_failed_tests_summary(sort=sort,
                                                skip=skip,
                                                limit=limit,
                                                query=query)
@@ -76,11 +75,7 @@ def include_test(gid, test):
 # TEST-RELATED ROUTES
 @app.route('/tests')
 def get_failed_tests_summary():
-    failed_tests_summary = failedTests.getFailedTestsSummary()
-    top_failed_tests = failedTests.getTopFailedTests(5)
-    return template('base_page', renderpage="tests",
-                    testSummary=failed_tests_summary, topTests=top_failed_tests,
-                    descriptionCache=descriptionCache)
+    return template('base_page', renderpage="tests")
 
 
 @app.route('/test')
@@ -94,7 +89,6 @@ def get_tests():
 def get_tests():
     tobj = t.get_defined_tests()
     output = {"status": "success", "data": {"defined_tests": tobj}}
-    print output
     return json_util.dumps(output)
 
 
@@ -102,7 +96,10 @@ def get_tests():
 def get_matching_groups(test):
     if test is not None:
         query = {"failedTests.test": test}
-        tobj = g.get_failed_tests_summary("GroupName", skip=0, limit=10, query=query)
+        tobj = g.get_failed_tests_summary(sort=[
+            ("priority", pymongo.DESCENDING),
+            ("GroupName", pymongo.ASCENDING)],
+            skip=0, limit=10, query=query)
         output = {"status": "success", "data": tobj}
         return json_util.dumps(output)
     else:
@@ -246,7 +243,6 @@ def create_workflow():
     formcontent = request.body.read()
     workflow = json_util.loads(formcontent)['workflow']
     wfstring = json_util.dumps(workflow)
-    print wfstring
     return json_util.dumps(karakuri.create_workflow(wfstring))
 
 
@@ -257,7 +253,6 @@ def update_workflow(wfname):
     workflow_id = json_util.ObjectId(workflow['_id'])
     workflow['_id'] = workflow_id
     wfstring = json_util.dumps(workflow)
-    print wfstring
     return json_util.dumps(karakuri.update_workflow(wfname, wfstring))
 
 

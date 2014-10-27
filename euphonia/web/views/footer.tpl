@@ -11,7 +11,7 @@
 <%
 if defined('renderpage'):
 %>
-    <script src="/js/{{renderpage}}.js"></script>
+    <script src="/js/{{renderpage}}.js?ts=8"></script>
 <%
 end
 %>

@@ -66,33 +66,30 @@
             </form>
             <br/>
             <br/>
-            <div id="test-result-form" class="col-lg-12" style="display:none">
-                <div class="panel-group" id="accordion">
-                    <div class="panel panel-default">
-                        <div class="panel-heading">
-                            <h4 class="panel-title">
-                                <span>Test Results</span>
-                                <div class="pull-right">
-                                    <button id="test-close" type="button" class="close"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
-                                </div>
-                            </h4>
-                            <div style="clear:both"></div>
+            <div id="test-result-form" class="panel panel-primary" style="display:none">
+                <div class="panel-heading">
+                    <h4 class="panel-title">
+                        <span>Test Results</span>
+                        <div class="pull-right">
+                            <button id="test-close" type="button" class="close"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
                         </div>
-                        <div class="panel-body">
-                            <h4>Matching Groups</h4>
-                            <table class="table table-striped">
-                                <thead>
-                                    <tr>
-                                        <th>Group Name</th>
-                                        <th>Workflows Performed</th>
-                                        <th>Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="test-results">
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                    </h4>
+                    <div style="clear:both"></div>
+                </div>
+                <div class="panel-body">
+                    <h4>Matching Groups</h4>
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Group Name</th>
+                                <th>Priority Score</th>
+                                <th>Customer Last Login</th>
+                                <th>Last Agent Ping</th>
+                            </tr>
+                        </thead>
+                        <tbody id="test-results">
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
