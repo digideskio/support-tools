@@ -40,7 +40,7 @@ def get_groups(page=1, test=None, query=None):
         page = 1
     page = int(page)
     skip = (page - 1) * limit
-    sort = ("priority", pymongo.DESCENDING)
+    sort = [("priority", pymongo.DESCENDING)]
     tests_summary = g.get_failed_tests_summary(sort=sort,
                                                skip=skip,
                                                limit=limit,

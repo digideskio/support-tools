@@ -14,7 +14,7 @@ class Groups:
         group_summary = next(results, None)
         return group_summary
 
-    def get_failed_tests_summary(self, sort=("priority", pymongo.DESCENDING),
+    def get_failed_tests_summary(self, sort=[("priority", pymongo.DESCENDING)],
                                  skip=0, limit=10, query=None):
         fquery = {}
         if query is not None:
