@@ -443,6 +443,20 @@ class karakuri(karakuricommon.karakuribase):
                 return {'ok': True, 'payload': string.join(sales, ', ')}
         return {'ok': False, 'payload': None}
 
+    def getUser(self, token):
+        """ Return the associated user document """
+        self.logger.debug("getUser(%s)", token)
+        res = self.find_one(self.coll_users, {'token': token})
+        if not res['ok']:
+            return res
+        user = res['payload']
+
+        if user is None:
+            message = "user not found with token '%s'" % token
+            self.logger.warning(message)
+            return {'ok': False, 'payload': message}
+        return {'ok': True, 'payload': user}
+
     def getWorkflow(self, workflowName):
         """ Return the specified workflow """
         self.logger.debug("getWorkflow(%s)", workflowName)
@@ -863,6 +877,16 @@ class karakuri(karakuricommon.karakuribase):
 
         b = bottle.Bottle(autojson=False)
 
+        @b.hook('before_request')
+        def _checkAndSetAccessControlAllowOriginHeader():
+            if self.args['access_control_allowed_origins'] is not None:
+                allowed_origins = self.args['access_control_allowed_origins']\
+                                      .split(',')
+                origin = bottle.request.get_header('Origin')
+                if origin in allowed_origins:
+                    bottle.response.set_header('Access-Control-Allow-Origin',
+                                               origin)
+
         # These are the RESTful API endpoints. There are many like it, but
         # these are them
         #########
@@ -918,6 +942,7 @@ class karakuri(karakuricommon.karakuribase):
         #  POST  #
         ##########
         b.route('/issue', 'POST', callback=self._issue_create)
+        b.route('/login', 'POST', callback=self._user_login)
         # TODO b.route('/issue/<id>', 'POST', callback=self._issue_update)
         b.route('/testworkflow', 'POST', callback=self._workflow_test)
         b.route('/workflow', 'POST', callback=self._workflow_create)
@@ -958,16 +983,19 @@ class karakuri(karakuricommon.karakuribase):
     def _success(self, data=None):
         self.logger.debug("_success(%s)", data)
         ret = {'status': 'success', 'data': data}
+        bottle.response.status = 200
         return bson.json_util.dumps(ret)
 
     def _fail(self, data=None):
         self.logger.debug("_fail(%s)", data)
         ret = {'status': 'fail', 'data': data}
+        bottle.response.status = 403
         return bson.json_util.dumps(ret)
 
     def _error(self, message=None):
         self.logger.debug("_error(%s)", message)
         ret = {'status': 'error', 'message': str(message)}
+        bottle.response.status = 403
         return bson.json_util.dumps(ret)
 
     @_authenticated
@@ -1143,6 +1171,20 @@ class karakuri(karakuricommon.karakuribase):
         self.logger.debug("_task_wake(%s)", id)
         return self._task_response(self.wakeTask, id)
 
+    def _user_login(self):
+        """ Find a user with the specified auth_token """
+        self.logger.debug("_user_login()")
+        if 'auth_token' in bottle.request.params:
+            auth_token = bottle.request.params['auth_token']
+            res = self.getUser(auth_token)
+            if not res['ok']:
+                return self._error(res['payload'])
+            user = res['payload']
+
+            if user is not None:
+                return self._success(res['payload'])
+        return self._error("unable to authenticate token")
+
     @_authenticated
     def _workflow_approve(self, name):
         """ Approve all ready tasks for the workflow """
@@ -1308,6 +1350,10 @@ if __name__ == "__main__":
                                type=int,
                                help="the RESTful interface port "
                                     "(default=8080)")
+    parser.add_config_argument("--access-control-allowed-origins",
+                               metavar="HOSTPORT",
+                               help="comma separated list of origins allowed "
+                                    "access control")
 
     args = parser.parse_args()
 
