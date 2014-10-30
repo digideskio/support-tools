@@ -46,18 +46,13 @@ function getWorkflowList(){
         datatype: "json"
     }).success(function(response){
         workflows = [];
-        var responseObj = JSON.parse(response);
-        if (responseObj.status == "success") {
-            var workflowsObj = responseObj.data;
-            for (var wf = 0; wf < workflowsObj['workflows'].length; wf++) {
-                var wfObj;
-                wfObj = workflowsObj['workflows'][wf];
-                workflows[wf] = wfObj;
-            }
-            renderList(workflows);
-        } else {
-            alert("Could not load workflow list.");
+        var workflowsObj = JSON.parse(response);
+        for (var wf = 0; wf < workflowsObj['workflows'].length; wf++) {
+            var wfObj;
+            wfObj = workflowsObj['workflows'][wf];
+            workflows[wf] = wfObj;
         }
+        renderList(workflows);
     });
 }
 
