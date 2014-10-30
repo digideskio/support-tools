@@ -42,42 +42,63 @@ class karakuriclient(karakuribase):
         karakuribase.__init__(self, *args, **kwargs)
         self.token = self.args['token']
 
-    def request(self, endpoint):
+    def deleteRequest(self, endpoint, entity=None):
+        if entity is not None:
+            endpoint += '/%s' % entity
+        return self.request(endpoint, "DELETE")
+
+    def getRequest(self, endpoint, entity=None, command=None, arg=None):
+        if entity is not None:
+            endpoint += '/%s' % entity
+        if command is not None:
+            endpoint += '/%s' % command
+            if arg is not None:
+                endpoint += '/%s' % arg
+        return self.request(endpoint)
+
+    def getToken(self):
+        return self.token
+
+    def issueRequest(self, issue=None, command=None, arg=None):
+        endpoint = '/issue'
+        return self.getRequest(endpoint, issue, command, arg)
+
+    def postRequest(self, endpoint, entity=None, data=None):
+        if entity is not None:
+            endpoint += '/%s' % entity
+        return self.request(endpoint, "POST", data)
+
+    def queueRequest(self, command=None, arg=None):
+        endpoint = '/queue'
+        return self.getRequest(endpoint, None, command, arg)
+
+    def request(self, endpoint, method="GET", data=None):
         url = "http://%s:%i%s" % (self.args['karakuri_host'],
                                   self.args['karakuri_port'], endpoint)
         headers = {'Authorization': "auth_token=%s" % self.token}
-        res = requests.get(url, headers=headers)
-        if res.status_code == requests.codes.ok:
-            return bson.json_util.loads(res.content)
-        else:
-            message = "received HTTP status code %i" % res.status_code
-            return {'status': 'error', 'message': message}
 
-    def issueRequest(self, issue, command=None):
-        if command is None:
-            endpoint = '/issue/%s' % issue
+        res = requests.request(method, url, headers=headers, data=data)
+        if res is not None:
+            if res.status_code == requests.codes.ok:
+                try:
+                    ret = bson.json_util.loads(res.content)
+                    return ret
+                except Exception as e:
+                    message = e
+            else:
+                message = res.text
         else:
-            endpoint = '/issue/%s/%s' % (issue, command)
-        return self.request(endpoint)
+            message = "request(%s,%s) failed" % (endpoint, method)
+        return {'status': 'error', 'message': message}
 
-    def queueRequest(self, command=None):
-        if command is None:
-            endpoint = '/queue'
-        else:
-            endpoint = '/queue/%s' % command
-        return self.request(endpoint)
+    def taskRequest(self, task=None, command=None, arg=None):
+        endpoint = '/task'
+        return self.getRequest(endpoint, task, command, arg)
 
-    def taskRequest(self, task, command=None):
-        if command is None:
-            endpoint = '/task/%s' % task
-        else:
-            endpoint = '/task/%s/%s' % (task, command)
-        return self.request(endpoint)
-
-    def tasksRequest(self, tasks, command=None):
+    def tasksRequest(self, tasks, command=None, arg=None):
         _tasks = []
         for task in tasks:
-            res = self.taskRequest(task, command)
+            res = self.taskRequest(task, command, arg)
             if res['status'] == 'success':
                 if res['data']['task'] is not None:
                     _tasks.append(res['data']['task'])
@@ -85,12 +106,12 @@ class karakuriclient(karakuribase):
                 return res
         return {'status': 'success', 'data': {'tasks': _tasks}}
 
-    def workflowRequest(self, workflow, command=None):
-        if command is None:
-            endpoint = '/workflow/%s' % workflow
-        else:
-            endpoint = '/workflow/%s/%s' % (workflow, command)
-        return self.request(endpoint)
+    def setToken(self, token):
+        self.token = token
+
+    def workflowRequest(self, workflow=None, command=None, arg=None):
+        endpoint = '/workflow'
+        return self.getRequest(endpoint, workflow, command, arg)
 
 
 class karakuriparser(argparse.ArgumentParser):
