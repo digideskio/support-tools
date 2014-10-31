@@ -64,10 +64,10 @@ $('#groupSearch').typeahead(
 var initFromAuthToken = function() {
     var auth_token = $.cookie('auth_token');
     if (typeof auth_token !== "undefined") {
-        var urlString = "http://localhost:8080/login";
+        var urlString = "/login";
         var data = {'auth_token': auth_token};
         $.post(urlString, data, function(res){
-            name = res['data']['user'];
+            name = res['data']['user']
             profileImageUrl = "https://corp.10gen.com/employees/" + name + "/profileimage";
             var img = document.createElement("img");
             img.src = profileImageUrl;

@@ -1,21 +1,20 @@
 #!/usr/bin/env python
 
+import bottle
+import bson.json_util
 import daemon
 import karakuricommon
 import logging
 import os
-import signal
-import sys
-import json
 import pidlockfile
-from datetime import datetime
-
 import pymongo
 import pytz
-from bson import json_util
+import signal
+import sys
 
-from bottle import redirect, request, template, static_file, Bottle, TEMPLATE_PATH
-from models import failedtests, salesforce_client, tests, groups
+from datetime import datetime
+from models import failedtests, groups, salesforce_client, tests
+from pprint import pprint
 
 utc = pytz.UTC
 
@@ -23,34 +22,71 @@ class euphonia(karakuricommon.karakuriclient):
     def __init__(self, *args, **kwargs):
         karakuricommon.karakuriclient.__init__(self, *args, **kwargs)
 
-    def run(self):
-        mongodb_connection_string = "mongodb://localhost"
-        connection = pymongo.MongoClient(mongodb_connection_string)
-        euphoniaDB = connection.euphonia
+        # Initialize dbs and collections
+        try:
+            self.mongo = pymongo.MongoClient(self.args['mongo_host'],
+                                             self.args['mongo_port'])
+        except pymongo.errors.PyMongoError as e:
+            self.logger.exception(e)
+            raise e
 
-        g = groups.Groups(euphoniaDB)
-        t = tests.Tests(euphoniaDB)
-        failedTests = failedtests.FailedTests(euphoniaDB)
+        self.db_euphonia = self.mongo.euphonia
 
+    def start(self):
+        g = groups.Groups(self.db_euphonia)
+        t = tests.Tests(self.db_euphonia)
+        failedTests = failedtests.FailedTests(self.db_euphonia)
         # sf = salesforce_client.Salesforce()
-        app = Bottle()
-        TEMPLATE_PATH.insert(0,'%s/views' % self.args['root_webdir'])
 
-        @app.hook('before_request')
-        def before_request():
-            if not self.getToken() and request.get_cookie("auth_token"):
-                self.setToken(request.get_cookie("auth_token"));
+        b = bottle.Bottle(autojson=False)
+        bottle.TEMPLATE_PATH.insert(0,'%s/views' % self.args['root_webdir'])
+
+        def response(result, cookies=None):
+            self.logger.debug("response(%s)", result)
+            if result['status'] == "success":
+                if cookies is not None:
+                    for cookie in cookies:
+                        try:
+                            val = bson.json_util.dumps(cookie[1])
+                        except Exception as e:
+                            val = e
+                        bottle.response.set_cookie(str(cookie[0]), val)
+                bottle.response.status = 200
+            elif result['status'] == "fail":
+                bottle.response.status = 500
+            elif result['status'] == "error":
+                bottle.response.status = 400
+            return bson.json_util.dumps(result)
+
+        def tokenize(func):
+            """ A decorator for bottle-route callback functions to pass
+            auth_token cookies """
+            def wrapped(*args, **kwargs):
+                kwargs['token'] = bottle.request.get_cookie("auth_token")
+                return func(*args, **kwargs)
+            return wrapped
+
+        @b.post('/login')
+        def login():
+            token = bottle.request.params.get('auth_token')
+            res = self.postRequest("/login", data={'token':token})
+            if res['status'] == 'success':
+                user = res['data']
+                cookies = [(prop,user[prop]) for prop in user]
+            else:
+                cookies = None
+            return response(res, cookies=cookies)
 
         # ROOT/SUMMARY PAGE
-        @app.route('/')
+        @b.route('/')
         def index():
-            return redirect('/tasks')
+            return bottle.redirect('/tasks')
 
         # GROUP-RELATED ROUTES
-        @app.route('/groups/<page>/<query>')
-        @app.route('/groups/page/<page>')
-        @app.route('/groups')
-        @app.route('/groups/')
+        @b.route('/groups/<page>/<query>')
+        @b.route('/groups/page/<page>')
+        @b.route('/groups')
+        @b.route('/groups/')
         def get_groups(page=1, test=None, query=None):
             if query is not None:
                 query = {"GroupName": query}
@@ -66,47 +102,47 @@ class euphonia(karakuricommon.karakuriclient):
                                                        skip=skip,
                                                        limit=limit,
                                                        query=query)
-            return template('base_page', renderpage="summary",
+            return bottle.template('base_page', renderpage="summary",
                             groups=tests_summary['groups'], page=page,
                             count=tests_summary['count'], issue=test)
 
-        @app.route('/group/<gid>')
+        @b.route('/group/<gid>')
         def get_group_summary(gid):
             group_summary = g.get_group_summary(gid)
             if group_summary is not None:
-                return template('base_page', renderpage="group",
+                return bottle.template('base_page', renderpage="group",
                                 group=group_summary, descriptionCache=descriptionCache)
             else:
-                return redirect('/groups')
+                return bottle.redirect('/groups')
 
-        @app.route('/group/<gid>/ignore/<test>')
+        @b.route('/group/<gid>/ignore/<test>')
         def ignore_test(gid, test):
             g.ignore_test(gid, test)
-            return redirect('/group/%s' % gid)
+            return bottle.redirect('/group/%s' % gid)
 
-        @app.route('/group/<gid>/include/<test>')
+        @b.route('/group/<gid>/include/<test>')
         def include_test(gid, test):
             g.include_test(gid, test)
-            return redirect('/group/%s' % gid)
+            return bottle.redirect('/group/%s' % gid)
 
         # TEST-RELATED ROUTES
-        @app.route('/tests')
+        @b.route('/tests')
         def get_failed_tests_summary():
-            return template('base_page', renderpage="tests")
+            return bottle.template('base_page', renderpage="tests")
 
-        @app.route('/test')
+        @b.route('/test')
         def get_tests():
             tobj = t.get_tests()
             output = {"status": "success", "data": {"tests": tobj}}
-            return json_util.dumps(output)
+            return bson.json_util.dumps(output)
 
-        @app.route('/defined_tests')
+        @b.route('/defined_tests')
         def get_tests():
             tobj = t.get_defined_tests()
             output = {"status": "success", "data": {"defined_tests": tobj}}
-            return json_util.dumps(output)
+            return bson.json_util.dumps(output)
 
-        @app.route('/test/<test>')
+        @b.route('/test/<test>')
         def get_matching_groups(test):
             if test is not None:
                 query = {"failedTests.test": test}
@@ -115,38 +151,52 @@ class euphonia(karakuricommon.karakuriclient):
                     ("GroupName", pymongo.ASCENDING)],
                     skip=0, limit=10, query=query)
                 output = {"status": "success", "data": tobj}
-                return json_util.dumps(output)
+                return bson.json_util.dumps(output)
             else:
                 output = {"status": "success", "data": {}}
-                return json_util.dumps(output)
+                return bson.json_util.dumps(output)
 
-        @app.post('/test')
+        @b.post('/test')
         def create_test():
-            formcontent = request.body.read()
-            test = json_util.loads(formcontent)['test']
-            return json_util.dumps(t.create_test(test))
+            formcontent = bottle.request.body.read()
+            test = bson.json_util.loads(formcontent)['test']
+            return bson.json_util.dumps(t.create_test(test))
 
-        @app.post('/test/<test_name>')
+        @b.post('/test/<test_name>')
         def update_test(test_name):
-            formcontent = request.body.read()
-            test = json_util.loads(formcontent)['test']
-            test_id = json_util.ObjectId(test['_id'])
+            formcontent = bottle.request.body.read()
+            test = bson.json_util.loads(formcontent)['test']
+            test_id = bson.json_util.ObjectId(test['_id'])
             test['_id'] = test_id
-            return json_util.dumps(t.update_test(test_name, test))
+            return bson.json_util.dumps(t.update_test(test_name, test))
 
-        @app.delete('/test/<test_name>')
+        @b.delete('/test/<test_name>')
         def delete_test(test_name):
-            return json_util.dumps(t.delete_test(test_name))
+            return bson.json_util.dumps(t.delete_test(test_name))
 
         # ISSUE ROUTES
-        @app.route('/tasks')
-        def issue_summary():
-            res = self.queueRequest()
+        @b.route('/tasks')
+        @tokenize
+        def issue_summary(**kwargs):
+            print("bahbahbah")
+            pprint(kwargs)
+            res = self.queueRequest(**kwargs)
             if res['status'] == "success":
                 task_summary = res['data']
             else:
                 task_summary = None
-            res = self.workflowRequest()
+
+            workflows = bottle.request.get_cookie('workflows')
+            try:
+                workflows = bson.json_util.loads(workflows)
+            except Exception as e:
+                workflows = e
+            print("badsfafsadf")
+            pprint(workflows)
+            if workflows:
+                res = self.workflowsRequest(workflows, **kwargs)
+            else:
+                res = self.workflowRequest(**kwargs)
             if res['status'] == "success":
                 task_workflows = res['data']
             else:
@@ -176,7 +226,7 @@ class euphonia(karakuricommon.karakuriclient):
                         task['startDate'] = ""
                         task['frozen'] = False
                     task['updateDate'] = task['t'].strftime(format="%Y-%m-%d %H:%M")
-                    res = self.issueRequest(str(task['iid']))
+                    res = self.issueRequest(str(task['iid']), **kwargs)
                     if res['status'] == "success":
                         issue = res['data']
                     else:
@@ -186,118 +236,113 @@ class euphonia(karakuricommon.karakuriclient):
                         issue_objs[str(task['iid'])] = issue['issue']['jira']
             else:
                 task_summary = []
-            return template('base_page', renderpage="tasks",
+            return bottle.template('base_page', renderpage="tasks",
                             ticketSummary=task_summary, issues=issue_objs,
                             ticketWorkflows=task_workflows)
 
-        @app.route('/task/<task>/process')
+        @b.route('/task/<task>/process')
         def process_task(task):
-            return json_util.dumps(self.taskRequest(task, "process"))
+            return response(self.taskRequest(task, "process"))
 
-        @app.route('/task/<task>/approve')
+        @b.route('/task/<task>/approve')
         def approve_task(task):
-            return json_util.dumps(self.taskRequest(task, "approve"))
+            return response(self.taskRequest(task, "approve"))
 
-        @app.route('/task/<task>/disapprove')
+        @b.route('/task/<task>/disapprove')
         def disapprove_task(task):
-            return json_util.dumps(self.taskRequest(task, "disapprove"))
+            return response(self.taskRequest(task, "disapprove"))
 
-        @app.route('/task/<task>/remove')
+        @b.route('/task/<task>/remove')
         def remove_task(task):
-            return json_util.dumps(self.taskRequest(task, "remove"))
+            return response(self.taskRequest(task, "remove"))
 
-        @app.route('/task/<task>/sleep')
+        @b.route('/task/<task>/sleep')
         def freeze_task(task):
-            return json_util.dumps(self.taskRequest(task, "sleep"))
+            return response(self.taskRequest(task, "sleep"))
 
-        @app.route('/task/<task>/wake')
+        @b.route('/task/<task>/wake')
         def wake_task(task):
-            return json_util.dumps(self.taskRequest(task, "sleep"))
+            return response(self.taskRequest(task, "sleep"))
 
-        @app.route('/task/<task>/sleep/<seconds>')
+        @b.route('/task/<task>/sleep/<seconds>')
         def sleep_task(task, seconds):
             seconds = int(seconds)
-            return json_util.dumps(self.taskRequest(task, "sleep", seconds))
+            return response(self.taskRequest(task, "sleep", seconds))
 
-        @app.route('/workflows')
+        @b.route('/workflows')
         def edit_workflows():
-            return template('base_page', renderpage="workflows")
+            return bottle.template('base_page', renderpage="workflows")
 
-        @app.post('/testworkflow')
+        @b.post('/testworkflow')
         def test_workflow():
-            formcontent = request.body.read()
+            formcontent = bottle.request.body.read()
             if 'workflow' in formcontent:
-                workflow = json_util.loads(formcontent)['workflow']
-                wfstring = json_util.dumps(workflow)
+                workflow = bson.json_util.loads(formcontent)['workflow']
+                wfstring = bson.json_util.dumps(workflow)
                 print wfstring
                 res = self.postRequest("testworkflow", data=wfstring)
                 if res['status'] == "success":
-                    if 'data' in response and 'issues' in response['data']:
-                        for issue in response['data']['issues']:
+                    if 'data' in res and 'issues' in res['data']:
+                        for issue in res['data']['issues']:
                             del issue['jira']['changelog']
                             del issue['jira']['fields']['comment']
                             del issue['jira']['fields']['attachment']
                             if 'karakuri' in issue and 'sleep' in issue['karakuri']:
                                 del issue['karakuri']['sleep']
-                    return json_util.dumps(response)
+                    return bson.json_util.dumps(res)
                 else:
                     return res
             msg = {"status": "error",
                    "message": "workflow missing 'query_string'"}
-            return json_util.dumps(msg)
+            return bson.json_util.dumps(msg)
 
-        @app.post('/workflow')
+        @b.post('/workflow')
         def create_workflow():
-            formcontent = request.body.read()
-            workflow = json_util.loads(formcontent)['workflow']
-            wfstring = json_util.dumps(workflow)
+            formcontent = bottle.request.body.read()
+            workflow = bson.json_util.loads(formcontent)['workflow']
+            wfstring = bson.json_util.dumps(workflow)
             return self.postRequest("workflow", data=wfstring)
 
-        @app.post('/workflow/<wfname>')
+        @b.post('/workflow/<wfname>')
         def update_workflow(wfname):
-            formcontent = request.body.read()
-            workflow = json_util.loads(formcontent)['workflow']
-            workflow_id = json_util.ObjectId(workflow['_id'])
+            formcontent = bottle.request.body.read()
+            workflow = bson.json_util.loads(formcontent)['workflow']
+            workflow_id = bson.json_util.ObjectId(workflow['_id'])
             workflow['_id'] = workflow_id
-            wfstring = json_util.dumps(workflow)
+            wfstring = bson.json_util.dumps(workflow)
             return self.postRequest("workflow", entity=wfname, data=wfstring)
 
-        @app.delete('/workflow/<wfname>')
+        @b.delete('/workflow/<wfname>')
         def delete_workflow(wfname):
             return self.deleteRequest("/workflow", entity=wfname)
 
-        @app.route('/workflow')
-        @app.route('/workflow/')
+        @b.route('/workflow')
+        @b.route('/workflow/')
         def get_workflows():
-            res = self.workflowRequest()
-            if res['status'] == "success":
-                workflows = res['data']
-            else:
-                workflows = None
-            return json_util.dumps(workflows)
+            return response(self.workflowRequest())
 
-        @app.route('/workflow/<workflow>/process')
+        @b.route('/workflow/<workflow>/process')
         def process_workflow(workflow):
-            return self.workflowRequest(workflow, "process")
+            return response(self.workflowRequest(workflow, "process"))
 
-        @app.route('/workflow/<workflow>/approve')
+        @b.route('/workflow/<workflow>/approve')
         def approve_workflow(workflow):
-            return self.workflowRequest(workflow, "approve")
+            return response(self.workflowRequest(workflow, "approve"))
 
-        @app.route('/workflow/<workflow>/disapprove')
+        @b.route('/workflow/<workflow>/disapprove')
         def disapprove_workflow(workflow):
-            return self.workflowRequest(workflow, "disapprove")
+            return response(self.workflowRequest(workflow, "disapprove"))
 
-        @app.route('/workflow/<workflow>/remove')
+        @b.route('/workflow/<workflow>/remove')
         def remove_workflow(workflow):
-            return self.workflowRequest(workflow, "remove")
+            return response(self.workflowRequest(workflow, "remove"))
 
-        @app.route('/workflow/<workflow>/sleep/<seconds>')
+        @b.route('/workflow/<workflow>/sleep/<seconds>')
         def sleep_workflow(workflow, seconds):
-            return self.workflowRequest(workflow, "sleep", seconds)
+            return response(self.workflowRequest(workflow, "sleep", seconds))
 
         # AUTOCOMPLETE SEARCH
-        @app.route('/search/<query>')
+        @b.route('/search/<query>')
         def autocomplete(query):
             results = []
             if query is not None:
@@ -305,22 +350,22 @@ class euphonia(karakuricommon.karakuriclient):
             return json.dumps(results)
 
         # STATIC FILES
-        @app.route('/js/<filename>')
+        @b.route('/js/<filename>')
         def server_js(filename):
-            return static_file(filename, root="%s/js" % self.args['root_webdir'])
+            return bottle.static_file(filename, root="%s/js" % self.args['root_webdir'])
 
-        @app.route('/css/<filename>')
+        @b.route('/css/<filename>')
         def server_css(filename):
-            return static_file(filename, root="%s/css" % self.args['root_webdir'])
+            return bottle.static_file(filename, root="%s/css" % self.args['root_webdir'])
 
-        @app.route('/img/<filename>')
+        @b.route('/img/<filename>')
         def server_img(filename):
-            return static_file(filename, root="%s/img" % self.args['root_webdir'])
+            return bottle.static_file(filename, root="%s/img" % self.args['root_webdir'])
 
         self.logger.debug("start()")
         self.logger.info("euphonia!")
 
-        app.run(host=self.args['euphonia_host'], port=self.args['euphonia_port'])
+        b.run(host=self.args['euphonia_host'], port=self.args['euphonia_port'])
 
 if __name__ == "__main__":
     parser = karakuricommon.karakuriclientparser(description="A euphoric "
@@ -331,6 +376,13 @@ if __name__ == "__main__":
     parser.add_config_argument("--euphonia-port", metavar="PORT", type=int,
                                default=8070,
                                help="specify the euphonia port (default=8080)")
+    parser.add_config_argument("--mongo-host", metavar="HOSTNAME",
+                               default="localhost",
+                               help="specify the MongoDB hostname (default="
+                                    "localhost)")
+    parser.add_config_argument("--mongo-port", metavar="PORT", default=27017,
+                               type=int,
+                               help="specify the MongoDB port (default=27017)")
     parser.add_config_argument("--pid", metavar="FILE",
                                default="/tmp/euphonia.pid",
                                help="specify a PID file "
@@ -395,16 +447,6 @@ if __name__ == "__main__":
         # redirect stderr and stdout
         # sys.__stderr__ = PipeToLogger(k.logger)
         # sys.__stdout__ = PipeToLogger(k.logger)
-        e.run()
-
-    mongodb_connection_string = "mongodb://localhost"
-    connection = pymongo.MongoClient(mongodb_connection_string)
-    euphoniaDB = connection.euphonia
-
-    g = groups.Groups(euphoniaDB)
-    t = tests.Tests(euphoniaDB)
-    failedTests = failedtests.FailedTests(euphoniaDB)
-
-    # sf = salesforce_client.Salesforce()
+        e.start()
 
     sys.exit(0)
