@@ -1,13 +1,10 @@
-#!/usr/bin/env python
-
 import argparse
 import bson.json_util
+import configparserpp
 import logging
 import requests
 import os
 import sys
-
-from configparser import ConfigParser
 
 
 class karakuribase:
@@ -42,40 +39,45 @@ class karakuriclient(karakuribase):
         karakuribase.__init__(self, *args, **kwargs)
         self.token = self.args['token']
 
-    def deleteRequest(self, endpoint, entity=None):
+    def deleteRequest(self, endpoint, entity=None, **kwargs):
         if entity is not None:
             endpoint += '/%s' % entity
-        return self.request(endpoint, "DELETE")
+        return self.request(endpoint, "DELETE", **kwargs)
 
-    def getRequest(self, endpoint, entity=None, command=None, arg=None):
+    def getRequest(self, endpoint, entity=None, command=None, arg=None,
+                   **kwargs):
         if entity is not None:
             endpoint += '/%s' % entity
         if command is not None:
             endpoint += '/%s' % command
             if arg is not None:
                 endpoint += '/%s' % arg
-        return self.request(endpoint)
+        return self.request(endpoint, **kwargs)
 
     def getToken(self):
         return self.token
 
-    def issueRequest(self, issue=None, command=None, arg=None):
+    def issueRequest(self, issue=None, command=None, arg=None, **kwargs):
         endpoint = '/issue'
-        return self.getRequest(endpoint, issue, command, arg)
+        return self.getRequest(endpoint, issue, command, arg, **kwargs)
 
-    def postRequest(self, endpoint, entity=None, data=None):
+    def postRequest(self, endpoint, entity=None, data=None, **kwargs):
         if entity is not None:
             endpoint += '/%s' % entity
-        return self.request(endpoint, "POST", data)
+        return self.request(endpoint, "POST", data, **kwargs)
 
-    def queueRequest(self, command=None, arg=None):
+    def queueRequest(self, command=None, arg=None, **kwargs):
         endpoint = '/queue'
-        return self.getRequest(endpoint, None, command, arg)
+        return self.getRequest(endpoint, None, command, arg, **kwargs)
 
-    def request(self, endpoint, method="GET", data=None):
+    def request(self, endpoint, method="GET", data=None, **kwargs):
         url = "http://%s:%i%s" % (self.args['karakuri_host'],
                                   self.args['karakuri_port'], endpoint)
-        headers = {'Authorization': "auth_token=%s" % self.token}
+        if 'token' in kwargs:
+            token = kwargs['token']
+        else:
+            token = self.token
+        headers = {'Authorization': "auth_token=%s" % token}
 
         res = requests.request(method, url, headers=headers, data=data)
         if res is not None:
@@ -86,19 +88,26 @@ class karakuriclient(karakuribase):
                 except Exception as e:
                     message = e
             else:
-                message = res.text
+                try:
+                    ret = bson.json_util.loads(res.text)
+                    message = ret['message']
+                except Exception as e:
+                    message = e
         else:
             message = "request(%s,%s) failed" % (endpoint, method)
         return {'status': 'error', 'message': message}
 
-    def taskRequest(self, task=None, command=None, arg=None):
-        endpoint = '/task'
-        return self.getRequest(endpoint, task, command, arg)
+    def setToken(self, token):
+        self.token = token
 
-    def tasksRequest(self, tasks, command=None, arg=None):
+    def taskRequest(self, task=None, command=None, arg=None, **kwargs):
+        endpoint = '/task'
+        return self.getRequest(endpoint, task, command, arg, **kwargs)
+
+    def tasksRequest(self, tasks, command=None, arg=None, **kwargs):
         _tasks = []
         for task in tasks:
-            res = self.taskRequest(task, command, arg)
+            res = self.taskRequest(task, command, arg, **kwargs)
             if res['status'] == 'success':
                 if res['data']['task'] is not None:
                     _tasks.append(res['data']['task'])
@@ -106,12 +115,24 @@ class karakuriclient(karakuribase):
                 return res
         return {'status': 'success', 'data': {'tasks': _tasks}}
 
-    def setToken(self, token):
-        self.token = token
+    def userRequest(self, token=None, command=None, arg=None, **kwargs):
+        endpoint = '/user'
+        return self.getRequest(endpoint, token, command, arg, **kwargs)
 
-    def workflowRequest(self, workflow=None, command=None, arg=None):
+    def workflowRequest(self, workflow=None, command=None, arg=None, **kwargs):
         endpoint = '/workflow'
-        return self.getRequest(endpoint, workflow, command, arg)
+        return self.getRequest(endpoint, workflow, command, arg, **kwargs)
+
+    def workflowsRequest(self, workflows, command=None, arg=None, **kwargs):
+        _workflows = []
+        for workflow in workflows:
+            res = self.workflowRequest(workflow, command, arg, **kwargs)
+            if res['status'] == 'success':
+                if res['data']['workflow'] is not None:
+                    _workflows.append(res['data']['workflow'])
+            else:
+                return res
+        return {'status': 'success', 'data': {'workflows': _workflows}}
 
 
 class karakuriparser(argparse.ArgumentParser):
@@ -162,9 +183,9 @@ class karakuriparser(argparse.ArgumentParser):
                 logging.error("Unable to read config file")
                 error = True
 
-            configParser = ConfigParser(add_help=False,
-                                        fromfile_prefix_chars='@',
-                                        parents=[self.parser])
+            configParser = configparserpp.ConfigParser(
+                add_help=False, fromfile_prefix_chars='@',
+                parents=[self.parser])
             args = configParser.parse_args(args=["@%s" % args.config],
                                            namespace=args)
 
@@ -194,4 +215,4 @@ class karakuriclientparser(karakuriparser):
                                  help="specify the karakuri port "
                                       "(default=8080)")
         self.add_config_argument("--token", metavar="TOKEN",
-                                 help="specify a CROWD user token")
+                                 help="specify a user token to persist")
