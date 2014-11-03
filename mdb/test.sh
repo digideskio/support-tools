@@ -12,6 +12,7 @@ function test_one() {
     mkdir -p test-actual
     exp=expected/mdb$1
     act=/tmp/mdb$1
+    #python2.4 mdb.py $* >$act
     python mdb.py $* >$act
     if diff $exp $act; then
         echo pass $*

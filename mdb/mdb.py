@@ -4,6 +4,49 @@ import sys
 import collections
 import base64
 import mmap
+import os
+
+try:
+    import snappy
+except:
+    #print 'snappy not available, will not decompress sections'
+    snappy = None
+
+#
+# 2.4 for 2.6
+#
+
+try:
+    from collections import defaultdict
+except:
+    class defaultdict(dict):
+        def __init__(self, default_factory=None, *args, **kwargs):
+            dict.__init__(self, *args, **kwargs)
+            self.default_factory = default_factory
+        def __getitem__(self, key):
+            try:
+                return dict.__getitem__(self, key)
+            except KeyError:
+                self[key] = value = self.default_factory()
+                return value
+
+def xstruct(s):
+    if hasattr(struct, 'Struct'): return struct.Struct(s)
+    else: return s
+
+structs = {}
+
+def unpack_from(fmt, buf, start=0):
+    if type(fmt)==str:
+        if hasattr(struct, 'Struct'):
+            if not fmt in structs:
+                structs[fmt] = struct.Struct(fmt)
+            fmt = structs[fmt]
+        else:
+            return struct.unpack(fmt, buf[start:start+struct.calcsize(fmt)])
+    return fmt.unpack_from(buf, start)  
+
+
 
 #
 # bson
@@ -13,7 +56,7 @@ def get_char(buf, at):
     return at+1, ord(buf[at])
 
 def get_int(buf, at):
-    return at+4, struct.unpack_from('i', buf, at)[0]
+    return at+4, unpack_from('i', buf, at)[0]
 
 def get_cstring(buf, at):
     l = buf.find('\0', at) - at
@@ -64,15 +107,15 @@ def info_basic(name, l, buf, at):
 
 def info_time(name, l, fmt, scale=1, skip=0):
     def info(buf, at):
-        t = struct.unpack_from(fmt, buf, at+skip)[0] / scale
+        t = unpack_from(fmt, buf, at+skip)[0] / scale
         at, info = info_basic(name, l, buf, at)
         try: t = datetime.datetime.utcfromtimestamp(t).isoformat() + 'Z'
-        except Exception as e: t = str(e)
+        except Exception, e: t = str(e)
         return at, info + ' =' + t
     return info
 
 def info_double(buf, at):
-    d = struct.unpack_from('d', buf, at)[0]
+    d = unpack_from('d', buf, at)[0]
     at, info = info_basic('double', 8, buf, at)
     return at, '%s =%g' % (info, d)
 
@@ -134,21 +177,138 @@ def print_bson(buf, at, l=None):
             if not ok:
                 print '? %02x %c' % (t, chr(t))
 
+
+
+#
+# journal
+#
+
+def hex(s):
+    return ''.join(c.encode('hex') for c in s)
+
+def hash(buf):
+    n = len(buf) / 8 / 2;
+    s = xstruct('< %dQ' % n)
+    a = unpack_from(s, buf)
+    a = sum(a[i]^i for i in range(n))
+    b = unpack_from(s, buf, n*8)
+    b = sum(b[i]^i for i in range(n))
+    c = 0L
+    for i in range(n*8*2, len(buf)):
+        cc = ord(buf[i])
+        if cc >= 128: cc -= 256
+        c = (c << 8) | cc
+    m = 0xffffffffffffffffL
+    return (a^len(buf))&m, (b^c)&m
+
+def print_journal(fn):
+
+    # file structure
+    header_struct = xstruct('< 5s 20s 1s 128s 2s Q')
+    section_struct = xstruct('< I Q Q')
+    footer_struct = xstruct('< I QQ Q 4s')
+    align = 8192
+
+    # open file
+    f = open(fn, 'rb')
+    sz = os.fstat(f.fileno()).st_size # 2.4 won't accept 0
+    buf = mmap.mmap(f.fileno(), sz, prot=mmap.PROT_READ)
+    
+    # file header
+    magic, date, _, path, _, fileid = unpack_from(header_struct, buf)
+    path = path[:path.find('\0')]
+    date = date[:date.find('\0')]
+    print '%08x: header magic=%s date=%s path=%s fid=%x' % (0, hex(magic), date, path, fileid)
+    at = 8192
+    
+    # traverse file
+    while at < len(buf):
+    
+        # section header
+        l, lsn, fid = unpack_from(section_struct, buf, at)
+        lp = (l + align-1) & ~(align-1)
+        section_at = at + 20
+        footer_at = at + l - 32
+        ok = 'OK'
+        if fid!=fileid: fid = 'BAD'
+        print '%08x: section l=%x(%d) lp=%x(%d) lsn=%x(%d) fid=%x(%s)' % \
+            (at, l, l, lp, lp, lsn, lsn, fid, ok)
+    
+        # compute hash, compare with footer
+        sentinel, hash_a, hash_b, reserved, magic = unpack_from(footer_struct, buf, footer_at)
+        computed_hash_a, computed_hash_b = hash(buf[at:footer_at])
+        hash_ok = 'OK'
+        if not (hash_a==computed_hash_a and hash_b==computed_hash_b): ok = 'BAD'
+        print '%08x: hash=%08x:%08x(%s)' % (at, computed_hash_a, computed_hash_b, hash_ok)
+    
+        # section
+        try:
+            if snappy:
+                section = snappy.uncompress(buf[section_at:footer_at])
+                print '%08x: uncompressed length=%x(%d)' % (section_at, len(section), len(section))
+                if do_journal_entries:
+                    print_journal_entries(section)
+        except Exception, e:
+            print '%08x: %s' % (section_at, e)
+    
+        # section footer
+        print '%08x: footer sentinel=%x hash=%08x:%08x(%s) magic=%s' % \
+            (footer_at, sentinel, hash_a, hash_b, hash_ok, hex(magic))
+    
+        # next section
+        at += lp
+    
+    # eof
+    print '%08x: eof' % len(buf)
+    print '%08x: at' % at
+
+
+def print_journal_entries(section):
+    at = 0
+    while at < len(section):
+        (op,) = unpack_from('< I', section, at)
+        if op==0xffffffff: # footer
+            print '%08x: op=footer(%x)' % (at, op)
+            break
+        elif op==0xfffffffd: # create
+            (l,) = unpack_from('< Q', section, at+20)
+            fn = section[at+28:section.find('\0',at+28)]
+            print '%08x: op=create(%x) l=%x(%d) fn=%s' % (at, op, l, l, fn)
+            at += 28 + len(fn) + 1
+            ctx = fn.split('.')[0]
+        elif op==0xfffffffe: # context
+            ctx = section[at+4:section.find('\0',at+4)]
+            print '%08x: op=context(%x) ctx=%s' % (at, op, ctx)
+            at += 4 + len(ctx) + 1
+        elif op==0xfffffffc: # drop
+            print '%08x: op=drop(%x) STOPPING NOT IMPL' % (at, op)
+            break
+        else: # write
+            l = op
+            ofs, f = unpack_from('< I I', section, at+4)
+            sfx = f & 0x7fffffff
+            if (sfx==0x7fffffff): sfx = 'ns'
+            if (f&0x80000000): db = 'local'
+            else: db = ctx
+            print '%08x: op=write f=%x fn=%s ofs=%x(%d) l=%x(%d) ' % \
+                (at, f, db + '.' + str(sfx), ofs, ofs, l, l)
+            at += op + 12
+
 #
 #
 #
 
-btree_header_struct = struct.Struct("7s 7s H H H H")
-btree_key_struct = struct.Struct("7s 7s H")
-diskloc56_struct = struct.Struct("i 3s")
+btree_header_struct = xstruct("7s 7s H H H H")
+btree_key_struct = xstruct("7s 7s H")
+diskloc56_struct = xstruct("i 3s")
 
 def diskloc56(buf):
-    o, f = diskloc56_struct.unpack_from(buf)
+    o, f = unpack_from(diskloc56_struct, buf)
     f = (ord(f[2])*256+ord(f[1]))*256+ord(f[0])
     return f, o
 
 def print_btree(buf, at, l=None):
-    parent, next, flags, empty, top, n = btree_header_struct.unpack_from(buf, at)
+    parent, next, flags, empty, top, n = unpack_from(btree_header_struct, buf, at)
     parent_f, parent_o = diskloc56(parent)
     next_f, next_o = diskloc56(next)
     print '%x: btree parent=%d:%x next=%d:%x flags=%x empty=%x(%d) top=%x(%d) n=%x(%d)' % \
@@ -156,21 +316,27 @@ def print_btree(buf, at, l=None):
     kds = set()
     for i in range(n):
         a = at + 22 + 16*i
-        child, loc, kdo = btree_key_struct.unpack_from(buf, a)
+        child, loc, kdo = unpack_from(btree_key_struct, buf, a)
         child_f,child_o = diskloc56(child)
         loc_f,loc_o = diskloc56(loc)
         kd = at + 22 + kdo
         print '%x: key child=%d:%x loc=%d:%x kdo=%x kd=%x' % (a, child_f,child_o, loc_f,loc_o, kdo, kd),
         if do_btree_detail:
             print 'rec=%x' % at,
-            t = ord(buf[kd])
-            if t in ctypes:
-                _, detail = ctypes[t](buf, kd+1)
-            else:
-                detail = ''
-                for j in range(1,13):
-                    detail += '%02x' % ord(buf[kd+j])
-            print '%02x' % t, detail,
+            a = kd
+            while True:
+                t = ord(buf[a])
+                more = t & 0x40
+                t = t & ~0x40
+                if t in ctypes:
+                    a, detail = ctypes[t](buf, a+1)
+                else:
+                    detail = ''
+                    for j in range(1,13):
+                        detail += '%02x' % ord(buf[a+j])
+                    more = False
+                print '%02x' % (t|more), detail,
+                if not more: break
         print
         kds.add(kd)
     kds = list(sorted(kds))
@@ -188,7 +354,7 @@ def print_btree(buf, at, l=None):
 # extra per-record info
 #
 
-extra_info = collections.defaultdict(str)
+extra_info = defaultdict(str)
 
 def do_pending(pending):
     if pending:
@@ -201,10 +367,11 @@ def records_list(buf, start, end, at, do_next, pending):
     while start <= at and at < end:
         if at in seen:
             pending = do_pending(pending)
-            print 'ERROR loop in %s list at %x' % ('next' if do_next else 'prev', at)
+            if do_next: print 'ERROR loop in next list at %x' % at
+            else: print 'ERROR loop in prev list at %x' % at
             break
         seen.add(at)
-        rlen, ext, next, prev, blen = record_struct.unpack_from(buf, at)
+        rlen, ext, next, prev, blen = unpack_from(record_struct, buf, at)
         if do_next:
             extra_info[(buf,at)] += ' first+%d' % i
             at = next
@@ -243,11 +410,11 @@ def records_key(buf, at, end, ext_at, key, name):
 # records
 #
 
-record_struct = struct.Struct('i i i i I')
+record_struct = xstruct('i i i i I')
 
 def print_record(buf, at, print_content, rlen, ext, next, prev, blen, pending=None):
-    found = buf.find(find, at, at+rlen)
-    if found >= 0:
+    if find: found = buf.find(find, at, at+rlen)
+    if not find or found >= 0:
         pending = do_pending(pending)
         print '%s%x: record rlen=%x(%d) end=%x ext=%x' % (exts[buf], at, rlen, rlen, at+rlen, ext),
         print 'next=%x prev=%x blen=%x(%d)%s' % (next, prev, blen, blen, extra_info[(buf,at)])
@@ -264,13 +431,15 @@ def print_record(buf, at, print_content, rlen, ext, next, prev, blen, pending=No
 def visit_records(buf, at, end, print_content, per_record, ext_at=None, pending=None):
     skipped = 0
     while at < end:
-        rlen, ext, next, prev, blen = record_struct.unpack_from(buf, at)
+        rlen, ext, next, prev, blen = unpack_from(record_struct, buf, at)
         if ext_at and ext==ext_at and skipped!=0:
             print 'skipped', skipped
             skipped = 0
         bad = (ext_at!=None and ext!=ext_at) or rlen<=0
         if skipped==0:
-            pending = per_record(buf, at, print_content if not bad else None, rlen, ext, next, prev, blen, pending)
+            prt = print_content
+            if bad: prt = None
+            pending = per_record(buf, at, prt, rlen, ext, next, prev, blen, pending)
         if bad:
             at += 1
             skipped += 1
@@ -282,11 +451,11 @@ def visit_records(buf, at, end, print_content, per_record, ext_at=None, pending=
 # extents
 #
 
-extent_struct = struct.Struct('i i i i i i i 128s i i i i i')
+extent_struct = xstruct('i i i i i i i 128s i i i i i')
 
 def extent(buf, at, check):
     sig, loc_f,loc_o, next_f,next_o, prev_f,prev_o, ns, l, first_f,first_o, last_f,last_o = \
-        extent_struct.unpack_from(buf, at)
+        unpack_from(extent_struct, buf, at)
     if sig != 0x41424344:
         if check:
             print 'ERROR: bad sig %x at %x(%d)' % (sig, at, at)
@@ -303,7 +472,8 @@ def extent(buf, at, check):
         print 'ns=%s len=%x(%d)' % (ns, l, l),
         print 'first=%d:%x last=%d:%x' % (first_f, first_o, last_f, last_o)
     if do_records:
-        r0 = at+176 if not is_inx else at+0x1000
+        if is_inx: r0 = at + 0x1000
+        else: r0 = at + 176
         if do_records_next:
             pending = records_list(buf, r0, at+l, first_o, True, pending)
         if do_records_prev:
@@ -328,16 +498,18 @@ def extents(buf, at, end):
 #
 
 bufs = {}
-exts = collections.defaultdict(str)
+exts = defaultdict(str)
 
 def get_buf(dbpath, db, ext):
     fn = dbpath + '/' + db + '.' + str(ext)
     if not fn in bufs:
         try:
             f = open(fn, 'rb')
-            bufs[fn] = m = mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)
+            sz = os.fstat(f.fileno()).st_size # 2.4 won't accept 0
+            m = mmap.mmap(f.fileno(), sz, prot=mmap.PROT_READ)
+            bufs[fn] = m
             exts[m] = str(ext) + ':'
-        except Exception as e:
+        except Exception, e:
             print e
             raise
     return bufs[fn]
@@ -348,10 +520,10 @@ def get_buf(dbpath, db, ext):
 #
 
 
-ns_struct = struct.Struct('i 128s ii  i i  152s    iiii  i i 160s i i ii i ii ii   i  ii   ii ii i')
-#                            name 1st last buckets stats l n inx      pf f ce cfnr vv mk     ex ip
+ns_struct = xstruct('i 128s ii  i i  152s    iiii  i i 160s i i ii i ii ii   i  ii   ii ii i')
+#                      name 1st last buckets stats l n inx      pf f ce cfnr vv mk   ex ip
 
-inx_details_struct = struct.Struct('i i i i')
+inx_details_struct = xstruct('i i i i')
 
 
 def collection(dbpath, ns):
@@ -359,24 +531,26 @@ def collection(dbpath, ns):
     nsbuf = get_buf(dbpath, db, 'ns')
     at = 0
     while at+628 <= len(nsbuf):
-        _, name, first_f,first_o, last_f,last_o, buckets, \
+        hash, name, first_f,first_o, last_f,last_o, buckets, \
             _, _, count_l, count_h, lastExtentSize, nIndexes, indexes, \
             isCapped, maxDocsInCapped, _, _, systemFlags, \
             ce_f,ce_o, cfnr_f,cfnr_o, _, mkl, mkh,  _, _, extra, _, inProgress = \
-            ns_struct.unpack_from(nsbuf, at)
+            unpack_from(ns_struct, nsbuf, at)
         count = (count_h << 32) + count_l
         mk = (mkh << 32) + mkl
         name = name[:name.find('\0')]
-        if (ns==db and name!='') or name==ns:
-            print '--- %s first=%d:%x last=%d:%x, ce=%d:%x, cfn=%d:%x, count=%d' % \
-                (name, first_f, first_o, last_f, last_o, ce_f, ce_o, cfnr_f, cfnr_o, count)
+        #if (ns==db and hash) or name==ns:
+        if (ns==db and name) or name==ns:
+            print '%08x: namespace name=%s first=%d:%x last=%d:%x, ce=%d:%x, cfn=%d:%x' % \
+                (at, name, first_f, first_o, last_f, last_o, ce_f, ce_o, cfnr_f, cfnr_o)
             if do_collection_indexes:
                 print 'nIndexes=%d extra=%d inProgress=%d mk=%x' % \
                     (nIndexes, extra, inProgress, mk)
                 for i in range(nIndexes+inProgress):
-                    a = at+324+i*16 if i<10 else at+132+8+extra+(i-10)*16
+                    if i<10: a = at+324+i*16
+                    else: a = at+132+8+extra+(i-10)*16
                     inx = nsbuf[a:a+16]
-                    btree_f, btree_o, info_f, info_o = inx_details_struct.unpack_from(inx)
+                    btree_f, btree_o, info_f, info_o = unpack_from(inx_details_struct, inx)
                     print '%x: index %d: btree %d:%x info %d:%x mk %d' % \
                         (a, i, btree_f, btree_o, info_f, info_o, (mk>>i)&1)
                     if do_collection_details:
@@ -386,7 +560,7 @@ def collection(dbpath, ns):
                         visit_records(bbuf, btree_o, btree_o+1, print_btree, print_record)
             if do_free:
                 for i in range(19):
-                    f, a = struct.unpack_from('i i', buckets, i*8)
+                    f, a = unpack_from('i i', buckets, i*8)
                     j = 0
                     while True:
                         print "free[%d]+%d %d:%x" % (i, j, f, a)
@@ -395,7 +569,7 @@ def collection(dbpath, ns):
                         try:
                             xbuf = get_buf(dbpath, db, f)
                             extra_info[(xbuf,a)] += ' free[%d]+%d' % (i, j)
-                            _, _, f, a, _ = record_struct.unpack_from(xbuf, a)
+                            _, _, f, a, _ = unpack_from(record_struct, xbuf, a)
                             j += 1
                         except:
                             break
@@ -404,6 +578,8 @@ def collection(dbpath, ns):
                 while o is not None and o > 0:
                     xbuf = get_buf(dbpath, db, f)
                     f, o, _ = extent(xbuf, o, True)
+        elif ns==db and do_collection_details:
+            print '%08x: empty' % at
         at += 628
 
 
@@ -430,6 +606,8 @@ do_collection = 'c' in flags or 'C' in flags
 do_collection_details = 'C' in flags
 do_collection_indexes = 'i' in flags
 do_free = 'f' in flags
+do_journal = 'j' in flags
+do_journal_entries = 'e' in flags # not impl
 
 find = ''
 
@@ -437,7 +615,9 @@ print_content = None
 if do_btree: print_content = print_btree
 if do_bson: print_content = print_record_bson
 
-if do_collection:
+if do_journal:
+    print_journal(sys.argv[2])
+elif do_collection:
     dbpath = sys.argv[2]
     ns = sys.argv[3]
     collection(dbpath, ns)
@@ -469,5 +649,6 @@ elif do_records_multi: # mdb s[b] file addr
 elif do_bson: # mdb b file addr [len]
     buf = open(sys.argv[2]).read()
     at = int(sys.argv[3], 0)
-    l = int(sys.argv[4]) if len(sys.argv)>4 else None
+    l = None
+    if len(sys.argv)>4: l = int(sys.argv[4])
     print_bson(buf, at, l)
