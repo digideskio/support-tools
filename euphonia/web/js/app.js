@@ -15,6 +15,17 @@ $(document).ready(function() {
     }).blur(function() {
        $('.twitter-typeahead').width(150);
     });
+
+    // If auth_token is set, use it to initialize
+    // user profile
+    initFromAuthToken();
+
+    // Login, i.e. set auth_token
+    $('#nav_a_login').click(function() {
+        var auth_token = prompt("auth_token:");
+        $.cookie('auth_token', auth_token)
+        initFromAuthToken();
+    });
 });
 
 var groups = new Bloodhound({
@@ -49,3 +60,22 @@ $('#groupSearch').typeahead(
     return false;
   }
 });
+
+var initFromAuthToken = function() {
+    var auth_token = $.cookie('auth_token');
+    if (typeof auth_token !== "undefined") {
+        var urlString = "/login";
+        var data = {'auth_token': auth_token};
+        $.post(urlString, data, function(res){
+            name = res['data']['user']
+            profileImageUrl = "https://corp.10gen.com/employees/" + name + "/profileimage";
+            var img = document.createElement("img");
+            img.src = profileImageUrl;
+            img.id = "img_profile";
+            $("#nav_a_login").css('padding', 0)
+                             .css('margin', 0)
+                             .html(img)
+        }, "json");
+    }
+    return null;
+}

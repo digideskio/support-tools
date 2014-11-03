@@ -30,7 +30,7 @@
                         </div>
                     </form>
                 </li>
-                <li><a href="#"><span class="glyphicon glyphicon-user"></span></a></li>
+                <li><a href="#" id="nav_a_login"><span class="glyphicon glyphicon-user"></span></a></li>
             </ul>
         </div>
     </div>

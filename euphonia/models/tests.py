@@ -1,9 +1,7 @@
 import pymongo
 import inspect
 import imp
-# from groupreport_tests import GroupReportTests
-groupreport_tests = imp.load_source('groupreport_tests', '../groupreport_tests.py')
-
+import groupreport_tests
 
 class Tests:
 
