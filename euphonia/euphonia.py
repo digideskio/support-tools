@@ -14,7 +14,6 @@ import sys
 
 from datetime import datetime
 from models import failedtests, groups, salesforce_client, tests
-from pprint import pprint
 
 utc = pytz.UTC
 
@@ -178,8 +177,6 @@ class euphonia(karakuricommon.karakuriclient):
         @b.route('/tasks')
         @tokenize
         def issue_summary(**kwargs):
-            print("bahbahbah")
-            pprint(kwargs)
             res = self.queueRequest(**kwargs)
             if res['status'] == "success":
                 task_summary = res['data']
@@ -191,8 +188,6 @@ class euphonia(karakuricommon.karakuriclient):
                 workflows = bson.json_util.loads(workflows)
             except Exception as e:
                 workflows = e
-            print("badsfafsadf")
-            pprint(workflows)
             if workflows:
                 res = self.workflowsRequest(workflows, **kwargs)
             else:
