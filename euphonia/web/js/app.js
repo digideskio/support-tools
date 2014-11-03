@@ -71,8 +71,7 @@ var initFromAuthToken = function() {
             profileImageUrl = "https://corp.10gen.com/employees/" + name + "/profileimage";
             var img = document.createElement("img");
             img.src = profileImageUrl;
-            $(img).css('width', "50px")
-                  .css('height', "50px")
+            img.id = "img_profile";
             $("#nav_a_login").css('padding', 0)
                              .css('margin', 0)
                              .html(img)
