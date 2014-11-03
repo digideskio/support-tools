@@ -47,9 +47,9 @@ function getWorkflowList(){
     }).success(function(response){
         workflows = [];
         var workflowsObj = JSON.parse(response);
-        for (var wf = 0; wf < workflowsObj['workflows'].length; wf++) {
+        for (var wf = 0; wf < workflowsObj['data']['workflows'].length; wf++) {
             var wfObj;
-            wfObj = workflowsObj['workflows'][wf];
+            wfObj = workflowsObj['data']['workflows'][wf];
             workflows[wf] = wfObj;
         }
         renderList(workflows);

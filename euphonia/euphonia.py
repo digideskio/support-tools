@@ -14,6 +14,7 @@ import sys
 
 from datetime import datetime
 from models import failedtests, groups, salesforce_client, tests
+from pprint import pprint
 
 utc = pytz.UTC
 
@@ -37,10 +38,25 @@ class euphonia(karakuricommon.karakuriclient):
         failedTests = failedtests.FailedTests(self.db_euphonia)
         # sf = salesforce_client.Salesforce()
 
+        # TODO clean this up
+        descriptionCache = {
+                "greeting" : "Hi",
+                "opening" : "In reviewing your MongoDB configuration data in MMS, we have identified an issue that should be addressed in order to avoid potentially-critical issues in the future. In particular:",
+                "closing" : "We look forward to working with you to resolve this issues described above, and we have created individual support tickets to track each issue (you should receive notifications shortly). Please review any tickets at your earliest convenience so we can schedule some time to work with you.<br/><br/>Thanks,<br/>The MongoDB Proactive Services Team"
+        }
+        # populate descriptionCache
+        curr_tests = self.db_euphonia.mmsgroupreporttests.find({})
+        if curr_tests is not None:
+            for test in curr_tests:
+                descriptionCache[test['name']] = test['comment']
+
         b = bottle.Bottle(autojson=False)
         bottle.TEMPLATE_PATH.insert(0,'%s/views' % self.args['root_webdir'])
 
         def response(result, cookies=None):
+            print("bah")
+            pprint(result)
+            print("meh")
             self.logger.debug("response(%s)", result)
             if result['status'] == "success":
                 if cookies is not None:
@@ -236,46 +252,56 @@ class euphonia(karakuricommon.karakuriclient):
                             ticketWorkflows=task_workflows)
 
         @b.route('/task/<task>/process')
-        def process_task(task):
-            return response(self.taskRequest(task, "process"))
+        @tokenize
+        def process_task(task, **kwargs):
+            return response(self.taskRequest(task, "process", **kwargs))
 
         @b.route('/task/<task>/approve')
-        def approve_task(task):
-            return response(self.taskRequest(task, "approve"))
+        @tokenize
+        def approve_task(task, **kwargs):
+            ret = self.taskRequest(task, "approve")
+            return response(self.taskRequest(task, "approve", **kwargs))
 
         @b.route('/task/<task>/disapprove')
-        def disapprove_task(task):
-            return response(self.taskRequest(task, "disapprove"))
+        @tokenize
+        def disapprove_task(task, **kwargs):
+            return response(self.taskRequest(task, "disapprove", **kwargs))
 
         @b.route('/task/<task>/remove')
-        def remove_task(task):
-            return response(self.taskRequest(task, "remove"))
+        @tokenize
+        def remove_task(task, **kwargs):
+            return response(self.taskRequest(task, "remove", **kwargs))
 
         @b.route('/task/<task>/sleep')
-        def freeze_task(task):
-            return response(self.taskRequest(task, "sleep"))
+        @tokenize
+        def freeze_task(task, **kwargs):
+            return response(self.taskRequest(task, "sleep", **kwargs))
 
         @b.route('/task/<task>/wake')
-        def wake_task(task):
-            return response(self.taskRequest(task, "sleep"))
+        @tokenize
+        def wake_task(task, **kwargs):
+            return response(self.taskRequest(task, "sleep", **kwargs))
 
         @b.route('/task/<task>/sleep/<seconds>')
-        def sleep_task(task, seconds):
+        @tokenize
+        def sleep_task(task, seconds, **kwargs):
             seconds = int(seconds)
-            return response(self.taskRequest(task, "sleep", seconds))
+            return response(self.taskRequest(task, "sleep", seconds, **kwargs))
 
         @b.route('/workflows')
-        def edit_workflows():
+        @tokenize
+        def edit_workflows(**kwargs):
             return bottle.template('base_page', renderpage="workflows")
 
         @b.post('/testworkflow')
-        def test_workflow():
+        @tokenize
+        def test_workflow(**kwargs):
             formcontent = bottle.request.body.read()
             if 'workflow' in formcontent:
                 workflow = bson.json_util.loads(formcontent)['workflow']
                 wfstring = bson.json_util.dumps(workflow)
                 print wfstring
-                res = self.postRequest("testworkflow", data=wfstring)
+                res = self.postRequest("/testworkflow", data=wfstring, **kwargs)
                 if res['status'] == "success":
                     if 'data' in res and 'issues' in res['data']:
                         for issue in res['data']['issues']:
@@ -292,49 +318,58 @@ class euphonia(karakuricommon.karakuriclient):
             return bson.json_util.dumps(msg)
 
         @b.post('/workflow')
-        def create_workflow():
+        @tokenize
+        def create_workflow(**kwargs):
             formcontent = bottle.request.body.read()
             workflow = bson.json_util.loads(formcontent)['workflow']
             wfstring = bson.json_util.dumps(workflow)
-            return self.postRequest("workflow", data=wfstring)
+            return self.postRequest("/workflow", data=wfstring, **kwargs)
 
         @b.post('/workflow/<wfname>')
-        def update_workflow(wfname):
+        @tokenize
+        def update_workflow(wfname, **kwargs):
             formcontent = bottle.request.body.read()
             workflow = bson.json_util.loads(formcontent)['workflow']
             workflow_id = bson.json_util.ObjectId(workflow['_id'])
             workflow['_id'] = workflow_id
             wfstring = bson.json_util.dumps(workflow)
-            return self.postRequest("workflow", entity=wfname, data=wfstring)
+            return self.postRequest("/workflow", entity=wfname, data=wfstring, **kwargs)
 
         @b.delete('/workflow/<wfname>')
-        def delete_workflow(wfname):
-            return self.deleteRequest("/workflow", entity=wfname)
+        @tokenize
+        def delete_workflow(wfname, **kwargs):
+            return self.deleteRequest("/workflow", entity=wfname, **kwargs)
 
         @b.route('/workflow')
         @b.route('/workflow/')
-        def get_workflows():
-            return response(self.workflowRequest())
+        @tokenize
+        def get_workflows(**kwargs):
+            return response(self.workflowRequest(**kwargs))
 
         @b.route('/workflow/<workflow>/process')
-        def process_workflow(workflow):
-            return response(self.workflowRequest(workflow, "process"))
+        @tokenize
+        def process_workflow(workflow, **kwargs):
+            return response(self.workflowRequest(workflow, "process", **kwargs))
 
         @b.route('/workflow/<workflow>/approve')
-        def approve_workflow(workflow):
-            return response(self.workflowRequest(workflow, "approve"))
+        @tokenize
+        def approve_workflow(workflow, **kwargs):
+            return response(self.workflowRequest(workflow, "approve", **kwargs))
 
         @b.route('/workflow/<workflow>/disapprove')
-        def disapprove_workflow(workflow):
-            return response(self.workflowRequest(workflow, "disapprove"))
+        @tokenize
+        def disapprove_workflow(workflow, **kwargs):
+            return response(self.workflowRequest(workflow, "disapprove", **kwargs))
 
         @b.route('/workflow/<workflow>/remove')
-        def remove_workflow(workflow):
-            return response(self.workflowRequest(workflow, "remove"))
+        @tokenize
+        def remove_workflow(workflow, **kwargs):
+            return response(self.workflowRequest(workflow, "remove", **kwargs))
 
         @b.route('/workflow/<workflow>/sleep/<seconds>')
-        def sleep_workflow(workflow, seconds):
-            return response(self.workflowRequest(workflow, "sleep", seconds))
+        @tokenize
+        def sleep_workflow(workflow, seconds, **kwargs):
+            return response(self.workflowRequest(workflow, "sleep", seconds, **kwargs))
 
         # AUTOCOMPLETE SEARCH
         @b.route('/search/<query>')
