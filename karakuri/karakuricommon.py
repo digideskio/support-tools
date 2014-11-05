@@ -6,8 +6,6 @@ import requests
 import os
 import sys
 
-from pprint import pprint
-
 
 class karakuribase:
     """ A base class for karakuri classes """
@@ -54,11 +52,6 @@ class karakuriclient(karakuribase):
             endpoint += '/%s' % command
             if arg is not None:
                 endpoint += '/%s' % arg
-        res = self.request(endpoint, **kwargs)
-        print("moo")
-        pprint(res)
-        print("cow")
-        return res
         return self.request(endpoint, **kwargs)
 
     def getToken(self):
@@ -80,21 +73,13 @@ class karakuriclient(karakuribase):
     def request(self, endpoint, method="GET", data=None, **kwargs):
         url = "http://%s:%i%s" % (self.args['karakuri_host'],
                                   self.args['karakuri_port'], endpoint)
-        pprint(kwargs)
         if 'token' in kwargs:
             token = kwargs['token']
         else:
             token = self.token
         headers = {'Authorization': "auth_token=%s" % token}
 
-        print(method)
-        print(url)
-        pprint(headers)
-        pprint(data)
         res = requests.request(method, url, headers=headers, data=data)
-        print("moocowmoo!")
-        pprint(res)
-        pprint(res.text)
         if res is not None:
             if res.status_code == requests.codes.ok:
                 try:
@@ -117,11 +102,6 @@ class karakuriclient(karakuribase):
 
     def taskRequest(self, task=None, command=None, arg=None, **kwargs):
         endpoint = '/task'
-        res = self.getRequest(endpoint, task, command, arg, **kwargs)
-        print("foo")
-        pprint(res)
-        print("bah")
-        return res
         return self.getRequest(endpoint, task, command, arg, **kwargs)
 
     def tasksRequest(self, tasks, command=None, arg=None, **kwargs):
