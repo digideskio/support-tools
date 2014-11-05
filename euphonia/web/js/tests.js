@@ -1,7 +1,15 @@
+/**
+ * @fileoverview This file contains the methods used by ../views/tests.tpl
+ */
+
 var testsObj = {};
 var tests = [];
 var defined_tests = {};
 
+/**
+ * Retrieves the set of tests from the database (via REST API).
+ * @return {null}
+ */
 function getTestList(){
     "use strict";
     $.ajax({
@@ -25,6 +33,10 @@ function getTestList(){
     });
 }
 
+/**
+ * Retrieves the set of tests defined in the code (via REST API)
+ * @return {null}
+ */
 function getDefinedTestList(){
     "use strict";
     $.ajax({
@@ -45,6 +57,11 @@ function getDefinedTestList(){
     });
 }
 
+/**
+ * Populates the form with a given test definition.
+ * @param {string} tid Test ID
+ * @return {null}
+ */
 function renderTest(tid) {
     clearForm();
     var test = tests[tid];
@@ -59,18 +76,32 @@ function renderTest(tid) {
     $(this).addClass("active");
 }
 
+/**
+ * Generates an onclick function to render a test.
+ * @return {function} function to be executed onclick
+ */
 function renderClick() {
     return function(e){ renderTest(e.data); };
 }
 
+/**
+ * Generates an onclick function to remove a test.
+ * @return {function} function to be executed onclick
+ */
 function renderRemoveClick() {
     return function(e){ removeTest(e.data); };
 }
 
+/**
+ * Renders the sidenav list of existing tests.
+ * @param {object} tests the list of tests to be rendered in the list
+ * @return {null}
+ */
 function renderList(tests) {
     "use strict";
     var list = $('#existingtests');
     list.empty();
+    // Retrieve set of test collections by iterating over the tests
     var collections = {};
     for (var t in tests){
         var tt = tests[t];
@@ -87,12 +118,11 @@ function renderList(tests) {
             collections[collname].push(tt);
         }
     }
-    console.log(collections);
+
+    // Loop over collections, rendering each test in the collection
     for (var coll in collections) {
         var colltests = collections[coll];
-        //var colldivider = $('<li class="nav-divider"></li>');
         var colltitle = $('<li><span><i class="glyphicon glyphicon-folder-open"></i>' + "&nbsp; " + coll + '</span></li>');
-        //colldivider.appendTo(list);
         colltitle.appendTo(list);
         for (var ct = 0; ct < colltests.length; ct++) {
             var test = colltests[ct];
@@ -109,6 +139,11 @@ function renderList(tests) {
     }
 }
 
+/**
+ * Renders a details box that shows if the test has been defined in Python code.
+ * @param {object} test the test currently being rendered
+ * @return {null}
+ */
 function showTestExistsAlert(test){
     var container = $('#test-exists');
     if(test !== undefined){
@@ -124,6 +159,11 @@ function showTestExistsAlert(test){
     container.show();
 }
 
+/**
+ * Removes a given test via the REST API.
+ * @param {string} tname the name of the test
+ * @return {boolean}
+ */
 function removeTest(tname){
     if(confirm("Are you sure you want to delete test " + tname + "?")){
         clearForm();
@@ -135,11 +175,16 @@ function removeTest(tname){
             console.log("Deleted " + tname);
             getTestList();
         });
+        return true;
     } else {
         return false;
     }
 }
 
+/**
+ * Clears all the inputs on the tests form.
+ * @return {null}
+ */
 function clearForm(){
     $(':input').val("");
     $(':checkbox').prop('checked',false);
@@ -147,6 +192,11 @@ function clearForm(){
     $("#test-exists").hide();
 }
 
+/**
+ * Save a test definition to the database
+ * @param {object} form the form object from the page
+ * @return {boolean}
+ */
 function saveChanges(form) {
     var formid = $(form).attr('id');
     var jsonform = form2js(document.getElementById(formid), ".", true, undefined, true, true);
@@ -166,9 +216,15 @@ function saveChanges(form) {
         return false;
     } else {
         saveTest(formdata, url);
+        return true;
     }
 }
 
+/**
+ * Save a test definition as a new item to the database
+ * @param {object} form the form object from the page
+ * @return {boolean}
+ */
 function saveChangesNew(form) {
     var formid = $(form).attr('id');
     var jsonform = form2js(document.getElementById(formid), ".", true, undefined, true, true);
@@ -187,10 +243,18 @@ function saveChangesNew(form) {
         return false;
     } else {
         saveTest(formdata, url);
+        return true;
     }
 }
 
+/**
+ * Saves a given test via the REST API.
+ * @param {object} content the test definition document
+ * @param {string} url the REST API URL to call
+ * @return {function} function to be executed onclick
+ */
 function saveTest(content,url){
+    // Display loading gif
     var lsave = Ladda.create(document.querySelector('#save-link'));
 	lsave.start();
     $.ajax({
@@ -198,6 +262,7 @@ function saveTest(content,url){
         url : url,
         data : content
     }).success(function(){
+        // Repopulate list and clear the form
         getTestList();
         clearForm();
     }).error(function(e){
@@ -208,6 +273,11 @@ function saveTest(content,url){
     });
 }
 
+/**
+ * Search the list of groups that have failed this particular
+ * test (via the REST API).
+ * @return {boolean} whether the call was successfully made
+ */
 function testTest(){
     var groups = $('#test-results');
     groups.empty();
@@ -226,6 +296,7 @@ function testTest(){
             renderGroups(responseObj.data, groups);
         }
         $('#test-result-form').show();
+        return true;
     }).error(function(e){
         console.log(e);
         return false;
@@ -234,6 +305,12 @@ function testTest(){
     });
 }
 
+/**
+ * Render the given list of groups that have failed a particular test.
+ * @param {object} groups the list of group documents
+ * @param {object} container the parent element where the list is rendered.
+ * @return {null}
+ */
 function renderGroups(groups,container){
     "use strict";
     if(groups.groups !== undefined) {
@@ -252,6 +329,11 @@ function renderGroups(groups,container){
     }
 }
 
+/**
+ * Formats a timestamp as a string for display
+ * @param {int} timestamp to be rendered
+ * @return {string} the formatted dateTime string
+ */
 function replaceStartDate(timestamp){
     var dateObj = new Date(timestamp);
     var year = dateObj.getUTCFullYear();
@@ -266,9 +348,15 @@ function replaceStartDate(timestamp){
     return year + "-" + month + "-" + date + " " + hours + ":" + minutes;
 }
 
+/**
+ * Executes logic when the page has completed loading.
+ */
 $(document).ready(function() {
+    // Render existing tests
     getTestList();
+    // Pre-populate set of tests defined in Python code
     getDefinedTestList();
+    // Set onclick actions for form buttons
     $('#create-btn').click(function () { clearForm(); });
     $('#save-link').click(function () { saveChanges($(this).closest('form')); });
     $('#save-copy-link').click(function () { saveChangesNew($(this).closest('form')); });

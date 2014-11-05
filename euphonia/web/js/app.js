@@ -23,7 +23,7 @@ $(document).ready(function() {
     // Login, i.e. set auth_token
     $('#nav_a_login').click(function() {
         var auth_token = prompt("auth_token:");
-        $.cookie('auth_token', auth_token)
+        $.cookie('auth_token', auth_token);
         initFromAuthToken();
     });
 });
@@ -36,7 +36,7 @@ var groups = new Bloodhound({
 
 groups.initialize();
 
-suggestionTemplate = Handlebars.compile('<p><a href="/group/{{GroupId}}"><strong>{{GroupName}}</strong></a></p>');
+var suggestionTemplate = Handlebars.compile('<p><a href="/group/{{GroupId}}"><strong>{{GroupName}}</strong></a></p>');
 
 $('#groupSearch').typeahead(
     {
@@ -67,15 +67,15 @@ var initFromAuthToken = function() {
         var urlString = "/login";
         var data = {'auth_token': auth_token};
         $.post(urlString, data, function(res){
-            name = res['data']['user']
-            profileImageUrl = "https://corp.10gen.com/employees/" + name + "/profileimage";
+            var name = res.data.user;
+            var profileImageUrl = "https://corp.10gen.com/employees/" + name + "/profileimage";
             var img = document.createElement("img");
             img.src = profileImageUrl;
             img.id = "img_profile";
             $("#nav_a_login").css('padding', 0)
                              .css('margin', 0)
-                             .html(img)
+                             .html(img);
         }, "json");
     }
     return null;
-}
+};

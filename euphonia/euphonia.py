@@ -13,12 +13,13 @@ import signal
 import sys
 
 from datetime import datetime
-from models import failedtests, groups, salesforce_client, tests
+from models import groups, salesforce_client, tests
 from pprint import pprint
 
 utc = pytz.UTC
 
-class euphonia(karakuricommon.karakuriclient):
+
+class Euphonia(karakuricommon.karakuriclient):
     def __init__(self, *args, **kwargs):
         karakuricommon.karakuriclient.__init__(self, *args, **kwargs)
 
@@ -35,7 +36,6 @@ class euphonia(karakuricommon.karakuriclient):
     def start(self):
         g = groups.Groups(self.db_euphonia)
         t = tests.Tests(self.db_euphonia)
-        failedTests = failedtests.FailedTests(self.db_euphonia)
         # sf = salesforce_client.Salesforce()
 
         # TODO clean this up
@@ -51,7 +51,8 @@ class euphonia(karakuricommon.karakuriclient):
                 descriptionCache[test['name']] = test['comment']
 
         b = bottle.Bottle(autojson=False)
-        bottle.TEMPLATE_PATH.insert(0,'%s/views' % self.args['root_webdir'])
+
+        bottle.TEMPLATE_PATH.insert(0, '%s/views' % self.args['root_webdir'])
 
         def response(result, cookies=None):
             print("bah")
@@ -126,7 +127,8 @@ class euphonia(karakuricommon.karakuriclient):
             group_summary = g.get_group_summary(gid)
             if group_summary is not None:
                 return bottle.template('base_page', renderpage="group",
-                                group=group_summary, descriptionCache=descriptionCache)
+                                       group=group_summary,
+                                       descriptionCache=descriptionCache)
             else:
                 return bottle.redirect('/groups')
 
@@ -248,8 +250,9 @@ class euphonia(karakuricommon.karakuriclient):
             else:
                 task_summary = []
             return bottle.template('base_page', renderpage="tasks",
-                            ticketSummary=task_summary, issues=issue_objs,
-                            ticketWorkflows=task_workflows)
+                                   ticketSummary=task_summary,
+                                   issues=issue_objs,
+                                   ticketWorkflows=task_workflows)
 
         @b.route('/task/<task>/process')
         @tokenize
@@ -377,7 +380,7 @@ class euphonia(karakuricommon.karakuriclient):
             results = []
             if query is not None:
                 results = g.search(query)
-            return json.dumps(results)
+            return bson.json_util.dumps(results)
 
         # STATIC FILES
         @b.route('/js/<filename>')
@@ -398,11 +401,12 @@ class euphonia(karakuricommon.karakuriclient):
         b.run(host=self.args['euphonia_host'], port=self.args['euphonia_port'])
 
 if __name__ == "__main__":
+
     parser = karakuricommon.karakuriclientparser(description="A euphoric "
                                                              "experience")
     parser.add_config_argument("--euphonia-host", metavar="HOSTNAME",
                                default="localhost",
-                                help="specify the euphonia hostname (default=localhost)")
+                               help="specify the euphonia hostname (default=localhost)")
     parser.add_config_argument("--euphonia-port", metavar="PORT", type=int,
                                default=8070,
                                help="specify the euphonia port (default=8080)")
@@ -418,7 +422,7 @@ if __name__ == "__main__":
                                help="specify a PID file "
                                     "(default=/tmp/euphonia.pid)")
     parser.add_config_argument("--root-webdir", metavar="DIRECTORY",
-                               default=".",
+                               default="%s/web" % os.getcwd(),
                                help="specify the root web directory")
     parser.add_argument("command", choices=["start", "stop", "restart"],
                         help="<-- the available actions, choose one")
@@ -473,7 +477,7 @@ if __name__ == "__main__":
     print("Starting...")
 
     with context:
-        e = euphonia(args)
+        e = Euphonia(args)
         # redirect stderr and stdout
         # sys.__stderr__ = PipeToLogger(k.logger)
         # sys.__stdout__ = PipeToLogger(k.logger)
