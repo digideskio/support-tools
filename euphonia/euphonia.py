@@ -14,7 +14,6 @@ import sys
 
 from datetime import datetime
 from models import groups, salesforce_client, tests
-from pprint import pprint
 
 utc = pytz.UTC
 
@@ -55,9 +54,6 @@ class Euphonia(karakuricommon.karakuriclient):
         bottle.TEMPLATE_PATH.insert(0, '%s/views' % self.args['root_webdir'])
 
         def response(result, cookies=None):
-            print("bah")
-            pprint(result)
-            print("meh")
             self.logger.debug("response(%s)", result)
             if result['status'] == "success":
                 if cookies is not None:

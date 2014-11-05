@@ -21,13 +21,24 @@ class karakuri(karakuricommon.karakuribase):
     def __init__(self, *args, **kwargs):
         karakuricommon.karakuribase.__init__(self, *args, **kwargs)
 
+        # This could represent JIRA, Salesforce, what have you...
         self.issuer = None
 
-        # By default limit is infinite
-        if self.args['limit'] is None:
-            self.limit = sys.maxint
+        # By default limits are infinite
+        if self.args['global_limit'] is None:
+            self.global_limit = sys.maxint
         else:
-            self.limit = self.args['limit']
+            self.global_limit = self.args['global_limit']
+
+        if self.args['user_limit'] is None:
+            self.user_limit = sys.maxint
+        else:
+            self.user_limit = self.args['user_limit']
+
+        if self.args['company_limit'] is None:
+            self.company_limit = sys.maxint
+        else:
+            self.company_limit = self.args['company_limit']
 
         # Initialize dbs and collections
         try:
@@ -42,23 +53,33 @@ class karakuri(karakuricommon.karakuribase):
         self.coll_workflows = self.mongo.karakuri.workflows
         self.coll_log = self.mongo.karakuri.log
         self.coll_queue = self.mongo.karakuri.queue
-        # For authentication and auditing
         self.coll_users = self.mongo.karakuri.users
 
-        # Initialize throttle
-        self.throttle = {}
+        # Initialize global, user and company throttles
+        self.throttle = {'global': 0,
+                         'users': {},
+                         'companies': {}}
 
     def _amiThrottling(self, **kwargs):
-        """ Have we reached the daily processing limit? Returns bool """
+        """ Have we reached a processing limit? Return bool """
         self.logger.debug("_amiThrottling()")
         self.throttleRefresh(**kwargs)
-        return self.throttle['daily'] >= self.limit
+        if kwargs['approvedBy'] not in self.throttle['users']:
+            self.throttle['users'][kwargs['approvedBy']] = 0
+        if kwargs['company'] not in self.throttle['companies']:
+            self.throttle['companies'][kwargs['company']] = 0
+        return self.throttle['global'] >= self.global_limit or\
+            self.throttle['users'][kwargs['approvedBy']] >= self.user_limit or\
+            self.throttle['companies'][kwargs['company']] >= self.company_limit
 
     def approveTask(self, tid, **kwargs):
         """ Approve the task for processing """
         self.logger.debug("approveTask(%s)", tid)
-        updoc = {"$set": {'approved': True}}
-        return self.updateTask(tid, updoc, **kwargs)
+        updoc = {"$set": {'approved': True,
+                          'approvedBy': kwargs['userDoc']['user']}}
+        res = self.updateTask(tid, updoc, **kwargs)
+        self._log(tid, 'approve', res['ok'], **kwargs)
+        return res
 
     def buildValidateQuery(self, workflowNameORworkflow, iid=None, **kwargs):
         """ Return a MongoDB query that accounts for the workflow prerequisites
@@ -124,13 +145,14 @@ class karakuri(karakuricommon.karakuribase):
                 match['$and'].append({'karakuri.workflows_performed':
                                      {"$elemMatch": {'name': prereq['name'],
                                                      'lid': {"$lte": start}}}})
-
         return {'ok': True, 'payload': match}
 
     def createIssue(self, fields, **kwargs):
         """ Create a new issue """
         self.logger.debug("createIssue(%s)", fields)
+        # TODO implement logic for multiple issuers
         fields = SupportIssue(fields).getJIRAFields()
+        # TODO propagate **kwargs to issuer methods
         return self.issuer.createIssue(fields)
 
     def createWorkflow(self, fields, **kwargs):
@@ -149,6 +171,7 @@ class karakuri(karakuricommon.karakuribase):
         try:
             self.coll_workflows.insert(fields)
         except pymongo.errors.PyMongoError as e:
+            self.logger.exception(e)
             return {'ok': False, 'payload': e}
         return {'ok': True, 'payload': fields}
 
@@ -164,8 +187,10 @@ class karakuri(karakuricommon.karakuribase):
     def disapproveTask(self, tid, **kwargs):
         """ Disapprove the task for processing """
         self.logger.debug("disapproveTask(%s)", tid)
-        updoc = {"$set": {'approved': False}}
-        return self.updateTask(tid, updoc, **kwargs)
+        updoc = {"$set": {'approved': False}, "$unset": {'approvedBy': ""}}
+        res = self.updateTask(tid, updoc, **kwargs)
+        self._log(tid, 'disapprove', res['ok'], **kwargs)
+        return res
 
     def find_and_modify(self, collection, match, updoc):
         """ Wrapper for find_and_modify that handles exceptions """
@@ -222,7 +247,6 @@ class karakuri(karakuricommon.karakuribase):
     def findTasks(self, **kwargs):
         """ Find and queue new tasks """
         self.logger.debug("findTasks()")
-
         res = self.getListOfWorkflows(**kwargs)
         if not res['ok']:
             return res
@@ -233,7 +257,6 @@ class karakuri(karakuricommon.karakuribase):
             res = self.findWorkflowTasks(workflow, **kwargs)
             if not res['ok']:
                 return res
-
             tasks += res['payload']
         return {'ok': True, 'payload': tasks}
 
@@ -275,6 +298,7 @@ class karakuri(karakuricommon.karakuribase):
             issue.fromDoc(i)
 
             # we only support JIRA at the moment
+            # TODO logic for multiple issuers
             if not issue.hasJIRA():
                 self.logger.warning("Skipping unsupported ticket type!")
                 continue
@@ -284,10 +308,12 @@ class karakuri(karakuricommon.karakuribase):
                 self.logger.info("Skipping %s as it is not active" % issue.key)
                 continue
 
-            res = self.queueTask(issue.id, issue.key, workflow['name'], **kwargs)
+            tid = bson.ObjectId()
+            res = self.queueTask(tid, issue.id, issue.key, issue.company,
+                                 workflow['name'], **kwargs)
+            self._log(tid, "queue", res['ok'], **kwargs)
             if not res['ok']:
                 return res
-
             if res['payload'] is not None:
                 tasks.append(res['payload'])
         return {'ok': True, 'payload': tasks}
@@ -296,14 +322,17 @@ class karakuri(karakuricommon.karakuribase):
         """ Perform the given action for the specified tasks """
         self.logger.debug("forListOfTaskIds(%s,%s)", action.__name__, tids)
         tasks = []
+        messages = []
         for tid in tids:
             res = action(tid, **kwargs)
             if not res['ok']:
-                return res
-
-            if res['payload'] is not None:
-                tasks.append(res['payload'])
-        return {'ok': True, 'payload': tasks}
+                self.logger.warning(res['payload'])
+                messages.append(res['payload'])
+            else:
+                if res['payload'] is not None:
+                    tasks.append(res['payload'])
+        # TODO return 'ok': False when?
+        return {'ok': True, 'payload': tasks, 'messages': messages}
 
     def getIssue(self, iid, **kwargs):
         """ Return issue for the given iid """
@@ -332,7 +361,7 @@ class karakuri(karakuricommon.karakuribase):
             try:
                 id = bson.ObjectId(id)
             except Exception as e:
-                self.logger.error(e)
+                self.logger.exception(e)
                 return {'ok': False, 'payload': e}
         return {'ok': True, 'payload': id}
 
@@ -343,7 +372,8 @@ class karakuri(karakuricommon.karakuribase):
             match['approved'] = True
         return self.getListOfTaskIds(match, **kwargs)
 
-    def getListOfReadyWorkflowTaskIds(self, name, approvedOnly=False, **kwargs):
+    def getListOfReadyWorkflowTaskIds(self, name, approvedOnly=False,
+                                      **kwargs):
         self.logger.debug("getListOfReadyWorkflowTaskIds(%s,%s)", name,
                           approvedOnly)
         match = {'active': True, 'done': False, 'inProg': False,
@@ -423,7 +453,7 @@ class karakuri(karakuricommon.karakuribase):
             return {'ok': False, 'payload': message}
         return {'ok': True, 'payload': task}
 
-    def _getTemplateValue(self, var, issue):
+    def _getTemplateValue(self, var, issue, **kwargs):
         """ Return a value for the given template variable. A finite number of
         such template variables are supported and defined below """
         self.logger.debug("_getTemplateValue(%s,%s)", var, issue)
@@ -490,36 +520,48 @@ class karakuri(karakuricommon.karakuribase):
         try:
             res = bson.json_util.loads(string)
         except Exception as e:
+            self.logger.exception(e)
             return {'ok': False, 'payload': e}
         return {'ok': True, 'payload': res}
 
-    def _log(self, iid, workflowName, action, success):
+    def _log(self, tid, action, success, **kwargs):
         """ Log to karakuri.log <-- that's a collection! """
-        self.logger.debug("log(%s,%s,%s,%s)", iid, workflowName, action,
-                          success)
-
-        res = self.getObjectId(iid)
+        self.logger.debug("log(%s,%s,%s)", tid, action, success)
+        res = self.getObjectId(tid)
         if not res['ok']:
             return None
-        iid = res['payload']
+        tid = res['payload']
+
+        res = self.getTask(tid)
+        if not res['ok']:
+            return None
+        task = res['payload']
+
+        iid = task['iid']
+        workflow = task['workflow']
+        company = task['company']
 
         lid = bson.ObjectId()
 
-        log = {'_id': lid, 'iid': iid, 'workflow': workflowName,
-               'action': action, 'p': success}
+        if 'userDoc' in kwargs:
+            user = kwargs['userDoc']['user']
+        else:
+            user = None
+
+        log = {'_id': lid, 'tid': tid, 'iid': iid, 'workflow': workflow,
+               'action': action, 'p': success, 'user': user,
+               'company': company}
 
         try:
             self.coll_log.insert(log)
         except pymongo.errors.PyMongoError as e:
             self.logger.exception(e)
             # TODO write to file on disk instead
-
         return lid
 
     def _processAction(self, action, issue, **kwargs):
         """ Do it like they do on the discovery channel """
         self.logger.debug("_processAction(%s,%s)", action['name'], issue)
-
         # action must be defined for this issuing system
         if not hasattr(self.issuer, action['name']):
             message = "'%s' is not a supported action" % action['name']
@@ -536,7 +578,7 @@ class karakuri(karakuricommon.karakuribase):
             # Use a set to remove repeats
             matches = set(pattern.findall(arg))
             for match in matches:
-                res = self._getTemplateValue(match, issue)
+                res = self._getTemplateValue(match, issue, **kwargs)
                 if not res['ok']:
                     return res
                 val = res['payload']
@@ -552,21 +594,16 @@ class karakuri(karakuricommon.karakuribase):
         if self.live:
             method = getattr(self.issuer, action['name'])
             # expand list to function arguments
+            # TODO extend **kwargs to issuer actions and pass it here
             res = method(*newargs)
         else:
             # simulate success
             res = {'ok': True, 'payload': True}
-
         return res
 
     def processTask(self, tid, **kwargs):
         """ Process the specified task """
         self.logger.debug("processTask(%s)", tid)
-        if self._amiThrottling(**kwargs):
-            message = "processing limit reached, skipping %s" % tid
-            self.logger.warning(message)
-            return {'ok': False, 'payload': message}
-
         res = self.getObjectId(tid)
         if not res['ok']:
             return res
@@ -576,6 +613,12 @@ class karakuri(karakuricommon.karakuribase):
         if not res['ok']:
             return res
         task = res['payload']
+
+        if self._amiThrottling(approvedBy=task['approvedBy'],
+                               company=task['company'], **kwargs):
+            message = "processing limit reached, skipping %s" % tid
+            self.logger.warning(message)
+            return {'ok': False, 'payload': message}
 
         # validate that this is still worth running
         res = self.validateTask(tid, **kwargs)
@@ -600,9 +643,24 @@ class karakuri(karakuricommon.karakuribase):
             self.logger.warning(message)
             return {'ok': False, 'payload': message}
 
-        res = self.processWorkflow(task['iid'], task['workflow'], **kwargs)
+        res = self.processWorkflow(tid, task['iid'], task['workflow'],
+                                   **kwargs)
+        lid = self._log(tid, 'process', res['ok'], **kwargs)
         if not res['ok']:
             return res
+
+        if self.live:
+            match = {'_id': task['iid']}
+            updoc = {'$push': {'karakuri.workflows_performed':
+                               {'name': task['workflow'], 'lid': lid}}}
+            res = self.find_and_modify_issue(match, updoc)
+            if not res['ok'] or res['payload'] is None:
+                message = "unable to record workflow '%s' in issue '%s'"\
+                    % (task['workflow'], task['iid'])
+                self.logger.exception(message)
+                self._log(tid, 'record', False, **kwargs)
+                return {'ok': False, 'payload': message}
+            self._log(tid, 'record', True, **kwargs)
 
         match = {'_id': tid}
         updoc = {"$set": {'done': True, 'inProg': False}}
@@ -615,66 +673,45 @@ class karakuri(karakuricommon.karakuribase):
             message = "unable to take task %s out of progress" % tid
             self.logger.exception(message)
             return {'ok': False, 'payload': message}
-
         return {'ok': True, 'payload': task}
 
-    def processWorkflow(self, iid, workflowName, **kwargs):
+    def processWorkflow(self, tid, iid, workflowName, **kwargs):
         """ Perform the specified workflow for the given issue """
         self.logger.info("processWorkflow(%s,%s)", iid, workflowName)
-
         res = self.getObjectId(iid)
         if not res['ok']:
-            self._log(iid, workflowName, 'process', False)
             return res
         iid = res['payload']
 
         res = self.getSupportIssue(iid, **kwargs)
         if not res['ok']:
-            self._log(iid, workflowName, 'process', False)
             return res
         issue = res['payload']
 
         res = self.getWorkflow(workflowName, **kwargs)
         if not res['ok']:
-            self._log(iid, workflowName, 'process', False)
             return res
         workflow = res['payload']
 
         if workflow is None:
             message = "unable to get workflow '%s'" % workflowName
             self.logger.exception(message)
-            self._log(iid, workflowName, 'process', False)
             return {'ok': False, 'payload': message}
 
-        for action in workflow['actions']:
-            # first argument is issuer-dependent
-            # JIRA takes a key
-            if 'args' in action:
-                action['args'].insert(0, issue.key)
-            else:
-                action['args'] = [issue.key]
+        if 'actions' in workflow:
+            for action in workflow['actions']:
+                # first argument is issuer-dependent
+                # JIRA takes a key
+                if 'args' in action:
+                    action['args'].insert(0, issue.key)
+                else:
+                    action['args'] = [issue.key]
 
-            res = self._processAction(action, issue, **kwargs)
-            self._log(iid, workflowName, action['name'], res['ok'])
+                res = self._processAction(action, issue, **kwargs)
+                self._log(tid, action['name'], res['ok'], **kwargs)
 
-            if not res['ok']:
-                lid = self._log(iid, workflowName, 'process', False)
-                return res
-
-        lid = self._log(iid, workflowName, 'process', True)
-        if self.live:
-            match = {'_id': iid}
-            updoc = {'$push': {'karakuri.workflows_performed':
-                               {'name': workflowName, 'lid': lid}}}
-            res = self.find_and_modify_issue(match, updoc)
-            if not res['ok'] or res['payload'] is None:
-                message = "unable to record workflow '%s' in issue '%s'"\
-                    % (workflowName, iid)
-                self.logger.exception(message)
-                self._log(iid, workflowName, 'record', False)
-                return {'ok': False, 'payload': message}
-
-            self._log(iid, workflowName, 'record', True)
+                if not res['ok']:
+                    return res
         return {'ok': True, 'payload': None}
 
     def pruneTask(self, tid, **kwargs):
@@ -689,9 +726,10 @@ class karakuri(karakuricommon.karakuribase):
             res['payload'] = None
         return res
 
-    def queueTask(self, iid, key, workflowName, **kwargs):
+    def queueTask(self, tid, iid, key, company, workflowName, **kwargs):
         """ Create a task for the given issue and workflow """
-        self.logger.info("queueTask(%s,%s,%s)", iid, key, workflowName)
+        self.logger.info("queueTask(%s,%s,%s,%s,%s)", tid, iid, key, company,
+                         workflowName)
         res = self.getObjectId(iid)
         if not res['ok']:
             return res
@@ -703,30 +741,29 @@ class karakuri(karakuricommon.karakuribase):
         if self.coll_queue.find(match).count() != 0:
             self.logger.warning("workflow '%s' already queued for issue '%s', "
                                 "skipping", workflowName, iid)
-            self._log(iid, workflowName, 'queue', False)
             return {'ok': True, 'payload': None}
 
         now = datetime.utcnow()
-        task = {'iid': iid, 'key': key, 'workflow': workflowName,
-                'approved': False, 'done': False, 'inProg': False, 't': now,
-                'start': now, 'active': True}
+
+        task = {'_id': tid, 'iid': iid, 'key': key, 'company': company,
+                'workflow': workflowName, 'approved': False, 'done': False,
+                'inProg': False, 't': now, 'start': now, 'active': True,
+                'createdBy': kwargs['userDoc']['user']}
 
         try:
             self.coll_queue.insert(task)
         except pymongo.errors.PyMongoError as e:
             self.logger.exception(e)
-            self._log(iid, workflowName, 'queue', False)
             return {'ok': False, 'payload': e}
-
-        self._log(iid, workflowName, 'queue', True)
-
         return {'ok': True, 'payload': task}
 
     def removeTask(self, tid, **kwargs):
         """ Remove the task from the queue """
         self.logger.debug("removeTask(%s)", tid)
         updoc = {"$set": {'active': False}}
-        return self.updateTask(tid, updoc, **kwargs)
+        res = self.updateTask(tid, updoc, **kwargs)
+        self._log(tid, 'remove', res['ok'], **kwargs)
+        return res
 
     def setIssuer(self, issuer):
         """ Set issue tracking system """
@@ -760,25 +797,64 @@ class karakuri(karakuricommon.karakuribase):
             wakeDate = now + diff
 
         updoc = {"$set": {'start': wakeDate}}
-        return self.updateTask(tid, updoc, **kwargs)
+        res = self.updateTask(tid, updoc, **kwargs)
+        self._log(tid, 'sleep', res['ok'], **kwargs)
+        return res
 
     def throttleRefresh(self, **kwargs):
         oneDayAgo = datetime.utcnow()+timedelta(days=-1)
-        # tickets processed successfully in the last day
+        # tasks processed successfully in the last day
         match = {"_id": {"$gt": bson.ObjectId.from_datetime(oneDayAgo)},
                  "action": "process", "p": True}
+        proj = {'tid': 1}
+
         try:
-            self.throttle['daily'] = self.coll_log.find(match).count()
+            curr_docs = self.coll_log.find(match, proj)
         except pymongo.errors.PyMongoError as e:
             self.logger.exception(e)
-            raise e
-        self.logger.info("daily throttle set to %i",
-                         self.throttle['daily'])
+            return {'ok': False, 'payload': e}
+
+        processedTids = [doc['tid'] for doc in curr_docs]
+        self.throttle['global'] = len(processedTids)
+        self.logger.info("global throttle set to %i", self.throttle['global'])
+
+        # determine which users approved these tasks
+        # NOTE it's possible to overcount approvals here
+        match = {"$match": {"tid": {"$in": processedTids}, "action": "approve",
+                 "p": True}}
+        group = {"$group": {"_id": "$user", "count": {"$sum": 1}}}
+        project = {"$project": {"user": "$_id", "count": "$count", "_id": 0}}
+
+        try:
+            res = self.coll_log.aggregate([match, group, project])
+        except pymongo.errors.PyMongoError as e:
+            self.logger.exception(e)
+            return {'ok': False, 'payload': e}
+
+        if res['ok']:
+            users = res['result']
+            for user in users:
+                self.throttle['users'][user['user']] = user['count']
+                self.logger.info("throttle for user '%s' set to %i",
+                                 user['user'], user['count'])
+
+        # tasks processed for this company in the last day
+        if 'company' in kwargs and kwargs['company'] is not None:
+            company = kwargs['company']
+            match = {"_id": {"$gt": bson.ObjectId.from_datetime(oneDayAgo)},
+                     "action": "process", "p": True, 'company': company}
+            try:
+                self.throttle['companies'][company] = self.coll_log.\
+                    find(match).count()
+            except pymongo.errors.PyMongoError as e:
+                self.logger.exception(e)
+                raise e
+            self.logger.info("throttle for company '%s' set to %i", company,
+                             self.throttle['companies'][company])
 
     def updateIssue(self, iid, updoc, **kwargs):
         """ They see me rollin' """
         self.logger.debug("updateIssue(%s,%s)", iid, updoc)
-
         res = self.getObjectId(iid)
         if not res['ok']:
             return res
@@ -789,7 +865,6 @@ class karakuri(karakuricommon.karakuribase):
     def updateTask(self, tid, updoc, **kwargs):
         """ They hatin' """
         self.logger.debug("updateTask(%s,%s)", tid, updoc)
-
         res = self.getObjectId(tid)
         if not res['ok']:
             return res
@@ -800,7 +875,6 @@ class karakuri(karakuricommon.karakuribase):
     def updateWorkflow(self, name, fields, **kwargs):
         """ Update an existing workflow """
         self.logger.debug("updateWorkflow(%s,%s)", name, fields)
-
         if "$set" not in fields:
             updoc = {"$set": fields}
         else:
@@ -826,8 +900,7 @@ class karakuri(karakuricommon.karakuribase):
         """ Validate the task, i.e. that the issue satisfies the requirements
         of the workflow """
         self.logger.debug("validateTask(%s)", tid)
-
-        res = self.getTask(tid)
+        res = self.getTask(tid, **kwargs)
         if not res['ok']:
             return res
         task = res['payload']
@@ -851,8 +924,7 @@ class karakuri(karakuricommon.karakuribase):
         except pymongo.errors.PyMongoError as e:
             self.logger.exception(e)
             return {'ok': False, 'payload': e}
-
-        self._log(iid, workflowName, "validate", res)
+        self._log(tid, "validate", res, **kwargs)
 
         if res:
             self.logger.debug("task validated!")
@@ -878,11 +950,13 @@ class karakuri(karakuricommon.karakuribase):
         updoc = {"$unset": {'karakuri.sleep': ""}}
         return self.updateIssue(iid, updoc, **kwargs)
 
-    def wakeTask(self, tid):
+    def wakeTask(self, tid, **kwargs):
         """ Wake the task, i.e. mark it ready to go """
         self.logger.debug("wakeTask(%s)", tid)
         updoc = {"$set": {'start': datetime.utcnow()}}
-        return self.updateTask(tid, updoc, **kwargs)
+        res = self.updateTask(tid, updoc, **kwargs)
+        self._log(tid, 'sleep', res['ok'], **kwargs)
+        return res
 
     def start(self):
         """ Start the RESTful interface """
@@ -913,7 +987,7 @@ class karakuri(karakuricommon.karakuribase):
                 if not doc:
                     bottle.abort(401)
                 else:
-                    kwargs['user'] = doc
+                    kwargs['userDoc'] = doc
                     return func(*args, **kwargs)
             return wrapped
 
@@ -1012,7 +1086,7 @@ class karakuri(karakuricommon.karakuribase):
         def queue_find(**kwargs):
             """ Find and queue new tasks """
             self.logger.debug("queue_find()")
-            res = self.findTasks()
+            res = self.findTasks(**kwargs)
             if res['ok']:
                 return success({'tasks': res['payload']})
             return error(res['payload'])
@@ -1024,7 +1098,7 @@ class karakuri(karakuricommon.karakuribase):
             """ Return a list of all active tasks """
             self.logger.debug("queue_list()")
             match = {'active': True}
-            res = self.getListOfTasks(match)
+            res = self.getListOfTasks(match, **kwargs)
             if res['ok']:
                 return success({'tasks': res['payload']})
             return error(res['payload'])
@@ -1057,6 +1131,7 @@ class karakuri(karakuricommon.karakuribase):
             if res['ok']:
                 res = self.forListOfTaskIds(method, res['payload'], **kwargs)
                 if res['ok']:
+                    # TODO res may contain 'messages' as well from failed tasks
                     return success({'tasks': res['payload']})
             return error(res['payload'])
 
@@ -1186,7 +1261,7 @@ class karakuri(karakuricommon.karakuribase):
                 return res
             fields = res['payload']
 
-            res = self.createWorkflow(fields)
+            res = self.createWorkflow(fields, **kwargs)
             if res['ok']:
                 return success({'workflow': res['payload']})
             return error(res['payload'])
@@ -1196,7 +1271,7 @@ class karakuri(karakuricommon.karakuribase):
         def workflow_delete(name, **kwargs):
             """ Delete the workflow """
             self.logger.debug("workflowdelete(%s)", name)
-            res = self.deleteWorkflow(name)
+            res = self.deleteWorkflow(name, **kwargs)
             if res['ok']:
                 return success({'workflow': res['payload']})
             return error(res['payload'])
@@ -1211,7 +1286,7 @@ class karakuri(karakuricommon.karakuribase):
         @authenticated
         def workflow_find(name, **kwargs):
             """ Find and queue new tasks for the workflow """
-            res = self.findWorkflowTasks(name)
+            res = self.findWorkflowTasks(name, **kwargs)
             if res['ok']:
                 return success({'tasks': res['payload']})
             return error(res['payload'])
@@ -1220,7 +1295,7 @@ class karakuri(karakuricommon.karakuribase):
         @authenticated
         def workflow_get(name, **kwargs):
             """ Return the workflow """
-            res = self.getWorkflow(name)
+            res = self.getWorkflow(name, **kwargs)
             if res['ok']:
                 return success({'workflow': res['payload']})
             return error(res['payload'])
@@ -1230,7 +1305,7 @@ class karakuri(karakuricommon.karakuribase):
         def workflow_list(**kwargs):
             """ Return a list of workflows """
             self.logger.debug("workflowlist()")
-            res = self.getListOfWorkflows()
+            res = self.getListOfWorkflows(**kwargs)
             if res['ok']:
                 return success({'workflows': res['payload']})
             return error(res['payload'])
@@ -1263,6 +1338,7 @@ class karakuri(karakuricommon.karakuribase):
             if res['ok']:
                 res = self.forListOfTaskIds(method, res['payload'], **kwargs)
                 if res['ok']:
+                    # TODO res may contain 'messages' as well from failed tasks
                     return success({'tasks': res['payload']})
             return error(res['payload'])
 
@@ -1286,11 +1362,11 @@ class karakuri(karakuricommon.karakuribase):
                 return res
             fields = res['payload']
 
-            res = self.validateWorkflow(fields)
+            res = self.validateWorkflow(fields, **kwargs)
             if not res['ok']:
                 return error(res['payload'])
 
-            res = self.findWorkflowIssues(fields)
+            res = self.findWorkflowIssues(fields, **kwargs)
             if res['ok']:
                 return success({'issues': res['payload']})
             return error(res['payload'])
@@ -1306,7 +1382,7 @@ class karakuri(karakuricommon.karakuribase):
                 return res
             fields = res['payload']
 
-            res = self.updateWorkflow(name, fields)
+            res = self.updateWorkflow(name, fields, **kwargs)
             if res['ok']:
                 return success({'workflow': res['payload']})
             return error(res['payload'])
@@ -1324,8 +1400,6 @@ if __name__ == "__main__":
     parser = karakuricommon.karakuriparser(description="An automaton: http://e"
                                                        "n.wikipedia.org/wiki/K"
                                                        "arakuri_ningy%C5%8D")
-    parser.add_config_argument("--limit", metavar="NUMBER", type=int,
-                               help="limit process'ing to NUMBER tasks")
     parser.add_config_argument("--mongo-host", metavar="HOSTNAME",
                                default="localhost",
                                help="specify the MongoDB hostname (default="
@@ -1345,6 +1419,14 @@ if __name__ == "__main__":
                                type=int,
                                help="the RESTful interface port "
                                     "(default=8080)")
+    parser.add_config_argument("--global-limit", metavar="NUMBER", type=int,
+                               help="limit global process'ing to NUMBER tasks")
+    parser.add_config_argument("--user-limit", metavar="NUMBER", type=int,
+                               help="limit process'ing to NUMBER tasks per "
+                                    "approving user")
+    parser.add_config_argument("--company-limit", metavar="NUMBER", type=int,
+                               help="limit process'ing to NUMBER tasks per "
+                                    "customer")
     parser.add_config_argument("--access-control-allowed-origins",
                                metavar="HOSTPORT",
                                help="comma separated list of origins allowed "
@@ -1372,6 +1454,8 @@ if __name__ == "__main__":
 
     k = karakuri(args)
 
+    # TODO logic to choose issuer; i suppose a new cli arg will be warranted
+    # then too
     # Initialize JIRA++
     jirapp = jirapp(args.jira_username, args.jira_password, k.mongo)
     jirapp.setLive(k.live)
