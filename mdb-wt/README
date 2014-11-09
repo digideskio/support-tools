@@ -2,7 +2,7 @@ NAME
     mdb-wt - simple tool to dump parts of mongo+wt databases
 
 SYNOPSIS
-    python mdb-wt.py -p[e[bB]] [offset]
+    python mdb-wt.py -p[e[bB]] file [offset]
 
 DESCRIPTION
 
