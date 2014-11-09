@@ -125,14 +125,16 @@ page (which happens to be the root):
     0001404b:   key desc=0x9(short) sz=2 key=pack(982)
     0001404e:   val desc=0x30 sz=7 addr=18,1,0x854a24ed
 
-Like leaf node pages this page contains a sequence of key/value pairs:
+Like leaf node pages this page contains a sequence of key/value
+pairs. For interior nodes:
 
 * The key is a record id that is less than or equal to the first key
   for the child page and greater than the last key on the previous
   child page. (**TBD**: check this)
 
-* The value is an address token (**TBD** check terminology) referencing
-  the child page, stored as a triple of packed ints:
+* The value is an _address token_ <a name="address-token"></a>
+  (**TBD** check terminology) referencing the child page, stored as a
+  triple of packed ints:
     * first element appears to be page offset / 4KB - 1 (**TBD** check
       this)
     * second element appears to be page length / 4KB (**TBD** check
@@ -160,6 +162,8 @@ single extent starting at offset 0x1000 (4KB) of size 0x14000 (20KB).
 **TBD** unused extents?
 
 **TBD** can this be larger than 4KB?
+
+**TBD** file size limits?
 
 ### <a name="1.2"></a> 1.2 The _id index
 
@@ -193,7 +197,7 @@ btree leaf node:
     00001076:     EOO
     ...
 
-The leaf node contains a sequence of key-value pairs, where
+The leaf node contains a sequence of key/value pairs (844/2 pairs in this case), where:
 
 * The key is a BSON document containing fields whose names are the
   empty string, and whose values are the fields of the key. In this
@@ -229,13 +233,14 @@ This is a list of key/value pairs where
   key is less than or equal to the first key for the child page and
   greater than the last key on the previous child page. (**TBD**:
   check this)
-* As with collection internal nodes, the value is an address token
-  (**TBD** check terminology) referencing the child page.
+* As with collection internal nodes, the value is an [address
+  token](#address-token) (**TBD** check terminology) referencing the
+  child page.
 
 ### <a name="1.3"></a> 1.3 Another index example
 
-[This example](#example1) created a second index with key {hello:1,
-"here's a number field":1}. In this example this index happens to be
+[Our example](#example1) created a second index with key {hello:1,
+"here's a number field":1}. In this case this index happens to be
 stored in the index-4-\*.wt file. Here's a btree leaf node for that
 index:
 
