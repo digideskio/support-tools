@@ -11,6 +11,7 @@ you spot anything incorrect or questionable.
 list-style: none;
 }
 </style>
+
 * 1 [Row-store btree mode](#1)
     * 1.1 [Collection data](#1.1)
         * 1.1.1 [Collection btree leaf node page](#1.1.1)
@@ -27,6 +28,7 @@ list-style: none;
 * 3 [Metadata files](#3)
 * 4 [Durability](#4)
 * 5 [Checksums and compression](#5)
+
 </div>
 
 ## <a name="1"></a> 1 Row-store btree mode
