@@ -133,13 +133,10 @@ Like leaf node pages this page contains a sequence of key/value pairs:
 
 * The value is an address token (**TBD** check terminology) referencing
   the child page, stored as a triple of packed ints:
-
     * first element appears to be page offset / 4KB - 1 (**TBD** check
       this)
-
     * second element appears to be page length / 4KB (**TBD** check
       this)
-
     * third element is checksum of referenced page
 
 **TBD** is the root always last, or is it identified in some other way?
@@ -201,7 +198,6 @@ The leaf node contains a sequence of key-value pairs, where
 * The key is a BSON document containing fields whose names are the
   empty string, and whose values are the fields of the key. In this
   case the _id index has keys with only one value, an objectid.
-
 * The value is an 8-byte record id, which are the keys in the
   collection btree. (**TBD** exact format)
 
@@ -233,7 +229,6 @@ This is a list of key/value pairs where
   key is less than or equal to the first key for the child page and
   greater than the last key on the previous child page. (**TBD**:
   check this)
-
 * As with collection internal nodes, the value is an address token
   (**TBD** check terminology) referencing the child page.
 
@@ -271,7 +266,6 @@ concatenation of
 
 * a BSON document containing fields whose names are the empty string,
   and whose values are the fields of the key, and
-
 * an 8-byte record id (**TBD exact format**)
 
 Thus, whereas the _id index stores the record id as the value of a
