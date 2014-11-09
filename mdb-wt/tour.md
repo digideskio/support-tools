@@ -16,7 +16,7 @@ used by MongoDB.
 &emsp;&emsp;&emsp;&emsp;&emsp;&emsp;1.4.6 [Update](#1.4.6)  
 &emsp;&emsp;&emsp;&emsp;&emsp;&emsp;1.4.7 [Delete](#1.4.7)  
 &emsp;&emsp;2 [LSM mode](#2)  
-&emsp;&emsp;3 [<a name="metadata-files"></a> Metadata files](#3)  
+&emsp;&emsp;3 [Metadata files](#3)  
 &emsp;&emsp;4 [Durability](#4)  
 &emsp;&emsp;5 [Checksums and compression](#5)  
 
@@ -297,7 +297,9 @@ key?
 
 ## <a name="2"></a> 2 LSM mode
 
-## <a name="3"></a> 3 <a name="metadata-files"></a> Metadata files
+## <a name="3"></a> 3 Metadata files
+
+<a name="metadata-files"></a>
 
     _mdb_catalog.wt    TBD
     sizeStorer.wt      TBD
