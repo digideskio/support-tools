@@ -5,31 +5,22 @@ MongoDB. **NOTE**: this is a work-in-progress and probably contains
 errors as I'm writing this as I learn about WT. Please contact me if
 you spot anything incorrect or questionable.
 
-<div id="toc">
-<style>
-#toc ul {
-list-style: none;
-}
-</style>
-
-* 1 [Row-store btree mode](#1)
-    * 1.1 [Collection data](#1.1)
-        * 1.1.1 [Collection btree leaf node page](#1.1.1)
-        * 1.1.2 [Collection btree interior node page](#1.1.2)
-        * 1.1.3 [Block manager page and extent list](#1.1.3)
-    * 1.2 [The _id index](#1.2)
-        * 1.2.4 [_id index btree leaf node page](#1.2.4)
-        * 1.2.5 [_id index interior node page](#1.2.5)
-    * 1.3 [Another index example](#1.3)
-    * 1.4 [Data updates](#1.4)
-        * 1.4.6 [Update](#1.4.6)
-        * 1.4.7 [Delete](#1.4.7)
-* 2 [LSM mode](#2)
-* 3 [Metadata files](#3)
-* 4 [Durability](#4)
-* 5 [Checksums and compression](#5)
-
-</div>
+&emsp;&emsp;1 [Row-store btree mode](#1)  
+&emsp;&emsp;&emsp;&emsp;1.1 [Collection data](#1.1)  
+&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;1.1.1 [Collection btree leaf node page](#1.1.1)  
+&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;1.1.2 [Collection btree interior node page](#1.1.2)  
+&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;1.1.3 [Block manager page and extent list](#1.1.3)  
+&emsp;&emsp;&emsp;&emsp;1.2 [The _id index](#1.2)  
+&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;1.2.4 [_id index btree leaf node page](#1.2.4)  
+&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;1.2.5 [_id index interior node page](#1.2.5)  
+&emsp;&emsp;&emsp;&emsp;1.3 [Another index example](#1.3)  
+&emsp;&emsp;&emsp;&emsp;1.4 [Data updates](#1.4)  
+&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;1.4.6 [Update](#1.4.6)  
+&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;1.4.7 [Delete](#1.4.7)  
+&emsp;&emsp;2 [LSM mode](#2)  
+&emsp;&emsp;3 [Metadata files](#3)  
+&emsp;&emsp;4 [Durability](#4)  
+&emsp;&emsp;5 [Checksums and compression](#5)  
 
 ## <a name="1"></a> 1 Row-store btree mode
 
