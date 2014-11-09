@@ -230,7 +230,7 @@ def print_journal(fn):
         section_at = at + 20
         footer_at = at + l - 32
         ok = 'OK'
-        if fid!=fileid: fid = 'BAD'
+        if fid!=fileid: ok = 'BAD'
         print '%08x: section l=%x(%d) lp=%x(%d) lsn=%x(%d) fid=%x(%s)' % \
             (at, l, l, lp, lp, lsn, lsn, fid, ok)
     
@@ -462,7 +462,7 @@ def extent(buf, at, check):
         return None, None, None
     ns = ns[:ns.find('\0')]
     #is_inx = '$' in ns and '_' in ns # xxx hack
-    is_inx = '.$' in ns # xxx hack
+    is_inx = '.$' in ns and ns != 'local.oplog.$main' # xxx hack
     if is_inx and do_btree: print_content = print_btree
     elif not is_inx and do_bson: print_content = print_record_bson
     else: print_content = None
