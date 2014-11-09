@@ -1,20 +1,21 @@
 # WT storage model for MongoDB by example
 
-This document presents a tour by example of the WT storage format as
-used by MongoDB.
+This document presents a tour by example of the WiredTiger storage
+format as used by MongoDB.
 
 &emsp;&emsp;1 [Row-store btree mode](#1)  
 &emsp;&emsp;&emsp;&emsp;1.1 [Collection data](#1.1)  
 &emsp;&emsp;&emsp;&emsp;&emsp;&emsp;1.1.1 [Collection btree leaf node page](#1.1.1)  
-&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;1.1.2 [Collection btree interior node page](#1.1.2)  
+&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;1.1.2 [Collection btree internal node page](#1.1.2)  
 &emsp;&emsp;&emsp;&emsp;&emsp;&emsp;1.1.3 [Block manager page and extent list](#1.1.3)  
 &emsp;&emsp;&emsp;&emsp;1.2 [The _id index](#1.2)  
 &emsp;&emsp;&emsp;&emsp;&emsp;&emsp;1.2.4 [_id index btree leaf node page](#1.2.4)  
-&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;1.2.5 [_id index interior node page](#1.2.5)  
+&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;1.2.5 [_id index internal node page](#1.2.5)  
 &emsp;&emsp;&emsp;&emsp;1.3 [Another index example](#1.3)  
-&emsp;&emsp;&emsp;&emsp;1.4 [Data updates](#1.4)  
-&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;1.4.6 [Update](#1.4.6)  
-&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;1.4.7 [Delete](#1.4.7)  
+&emsp;&emsp;&emsp;&emsp;1.4 [Comparison of WT and mmapv1 btrees](#1.4)  
+&emsp;&emsp;&emsp;&emsp;1.5 [Data updates](#1.5)  
+&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;1.5.6 [Update](#1.5.6)  
+&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;1.5.7 [Delete](#1.5.7)  
 &emsp;&emsp;2 [LSM mode](#2)  
 &emsp;&emsp;3 [Metadata files](#3)  
 &emsp;&emsp;4 [Durability](#4)  
@@ -107,13 +108,18 @@ This is followed by a sequence of key/value pairs, sorted by
 key. Since this is a leaf node of a btree representing a MongoDB
 collection,
 
-* the key is an integer record number (stored as a packed int).
+* the key is an integer record id (stored as a packed int).
 * the value is a BSON document which is the content of the record.
 
 Note that unlike mmapv1, wt btrees are used for storing collection
 data as well as for storing indexes.
 
-#### <a name="1.1.2"></a> 1.1.2 Collection btree interior node page
+**TBD** maximum value sizes? overflow?
+
+**TBD** check terminology for "record id"
+
+
+#### <a name="1.1.2"></a> 1.1.2 Collection btree internal node page
 
 For this example the file continues with three more leaf node pages
 for a total of four. This is then followed by an intenal btree node
@@ -131,7 +137,7 @@ page (which happens to be the root):
     0001404e:   val desc=0x30 sz=7 addr=18,1,0x854a24ed
 
 Like leaf node pages this page contains a sequence of key/value
-pairs. For interior nodes:
+pairs. For internal nodes:
 
 * The key is a record id that is less than or equal to the first key
   for the child page and greater than the last key on the previous
@@ -145,6 +151,12 @@ pairs. For interior nodes:
     * second element appears to be page length / 4KB (**TBD** check
       this)
     * third element is checksum of referenced page
+
+Note that unlike mmpav1 btrees, WT btrees
+* are used for both collection data and indexes, and
+* do not store values as such in the internal nodes, only keys and
+  references to other nodes. This keeps the internal nodes compact,
+  even when storing collection data.
 
 **TBD** is the root always last, or is it identified in some other way?
 
@@ -211,7 +223,7 @@ The leaf node contains a sequence of key/value pairs (844/2 pairs in this case),
 * The value is an 8-byte record id, which are the keys in the
   collection btree. (**TBD** exact format)
 
-#### <a name="1.2.5"></a> 1.2.5 _id index interior node page
+#### <a name="1.2.5"></a> 1.2.5 _id index internal node page
 
 Here is the root node for the _id index:
 
@@ -289,11 +301,21 @@ about non-\_id unique indexes? why not just do _id index the same way?
 Because it allows for more efficient retrieval in the case of a unique
 key?
     
-### <a name="1.4"></a> 1.4 Data updates
+### <a name="1.4"></a> 1.4 Comparison of WT and mmapv1 btrees
 
-#### <a name="1.4.6"></a> 1.4.6 Update
+The following table summarizes the differences between mmapv1 and WT
+btrees, showing the content for each item in a btree node.
 
-#### <a name="1.4.7"></a> 1.4.7 Delete
+|               | mmapv1 index                       | WT index                      | WT collection                   |
+|---------------|------------------------------------|-------------------------------|---------------------------------|
+| internal node | key, diskloc, btree node reference | key, btree node reference     | record id, btree node reference |
+| leaf node     | key, diskloc, null node reference  | key, record id; _or_ key only | record id, BSON document        |
+
+### <a name="1.5"></a> 1.5 Data updates
+
+#### <a name="1.5.6"></a> 1.5.6 Update
+
+#### <a name="1.5.7"></a> 1.5.7 Delete
 
 ## <a name="2"></a> 2 LSM mode
 
