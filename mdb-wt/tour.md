@@ -16,7 +16,7 @@ used by MongoDB.
 &emsp;&emsp;&emsp;&emsp;&emsp;&emsp;1.4.6 [Update](#1.4.6)  
 &emsp;&emsp;&emsp;&emsp;&emsp;&emsp;1.4.7 [Delete](#1.4.7)  
 &emsp;&emsp;2 [LSM mode](#2)  
-&emsp;&emsp;3 [Metadata files](#3)  
+&emsp;&emsp;3 [<a name="metadata-files"></a> Metadata files](#3)  
 &emsp;&emsp;4 [Durability](#4)  
 &emsp;&emsp;5 [Checksums and compression](#5)  
 
@@ -42,12 +42,17 @@ example: <a name="example1"></a>
     for (var i=0; i<1000; i++)
         db.c.insert({hello: 'world', "here's a number field": 12345+i})
 
-In row-store btree mode this code creates the following files:
+In row-store btree mode this code creates the following files that
+contain the collection and index data:
 
     collection-*.wt    stores data for a single collection
     index-*.wt         stores an index
-    _mdb_catalog.wt    TBD
-    sizeStorer.wt      TBD
+
+(In addition a number of other files are created that contain [various metadata](#metadata-files)).
+
+**TBD**: meaning of fields of collection and index filenames.
+
+**TBD** file size limits? multiple files for a single collection?
 
 ### <a name="1.1"></a> 1.1 Collection data
 
@@ -199,9 +204,10 @@ btree leaf node:
 
 The leaf node contains a sequence of key/value pairs (844/2 pairs in this case), where:
 
-* The key is a BSON document containing fields whose names are the
-  empty string, and whose values are the fields of the key. In this
-  case the _id index has keys with only one value, an objectid.
+* The bree key is a BSON document containing fields whose names are
+  the empty string, and whose values are the fields of the MongoDB
+  key. In this case the _id index has keys with only one value, an
+  objectid.
 * The value is an 8-byte record id, which are the keys in the
   collection btree. (**TBD** exact format)
 
@@ -227,12 +233,12 @@ Here is the root node for the _id index:
 
 This is a list of key/value pairs where
 
-* The key is a BSON document containing fields whose names are the
-  empty string, and whose values are the fields of the key. In this
-  case the _id index has keys with only one value, an objectid.  The
-  key is less than or equal to the first key for the child page and
-  greater than the last key on the previous child page. (**TBD**:
-  check this)
+* The btree key is a BSON document containing fields whose names are
+  the empty string, and whose values are the fields of the MongoDB
+  key. In this case the _id index has keys with only one value, an
+  objectid.  The key is less than or equal to the first key for the
+  child page and greater than the last key on the previous child
+  page. (**TBD**: check this)
 * As with collection internal nodes, the value is an [address
   token](#address-token) (**TBD** check terminology) referencing the
   child page.
@@ -266,11 +272,12 @@ index:
     0000108c:     00 00 00 00 03 00 00 00
     ...
 
-Note that this node contains only keys, and no values. Each key is the
-concatenation of
+Note that this node contains only keys, and no values. Each btree key
+is the concatenation of
 
 * a BSON document containing fields whose names are the empty string,
-  and whose values are the fields of the key, and
+  and whose values are the fields of the MongoDB key (a string and a
+  double in this case), and
 * an 8-byte record id (**TBD exact format**)
 
 Thus, whereas the _id index stores the record id as the value of a
@@ -279,6 +286,8 @@ and has no values.
 
 **TBD** to make keys unique since this isn't a unique index? what
 about non-\_id unique indexes? why not just do _id index the same way?
+Because it allows for more efficient retrieval in the case of a unique
+key?
     
 ### <a name="1.4"></a> 1.4 Data updates
 
@@ -288,7 +297,7 @@ about non-\_id unique indexes? why not just do _id index the same way?
 
 ## <a name="2"></a> 2 LSM mode
 
-## <a name="3"></a> 3 Metadata files
+## <a name="3"></a> 3 <a name="metadata-files"></a> Metadata files
 
     _mdb_catalog.wt    TBD
     sizeStorer.wt      TBD
