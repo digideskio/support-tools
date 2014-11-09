@@ -1,0 +1,298 @@
+# WT storage model for MongoDB by example
+
+This document presents a tour of the WT storage format as used by
+MongoDB. **NOTE**: this is a work-in-progress and probably contains
+errors as I'm writing this as I learn about WT. Please contact me if
+you spot anything incorrect or questionable.
+
+<div id="toc">
+<style>
+#toc ul {
+list-style: none;
+}
+</style>
+* 1 [Row-store btree mode](#1)
+    * 1.1 [Collection data](#1.1)
+        * 1.1.1 [Collection btree leaf node page](#1.1.1)
+        * 1.1.2 [Collection btree interior node page](#1.1.2)
+        * 1.1.3 [Block manager page and extent list](#1.1.3)
+    * 1.2 [The _id index](#1.2)
+        * 1.2.4 [_id index btree leaf node page](#1.2.4)
+        * 1.2.5 [_id index interior node page](#1.2.5)
+    * 1.3 [Another index example](#1.3)
+    * 1.4 [Data updates](#1.4)
+        * 1.4.6 [Update](#1.4.6)
+        * 1.4.7 [Delete](#1.4.7)
+* 2 [LSM mode](#2)
+* 3 [Metadata files](#3)
+* 4 [Durability](#4)
+* 5 [Checksums and compression](#5)
+</div>
+
+## <a name="1"></a> 1 Row-store btree mode
+
+The default mode for storing collections and index is row-store
+btrees. This is illustrated in the following sections by a simple
+example: <a name="example1"></a>
+
+    db.c.ensureIndex({hello:1, "here's a number field":1}, {sparse:true})
+    for (var i=0; i<1000; i++)
+        db.c.insert({hello: 'world', "here's a number field": 12345+i})
+
+In row-store btree mode this code creates the following files:
+
+    collection-*.wt    stores data for a single collection
+    index-*.wt         stores an index
+    _mdb_catalog.wt    TBD
+    sizeStorer.wt      TBD
+
+### <a name="1.1"></a> 1.1 Collection data
+
+Collection data in row-store btree mode is stored in a
+collection-\*.wt file. The file begins with a 4KB descriptor page,
+containing only basic file information in the first few bytes
+
+    00000000: block_desc magic=120897(OK) major=1 minor=0 cksum=b72308d8
+
+This is followed by a sequence of _pages_. Each page is aligned to a
+4KB boundary and is a multiple of 4KB in length.
+
+#### <a name="1.1.1"></a> 1.1.1 Collection btree leaf node page
+
+The first page, at file offset 0x1000 (4KB) and length 0x6000 (24KB),
+is a btree leaf node that contains collection data:
+
+    00001000: page recno=0 gen=1 msz=0x5fb6 entries=654 type=7(ROW_LEAF) flags=0x4(no0)
+    0000101c: block sz=0x6000 cksum=0x9288bb5a flags=0x1(cksum)
+    00001028:   key desc=0x5(short) sz=1 key=pack(1)
+    0000102a:   val desc=0x80(long) sz=70
+    00001030:     DOC len=70
+    00001031:       '_id': objectid 54 5f 71 a2 fc a1 e4 46 8a 93 42 be =2014-11-09T13:52:34Z
+    00001042:       'hello': string len=6 strlen=5 ='world'
+    00001053:       "here's a number field": double 00 00 00 00 80 1c c8 40 =12345
+    00001072:     EOO
+    00001072:   key desc=0x5(short) sz=1 key=pack(2)
+    00001074:   val desc=0x80(long) sz=70
+    0000107a:     DOC len=70
+    0000107b:       '_id': objectid 54 5f 71 a2 fc a1 e4 46 8a 93 42 bf =2014-11-09T13:52:34Z
+    0000108c:       'hello': string len=6 strlen=5 ='world'
+    0000109d:       "here's a number field": double 00 00 00 00 00 1d c8 40 =12346
+    000010bc:     EOO
+    000010bc:   key desc=0x5(short) sz=1 key=pack(3)
+    000010be:   val desc=0x80(long) sz=70
+    000010c4:     DOC len=70
+    000010c5:       '_id': objectid 54 5f 71 a2 fc a1 e4 46 8a 93 42 c0 =2014-11-09T13:52:34Z
+    000010d6:       'hello': string len=6 strlen=5 ='world'
+    000010e7:       "here's a number field": double 00 00 00 00 80 1d c8 40 =12347
+    00001106:     EOO
+    ...
+
+The page begins with a header. (Technically, two headers, a page
+header and a block header, contributed by different software modules,
+but the net effect is a single page header.) Important fields are:
+
+* number of entries on the page. Each entry is a key or a value.
+* page type identifying this page as a leaf btree node in a row store.
+* a checksum to detect file corruption.
+
+This is followed by a sequence of key/value pairs, sorted by
+key. Since this is a leaf node of a btree representing a MongoDB
+collection,
+
+* the key is an integer record number (stored as a packed int).
+* the value is a BSON document which is the content of the record.
+
+Note that unlike mmapv1, wt btrees are used for storing collection
+data as well as for storing indexes.
+
+#### <a name="1.1.2"></a> 1.1.2 Collection btree interior node page
+
+For this example the file continues with three more leaf node pages
+for a total of four, followed by an intenal btree node page (which
+happens to be the root):
+
+    00014000: page recno=0 gen=5 msz=0x57 entries=8 type=6(ROW_INT) flags=0x0()
+    0001401c: block sz=0x1000 cksum=0x18eec00f flags=0x1(cksum)
+    00014028:   key desc=0x5(short) sz=1 key='\x00'
+    0001402a:   val desc=0x30 sz=7 addr=0,6,0x9288bb5a
+    00014033:   key desc=0x9(short) sz=2 key=pack(328)
+    00014036:   val desc=0x30 sz=7 addr=6,6,0x94c4fe0c
+    0001403f:   key desc=0x9(short) sz=2 key=pack(655)
+    00014042:   val desc=0x30 sz=7 addr=12,6,0x709db86
+    0001404b:   key desc=0x9(short) sz=2 key=pack(982)
+    0001404e:   val desc=0x30 sz=7 addr=18,1,0x854a24ed
+
+Like leaf node pages this page contains a sequence of key/value pairs:
+
+* The key is a record id that is less than or equal to the first key
+  for the child page and greater than the last key on the previous
+  child page. (**TBD**: check this)
+
+* The value is an address token (**TBD check terminology) referencing
+  the child page, stored as a triple of packed ints:
+
+    * first element appears to be page offset / 4KB - 1 (**TBD** check
+      this)
+
+    * second element appears to be page length / 4KB (**TBD** check
+      this)
+
+    * third element is checksum of referenced page
+
+
+#### <a name="1.1.3"></a> 1.1.3 Block manager page and extent list
+
+The file ends with a block manager page that contains a list of
+extents within this file:
+
+    00015000: page recno=0 gen=0 msz=52(34) entries=12 type=1(BLOCK_MANAGER) flags=0()
+    0001501c: block sz=4096 cksum=d228e642 flags=1(cksum)
+    0001502c:   magic=71002(OK) zero=0
+    00015032:   off=1000 sz=14000
+    00015034:   off=0 sz=0
+
+Each entry in the list is stored as a pair of packed ints. The list
+begins and ends with sentinal entries. In this example there is a
+single extent starting at offset 0x1000 (4KB) of size 0x14000 (20KB).
+
+**TBD** unused extents?
+
+**TBD** can this be larger than 4KB?
+
+### <a name="1.2"></a> 1.2 The _id index
+
+Indexes are stored in an index-\*.wt file. In this example, the _id
+index happens to be stored in the index-3-\*.wt file. This file has
+the same overall structure as a collection-\*.wt file, so the file
+begins with the same 4KB header containing basic file information:
+
+    00000000: block_desc magic=120897(OK) major=1 minor=0 cksum=0xb72308d8
+
+#### <a name="1.2.4"></a> 1.2.4 _id index btree leaf node page
+
+This is again followed by a sequence of pages. The first page is a
+btree leaf node:
+
+    00001000: page recno=0 gen=1 msz=0x2ff6 entries=844 type=7(ROW_LEAF) flags=0x4(no0)
+    0000101c: block sz=0x3000 cksum=0x144012c9 flags=0x1(cksum)
+    00001028:   key desc=0x4d(short) sz=19
+    0000102d:     DOC len=19
+    0000102e:       '': objectid 54 5f 71 a2 fc a1 e4 46 8a 93 42 be =2014-11-09T13:52:34Z
+    0000103c:     EOO
+    0000103c:   val desc=0x23(short) sz=8 val=00 00 00 00 01 00 00 00
+    00001045:   key desc=0x4d(short) sz=19
+    0000104a:     DOC len=19
+    0000104b:       '': objectid 54 5f 71 a2 fc a1 e4 46 8a 93 42 bf =2014-11-09T13:52:34Z
+    00001059:     EOO
+    00001059:   val desc=0x23(short) sz=8 val=00 00 00 00 02 00 00 00
+    00001062:   key desc=0x4d(short) sz=19
+    00001067:     DOC len=19
+    00001068:       '': objectid 54 5f 71 a2 fc a1 e4 46 8a 93 42 c0 =2014-11-09T13:52:34Z
+    00001076:     EOO
+    ...
+
+The leaf node contains a sequence of key-value pairs, where
+
+* The key is a BSON document containing fields whose names are the
+  empty string, and whose values are the fields of the key. In this
+  case the _id index has keys with only one value, an objectid.
+
+* The value is an 8-byte record id, which are the keys in the
+  collection btree. (**TBD** exact format)
+
+#### <a name="1.2.5"></a> 1.2.5 _id index interior node page
+
+Here is the root node for the _id index:
+
+    00009000: page recno=0 gen=4 msz=0x6d entries=6 type=6(ROW_INT) flags=0x0()
+    0000901c: block sz=0x1000 cksum=0xb0e85b9d flags=0x1(cksum)
+    00009028:   key desc=0x5(short) sz=1
+    00009029:     00
+    0000902a:   val desc=0x30 sz=7 addr=0,3,0x144012c9
+    00009033:   key desc=0x4d(short) sz=19
+    00009038:     DOC len=19
+    00009039:       '': objectid 54 5f 71 a2 fc a1 e4 46 8a 93 44 64 =2014-11-09T13:52:34Z
+    00009047:     EOO
+    00009047:   val desc=0x30 sz=7 addr=3,3,0x6aa87779
+    00009050:   key desc=0x4d(short) sz=19
+    00009055:     DOC len=19
+    00009056:       '': objectid 54 5f 71 a2 fc a1 e4 46 8a 93 46 0a =2014-11-09T13:52:34Z
+    00009064:     EOO
+    00009064:   val desc=0x30 sz=7 addr=6,2,0x1b930774
+
+This is a list of key/value pairs where
+
+* The key is a BSON document containing fields whose names are the
+  empty string, and whose values are the fields of the key. In this
+  case the _id index has keys with only one value, an objectid.  The
+  key is less than or equal to the first key for the child page and
+  greater than the last key on the previous child page. (**TBD**:
+  check this)
+
+* As with collection internal nodes, the value is an address token
+  (**TBD*** check terminology) referencing the child page.
+
+### <a name="1.3"></a> 1.3 Another index example
+
+[This example](#example1) created a second index with key {hello:1,
+"here's a number field":1}. In this example this index happens to be
+stored in the index-4-\*.wt file. Here's a btree leaf node for that
+index:
+
+    00001000: page recno=0 gen=1 msz=0x2ff8 entries=340 type=7(ROW_LEAF) flags=0x2(all0)
+    0000101c: block sz=0x3000 cksum=0xda402a95 flags=0x1(cksum)
+    00001028:   key desc=0x8d(short) sz=35
+    0000102d:     DOC len=27
+    0000102e:       '': string len=6 strlen=5 ='world'
+    0000103a:       '': double 00 00 00 00 80 1c c8 40 =12345
+    00001044:     EOO
+    00001044:     00 00 00 00 01 00 00 00
+    0000104c:   key desc=0x8d(short) sz=35
+    00001051:     DOC len=27
+    00001052:       '': string len=6 strlen=5 ='world'
+    0000105e:       '': double 00 00 00 00 00 1d c8 40 =12346
+    00001068:     EOO
+    00001068:     00 00 00 00 02 00 00 00
+    00001070:   key desc=0x8d(short) sz=35
+    00001075:     DOC len=27
+    00001076:       '': string len=6 strlen=5 ='world'
+    00001082:       '': double 00 00 00 00 80 1d c8 40 =12347
+    0000108c:     EOO
+    0000108c:     00 00 00 00 03 00 00 00
+    ...
+
+Note that this node contains only keys, and no values. Each key is the
+concatenation of
+
+* a BSON document containing fields whose names are the empty string,
+  and whose values are the fields of the key, and
+
+* an 8-byte record id (**TBD exact format**)
+
+Thus, whereas the _id index stores the record id as the value of a
+key/value pair, this index stores the record id as part of the key,
+and has no values.
+
+**TBD** to make keys unique since this isn't a unique index? what
+about non-\_id unique indexes? why not just do _id index the same way?
+    
+### <a name="1.4"></a> 1.4 Data updates
+
+#### <a name="1.4.6"></a> 1.4.6 Update
+
+#### <a name="1.4.7"></a> 1.4.7 Delete
+
+## <a name="2"></a> 2 LSM mode
+
+## <a name="3"></a> 3 Metadata files
+
+    _mdb_catalog.wt    TBD
+    sizeStorer.wt      TBD
+
+## <a name="4"></a> 4 Durability
+
+**TBD** when are checkpoints done?
+
+**TBD** journal file format
+
+## <a name="5"></a> 5 Checksums and compression

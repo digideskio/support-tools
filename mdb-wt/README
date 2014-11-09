@@ -1,0 +1,24 @@
+NAME
+    mdb-wt - simple tool to dump parts of mongo+wt databases
+
+SYNOPSIS
+    python mdb-wt.py -p[e[bB]] [offset]
+
+DESCRIPTION
+
+    mdb-wt prints a low-level dump of MongoDB databases using the
+    WiredTiger storage engine.
+    
+    Operation is controlled by a set of flags specified in the first
+    argument, as follows:
+
+    p Print the pages of the spedified file if no offset is
+      specified. If an offset is specified print only that page.
+
+    e When used with the p flag, page entries are printed.
+
+    b When used with the e flag, BSON values (for collection files)
+      and BSON keys (for index files) are printed.
+
+    B Like the b flag, except that field values for all types is
+      printed.
