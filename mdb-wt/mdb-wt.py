@@ -183,6 +183,8 @@ def print_bson(buf, at, l=None, null_name=False):
                     a, info = types[t](buf, a)
                     if a<=end:
                         indent.prt(at, '%s: %s' % (repr(name), info))
+                        if types[t]==info_doc:
+                            indent.indent()
                         at = a
                         ok = True
             if not ok:
@@ -293,7 +295,7 @@ def cell_kv(desc, buf, at, is_short, is_key):
             indent.prt(start, 'val desc=0x%x(%s) sz=%d val=%s' % (desc, info, sz, x))
     else:
         if is_key:
-            x = repr(buf[a:a+sz])
+            x = repr(buf[at:at+sz])
             indent.prt(start, 'key desc=0x%x(%s) sz=%d key=%s' % (desc, info, sz, x))
         else:
             indent.prt(start, 'val desc=0x%x(%s) sz=%d' % (desc, info, sz))
@@ -429,8 +431,9 @@ if 'c' in sys.argv[1]:
 elif 'i' in sys.argv[1]:
     is_index = True
 else:
-    is_collection = os.path.basename(fn).startswith('collection')
-    is_index = os.path.basename(fn).startswith('index')
+    b = os.path.basename(fn)
+    is_collection = b.startswith('collection') or b.startswith('_mdb_catalog')
+    is_index = b.startswith('index')
 
 # what to do
 do_page = 'p' in sys.argv[1]
