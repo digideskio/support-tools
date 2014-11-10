@@ -3,7 +3,7 @@
 This document presents a tour by example of the WiredTiger storage
 format as used by MongoDB.
 
-&emsp;&emsp;1 [Row-store btree mode](#1)  
+&emsp;&emsp;1 [Record-store btree mode](#1)  
 &emsp;&emsp;&emsp;&emsp;1.1 [Collection data](#1.1)  
 &emsp;&emsp;&emsp;&emsp;&emsp;&emsp;1.1.1 [Collection btree leaf node page](#1.1.1)  
 &emsp;&emsp;&emsp;&emsp;&emsp;&emsp;1.1.2 [Collection btree internal node page](#1.1.2)  
@@ -33,9 +33,9 @@ WT version of the
 [mdb](https://github.com/10gen/support-tools/tree/master/mdb) MongoDB
 db dump utility.
 
-## <a name="1"></a> 1 Row-store btree mode
+## <a name="1"></a> 1 Record-store btree mode
 
-The default mode for storing collections and index is row-store
+The default mode for storing collections and index is record-store
 btrees. This is illustrated in the following sections by a simple
 example: <a name="example1"></a>
 
@@ -43,13 +43,26 @@ example: <a name="example1"></a>
     for (var i=0; i<1000; i++)
         db.c.insert({hello: 'world', "here's a number field": 12345+i})
 
-In row-store btree mode this code creates the following files that
+In record-store btree mode this code creates the following files that
 contain the collection and index data:
 
-    collection-*.wt    stores data for a single collection
-    index-*.wt         stores an index
+    collection-$n-$x.wt    stores data for a single collection
+    index-$n-$x.wt         stores an index
 
-(In addition a number of other files are created that contain [various metadata](#metadata-files)).
+Each filename follows a pattern as described above, encoding the following information:
+
+* $n is a collection or index number, starting at 1 and incrementing
+  by 1 for each collection or index
+* $x **TBD**
+
+Note that unlike mmapv1
+
+* there is a separate file for each collection; databases play no role
+  in the division of data into files.
+* the db name is not encoded in the filename. The mapping from
+  namespaces to filenames is maintained in a separate metadata
+  collection file, \_mdb\_catalog.wt, described in a
+  [later section](#metadata-files)).
 
 **TBD**: meaning of fields of collection and index filenames.
 
@@ -57,7 +70,7 @@ contain the collection and index data:
 
 ### <a name="1.1"></a> 1.1 Collection data
 
-Collection data in row-store btree mode is stored in a
+Collection data in record-store btree mode is stored in a
 collection-\*.wt file. The file begins with a 4KB descriptor page,
 containing only basic file information in the first few bytes:
 
@@ -101,7 +114,7 @@ header and a block header, contributed by different software modules,
 but the net effect is a single page header.) Important fields are:
 
 * number of entries on the page. Each entry is a key or a value.
-* page type identifying this page as a leaf btree node in a row store.
+* page type identifying this page as a leaf btree node in a record store.
 * a checksum to detect file corruption.
 
 This is followed by a sequence of key/value pairs, sorted by
@@ -153,6 +166,7 @@ pairs. For internal nodes:
     * third element is checksum of referenced page
 
 Note that unlike mmpav1 btrees, WT btrees
+
 * are used for both collection data and indexes, and
 * do not store values as such in the internal nodes, only keys and
   references to other nodes. This keeps the internal nodes compact,
@@ -319,12 +333,83 @@ btrees, showing the content for each item in a btree node.
 
 ## <a name="2"></a> 2 LSM mode
 
+In LSM mode the data is stored in files in the same btree format as
+record-store mode; the difference is how updates to those files are
+managed. The file naming scheme for LSM mode is as follows:
+
+    collection-$n-$x-$seq.lsm    stores data for a single collection
+    index-$n-$x-$seq.lsm         stores an index
+
+Each filename follows a pattern as described above, encoding the following information:
+
+* $n is a collection or index number, starting at 1 and incrementing
+  by 1 for each collection or index
+* $x **TBD**
+* $seq **TBD** sequence number (*TBD* terminology?)
+
+
 ## <a name="3"></a> 3 Metadata files
 
 <a name="metadata-files"></a>
 
-    _mdb_catalog.wt    TBD
-    sizeStorer.wt      TBD
+    _mdb_catalog.*    TBD
+    sizeStorer.*      TBD
+
+The \_mdb\_catalog file is a collection containing metadata about
+collections and indexes. For example here is the entry in \_mdb\_catalog
+related to our example collection:
+
+    00001000: page recno=0 gen=1 msz=0x3a0 entries=4 type=7(ROW_LEAF) flags=0x4(no0)
+    0000101c: block sz=0x1000 cksum=0xd8d426c1 flags=0x1(cksum)
+    ...
+    00001182:   key desc=0x5(short) sz=1 key=pack(2)
+    00001184:   val desc=0x80(long) sz=537
+    0000118b:     DOC len=537
+    0000118c:       'md': DOC len=0x15c(348) EOO=0x12ea
+    00001194:         'ns': string len=7 strlen=6 ='test.c'
+    000011a3:         'options': DOC len=0x5(5) EOO=0x11af
+    000011b0:         EOO
+    000011b1:         'indexes': DOC len=0x131(305) EOO=0x12e9
+    000011be:           '0': DOC len=0x73(115) EOO=0x1232
+    000011c5:             'spec': DOC len=0x3d(61) EOO=0x1206
+    000011cf:               'v': int32 01 00 00 00
+    000011d6:               'key': DOC len=0xe(14) EOO=0x11e7
+    000011df:                 '_id': int32 01 00 00 00
+    000011e8:               EOO
+    000011e9:               'name': string len=5 strlen=4 ='_id_'
+    000011f8:               'ns': string len=7 strlen=6 ='test.c'
+    00001207:             EOO
+    00001208:             'ready': boolean 01
+    00001210:             'multikey': boolean 00
+    0000121b:             'head_a': int32 ff ff ff ff
+    00001227:             'head_b': int32 00 00 00 00
+    00001233:           EOO
+    00001234:           '1': DOC len=0xb3(179) EOO=0x12e8
+    0000123b:             'spec': DOC len=0x7d(125) EOO=0x12bc
+    00001245:               'v': int32 01 00 00 00
+    0000124c:               'key': DOC len=0x33(51) EOO=0x1282
+    00001255:                 'hello': double 00 00 00 00 00 00 f0 3f =1
+    00001264:                 "here's a number field": double 00 00 00 00 00 00 f0 3f =1
+    00001283:               EOO
+    00001284:               'name': string len=32 strlen=31 ="hello_1_here's a number field_1"
+    000012ae:               'ns': string len=7 strlen=6 ='test.c'
+    000012bd:             EOO
+    000012be:             'ready': boolean 01
+    000012c6:             'multikey': boolean 00
+    000012d1:             'head_a': int32 ff ff ff ff
+    000012dd:             'head_b': int32 00 00 00 00
+    000012e9:           EOO
+    000012ea:         EOO
+    000012eb:       EOO
+    000012ec:       'idxIdent': DOC len=0x6e(110) EOO=0x1362
+    000012fa:         '_id_': string len=29 strlen=28 ='index-3--8114685204076478674'
+    00001321:         "hello_1_here's a number field_1": string len=29 strlen=28 ='index-4--8114685204076478674'
+    00001363:       EOO
+    00001364:       'ns': string len=7 strlen=6 ='test.c'
+    00001373:       'ident': string len=34 strlen=33 ='collection-2--8114685204076478674'
+    000013a0:     EOO
+    
+**TBD** describe the important fields
 
 ## <a name="4"></a> 4 Durability
 
