@@ -55,10 +55,8 @@ class karakuri(karakuricommon.karakuribase):
         self.coll_queue = self.mongo.karakuri.queue
         self.coll_users = self.mongo.karakuri.users
 
-        # Initialize global, user and company throttles
-        self.throttle = {'global': 0,
-                         'users': {},
-                         'companies': {}}
+        # Global, user and company throttles
+        self.throttle = {}
 
     def _amiThrottling(self, **kwargs):
         """ Have we reached a processing limit? Return bool """
@@ -806,7 +804,7 @@ class karakuri(karakuricommon.karakuribase):
         # tasks processed successfully in the last day
         match = {"_id": {"$gt": bson.ObjectId.from_datetime(oneDayAgo)},
                  "action": "process", "p": True}
-        proj = {'tid': 1}
+        proj = {'tid': 1, 'company': 1}
 
         try:
             curr_docs = self.coll_log.find(match, proj)
@@ -814,9 +812,20 @@ class karakuri(karakuricommon.karakuribase):
             self.logger.exception(e)
             return {'ok': False, 'payload': e}
 
-        processedTids = [doc['tid'] for doc in curr_docs]
+        processedTids = []
+        # re-init
+        self.throttle['companies'] = {}
+        for doc in curr_docs:
+            processedTids.append(doc['tid'])
+            if doc['company'] in self.throttle['companies']:
+                self.throttle['companies'][doc['company']] += 1
+            else:
+                self.throttle['companies'][doc['company']] = 1
         self.throttle['global'] = len(processedTids)
         self.logger.info("global throttle set to %i", self.throttle['global'])
+        for company in self.throttle['companies']:
+            self.logger.info("throttle for company '%s' set to %i", company,
+                             self.throttle['companies'][company])
 
         # determine which users approved these tasks
         # NOTE it's possible to overcount approvals here
@@ -833,24 +842,12 @@ class karakuri(karakuricommon.karakuribase):
 
         if res['ok']:
             users = res['result']
+            # re-init
+            self.throttle['users'] = {}
             for user in users:
                 self.throttle['users'][user['user']] = user['count']
                 self.logger.info("throttle for user '%s' set to %i",
                                  user['user'], user['count'])
-
-        # tasks processed for this company in the last day
-        if 'company' in kwargs and kwargs['company'] is not None:
-            company = kwargs['company']
-            match = {"_id": {"$gt": bson.ObjectId.from_datetime(oneDayAgo)},
-                     "action": "process", "p": True, 'company': company}
-            try:
-                self.throttle['companies'][company] = self.coll_log.\
-                    find(match).count()
-            except pymongo.errors.PyMongoError as e:
-                self.logger.exception(e)
-                raise e
-            self.logger.info("throttle for company '%s' set to %i", company,
-                             self.throttle['companies'][company])
 
     def updateIssue(self, iid, updoc, **kwargs):
         """ They see me rollin' """
