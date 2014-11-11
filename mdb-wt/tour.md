@@ -14,8 +14,6 @@ format as used by MongoDB.
 &emsp;&emsp;&emsp;&emsp;1.3 [Another index example](#1.3)  
 &emsp;&emsp;&emsp;&emsp;1.4 [Comparison of WT and mmapv1 btrees](#1.4)  
 &emsp;&emsp;&emsp;&emsp;1.5 [Data updates](#1.5)  
-&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;1.5.6 [Update](#1.5.6)  
-&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;1.5.7 [Delete](#1.5.7)  
 &emsp;&emsp;2 [LSM mode](#2)  
 &emsp;&emsp;3 [Metadata files](#3)  
 &emsp;&emsp;4 [Durability](#4)  
@@ -327,9 +325,142 @@ btrees, showing the content for each item in a btree node.
 
 ### <a name="1.5"></a> 1.5 Data updates
 
-#### <a name="1.5.6"></a> 1.5.6 Update
+Suppose we now update one of our records, for example:
 
-#### <a name="1.5.7"></a> 1.5.7 Delete
+    db.c.update({"here's a number field": 12350}, {'now': "it's smaller"})
+
+With mmapv1, since this update has not made the document larger, the
+update would have been done in-place. However WT handles this
+differently. Here is a comparison of the state of the collection file
+before and after this update:
+
+              BEFORE                               AFTER
+    00001000: page entries=654 typeROW_LEAF        UNUSED
+    00007000: page entries=654 type=ROW_LEAF       page entries=654 type=ROW_LEAF
+    0000d000: page entries=654 type=ROW_LEAF       page entries=654 type=ROW_LEAF
+    00013000: page entries=38 type=ROW_LEAF        page entries=38 type=ROW_LEAF                
+    00014000: page entries=8 typeROW_INT           UNUSED
+    00015000: page entries=12 type=BLOCK_MANAGER   UNUSED
+    00016000:                                      page entries=654 type=ROW_LEAF
+    0001c000:                                      page entries=8 type=ROW_INT
+    0001d000:                                      page entries=19 type=BLOCK_MANAGER
+    0001e000:                                      page entries=17 type=BLOCK_MANAGER
+
+* The update requires updating a record contained in the btree leaf
+  node that was stored in the page at 0x1000 before the update.  The
+  modified leaf node is written to the end of the file at
+  0x16000. This new leaf node is fully compacted; that is, the space
+  allocated for the now-smaller document is just exactly enough to
+  hold the document.  The original version is left in place at 0x1000,
+  but will be marked as unused in the block manager record.
+
+* Since the modified leaf node has been moved, the root node at
+  0x14000 that points to the leaf node must be modified to point to
+  the new location. The modified root node is written to the end of
+  the file at 0x1c000.  The original version is left in place at
+  0x14000, but will be marked as unused in the block manager record.
+
+* Since the used/unused extents have changed, the block manager record
+  needs to change. Two new block manager records are written to the
+  end of the file, recording used and unused extents respectively.
+  The previous block manager record at 0x15000 is left in place, but
+  is marked unused in the new block manager records.
+
+Here are the two new block manager records at the end of the file. The
+first records the two in-use extents at 0x7000 and 0x16000:
+
+    0001d000: page recno=0 gen=0 msz=0x3b entries=19 type=1(BLOCK_MANAGER) flags=0x0()
+    0001d01c: block sz=0x1000 cksum=0x79ea689c flags=0x1(cksum)
+    0001d02c:   magic=71002(OK) zero=0
+    0001d032:   off=0x7000 sz=0xd000
+    0001d039:   off=0x16000 sz=0x7000
+    0001d03b:   off=0x0 sz=0x0
+
+The second block manager record records the two unused extents at
+0x1000 and 0x14000:
+
+    0001e000: page recno=0 gen=0 msz=0x39 entries=17 type=1(BLOCK_MANAGER) flags=0x0()
+    0001e01c: block sz=0x1000 cksum=0x342ada60 flags=0x1(cksum)
+    0001e02c:   magic=71002(OK) zero=0
+    0001e031:   off=0x1000 sz=0x6000
+    0001e037:   off=0x14000 sz=0x2000
+    0001e039:   off=0x0 sz=0x0
+
+Now suppose we modify another leaf node, say by inserting a new document:
+
+    db.c.insert({'this is': 'new'})
+
+Here is a comparison of the state of the collection file
+before and after this update:
+
+              BEFORE                               AFTER
+    00001000: UNUSED                               page entries=19 type=BLOCK_MANAGER
+    00002000: UNUSED                               page entries=24 type=BLOCK_MANAGER
+    00003000  UNUSED                               UNUSED    
+    00007000: page entries=654 type=ROW_LEAF       page entries=654 type=ROW_LEAF
+    0000d000: page entries=654 type=ROW_LEAF       page entries=654 type=ROW_LEAF
+    00013000: page entries=38 type=ROW_LEAF        UNUSED
+    00014000: UNUSED                               page entries=40 type=ROW_LEAF
+    00015000: UNUSED                               page entries=8 type=ROW_INT
+    00016000: page entries=654 type=ROW_LEAF       page entries=654 type=ROW_LEAF
+    0001c000: page entries=8 type=ROW_INT          UNUSED
+    0001d000: page entries=19 type=BLOCK_MANAGER   UNUSED
+    0001e000: page entries=17 type=BLOCK_MANAGER   UNUSED
+
+* The inserted record gets the next sequential record id, so the
+  record goes into the last leaf node at 0x13000, increasing entries
+  from 38 to 40 (one for key, one for value). The modified page for
+  that leaf node is written to an unused location at 0x14000, and the
+  previous version at 0x13000 is marked unused in the block manager
+  record.
+
+* Since the modified leaf node has a new location on disk, the root
+  node at 0x1c000 that points to it must be modified. The new version
+  of the root node is written to an unused location at 0x15000, and
+  the previous version at 0x1c000 is marked unused in the block
+  manager record.
+
+* The new block manager records recording the new used and unused
+  extents are written to unused locations at 0x1000 and 0x2000. The
+  previous block manager records at 0x1d000 and 0x1e000 are marked
+  unused.
+
+Here are the new block manager records recording the unused and used
+extents respectively:
+
+    00001000: page recno=0 gen=0 msz=0x3b entries=19 type=1(BLOCK_MANAGER) flags=0x0()
+    0000101c: block sz=0x1000 cksum=0xaf5837ab flags=0x1(cksum)
+    0000102c:   magic=71002(OK) zero=0
+    00001032:   off=0x7000 sz=0xc000
+    00001039:   off=0x14000 sz=0x8000
+    0000103b:   off=0x0 sz=0x0
+    
+    00002000: page recno=0 gen=0 msz=0x40 entries=24 type=1(BLOCK_MANAGER) flags=0x0()
+    0000201c: block sz=0x1000 cksum=0xde8d1827 flags=0x1(cksum)
+    0000202c:   magic=71002(OK) zero=0
+    00002031:   off=0x2000 sz=0x5000
+    00002037:   off=0x13000 sz=0x1000
+    0000203e:   off=0x1c000 sz=0x3000
+    00002040:   off=0x0 sz=0x0
+
+* **TBD** This was done by executing each step, stopping mongod, and looking
+  at the data files. Presumably this forces a checkpoint. Is the
+  situation any different if the data files are flushed for any other
+  reason, or different for checkpoints other than the one on shutdown?
+
+* **TBD** Are the examples shown here representative of typical behavior?
+    * is it true that records are never updated in place?
+    * is it always the case that when a page is changed, even if the
+       page does not grow, it will not be re-written in place, but
+       rather written to a currently unused extent, and the current
+       location then marked as unused?
+           
+* **TBD** Oddly, the new block manager page at 2000 after the last
+    update above lists itself as being unused (if I'm interpreting
+    things correctly). What's up hat?
+
+* **TBD** Since it appears that the location of the page manager pages
+  detailing the extents can move, how are they found?
 
 ## <a name="2"></a> 2 LSM mode
 
