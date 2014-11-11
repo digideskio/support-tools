@@ -402,10 +402,11 @@ def page(buf, at):
 
     # entries
     indent.indent()
-    if do_entry:
-        if ts=='BLOCK_MANAGER':
+    if ts=='BLOCK_MANAGER':
+        if do_block_manager_entry:
             extlist(buf, at)
-        elif ts=='ROW_INT' or ts=='ROW_LEAF':
+    elif ts=='ROW_INT' or ts=='ROW_LEAF':
+        if do_entry:
             for i in range(entries):
                 at = cell(buf, at)
         else:
@@ -413,7 +414,7 @@ def page(buf, at):
     indent.outdent()
 
     # done
-    return start + (sz if t else 4096) # xxx error(?) recovery
+    return start + (sz if ts and recno==0 else 4096) # xxx need better recovery
 
 
 #
@@ -438,6 +439,7 @@ else:
 # what to do
 do_page = 'p' in sys.argv[1]
 do_entry = 'e' in sys.argv[1]
+do_block_manager_entry = do_entry or 'm' in sys.argv[1]
 do_bson = 'b' in sys.argv[1] or 'B' in sys.argv[1]
 do_bson_detail = 'B' in sys.argv[1]
 
