@@ -477,7 +477,7 @@ extents respectively:
 The preceding examples used small records, fitting 300 or so into each
 24KB page. What happens as the record size increases?
 
-The following example was constructe by inserting increasingly large
+The following example was constructed by inserting increasingly large
 records, starting at about 1KB and increasing by 100 bytes for each
 successive record inserted:
 
@@ -497,9 +497,10 @@ successive record inserted:
     00025000: page recno=0 gen=7 msz=0x2f0e entries=12 type=7(ROW_LEAF) flags=0x4(no0)
     0002501c: block sz=0x3000 cksum=0x89f8d5ea flags=0x1(cksum)
 
-Note that the page size remains constant at 24KB, but each successive
-page holds fewer records, until finally the last page in the example
-holds only 6 records (12 key/value pair entries).
+Note that the page size remains constant at 24KB (sz=0x6000), but each
+successive page holds fewer records, starting at 21 (entries=42
+key/value pairs) until finally the last page in the example holds only
+6 records (entries=12).
 
 What happens if the records get even larger? Here's a similar example
 where we insert successively larger records, starting at 2500 bytes
