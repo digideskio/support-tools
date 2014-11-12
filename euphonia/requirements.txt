@@ -1,0 +1,7 @@
+bottle==0.12.7
+pyforce==1.4
+pymongo==2.7.2
+python-daemon==1.6.1
+pytz==2014.7
+requests==2.4.1
+

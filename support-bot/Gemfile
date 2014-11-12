@@ -1,0 +1,5 @@
+source 'https://rubygems.org'
+
+gem 'jira-ruby', '= 0.1.10'
+gem 'time-lord', '= 1.0.1'
+gem 'xmpp4r', '= 0.5.5'

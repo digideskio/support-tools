@@ -204,7 +204,7 @@ def embedded_bson(buf, at, end, *args, **kwargs):
             print_bson(buf, at, l, *args, **kwargs)
             indent.set(i)
             at += l
-        if at < end:
+        if at < end and extra:
             indent.indent()
             indent.prt(at, ' '.join(('%02x' % ord(c)) for c in buf[at:end]))
             indent.outdent()
@@ -301,13 +301,13 @@ def cell_kv(desc, buf, at, is_short, is_key):
             indent.prt(start, 'val desc=0x%x(%s) sz=%d' % (desc, info, sz))
     return end
 
-def cell_addr(desc, buf, at):
+def cell_addr(desc, buf, at, info):
     a, sz = unpack_uint(buf, at+1)
     aa, a1 = unpack_uint(buf, a)
     aa, a2 = unpack_uint(buf, aa)
     aa, a3 = unpack_uint(buf, aa)
     #x = ' '.join('%02x'%ord(c) for c in buf[a:a+sz])
-    indent.prt(at, 'val desc=0x%x sz=%d addr=%d,%d,0x%x' % (desc, sz, a1, a2, a3))
+    indent.prt(at, 'val desc=0x%x sz=%d %s=%d,%d,0x%x' % (desc, sz, 'addr', a1, a2, a3))
     return a + sz
 
 def cell(buf, at):
@@ -317,7 +317,9 @@ def cell(buf, at):
     elif desc&3==CELL_SHORT_KEY_PFX:  unhandled_desc(desc)
     elif desc==CELL_KEY:              return cell_kv(desc, buf, at, is_short=False, is_key=True)
     elif desc==CELL_VALUE:            return cell_kv(desc, buf, at, is_short=False, is_key=False)
-    elif desc==CELL_ADDR_LEAF_NO:     return cell_addr(desc, buf, at)
+    elif desc==CELL_ADDR_LEAF:        return cell_addr(desc, buf, at, 'addr')
+    elif desc==CELL_ADDR_LEAF_NO:     return cell_addr(desc, buf, at, 'addr')
+    elif desc==CELL_VALUE_OVFL:       return cell_addr(desc, buf, at, 'ovfl')
     else:                             unhandled_desc(desc)
 
 #
@@ -401,19 +403,24 @@ def page(buf, at):
     at += block_header_struct.size
 
     # entries
-    indent.indent()
-    if do_entry:
-        if ts=='BLOCK_MANAGER':
+    if ts=='BLOCK_MANAGER':
+        indent.indent()
+        if do_block_manager_entry:
             extlist(buf, at)
-        elif ts=='ROW_INT' or ts=='ROW_LEAF':
+        indent.outdent()
+    elif ts=='ROW_INT' or ts=='ROW_LEAF':
+        indent.indent()
+        if do_entry:
             for i in range(entries):
                 at = cell(buf, at)
-        else:
-            print 'unhandled page type'
-    indent.outdent()
+        indent.outdent()
+    elif ts=='OVFL':
+        embedded_bson(buf, at, at+4)
+    else:
+        print 'unhandled page type'
 
     # done
-    return start + (sz if t else 4096) # xxx error(?) recovery
+    return start + (sz if ts and recno==0 else 4096) # xxx need better recovery
 
 
 #
@@ -438,6 +445,7 @@ else:
 # what to do
 do_page = 'p' in sys.argv[1]
 do_entry = 'e' in sys.argv[1]
+do_block_manager_entry = do_entry or 'm' in sys.argv[1]
 do_bson = 'b' in sys.argv[1] or 'B' in sys.argv[1]
 do_bson_detail = 'B' in sys.argv[1]
 

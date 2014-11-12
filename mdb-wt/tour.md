@@ -14,8 +14,9 @@ format as used by MongoDB.
 &emsp;&emsp;&emsp;&emsp;1.3 [Another index example](#1.3)  
 &emsp;&emsp;&emsp;&emsp;1.4 [Comparison of WT and mmapv1 btrees](#1.4)  
 &emsp;&emsp;&emsp;&emsp;1.5 [Data updates](#1.5)  
-&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;1.5.6 [Update](#1.5.6)  
-&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;1.5.7 [Delete](#1.5.7)  
+&emsp;&emsp;&emsp;&emsp;1.6 [Deletes](#1.6)  
+&emsp;&emsp;&emsp;&emsp;1.7 [Large records](#1.7)  
+&emsp;&emsp;&emsp;&emsp;1.8 [Large collections](#1.8)  
 &emsp;&emsp;2 [LSM mode](#2)  
 &emsp;&emsp;3 [Metadata files](#3)  
 &emsp;&emsp;4 [Durability](#4)  
@@ -113,9 +114,17 @@ The page begins with a header. (Technically, two headers, a page
 header and a block header, contributed by different software modules,
 but the net effect is a single page header.) Important fields are:
 
-* number of entries on the page. Each entry is a key or a value.
-* page type identifying this page as a leaf btree node in a record store.
-* a checksum to detect file corruption.
+* entries: number of entries on the page. Each entry is a key or a
+  value, so divide by two to get the number records stored in the
+  page, as each record requires a key/value pair.
+* type: page type identifying this page as a leaf btree node in a
+  record store.
+* cksum: a checksum to detect file corruption.
+* sz: page size on disk
+* msz: page size in memory. Note that this is different from the size
+  on disk, reflecting the fact that the in-memory format is different
+  from the on-disk format, and substantial conversion is required when
+  reading or writing a page.
 
 This is followed by a sequence of key/value pairs, sorted by
 key. Since this is a leaf node of a btree representing a MongoDB
@@ -327,9 +336,239 @@ btrees, showing the content for each item in a btree node.
 
 ### <a name="1.5"></a> 1.5 Data updates
 
-#### <a name="1.5.6"></a> 1.5.6 Update
+Suppose we now update one of our records, for example:
 
-#### <a name="1.5.7"></a> 1.5.7 Delete
+    db.c.update({"here's a number field": 12350}, {'now': "it's smaller"})
+
+With mmapv1, since this update has not made the document larger, the
+update would have been done in-place. However WT handles this
+differently. Here is a comparison of the state of the collection file
+before and after this update:
+
+              BEFORE                               AFTER
+    00001000: page entries=654 typeROW_LEAF        UNUSED
+    00007000: page entries=654 type=ROW_LEAF       page entries=654 type=ROW_LEAF
+    0000d000: page entries=654 type=ROW_LEAF       page entries=654 type=ROW_LEAF
+    00013000: page entries=38 type=ROW_LEAF        page entries=38 type=ROW_LEAF                
+    00014000: page entries=8 typeROW_INT           UNUSED
+    00015000: page entries=12 type=BLOCK_MANAGER   UNUSED
+    00016000:                                      page entries=654 type=ROW_LEAF
+    0001c000:                                      page entries=8 type=ROW_INT
+    0001d000:                                      page entries=19 type=BLOCK_MANAGER
+    0001e000:                                      page entries=17 type=BLOCK_MANAGER
+
+* The update requires updating a record contained in the btree leaf
+  node that was stored in the page at 0x1000 before the update.  The
+  modified leaf node is written to the end of the file at
+  0x16000. This new leaf node is fully compacted; that is, the space
+  allocated for the now-smaller document is just exactly enough to
+  hold the document.  The original version is left in place at 0x1000,
+  but will be marked as unused in the block manager record.
+
+* Since the modified leaf node has been moved, the root node at
+  0x14000 that points to the leaf node must be modified to point to
+  the new location. The modified root node is written to the end of
+  the file at 0x1c000.  The original version is left in place at
+  0x14000, but will be marked as unused in the block manager record.
+
+* Since the used/unused extents have changed, the block manager record
+  needs to change. Two new block manager records are written to the
+  end of the file, recording used and unused extents respectively.
+  The previous block manager record at 0x15000 is left in place, but
+  is marked unused in the new block manager records.
+
+Here are the two new block manager records at the end of the file. The
+first records the two in-use extents at 0x7000 and 0x16000:
+
+    0001d000: page recno=0 gen=0 msz=0x3b entries=19 type=1(BLOCK_MANAGER) flags=0x0()
+    0001d01c: block sz=0x1000 cksum=0x79ea689c flags=0x1(cksum)
+    0001d02c:   magic=71002(OK) zero=0
+    0001d032:   off=0x7000 sz=0xd000
+    0001d039:   off=0x16000 sz=0x7000
+    0001d03b:   off=0x0 sz=0x0
+
+The second block manager record records the two unused extents at
+0x1000 and 0x14000:
+
+    0001e000: page recno=0 gen=0 msz=0x39 entries=17 type=1(BLOCK_MANAGER) flags=0x0()
+    0001e01c: block sz=0x1000 cksum=0x342ada60 flags=0x1(cksum)
+    0001e02c:   magic=71002(OK) zero=0
+    0001e031:   off=0x1000 sz=0x6000
+    0001e037:   off=0x14000 sz=0x2000
+    0001e039:   off=0x0 sz=0x0
+
+Now suppose we modify another leaf node, say by inserting a new document:
+
+    db.c.insert({'this is': 'new'})
+
+Here is a comparison of the state of the collection file
+before and after this update:
+
+              BEFORE                               AFTER
+    00001000: UNUSED                               page entries=19 type=BLOCK_MANAGER
+    00002000: UNUSED                               page entries=24 type=BLOCK_MANAGER
+    00003000  UNUSED                               UNUSED    
+    00007000: page entries=654 type=ROW_LEAF       page entries=654 type=ROW_LEAF
+    0000d000: page entries=654 type=ROW_LEAF       page entries=654 type=ROW_LEAF
+    00013000: page entries=38 type=ROW_LEAF        UNUSED
+    00014000: UNUSED                               page entries=40 type=ROW_LEAF
+    00015000: UNUSED                               page entries=8 type=ROW_INT
+    00016000: page entries=654 type=ROW_LEAF       page entries=654 type=ROW_LEAF
+    0001c000: page entries=8 type=ROW_INT          UNUSED
+    0001d000: page entries=19 type=BLOCK_MANAGER   UNUSED
+    0001e000: page entries=17 type=BLOCK_MANAGER   UNUSED
+
+* The inserted record gets the next sequential record id, so the
+  record goes into the last leaf node at 0x13000, increasing entries
+  from 38 to 40 (one for key, one for value). The modified page for
+  that leaf node is written to an unused location at 0x14000, and the
+  previous version at 0x13000 is marked unused in the block manager
+  record.
+
+* Since the modified leaf node has a new location on disk, the root
+  node at 0x1c000 that points to it must be modified. The new version
+  of the root node is written to an unused location at 0x15000, and
+  the previous version at 0x1c000 is marked unused in the block
+  manager record.
+
+* The new block manager records recording the new used and unused
+  extents are written to unused locations at 0x1000 and 0x2000. The
+  previous block manager records at 0x1d000 and 0x1e000 are marked
+  unused.
+
+Here are the new block manager records recording the unused and used
+extents respectively:
+
+    00001000: page recno=0 gen=0 msz=0x3b entries=19 type=1(BLOCK_MANAGER) flags=0x0()
+    0000101c: block sz=0x1000 cksum=0xaf5837ab flags=0x1(cksum)
+    0000102c:   magic=71002(OK) zero=0
+    00001032:   off=0x7000 sz=0xc000
+    00001039:   off=0x14000 sz=0x8000
+    0000103b:   off=0x0 sz=0x0
+    
+    00002000: page recno=0 gen=0 msz=0x40 entries=24 type=1(BLOCK_MANAGER) flags=0x0()
+    0000201c: block sz=0x1000 cksum=0xde8d1827 flags=0x1(cksum)
+    0000202c:   magic=71002(OK) zero=0
+    00002031:   off=0x2000 sz=0x5000
+    00002037:   off=0x13000 sz=0x1000
+    0000203e:   off=0x1c000 sz=0x3000
+    00002040:   off=0x0 sz=0x0
+
+* **TBD** This was done by executing each step, stopping mongod, and looking
+  at the data files. Presumably this forces a checkpoint. Is the
+  situation any different if the data files are flushed for any other
+  reason, or different for checkpoints other than the one on shutdown?
+
+* **TBD** Are the examples shown here representative of typical behavior?
+    * is it true that records are never updated in place?
+    * is it always the case that when a page is changed, even if the
+       page does not grow, it will not be re-written in place, but
+       rather written to a currently unused extent, and the current
+       location then marked as unused?
+           
+* **TBD** Oddly, the new block manager page at 2000 after the last
+    update above lists itself as being unused (if I'm interpreting
+    things correctly). What's up hat?
+
+* **TBD** Since it appears that the location of the page manager pages
+  detailing the extents can move, how are they found?
+
+### <a name="1.6"></a> 1.6 Deletes
+
+### <a name="1.7"></a> 1.7 Large records
+
+The preceding examples used small records, fitting 300 or so into each
+24KB page. What happens as the record size increases?
+
+The following example was constructed by inserting increasingly large
+records, starting at about 1KB and increasing by 100 bytes for each
+successive record inserted:
+
+    00000000: block_desc magic=120897(OK) major=1 minor=0 cksum=0xb72308d8
+    00001000: page recno=0 gen=1 msz=0x5d43 entries=42 type=7(ROW_LEAF) flags=0x4(no0)
+    0000101c: block sz=0x6000 cksum=0xf4d6c942 flags=0x1(cksum)
+    00007000: page recno=0 gen=2 msz=0x5dac entries=36 type=7(ROW_LEAF) flags=0x4(no0)
+    0000701c: block sz=0x6000 cksum=0x6c7a7e8 flags=0x1(cksum)
+    0000d000: page recno=0 gen=3 msz=0x5de8 entries=32 type=7(ROW_LEAF) flags=0x4(no0)
+    0000d01c: block sz=0x6000 cksum=0x84bfdbab flags=0x1(cksum)
+    00013000: page recno=0 gen=4 msz=0x5a6a entries=28 type=7(ROW_LEAF) flags=0x4(no0)
+    0001301c: block sz=0x6000 cksum=0x6df0ff7 flags=0x1(cksum)
+    00019000: page recno=0 gen=5 msz=0x5ada entries=26 type=7(ROW_LEAF) flags=0x4(no0)
+    0001901c: block sz=0x6000 cksum=0xa6d8bcb flags=0x1(cksum)
+    0001f000: page recno=0 gen=6 msz=0x59bc entries=24 type=7(ROW_LEAF) flags=0x4(no0)
+    0001f01c: block sz=0x6000 cksum=0x880a6f3 flags=0x1(cksum)
+    00025000: page recno=0 gen=7 msz=0x2f0e entries=12 type=7(ROW_LEAF) flags=0x4(no0)
+    0002501c: block sz=0x3000 cksum=0x89f8d5ea flags=0x1(cksum)
+
+Note that the page size remains constant at 24KB (sz=0x6000), but each
+successive page holds fewer records, starting at 21 records
+(entries=42 key/value pairs) until finally the last page in the
+example holds only 6 records (entries=12).
+
+What happens if the records get even larger? Here's a similar example
+where we insert successively larger records, starting at 2500 bytes
+and increasing by 100 for each record inserted:
+
+    00000000: block_desc magic=120897(OK) major=1 minor=0 cksum=0xb72308d8
+    00001000: page recno=0 gen=1 msz=0xc44 entries=3100 type=5(OVFL) flags=0x0()  <-- overflow page
+    0000101c: block sz=0x1000 cksum=0x11b30903 flags=0x1(cksum)
+    00002000: page recno=0 gen=2 msz=0xca8 entries=3200 type=5(OVFL) flags=0x0()  <-- overflow page
+    0000201c: block sz=0x1000 cksum=0xaa9ec583 flags=0x1(cksum)
+    00003000: page recno=0 gen=3 msz=0xd0c entries=3300 type=5(OVFL) flags=0x0()  <-- overflow page
+    0000301c: block sz=0x1000 cksum=0x4df837e9 flags=0x1(cksum)
+    00004000: page recno=0 gen=4 msz=0xd70 entries=3400 type=5(OVFL) flags=0x0()  <-- overflow page
+    0000401c: block sz=0x1000 cksum=0xebccfd06 flags=0x1(cksum)
+    00005000: page recno=0 gen=5 msz=0x40e6 entries=20 type=7(ROW_LEAF) flags=0x4(no0)
+    0000501c: block sz=0x5000 cksum=0x92d29c4e flags=0x1(cksum)
+    00005028:   key desc=0x5(short) sz=1 key=pack(1)
+    0000502a:   val desc=0x80(long) sz=2500                 <-- value held in btree leaf node
+    000059f1:   key desc=0x5(short) sz=1 key=pack(2)
+    000059f3:   val desc=0x80(long) sz=2600                 <-- value held in btree leaf node
+    0000641e:   key desc=0x5(short) sz=1 key=pack(3)
+    00006420:   val desc=0x80(long) sz=2700                 <-- value held in btree leaf node
+    00006eaf:   key desc=0x5(short) sz=1 key=pack(4)
+    00006eb1:   val desc=0x80(long) sz=2800                 <-- value held in btree leaf node
+    000079a4:   key desc=0x5(short) sz=1 key=pack(5)
+    000079a6:   val desc=0x80(long) sz=2900                 <-- value held in btree leaf node
+    000084fd:   key desc=0x5(short) sz=1 key=pack(6)
+    000084ff:   val desc=0x80(long) sz=3000                 <-- value held in btree leaf node
+    000090ba:   key desc=0x5(short) sz=1 key=pack(7)
+    000090bc:   val desc=0xa0 sz=7 addr=0,1,0x11b30903      <-- overflow pointer
+    000090c5:   key desc=0x5(short) sz=1 key=pack(8)
+    000090c7:   val desc=0xa0 sz=7 addr=1,1,0xaa9ec583      <-- overflow pointer
+    000090d0:   key desc=0x5(short) sz=1 key=pack(9)
+    000090d2:   val desc=0xa0 sz=7 addr=2,1,0x4df837e9      <-- overflow pointer
+    000090db:   key desc=0x5(short) sz=1 key=pack(10)
+    000090dd:   val desc=0xa0 sz=7 addr=3,1,0xebccfd06
+    0000a000: page recno=0 gen=6 msz=0x33 entries=2 type=6(ROW_INT) flags=0x0()
+    0000a01c: block sz=0x1000 cksum=0x1a5887b1 flags=0x1(cksum)
+    0000b000: page recno=0 gen=0 msz=0x33 entries=11 type=1(BLOCK_MANAGER) flags=0x0()
+    0000b01c: block sz=0x1000 cksum=0xd66d4ac6 flags=0x1(cksum)
+    
+* Focusing on the leaf page at 0x5000, we see that the first several
+  records, up to 3000 bytes, are held in the leaf record as before.
+
+* But starting with the record of size 3100, rather than storing the
+  value itself in the btree node, an address token pointing to an
+  overflow page is stored, and the data is stored outside the leaf
+  node in the overflow page.
+
+**TBD** Is the 24KB disk page size a parameter that can be tweaked?
+
+**TBD** What is the threshhold for using an overflow record? Appears
+to be 3KB in these examples. Tweakable?
+
+### <a name="1.8"></a> 1.8 Large collections
+
+Unlike mmapv1, which breaks a db up into files no larger than 2GB, WT
+stores each collection in a single arbitrarily large file. The size of
+the file is only limited by the amount of available disk and resource
+limits like ulimit settings.
+
+**TBD** Is this correct? No internal upper bounds? For example, the
+address tokens appear to be in units of 4KB, so there is a potential
+for a limit at 2^31 or 2^32 * 4KB, that is 4TB or 8TB (depending on
+the internal data type used for handling the address tokens).
 
 ## <a name="2"></a> 2 LSM mode
 
@@ -347,6 +586,66 @@ Each filename follows a pattern as described above, encoding the following infor
 * $x **TBD**
 * $seq **TBD** sequence number (*TBD* terminology?)
 
+Note that now rather than a single file for each collection, we will
+have a sequence of files for each collection, with sequential values
+of the $seq part of the filename.
+
+For example, going back to our [original example](#example1), after
+initially creating the datset, we will have a single file containing
+exactly the same btree data structure that we had in record-store
+mode, except that it is named with a .lsm extension and has a sequence
+number as part of the name:
+
+    collection-2-3650574080730131548-000001.lsm
+
+Then, after applying a single update to the tree, we will now have two
+files:
+
+    collection-2-3650574080730131548-000001.lsm
+    collection-2-3650574080730131548-000002.lsm
+
+The first file with the sequence number of 000001 has not been
+modified. The 000002 file records the updates that need to be applied
+to the 000001 file to obtain the current value of the collection. The
+000002 file also a btree, in this case a very simple one containing
+only one record, the one that we updated:
+
+    00000000: block_desc magic=120897(OK) major=1 minor=0 cksum=0xb72308d8
+
+    00001000: page recno=0 gen=1 msz=0x57 entries=2 type=7(ROW_LEAF) flags=0x4(no0)
+    0000101c: block sz=0x1000 cksum=0xa2427f90 flags=0x1(cksum)
+    00001028:   key desc=0x5(short) sz=1 key=pack(6)
+    0000102a:   val desc=0xb3(short) sz=44
+    0000102f:     DOC len=44
+    00001030:       '_id': objectid 54 63 86 fa 03 85 b4 cc 9c dd 85 72 =2014-11-12T16:12:42Z
+    00001041:       'now': string len=13 strlen=12 ="it's smaller"
+    00001057:     EOO
+
+    00002000: page recno=0 gen=2 msz=0x33 entries=2 type=6(ROW_INT) flags=0x0()
+    0000201c: block sz=0x1000 cksum=0xf70da7b0 flags=0x1(cksum)
+    00002028:   key desc=0x5(short) sz=1 key='\x00'
+    0000202a:   val desc=0x30 sz=7 addr=0,1,0xa2427f90
+
+    00003000: page recno=0 gen=0 msz=0x32 entries=10 type=1(BLOCK_MANAGER) flags=0x0()
+    0000301c: block sz=0x1000 cksum=0xf2e0bde0 flags=0x1(cksum)
+    0000302c:   magic=71002(OK) zero=0
+    00003030:   off=0x1000 sz=0x2000
+    00003032:   off=0x0 sz=0x0
+
+In order to satisfy a query, the WT engine may need to merge the
+values from multiple btree data structures in order to obtain the
+latest value. Since this makes reads potentially expensive, there is a
+background thread that merges the updates from multiple lsm trees and
+writes them to disk, making reads faster.
+
+**TBD** is it really as simple as (effectively) merging the trees in
+all existing .lsm files for a collection, in order of sequence
+number?
+
+**TBD** when, and exactly what does the background merge thread do -
+e.g. does it merge all trees?
+
+**TBD** deletes
 
 ## <a name="3"></a> 3 Metadata files
 
