@@ -14,8 +14,9 @@ format as used by MongoDB.
 &emsp;&emsp;&emsp;&emsp;1.3 [Another index example](#1.3)  
 &emsp;&emsp;&emsp;&emsp;1.4 [Comparison of WT and mmapv1 btrees](#1.4)  
 &emsp;&emsp;&emsp;&emsp;1.5 [Data updates](#1.5)  
-&emsp;&emsp;&emsp;&emsp;1.6 [Large records](#1.6)  
-&emsp;&emsp;&emsp;&emsp;1.7 [Large collections](#1.7)  
+&emsp;&emsp;&emsp;&emsp;1.6 [Deletes](#1.6)  
+&emsp;&emsp;&emsp;&emsp;1.7 [Large records](#1.7)  
+&emsp;&emsp;&emsp;&emsp;1.8 [Large collections](#1.8)  
 &emsp;&emsp;2 [LSM mode](#2)  
 &emsp;&emsp;3 [Metadata files](#3)  
 &emsp;&emsp;4 [Durability](#4)  
@@ -472,7 +473,9 @@ extents respectively:
 * **TBD** Since it appears that the location of the page manager pages
   detailing the extents can move, how are they found?
 
-### <a name="1.6"></a> 1.6 Large records
+### <a name="1.6"></a> 1.6 Deletes
+
+### <a name="1.7"></a> 1.7 Large records
 
 The preceding examples used small records, fitting 300 or so into each
 24KB page. What happens as the record size increases?
@@ -498,9 +501,9 @@ successive record inserted:
     0002501c: block sz=0x3000 cksum=0x89f8d5ea flags=0x1(cksum)
 
 Note that the page size remains constant at 24KB (sz=0x6000), but each
-successive page holds fewer records, starting at 21 (entries=42
-key/value pairs) until finally the last page in the example holds only
-6 records (entries=12).
+successive page holds fewer records, starting at 21 records
+(entries=42 key/value pairs) until finally the last page in the
+example holds only 6 records (entries=12).
 
 What happens if the records get even larger? Here's a similar example
 where we insert successively larger records, starting at 2500 bytes
@@ -553,9 +556,19 @@ and increasing by 100 for each record inserted:
 **TBD** Is the 24KB disk page size a parameter that can be tweaked?
 
 **TBD** What is the threshhold for using an overflow record? Appears
-to be 3KB in these examples.
+to be 3KB in these examples. Tweakable?
 
-### <a name="1.7"></a> 1.7 Large collections
+### <a name="1.8"></a> 1.8 Large collections
+
+Unlike mmapv1, which breaks a db up into files no larger than 2GB, WT
+stores each collection in a single arbitrarily large file. The size of
+the file is only limited by the amount of available disk and resource
+limits like ulimit settings.
+
+**TBD** Is this correct? No internal upper bounds? For example, the
+address tokens appear to be in units of 4KB, so there is a potential
+for a limit at 2^31 or 2^32 * 4KB, that is 4TB or 8TB (depending on
+the internal data type used for handling the address tokens).
 
 ## <a name="2"></a> 2 LSM mode
 
@@ -573,6 +586,66 @@ Each filename follows a pattern as described above, encoding the following infor
 * $x **TBD**
 * $seq **TBD** sequence number (*TBD* terminology?)
 
+Note that now rather than a single file for each collection, we will
+have a sequence of files for each collection, with sequential values
+of the $seq part of the filename.
+
+For example, going back to our [original example](#example1), after
+initially creating the datset, we will have a single file containing
+exactly the same btree data structure that we had in record-store
+mode, except that it is named with a .lsm extension and has a sequence
+number as part of the name:
+
+    collection-2-3650574080730131548-000001.lsm
+
+Then, after applying a single update to the tree, we will now have two
+files:
+
+    collection-2-3650574080730131548-000001.lsm
+    collection-2-3650574080730131548-000002.lsm
+
+The first file with the sequence number of 000001 has not been
+modified. The 000002 file records the updates that need to be applied
+to the 000001 file to obtain the current value of the collection. The
+000002 file also a btree, in this case a very simple one containing
+only one record, the one that we updated:
+
+    00000000: block_desc magic=120897(OK) major=1 minor=0 cksum=0xb72308d8
+
+    00001000: page recno=0 gen=1 msz=0x57 entries=2 type=7(ROW_LEAF) flags=0x4(no0)
+    0000101c: block sz=0x1000 cksum=0xa2427f90 flags=0x1(cksum)
+    00001028:   key desc=0x5(short) sz=1 key=pack(6)
+    0000102a:   val desc=0xb3(short) sz=44
+    0000102f:     DOC len=44
+    00001030:       '_id': objectid 54 63 86 fa 03 85 b4 cc 9c dd 85 72 =2014-11-12T16:12:42Z
+    00001041:       'now': string len=13 strlen=12 ="it's smaller"
+    00001057:     EOO
+
+    00002000: page recno=0 gen=2 msz=0x33 entries=2 type=6(ROW_INT) flags=0x0()
+    0000201c: block sz=0x1000 cksum=0xf70da7b0 flags=0x1(cksum)
+    00002028:   key desc=0x5(short) sz=1 key='\x00'
+    0000202a:   val desc=0x30 sz=7 addr=0,1,0xa2427f90
+
+    00003000: page recno=0 gen=0 msz=0x32 entries=10 type=1(BLOCK_MANAGER) flags=0x0()
+    0000301c: block sz=0x1000 cksum=0xf2e0bde0 flags=0x1(cksum)
+    0000302c:   magic=71002(OK) zero=0
+    00003030:   off=0x1000 sz=0x2000
+    00003032:   off=0x0 sz=0x0
+
+In order to satisfy a query, the WT engine may need to merge the
+values from multiple btree data structures in order to obtain the
+latest value. Since this makes reads potentially expensive, there is a
+background thread that merges the updates from multiple lsm trees and
+writes them to disk, making reads faster.
+
+**TBD** is it really as simple as (effectively) merging the trees in
+all existing .lsm files for a collection, in order of sequence
+number?
+
+**TBD** when, and exactly what does the background merge thread do -
+e.g. does it merge all trees?
+
+**TBD** deletes
 
 ## <a name="3"></a> 3 Metadata files
 
