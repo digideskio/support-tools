@@ -16,17 +16,25 @@ $(document).ready(function() {
        $('.twitter-typeahead').width(150);
     });
 
-    // If auth_token is set, use it to initialize
-    // user profile
-    initFromAuthToken();
+    userInit();
 
     // Login, i.e. set auth_token
     $('#nav_a_login').click(function() {
         var auth_token = prompt("auth_token:");
+        deleteCookies();
         $.cookie('auth_token', auth_token);
-        initFromAuthToken();
+        var callback = function() {window.location.reload()};
+        initFromAuthToken(callback);
     });
 });
+
+var deleteCookies = function() {
+    var cookies = document.cookie.split(";");
+    for (var i = 0; i < cookies.length; i++) {
+        name = cookies[i].split('=')[0]
+        $.removeCookie(name);
+    }
+}
 
 var groups = new Bloodhound({
   datumTokenizer: Bloodhound.tokenizers.obj.whitespace('GroupName'),
@@ -61,21 +69,31 @@ $('#groupSearch').typeahead(
   }
 });
 
-var initFromAuthToken = function() {
+var userInit = function() {
+    var user = $.cookie('user');
+    if (user) {
+        var name = unescape(user);
+        var profileImageUrl = "https://corp.10gen.com/employees/" + name + "/profileimage";
+        var img = document.createElement("img");
+        img.src = profileImageUrl;
+        img.id = "img_profile";
+        $("#nav_a_login").css('padding', 0)
+                         .css('margin', 0)
+                         .html(img);
+    } else {
+        initFromAuthToken();
+    }
+}
+
+var initFromAuthToken = function(callback) {
     var auth_token = $.cookie('auth_token');
     if (typeof auth_token !== "undefined") {
         var urlString = "/login";
         var data = {'auth_token': auth_token};
-        $.post(urlString, data, function(res){
-            var name = res.data.user;
-            var profileImageUrl = "https://corp.10gen.com/employees/" + name + "/profileimage";
-            var img = document.createElement("img");
-            img.src = profileImageUrl;
-            img.id = "img_profile";
-            $("#nav_a_login").css('padding', 0)
-                             .css('margin', 0)
-                             .html(img);
-        }, "json");
+        $.post(urlString, data).always(function() {
+            if (typeof callback !== "undefined"){
+                return callback();
+            }
+        });
     }
-    return null;
 };

@@ -11,6 +11,7 @@ import pymongo
 import pytz
 import signal
 import sys
+import urlparse
 
 from datetime import datetime
 from models import groups, salesforce_client, tests
@@ -53,17 +54,26 @@ class Euphonia(karakuricommon.karakuriclient):
 
         bottle.TEMPLATE_PATH.insert(0, '%s/views' % self.args['root_webdir'])
 
-        def response(result, cookies=None):
-            self.logger.debug("response(%s)", result)
+        def response(result, cookies=None, template=None, template_data=None):
+            self.logger.debug("response(%s,%s,%s,%s)", result, cookies, template, template_data)
             if result['status'] == "success":
                 if cookies is not None:
                     for cookie in cookies:
-                        try:
-                            val = bson.json_util.dumps(cookie[1])
-                        except Exception as e:
-                            val = e
+                        if not isinstance(cookie[1], unicode):
+                            try:
+                                val = bson.json_util.dumps(cookie[1])
+                            except Exception as e:
+                                val = e
+                        else:
+                            val = cookie[1]
                         bottle.response.set_cookie(str(cookie[0]), val)
                 bottle.response.status = 200
+                if template is not None:
+                    data = {'data': result['data']}
+                    if template_data is not None:
+                        for datum in template_data:
+                            data[datum] = template_data[datum]
+                    return bottle.template(template, data=data)
             elif result['status'] == "fail":
                 bottle.response.status = 500
             elif result['status'] == "error":
@@ -191,64 +201,35 @@ class Euphonia(karakuricommon.karakuriclient):
         @b.route('/tasks')
         @tokenize
         def issue_summary(**kwargs):
-            res = self.queueRequest(**kwargs)
+            # list of workflows
+            res = self.workflowRequest(**kwargs)
             if res['status'] == "success":
-                task_summary = res['data']
+                workflows = res['data']['workflows']
             else:
-                task_summary = None
+                workflows = []
 
-            workflows = bottle.request.get_cookie('workflows')
-            try:
-                workflows = bson.json_util.loads(workflows)
-            except Exception as e:
-                workflows = e
-            if workflows:
-                res = self.workflowsRequest(workflows, **kwargs)
-            else:
-                res = self.workflowRequest(**kwargs)
-            if res['status'] == "success":
-                task_workflows = res['data']
-            else:
-                task_workflows = None
-            if (task_workflows is not None and
-                    'workflows' in task_workflows and
-                    len(task_workflows['workflows']) > 0):
-                task_workflows = task_workflows['workflows']
-            else:
-                task_workflows = []
-            issue_objs = {}
-            if (task_summary is not None and
-                    'tasks' in task_summary and
-                    len(task_summary['tasks']) > 0):
-                task_summary = task_summary['tasks']
-                for task in task_summary:
-                    if 'start' in task:
-                        task['startDate'] = task['start'].strftime("%Y-%m-%d %H:%M")
-                        starttz = task['start'].tzinfo
-                        end_of_time = utc.localize(datetime.max).astimezone(starttz)
-                        end_of_time_str = end_of_time.strftime("%Y-%m-%d %H:%M")
-                        if task['startDate'] == end_of_time_str:
-                            task['frozen'] = True
-                        else:
-                            task['frozen'] = False
-                    else:
-                        task['startDate'] = ""
-                        task['frozen'] = False
-                    task['updateDate'] = task['t'].strftime(format="%Y-%m-%d %H:%M")
-                    res = self.issueRequest(str(task['iid']), **kwargs)
-                    if res['status'] == "success":
-                        issue = res['data']
-                    else:
-                        issue = None
-                    print issue
-                    if issue is not None:
-                        issue_objs[str(task['iid'])] = issue['issue']['jira']
-            else:
-                task_summary = []
-            return bottle.template('base_page', renderpage="tasks",
-                                   ticketSummary=task_summary,
-                                   issues=issue_objs,
-                                   ticketWorkflows=task_workflows)
+            workflowMap = {workflow['name']:workflow for workflow in workflows}
+            workflowNames = workflowMap.keys()
+            workflowNames.sort()
+
+            user_workflows = []
+            cookie_workflowNames = bottle.request.get_cookie('workflows')
+
+            # convert the octal
+            if cookie_workflowNames:
+                cookie_workflowNames = urlparse.unquote(cookie_workflowNames)
+                if cookie_workflowNames and cookie_workflowNames != "[]":
+                    try:
+                        user_workflows = bson.json_util.loads(cookie_workflowNames)
+                        user_workflows.sort()
+                    except Exception as e:
+                        self.logger.exception(e)
+
+
+            content = ''
+            for workflow in user_workflows:
+                content += get_rendered_workflow(workflow, **kwargs)
+            return bottle.template('base_page', renderpage="tasks", allWorkflows=workflowNames, content=content)
 
         @b.route('/task/<task>/process')
         @tokenize
@@ -279,13 +260,27 @@ class Euphonia(karakuricommon.karakuriclient):
         @b.route('/task/<task>/wake')
         @tokenize
         def wake_task(task, **kwargs):
-            return response(self.taskRequest(task, "sleep", **kwargs))
+            return response(self.taskRequest(task, "wake", **kwargs))
 
         @b.route('/task/<task>/sleep/<seconds>')
         @tokenize
         def sleep_task(task, seconds, **kwargs):
             seconds = int(seconds)
             return response(self.taskRequest(task, "sleep", seconds, **kwargs))
+
+        @b.post('/user/<uid>/workflow/<workflow>')
+        @tokenize
+        def user_add_workflow(uid, workflow, **kwargs):
+            """ Add user workflow """
+            res = self.postRequest("/user/%s/workflow/%s" % (uid, workflow), **kwargs)
+            return bson.json_util.dumps(res)
+
+        @b.delete('/user/<uid>/workflow/<workflow>')
+        @tokenize
+        def user_remove_workflow(uid, workflow, **kwargs):
+            """ Remove user workflow """
+            res = self.deleteRequest("/user/%s/workflow/%s" % (uid, workflow), **kwargs)
+            return bson.json_util.dumps(res)
 
         @b.route('/workflows')
         @tokenize
@@ -342,8 +337,81 @@ class Euphonia(karakuricommon.karakuriclient):
         @b.route('/workflow')
         @b.route('/workflow/')
         @tokenize
-        def get_workflows(**kwargs):
+        def get_workflow(**kwargs):
             return response(self.workflowRequest(**kwargs))
+
+        @b.route('/workflow/<name>/rendered')
+        @tokenize
+        def get_rendered_workflow(name, **kwargs):
+            res = self.workflowRequest(name, 'queue', **kwargs)
+            if res['status'] == "success":
+                task_summary = res['data']
+            else:
+                task_summary = []
+
+            issue_objs = {}
+            if (task_summary is not None and
+                    'tasks' in task_summary and
+                    len(task_summary['tasks']) > 0):
+                for task in task_summary['tasks']:
+                    if 'start' in task:
+                        task['startDate'] = task['start'].strftime("%Y-%m-%d %H:%M")
+                        starttz = task['start'].tzinfo
+                        end_of_time = utc.localize(datetime.max).astimezone(starttz)
+                        end_of_time_str = end_of_time.strftime("%Y-%m-%d %H:%M")
+                        if task['startDate'] == end_of_time_str:
+                            task['frozen'] = True
+                        else:
+                            task['frozen'] = False
+                    else:
+                        task['startDate'] = ""
+                        task['frozen'] = False
+                    task['updateDate'] = task['t'].strftime(format="%Y-%m-%d %H:%M")
+                    res = self.issueRequest(str(task['iid']), **kwargs)
+                    if res['status'] == "success":
+                        issue = res['data']
+                    else:
+                        issue = None
+                    print issue
+                    if issue is not None:
+                        issue_objs[str(task['iid'])] = issue['issue']['jira']
+
+            hidden_done = {}
+            cookie_hideDone = bottle.request.get_cookie('workflows_hide_done')
+            # convert the octal
+            if cookie_hideDone:
+                cookie_hideDone = urlparse.unquote(cookie_hideDone)
+                if cookie_hideDone and cookie_hideDone != "[]":
+                    try:
+                        tmp = bson.json_util.loads(cookie_hideDone)
+                        for i in tmp:
+                            hidden_done[i] = 1
+                    except Exception as e:
+                        self.logger.exception(e)
+            if name in hidden_done:
+                hide_done = True
+            else:
+                hide_done = False
+
+            hidden_frozen = {}
+            cookie_hideFrozen = bottle.request.get_cookie('workflows_hide_frozen')
+            # convert the octal
+            if cookie_hideFrozen:
+                cookie_hideFrozen = urlparse.unquote(cookie_hideFrozen)
+                if cookie_hideFrozen and cookie_hideFrozen != "[]":
+                    try:
+                        tmp = bson.json_util.loads(cookie_hideFrozen)
+                        for i in tmp:
+                            hidden_frozen[i] = 1
+                    except Exception as e:
+                        self.logger.exception(e)
+            if name in hidden_frozen:
+                hide_frozen = True
+            else:
+                hide_frozen = False
+
+            data = {'ticketSummary': task_summary, 'issues': issue_objs, 'hide_done': hide_done, 'hide_frozen': hide_frozen}
+            return response(self.workflowRequest(name, **kwargs), template="tasks_workflow", template_data=data)
 
         @b.route('/workflow/<workflow>/process')
         @tokenize
