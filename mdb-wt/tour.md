@@ -14,6 +14,8 @@ format as used by MongoDB.
 &emsp;&emsp;&emsp;&emsp;1.3 [Another index example](#1.3)  
 &emsp;&emsp;&emsp;&emsp;1.4 [Comparison of WT and mmapv1 btrees](#1.4)  
 &emsp;&emsp;&emsp;&emsp;1.5 [Data updates](#1.5)  
+&emsp;&emsp;&emsp;&emsp;1.6 [Large records](#1.6)  
+&emsp;&emsp;&emsp;&emsp;1.7 [Large collections](#1.7)  
 &emsp;&emsp;2 [LSM mode](#2)  
 &emsp;&emsp;3 [Metadata files](#3)  
 &emsp;&emsp;4 [Durability](#4)  
@@ -111,9 +113,17 @@ The page begins with a header. (Technically, two headers, a page
 header and a block header, contributed by different software modules,
 but the net effect is a single page header.) Important fields are:
 
-* number of entries on the page. Each entry is a key or a value.
-* page type identifying this page as a leaf btree node in a record store.
-* a checksum to detect file corruption.
+* entries: number of entries on the page. Each entry is a key or a
+  value, so divide by two to get the number records stored in the
+  page, as each record requires a key/value pair.
+* type: page type identifying this page as a leaf btree node in a
+  record store.
+* cksum: a checksum to detect file corruption.
+* sz: page size on disk
+* msz: page size in memory. Note that this is different from the size
+  on disk, reflecting the fact that the in-memory format is different
+  from the on-disk format, and substantial conversion is required when
+  reading or writing a page.
 
 This is followed by a sequence of key/value pairs, sorted by
 key. Since this is a leaf node of a btree representing a MongoDB
@@ -461,6 +471,90 @@ extents respectively:
 
 * **TBD** Since it appears that the location of the page manager pages
   detailing the extents can move, how are they found?
+
+### <a name="1.6"></a> 1.6 Large records
+
+The preceding examples used small records, fitting 300 or so into each
+24KB page. What happens as the record size increases?
+
+The following example was constructe by inserting increasingly large
+records, starting at about 1KB and increasing by 100 bytes for each
+successive record inserted:
+
+    00000000: block_desc magic=120897(OK) major=1 minor=0 cksum=0xb72308d8
+    00001000: page recno=0 gen=1 msz=0x5d43 entries=42 type=7(ROW_LEAF) flags=0x4(no0)
+    0000101c: block sz=0x6000 cksum=0xf4d6c942 flags=0x1(cksum)
+    00007000: page recno=0 gen=2 msz=0x5dac entries=36 type=7(ROW_LEAF) flags=0x4(no0)
+    0000701c: block sz=0x6000 cksum=0x6c7a7e8 flags=0x1(cksum)
+    0000d000: page recno=0 gen=3 msz=0x5de8 entries=32 type=7(ROW_LEAF) flags=0x4(no0)
+    0000d01c: block sz=0x6000 cksum=0x84bfdbab flags=0x1(cksum)
+    00013000: page recno=0 gen=4 msz=0x5a6a entries=28 type=7(ROW_LEAF) flags=0x4(no0)
+    0001301c: block sz=0x6000 cksum=0x6df0ff7 flags=0x1(cksum)
+    00019000: page recno=0 gen=5 msz=0x5ada entries=26 type=7(ROW_LEAF) flags=0x4(no0)
+    0001901c: block sz=0x6000 cksum=0xa6d8bcb flags=0x1(cksum)
+    0001f000: page recno=0 gen=6 msz=0x59bc entries=24 type=7(ROW_LEAF) flags=0x4(no0)
+    0001f01c: block sz=0x6000 cksum=0x880a6f3 flags=0x1(cksum)
+    00025000: page recno=0 gen=7 msz=0x2f0e entries=12 type=7(ROW_LEAF) flags=0x4(no0)
+    0002501c: block sz=0x3000 cksum=0x89f8d5ea flags=0x1(cksum)
+
+Note that the page size remains constant at 24KB, but each successive
+page holds fewer records, until finally the last page in the example
+holds only 6 records (12 key/value pair entries).
+
+What happens if the records get even larger? Here's a similar example
+where we insert successively larger records, starting at 2500 bytes
+and increasing by 100 for each record inserted:
+
+    00000000: block_desc magic=120897(OK) major=1 minor=0 cksum=0xb72308d8
+    00001000: page recno=0 gen=1 msz=0xc44 entries=3100 type=5(OVFL) flags=0x0()  <-- overflow page
+    0000101c: block sz=0x1000 cksum=0x11b30903 flags=0x1(cksum)
+    00002000: page recno=0 gen=2 msz=0xca8 entries=3200 type=5(OVFL) flags=0x0()  <-- overflow page
+    0000201c: block sz=0x1000 cksum=0xaa9ec583 flags=0x1(cksum)
+    00003000: page recno=0 gen=3 msz=0xd0c entries=3300 type=5(OVFL) flags=0x0()  <-- overflow page
+    0000301c: block sz=0x1000 cksum=0x4df837e9 flags=0x1(cksum)
+    00004000: page recno=0 gen=4 msz=0xd70 entries=3400 type=5(OVFL) flags=0x0()  <-- overflow page
+    0000401c: block sz=0x1000 cksum=0xebccfd06 flags=0x1(cksum)
+    00005000: page recno=0 gen=5 msz=0x40e6 entries=20 type=7(ROW_LEAF) flags=0x4(no0)
+    0000501c: block sz=0x5000 cksum=0x92d29c4e flags=0x1(cksum)
+    00005028:   key desc=0x5(short) sz=1 key=pack(1)
+    0000502a:   val desc=0x80(long) sz=2500                 <-- value held in btree leaf node
+    000059f1:   key desc=0x5(short) sz=1 key=pack(2)
+    000059f3:   val desc=0x80(long) sz=2600                 <-- value held in btree leaf node
+    0000641e:   key desc=0x5(short) sz=1 key=pack(3)
+    00006420:   val desc=0x80(long) sz=2700                 <-- value held in btree leaf node
+    00006eaf:   key desc=0x5(short) sz=1 key=pack(4)
+    00006eb1:   val desc=0x80(long) sz=2800                 <-- value held in btree leaf node
+    000079a4:   key desc=0x5(short) sz=1 key=pack(5)
+    000079a6:   val desc=0x80(long) sz=2900                 <-- value held in btree leaf node
+    000084fd:   key desc=0x5(short) sz=1 key=pack(6)
+    000084ff:   val desc=0x80(long) sz=3000                 <-- value held in btree leaf node
+    000090ba:   key desc=0x5(short) sz=1 key=pack(7)
+    000090bc:   val desc=0xa0 sz=7 addr=0,1,0x11b30903      <-- overflow pointer
+    000090c5:   key desc=0x5(short) sz=1 key=pack(8)
+    000090c7:   val desc=0xa0 sz=7 addr=1,1,0xaa9ec583      <-- overflow pointer
+    000090d0:   key desc=0x5(short) sz=1 key=pack(9)
+    000090d2:   val desc=0xa0 sz=7 addr=2,1,0x4df837e9      <-- overflow pointer
+    000090db:   key desc=0x5(short) sz=1 key=pack(10)
+    000090dd:   val desc=0xa0 sz=7 addr=3,1,0xebccfd06
+    0000a000: page recno=0 gen=6 msz=0x33 entries=2 type=6(ROW_INT) flags=0x0()
+    0000a01c: block sz=0x1000 cksum=0x1a5887b1 flags=0x1(cksum)
+    0000b000: page recno=0 gen=0 msz=0x33 entries=11 type=1(BLOCK_MANAGER) flags=0x0()
+    0000b01c: block sz=0x1000 cksum=0xd66d4ac6 flags=0x1(cksum)
+    
+* Focusing on the leaf page at 0x5000, we see that the first several
+  records, up to 3000 bytes, are held in the leaf record as before.
+
+* But starting with the record of size 3100, rather than storing the
+  value itself in the btree node, an address token pointing to an
+  overflow page is stored, and the data is stored outside the leaf
+  node in the overflow page.
+
+**TBD** Is the 24KB disk page size a parameter that can be tweaked?
+
+**TBD** What is the threshhold for using an overflow record? Appears
+to be 3KB in these examples.
+
+### <a name="1.7"></a> 1.7 Large collections
 
 ## <a name="2"></a> 2 LSM mode
 
