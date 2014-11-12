@@ -222,6 +222,16 @@ class karakuri(karakuricommon.karakuribase):
             updoc["$set"] = {'t': datetime.utcnow()}
         return self.find_and_modify(self.coll_queue, match, updoc)
 
+    def find_and_modify_user(self, match, updoc):
+        """ find_and_modify for karakuri.users that automatically updates the
+        't' timestamp """
+        self.logger.debug("find_and_modify_user(%s,%s)", match, updoc)
+        if "$set" in updoc:
+            updoc["$set"]['t'] = datetime.utcnow()
+        else:
+            updoc["$set"] = {'t': datetime.utcnow()}
+        return self.find_and_modify(self.coll_users, match, updoc)
+
     def find_and_modify_workflow(self, match, updoc):
         """ find_and_modify for karakuri.workflows that automatically updates
         the 't' timestamp """
@@ -391,11 +401,9 @@ class karakuri(karakuricommon.karakuribase):
         self.logger.debug("getListOfTasks(%s,%s)", match, proj)
         try:
             if proj is not None:
-                curs_queue = self.coll_queue.find(match, proj).\
-                    sort('start', pymongo.ASCENDING)
+                curs_queue = self.coll_queue.find(match, proj)
             else:
-                curs_queue = self.coll_queue.find(match).\
-                    sort('start', pymongo.ASCENDING)
+                curs_queue = self.coll_queue.find(match)
         except pymongo.errors.PyMongoError as e:
             self.logger.exception(e)
             return {'ok': False, 'payload': e}
@@ -404,12 +412,16 @@ class karakuri(karakuricommon.karakuribase):
     def getListOfWorkflows(self, **kwargs):
         self.logger.debug("getListOfWorkflows()")
         try:
-            # TODO add sort
             curs_workflows = self.coll_workflows.find()
         except pymongo.errors.PyMongoError as e:
             self.logger.exception(e)
             return {'ok': False, 'payload': e}
         return {'ok': True, 'payload': [w for w in curs_workflows]}
+
+    def getListOfWorkflowTasks(self, name, **kwargs):
+        self.logger.debug("getListOfWorkflowTasks(%s)", name)
+        match = {'active': True, 'workflow': name}
+        return self.getListOfTasks(match, **kwargs)
 
     def getSupportIssue(self, iid, **kwargs):
         """ Return a SupportIssue for the given iid """
@@ -869,6 +881,16 @@ class karakuri(karakuricommon.karakuribase):
         match = {'_id': tid}
         return self.find_and_modify_task(match, updoc)
 
+    def updateUser(self, uid, updoc, **kwargs):
+        """ Update an existing user """
+        self.logger.debug("updateUser(%s,%s)", uid, updoc)
+        res = self.getObjectId(uid)
+        if not res['ok']:
+            return res
+        uid = res['payload']
+        match = {'_id': uid}
+        return self.find_and_modify_user(match, updoc)
+
     def updateWorkflow(self, name, fields, **kwargs):
         """ Update an existing workflow """
         self.logger.debug("updateWorkflow(%s,%s)", name, fields)
@@ -1219,6 +1241,24 @@ class karakuri(karakuricommon.karakuribase):
             self.logger.debug("user_get(%s)", id)
             return user_response(self.getUser, id, **kwargs)
 
+        @b.post('/user/<uid>/workflow/<workflow>')
+        @authenticated
+        def user_add_workflow(uid, workflow, **kwargs):
+            """ Add user workflow """
+            self.logger.debug("user_add_workflow(%s,%s)", uid, workflow)
+            uid = bson.json_util.loads(uid)
+            updoc = {"$addToSet": {'workflows': workflow}}
+            return user_response(self.updateUser, uid, updoc, **kwargs)
+
+        @b.delete('/user/<uid>/workflow/<workflow>')
+        @authenticated
+        def user_remove_workflow(uid, workflow, **kwargs):
+            """ Remove user workflow """
+            self.logger.debug("user_remove_workflow(%s,%s)", uid, workflow)
+            uid = bson.json_util.loads(uid)
+            updoc = {"$pull": {'workflows': workflow}}
+            return user_response(self.updateUser, uid, updoc, **kwargs)
+
         @b.post('/login')
         def user_login(**kwargs):
             """ Find a user with the specified auth_token """
@@ -1234,9 +1274,9 @@ class karakuri(karakuricommon.karakuribase):
                     return success(res['payload'])
             return error("unable to authenticate token")
 
-        def user_response(method, token, **kwargs):
-            self.logger.debug("user_response(%s,%s)", method.__name__, token)
-            res = method(token, **kwargs)
+        def user_response(method, id, *args, **kwargs):
+            self.logger.debug("user_response(%s,%s)", method.__name__, id)
+            res = method(id, *args, **kwargs)
             if res['ok']:
                 return success({'user': res['payload']})
             return error(res['payload'])
@@ -1267,7 +1307,7 @@ class karakuri(karakuricommon.karakuribase):
         @authenticated
         def workflow_delete(name, **kwargs):
             """ Delete the workflow """
-            self.logger.debug("workflowdelete(%s)", name)
+            self.logger.debug("workflow_delete(%s)", name)
             res = self.deleteWorkflow(name, **kwargs)
             if res['ok']:
                 return success({'workflow': res['payload']})
@@ -1301,7 +1341,7 @@ class karakuri(karakuricommon.karakuribase):
         @authenticated
         def workflow_list(**kwargs):
             """ Return a list of workflows """
-            self.logger.debug("workflowlist()")
+            self.logger.debug("workflow_list()")
             res = self.getListOfWorkflows(**kwargs)
             if res['ok']:
                 return success({'workflows': res['payload']})
@@ -1311,26 +1351,37 @@ class karakuri(karakuricommon.karakuribase):
         @authenticated
         def workflow_process(name, **kwargs):
             """ Process all ready tasks for the workflow """
-            self.logger.debug("workflowprocess(%s)", name)
+            self.logger.debug("workflow_process(%s)", name)
             return workflow_response(self.processTask, name, approvedOnly=True,
                                      **kwargs)
+
+        @b.route('/workflow/<name>/queue')
+        @authenticated
+        def workflow_queue(name, **kwargs):
+            """ Return tasks queued for the workflow """
+            self.logger.debug("workflow_queue(%s)", name)
+            res = self.getListOfWorkflowTasks(name, **kwargs)
+            if res['ok']:
+                return success({'tasks': res['payload']})
+            return error(res['payload'])
 
         @b.route('/workflow/<name>/prune')
         @authenticated
         def workflow_prune(name, **kwargs):
             """ Prune all ready tasks for the workflow """
-            self.logger.debug("workflowprune(%s)", name)
+            self.logger.debug("workflow_prune(%s)", name)
             return workflow_response(self.pruneTask, name, **kwargs)
 
         @b.route('/workflow/<name>/remove')
         @authenticated
         def workflow_remove(name, **kwargs):
             """ Remove all ready tasks for the workflow """
-            self.logger.debug("workflowremove(%s)", name)
+            self.logger.debug("workflow_remove(%s)", name)
             return workflow_response(self.removeTask, name, **kwargs)
 
         def workflow_response(method, name, **kwargs):
-            self.logger.debug("workflowresponse(%s,%s)", method.__name__, name)
+            self.logger.debug("workflow_response(%s,%s)", method.__name__,
+                              name)
             res = self.getListOfReadyWorkflowTaskIds(name, **kwargs)
             if res['ok']:
                 res = self.forListOfTaskIds(method, res['payload'], **kwargs)
@@ -1344,7 +1395,7 @@ class karakuri(karakuricommon.karakuribase):
         @authenticated
         def workflow_sleep(name, seconds=sys.maxint, **kwargs):
             """ Sleep all ready tasks for the workflow """
-            self.logger.debug("workflowsleep(%s,%s)", name, seconds)
+            self.logger.debug("workflow_sleep(%s,%s)", name, seconds)
             return workflow_response(self.sleepTask, name, seconds=seconds,
                                      **kwargs)
 
@@ -1388,7 +1439,7 @@ class karakuri(karakuricommon.karakuribase):
         @authenticated
         def workflow_wake(name, **kwargs):
             """ Wake all ready tasks for the workflow """
-            self.logger.debug("workflowwake(%s)", name)
+            self.logger.debug("workflow_wake(%s)", name)
             return workflow_response(self.wakeTask, name, **kwargs)
 
         b.run(host=self.args['rest_host'], port=self.args['rest_port'])

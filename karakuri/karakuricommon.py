@@ -71,6 +71,7 @@ class karakuriclient(karakuribase):
         return self.getRequest(endpoint, None, command, arg, **kwargs)
 
     def request(self, endpoint, method="GET", data=None, **kwargs):
+        self.logger.debug("request(%s,%s,%s", endpoint, method, data)
         url = "http://%s:%i%s" % (self.args['karakuri_host'],
                                   self.args['karakuri_port'], endpoint)
         if 'token' in kwargs:
