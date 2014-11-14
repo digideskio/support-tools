@@ -2,6 +2,14 @@ import struct
 import sys
 import os
 import datetime
+import re
+
+try:
+    import snappy
+except:
+    #print 'snappy not available, will not decompress sections'
+    snappy = None
+
 
 #
 # 2.4 for 2.6
@@ -52,6 +60,8 @@ class indent:
     def __init__(self):
         self._delta = '  '
         self.reset()
+        self.p = ''
+        self.hidden = 0
     def reset(self):
         self._indent = ''
     def get(self):
@@ -62,8 +72,18 @@ class indent:
         self._indent += self._delta
     def outdent(self):
         self._indent = self._indent[:-len(self._delta)]
-    def prt(self, at, s):
-        print '%08x:%s %s' % (at, self._indent, s)
+    def pfx(self, p):
+        self.p = p
+    def hide(self):
+        self.hidden += 1
+    def show(self):
+        self.hidden -= 1
+    def prt(self, at=0, s=None):
+        if not self.hidden:
+            if s:
+                print '%s%08x:%s %s' % (self.p, at, self._indent, s)
+            else:
+                print
 
 indent = indent()
 
@@ -254,24 +274,22 @@ def unpack_uint(buf, at=0):
 def unhandled_desc(desc):
     raise Exception('unhandled desc=0x%x\n' % desc)        
 
-def record_id(buf, at, sz):
-    x = buf[at:at+sz]
+def record_id(x):
     try:
         _, x = unpack_uint(x)
         return 'pack(' + str(x) + ')'
     except:
         return repr(x)
     
-
 # collection, internal, key: record id (maybe partial?)
 # collection, leaf, key:     record id
 # collection, leaf, value:   bson
 # index,      internal, key: bson (mabye compact? maybe partial?)
 # index,      leaf, key:     bson (maybe compact?)
 # index,      leaf, value:   record id
-def cell_kv(desc, buf, at, is_short, is_key):
+def cell_kv(desc, buf, at, short, key, find=None):
     start = at
-    if is_short:
+    if short:
         at, sz = at+1, desc >> 2
         info = 'short'
     else:
@@ -279,48 +297,55 @@ def cell_kv(desc, buf, at, is_short, is_key):
         sz += 64
         info =  'long'
     end = at + sz
+    content = buf[at:at+sz]
     if is_collection:
-        if is_key:
-            x = record_id(buf,at,sz)
-            indent.prt(start, 'key desc=0x%x(%s) sz=%d key=%s' % (desc, info, sz, x))
+        if key:
+            x = record_id(content)
+            indent.prt(start, 'key desc=0x%x(%s) sz=0x%x(%d) key=%s' % (desc, info, sz, sz, x))
         else:
-            indent.prt(start, 'val desc=0x%x(%s) sz=%d' % (desc, info, sz))
+            indent.prt(start, 'val desc=0x%x(%s) sz=0x%x(%d)' % (desc, info, sz, sz))
             embedded_bson(buf, at, end)
     elif is_index:
-        if is_key:
-            indent.prt(start, 'key desc=0x%x(%s) sz=%d' % (desc, info, sz))
+        if key:
+            indent.prt(start, 'key desc=0x%x(%s) sz=0x%x(%d)' % (desc, info, sz, sz))
             embedded_bson(buf, at, end, null_name=True)
         else:
-            x = ' '.join(('%02x' % ord(c)) for c in buf[at:at+sz])
-            indent.prt(start, 'val desc=0x%x(%s) sz=%d val=%s' % (desc, info, sz, x))
+            x = ' '.join(('%02x' % ord(c)) for c in content)
+            indent.prt(start, 'val desc=0x%x(%s) sz=0x%x(%d) val=%s' % (desc, info, sz, sz, x))
     else:
-        if is_key:
-            x = repr(buf[at:at+sz])
-            indent.prt(start, 'key desc=0x%x(%s) sz=%d key=%s' % (desc, info, sz, x))
+        if key:
+            x = repr(content)
+            indent.prt(start, 'key desc=0x%x(%s) sz=0x%x(%d) key=%s'% (desc, info, sz, sz, x))
         else:
-            indent.prt(start, 'val desc=0x%x(%s) sz=%d' % (desc, info, sz))
-    return end
+            x = repr(content) if do_value else ''
+            indent.prt(start, 'val desc=0x%x(%s) sz=0x%x(%d) %s' % (desc, info, sz, sz, x))
+    return end, key and content==find, content
+
+def unpack_addr(buf, at):
+    at, a1 = unpack_uint(buf, at)
+    at, a2 = unpack_uint(buf, at)
+    at, a3 = unpack_uint(buf, at)
+    return at, (a1, a2, a3)
 
 def cell_addr(desc, buf, at, info):
     a, sz = unpack_uint(buf, at+1)
-    aa, a1 = unpack_uint(buf, a)
-    aa, a2 = unpack_uint(buf, aa)
-    aa, a3 = unpack_uint(buf, aa)
+    _, (a1, a2, a3) = unpack_addr(buf, a)
     #x = ' '.join('%02x'%ord(c) for c in buf[a:a+sz])
-    indent.prt(at, 'val desc=0x%x sz=%d %s=%d,%d,0x%x' % (desc, sz, 'addr', a1, a2, a3))
-    return a + sz
+    indent.prt(at, 'val desc=0x%x sz=0x%x(%d) %s=%d,%d,0x%x' % (desc, sz, sz, 'addr', a1, a2, a3))
+    return a + sz, False, None
 
-def cell(buf, at):
+def cell(buf, at, find=None):
     desc = ord(buf[at])
-    if   desc&3==CELL_SHORT_KEY:      return cell_kv(desc, buf, at, is_short=True, is_key=True)
-    elif desc&3==CELL_SHORT_VALUE:    return cell_kv(desc, buf, at, is_short=True, is_key=False)
-    elif desc&3==CELL_SHORT_KEY_PFX:  unhandled_desc(desc)
-    elif desc==CELL_KEY:              return cell_kv(desc, buf, at, is_short=False, is_key=True)
-    elif desc==CELL_VALUE:            return cell_kv(desc, buf, at, is_short=False, is_key=False)
-    elif desc==CELL_ADDR_LEAF:        return cell_addr(desc, buf, at, 'addr')
-    elif desc==CELL_ADDR_LEAF_NO:     return cell_addr(desc, buf, at, 'addr')
-    elif desc==CELL_VALUE_OVFL:       return cell_addr(desc, buf, at, 'ovfl')
-    else:                             unhandled_desc(desc)
+    if   desc&3==CELL_SHORT_KEY:     return cell_kv(desc, buf, at, short=True, key=True, find=find)
+    elif desc&3==CELL_SHORT_VALUE:   return cell_kv(desc, buf, at, short=True, key=False)
+    elif desc&3==CELL_SHORT_KEY_PFX: unhandled_desc(desc)
+    elif desc==CELL_KEY:             return cell_kv(desc, buf, at, short=False, key=True, find=find)
+    elif desc==CELL_VALUE:           return cell_kv(desc, buf, at, short=False, key=False)
+    elif desc==CELL_ADDR_INT :       return cell_addr(desc, buf, at, 'addr')
+    elif desc==CELL_ADDR_LEAF:       return cell_addr(desc, buf, at, 'addr')
+    elif desc==CELL_ADDR_LEAF_NO:    return cell_addr(desc, buf, at, 'addr')
+    elif desc==CELL_VALUE_OVFL:      return cell_addr(desc, buf, at, 'ovfl')
+    else:                            unhandled_desc(desc)
 
 #
 # block_desc - 4KB at beginning of file
@@ -351,12 +376,15 @@ def extlist(buf, at):
     at, magic, zero = pair(buf, at)
     ok = 'OK' if magic==71002 else 'ERROR' # xxx
     indent.prt(at, 'magic=%d(%s) zero=%d' % (magic, ok, zero))
+    res = {}
     while True:
         at, off, sz = pair(buf, at)
-        indent.prt(at, 'off=0x%x sz=0x%x' % (off, sz))
+        indent.prt(at, 'off=0x%x sz=0x%x(%d)' % (off, sz, sz))
         if off==0:
             break
-
+        else:
+            res[off] = sz
+    return res
 
 #
 # page
@@ -373,36 +401,59 @@ page_types = {
     4: 'COL_VAR',        # Col-store var-length leaf page
     5: 'OVFL',           # Overflow page
     6: 'ROW_INT',        # Row-store internal page
-    7: 'ROW_LEAF',       # Row-store leaf page */
+    7: 'ROW_LEAF',       # Row-store leaf page
 }
 
 # block.h: WT_BLOCK_HEADER, struct __wt_block_header
 block_header_struct = struct.Struct('< I I B 3s')
 
-def page(buf, at):
+# snappy_compress.c: length stored at beginning of compressed buffer
+snappy_header_struct = struct.Struct('< Q')
+
+def page(buf, at, root, avail, find=None):
 
     # sz is relative to this
     start = at
     if do_entry:
-        print
+        indent.prt()
+
+    # avail?
+    if at in avail:
+        l = avail[at]
+        indent.prt(at, 'avail len=0x%0x(%d)' % (l, l))
+        if do_avail:
+            indent.prt()
+        else:
+            return at + l, None
 
     # page header
     page_header = buf[at:at+page_header_struct.size]
-    recno, gen, msz, entries, t, flags, _ = page_header_struct.unpack(page_header)
+    recno, gen, msz, entries, t, pflags, _ = page_header_struct.unpack(page_header)
     ts = page_types[t] if t in page_types else None
-    fs = flags_string({1: 'comp', 2: 'all0', 4: 'no0'}, flags)
-    indent.prt(at, 'page recno=%d gen=%d msz=0x%x entries=%d type=%d(%s) flags=0x%x(%s)' % \
-        (recno, gen, msz, entries, t, ts, flags, fs))
+    fs = flags_string({1: 'comp', 2: 'all0', 4: 'no0'}, pflags)
+    indent.prt(at, 'page recno=%d gen=%d msz=0x%x entries=%d type=%d(%s) flags=0x%x(%s) %s' % \
+        (recno, gen, msz, entries, t, ts, pflags, fs, 'ROOT' if at==root else ''))
     at += page_header_struct.size
 
     # block header
     block_header = buf[at:at+block_header_struct.size]
-    sz, cksum, flags, _ = block_header_struct.unpack(block_header)
-    fs = flags_string({1: 'cksum'}, flags)
-    indent.prt(at, 'block sz=0x%x cksum=0x%x flags=0x%x(%s)' % (sz, cksum, flags, fs))
+    sz, cksum, bflags, _ = block_header_struct.unpack(block_header)
+    fs = flags_string({1: 'cksum'}, bflags)
+    indent.prt(at, 'block sz=0x%x cksum=0x%x flags=0x%x(%s)' % (sz, cksum, bflags, fs))
     at += block_header_struct.size
+    
+    # decompress xxx only handles snappy for now
+    if pflags & 1:
+        a = start + 64
+        l, = snappy_header_struct.unpack(buf[a:a+snappy_header_struct.size])
+        a += snappy_header_struct.size
+        buf = buf[at:start+64] + snappy.decompress(buf[a:a+l])
+        indent.prt(start+64, 'snappy compressed=%d decompressed=%d' % (l, len(buf)))
+        at = 0
+        indent.pfx('  ')
 
     # entries
+    found = False
     if ts=='BLOCK_MANAGER':
         indent.indent()
         if do_block_manager_entry:
@@ -410,9 +461,12 @@ def page(buf, at):
         indent.outdent()
     elif ts=='ROW_INT' or ts=='ROW_LEAF':
         indent.indent()
-        if do_entry:
+        if do_entry or find:
             for i in range(entries):
-                at = cell(buf, at)
+                at, f, content = cell(buf, at, find)
+                if found:
+                    return None, content
+                found = f
         indent.outdent()
     elif ts=='OVFL':
         embedded_bson(buf, at, at+4)
@@ -420,8 +474,81 @@ def page(buf, at):
         print 'unhandled page type'
 
     # done
-    return start + (sz if ts and recno==0 else 4096) # xxx need better recovery
+    indent.pfx('')
+    at = start + (sz if ts and recno==0 else 4096) # xxx need better recovery
+    return at, None
 
+#
+# parse checkpoint metadata
+# this gives us the starting points in the file
+#
+
+def ckpt_addr_cookie(info):
+    m = re.search('checkpoint=\(WiredTigerCheckpoint\.[0-9]+=\(addr="([0-9a-f]+)"', info)
+    if not m:
+        print 'no addr info; no data or no checkpoint?'
+        return None, None, None
+    addr = m.group(1)
+    buf = ''.join(chr(int(addr[i:i+2],16)) for i in range(0, len(addr), 2))
+    at = 0
+    at, version = at+1, buf[at]
+    at, root = unpack_addr(buf, at)
+    at, alloc = unpack_addr(buf, at)
+    at, avail = unpack_addr(buf, at)
+    at, discard = unpack_addr(buf, at)
+    at, fsz = unpack_uint(buf, at)
+    at, ckptsz = unpack_uint(buf, at)
+    #at, gen = unpack_uint(buf, at) # ???
+    #print ord(version), root, alloc, avail, discard, fsz, ckptsz
+    return root, alloc, avail
+
+def print_file(fn, at, meta, find=None):
+
+    # basic stuff
+    b = os.path.basename(fn)
+    global is_collection, is_index
+    is_collection = b.startswith('collection') or b.startswith('_mdb_catalog')
+    is_index = b.startswith('index')
+    buf = open(fn).read() # xxx use mmap?
+
+    # get root and avail if possible from meta string xxx check this
+    root = None
+    avail = {}
+    if meta:
+        r, _, a = ckpt_addr_cookie(meta)
+        if r:
+            root = (r[0]+1) * 4096
+        if a:
+            indent.hide()
+            if a[0]:
+                a = (a[0]+1) * 4096
+                avail = extlist(buf, a+block_header_struct.size+page_header_struct.size)
+            indent.show()
+
+    # print the page(s)
+    if at==0:
+        at = block_desc(buf, at)
+        while at < len(buf):
+            at, found = page(buf, at, root, avail, find)
+            if found:
+                return found
+    else:
+        page(buf, at, root, avail)
+
+
+def find_key(dbpath, fn, meta, key):
+    indent.hide()
+    fn = os.path.join(dbpath, fn)
+    found = print_file(fn, 0, meta, find=key)
+    indent.show()
+    return found
+
+def print_with_meta(fn, at):
+    dbpath = os.path.dirname(fn)
+    meta = open(os.path.join(dbpath, 'WiredTiger.turtle')).read()
+    if os.path.basename(fn) != 'WiredTiger.wt':
+        meta = find_key(dbpath, 'WiredTiger.wt', meta, 'file:%s\x00' % os.path.basename(fn))
+    print_file(fn, at, meta)
 
 #
 #
@@ -429,37 +556,19 @@ def page(buf, at):
 
 print '===', ' '.join(sys.argv[0:])
 
-# file
-fn = sys.argv[2]
-
-# what type of file?
-if 'c' in sys.argv[1]:
-    is_collection = True
-elif 'i' in sys.argv[1]:
-    is_index = True
-else:
-    b = os.path.basename(fn)
-    is_collection = b.startswith('collection') or b.startswith('_mdb_catalog')
-    is_index = b.startswith('index')
-
 # what to do
 do_page = 'p' in sys.argv[1]
 do_entry = 'e' in sys.argv[1]
 do_block_manager_entry = do_entry or 'm' in sys.argv[1]
 do_bson = 'b' in sys.argv[1] or 'B' in sys.argv[1]
 do_bson_detail = 'B' in sys.argv[1]
+do_value = 'v' in sys.argv[1]
+#do_collection = 'c' in sys.argv[1]
+do_avail = 'f' in sys.argv[1] # xxxxx
 
-# read the file xxx use mmap
-f = open(fn)
-buf = f.read()
-
+#if do_collection:
+#    pass
 if do_page:
+    fn = sys.argv[2]
     at = int(sys.argv[3], 0) if len(sys.argv)>3 else 0
-    if at==0:
-        at = block_desc(buf, at)
-        while at < len(buf):
-            at = page(buf, at)
-    else:
-        page(buf, at)
-
-
+    print_with_meta(fn, at)
