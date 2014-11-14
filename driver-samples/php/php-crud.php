@@ -35,7 +35,7 @@ date_default_timezone_set("Europe/Dublin");
 
 try {
   // open connection to MongoDB server
-  $conn = new Mongo('localhost');
+  $conn = new MongoClient('localhost');
 
   // access database
   $db = $conn->test;
