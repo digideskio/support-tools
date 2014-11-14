@@ -19,6 +19,8 @@ format as used by MongoDB.
 &emsp;&emsp;&emsp;&emsp;1.8 [Large collections](#1.8)  
 &emsp;&emsp;2 [LSM mode](#2)  
 &emsp;&emsp;3 [Metadata files](#3)  
+&emsp;&emsp;&emsp;&emsp;3.9 [WiredTiger.wt and WiredTiger.turtle](#3.9)  
+&emsp;&emsp;&emsp;&emsp;3.10 [_mdb_catalog.wt](#3.10)  
 &emsp;&emsp;4 [Durability](#4)  
 &emsp;&emsp;5 [Checksums and compression](#5)  
 
@@ -181,13 +183,15 @@ Note that unlike mmpav1 btrees, WT btrees
   references to other nodes. This keeps the internal nodes compact,
   even when storing collection data.
 
-**TBD** is the root always last, or is it identified in some other way?
+The location of the root btree node within each collection and index
+file is stored in the WiredTiger.wt file, which is described below in
+the section on [Metadata Files](#metadata-files).
 
 
 #### <a name="1.1.3"></a> 1.1.3 Block manager page and extent list
 
-The file ends with a block manager page that contains a list of
-extents within this file:
+Our example file ends with a block manager page that contains a list
+of in-use extents within this file:
 
     00015000: page recno=0 gen=0 msz=52(34) entries=12 type=1(BLOCK_MANAGER) flags=0()
     0001501c: block sz=4096 cksum=d228e642 flags=1(cksum)
@@ -199,11 +203,17 @@ Each entry in the list is stored as a pair of packed ints. The list
 begins and ends with sentinal entries. In this example there is a
 single extent starting at offset 0x1000 (4KB) of size 0x14000 (20KB).
 
-**TBD** unused extents?
+As we will see in a later example, there may be both in-use and unused
+extents in the file; the list of unused extents is stored in a second
+block manager page.
 
-**TBD** can this be larger than 4KB?
+The location within each collection and index file of the block
+manager pages that contain the in-use and unused extent lists is
+stored in the WiredTiger.wt metadata file, which is described below in
+the section on [Metadata Files](#metadata-files).
 
 **TBD** file size limits?
+
 
 ### <a name="1.2"></a> 1.2 The _id index
 
@@ -454,10 +464,12 @@ extents respectively:
     0000203e:   off=0x1c000 sz=0x3000
     00002040:   off=0x0 sz=0x0
 
-* **TBD** This was done by executing each step, stopping mongod, and looking
-  at the data files. Presumably this forces a checkpoint. Is the
-  situation any different if the data files are flushed for any other
-  reason, or different for checkpoints other than the one on shutdown?
+Note that for purposes of illustration the preceding example was
+constructed by doing a checkpoint after each update, forcing it to
+reflect the updates in the on-disk data structure one at a time. In a
+real application generally many updates will be written to disk at
+once, resulting in less rearrangement of the data than this example
+shows.
 
 * **TBD** Are the examples shown here representative of typical behavior?
     * is it true that records are never updated in place?
@@ -466,12 +478,8 @@ extents respectively:
        rather written to a currently unused extent, and the current
        location then marked as unused?
            
-* **TBD** Oddly, the new block manager page at 2000 after the last
-    update above lists itself as being unused (if I'm interpreting
-    things correctly). What's up hat?
-
-* **TBD** Since it appears that the location of the page manager pages
-  detailing the extents can move, how are they found?
+* **TBD** Interestingly, the block manager page listing unused extents
+    lists itself as unused.
 
 ### <a name="1.6"></a> 1.6 Deletes
 
@@ -651,8 +659,120 @@ e.g. does it merge all trees?
 
 <a name="metadata-files"></a>
 
-    _mdb_catalog.*    TBD
-    sizeStorer.*      TBD
+The organization of metadata in WT differs substantially from the
+mmapv1 storage engine:
+
+* With mmapv1, the set of files constituting a single db is a completely
+  self-contained unit. The key metadata for the db, such as the head
+  of the list of extents belong to each collection and index, the head
+  of the free lists, and the root of the btree for each index is
+  stored in the .ns metadata file for that db. The individual files of
+  the db however are not self-contained, and require the .ns file to
+  place them in the context of the db. Individual collections are
+  mixed arbitrarily within the db files.
+
+* With WT, each collection and index is stored in a separate
+  file. However, none of those files is self-contained, but rather
+  requires metadata stored in other files as described in this section
+  to locate key information such as block manager extent lists and
+  btree root node.
+
+The net result is that the smallest self-contained unit under from the
+file perspective is a db: the set of files constituting a db can be
+independently moved, deleted, or backed up. This is not the case for
+WT: the smallest self-contained unit is an entire dbpath for a db
+instance.
+
+Here is a summary of the files and their content:
+
+* WiredTiger.wt is a record store containing pointers to block manager
+  blocks identifying the in-use and available extents for each file,
+  and a pointer to the root btree node.
+
+* WiredtTiger.turtle is a text file containing pointers to block
+  manager blocks identifying the in-use and available extents for the
+  WiredTiger.wt file, and a pointer to the root btree node for that
+  file.
+
+* _mdb_catalog.wt is a record store containing MongoDB-specific
+  collection metadata. This stores the information that was stored in
+  the separate .ns files unger mmapv1; all collections in all dbs are
+  listed in this file. It also contains the mapping from namespace
+  names to WT files.
+
+** TBD ** The above summarizes some key information; what else should
+   be included?
+
+### <a name="3.9"></a> 3.9 WiredTiger.wt and WiredTiger.turtle
+
+WiredTiger.wt is a record store containing metadata about the other
+record stores, such as MongoDB collections and indexes. Here for
+example is the set of key/value pairs for a minimal installation:
+
+    00001000: page recno=0 gen=1 msz=0xed5 entries=24 type=7(ROW_LEAF) flags=0x4(no0) 
+    0000101c: block sz=0x1000 cksum=0x36c389de flags=0x1(cksum)
+    00001028:   key desc=0x59(short) sz=0x16(22) key='colgroup:_mdb_catalog\x00'
+    0000103f:   val desc=0x80(long) sz=0x41(65) 
+    00001082:   key desc=0xad(short) sz=0x2b(43) key='colgroup:collection-0--8112584666934280542\x00'
+    000010ae:   val desc=0x80(long) sz=0x56(86) 
+    00001106:   key desc=0x99(short) sz=0x26(38) key='colgroup:index-1--8112584666934280542\x00'
+    0000112d:   val desc=0x80(long) sz=0x9e(158) 
+    000011ce:   key desc=0x51(short) sz=0x14(20) key='colgroup:sizeStorer\x00'
+    000011e3:   val desc=0xf7(short) sz=0x3d(61) 
+    00001221:   key desc=0x55(short) sz=0x15(21) key='file:_mdb_catalog.wt\x00'
+    00001237:   val desc=0x80(long) sz=0x288(648) 
+    000014c2:   key desc=0xa9(short) sz=0x2a(42) key='file:collection-0--8112584666934280542.wt\x00'
+    000014ed:   val desc=0x80(long) sz=0x288(648) 
+    00001778:   key desc=0x95(short) sz=0x25(37) key='file:index-1--8112584666934280542.wt\x00'
+    0000179e:   val desc=0x80(long) sz=0x2d8(728) 
+    00001a79:   key desc=0x4d(short) sz=0x13(19) key='file:sizeStorer.wt\x00'
+    00001a8d:   val desc=0x80(long) sz=0x27f(639) 
+    00001d0f:   key desc=0x4d(short) sz=0x13(19) key='table:_mdb_catalog\x00'
+    00001d23:   val desc=0x80(long) sz=0x40(64) 
+    00001d65:   key desc=0xa1(short) sz=0x28(40) key='table:collection-0--8112584666934280542\x00'
+    00001d8e:   val desc=0x80(long) sz=0x40(64) 
+    00001dd0:   key desc=0x8d(short) sz=0x23(35) key='table:index-1--8112584666934280542\x00'
+    00001df4:   val desc=0x80(long) sz=0x8d(141) 
+    00001e84:   key desc=0x45(short) sz=0x11(17) key='table:sizeStorer\x00'
+    00001e96:   val desc=0xfb(short) sz=0x3e(62) 
+
+The values are ascii descriptor strings that contain, among other things,
+the pointers to the root btree node and used and available extent
+lists for that .wt file.
+
+Where is the metadata about this metadata stored? It's not turtles all
+the way done; in fact there is only one turtle, the WiredTiger.turtle
+file, that serves as essentially the root of the tree. Here's an
+example:
+
+    WiredTiger version string
+    WiredTiger 2.4.2: (November  6, 2014)
+    WiredTiger version
+    major=2,minor=4,patch=2
+    file:WiredTiger.wt
+    allocation_size=4KB,app_metadata=,block_allocation=best,block_compressor=,cache_resident=0,\
+    checkpoint=(WiredTigerCheckpoint.1110=(addr="018981e4a8c1f5018281e4f06e3a958381e43631ac00808080e28fc0e3454fc0",\
+    order=1110,time=1416002178,size=4550656,write_gen=2218)),checkpoint_lsn=(1,23032320),checksum=uncompressed,\
+    collator=,columns=,dictionary=0,format=btree,huffman_key=,huffman_value=,id=0,internal_item_max=0,internal_key_truncate=,\
+    internal_page_max=4KB,key_format=S,key_gap=10,leaf_item_max=0,leaf_page_max=32KB,memory_page_max=5MB,os_cache_dirty_max=0,\
+    os_cache_max=0,prefix_compression=0,prefix_compression_min=4,split_pct=75,value_format=S,version=(major=1,minor=1)
+
+This ascii file contains the same ascii descriptor string that the
+WiredTiger.wt file contains for the other .wt files. The pointers to
+the key locations in the .wt file such as btree root node pointer and
+location of extent lists is encoded in the hex string identified as
+"addr=...".
+
+Note that the key landmarks within each .wt file are associated with
+specific checkpoints. This means that a given .wt file may have
+multiple btree root nodes, extent lists, etc., one associated with
+each checkpoint. Since MongoDB only maintains one checkpoint at a time
+however we can simply refer to _the_ btree root node, extent list,
+etc. when talking about WT in a MongoDB context.  ** TBD ** verify
+accuracy of this
+
+
+### <a name="3.10"></a> 3.10 _mdb_catalog.wt
 
 The \_mdb\_catalog file is a collection containing metadata about
 collections and indexes. For example here is the entry in \_mdb\_catalog
