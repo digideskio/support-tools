@@ -677,28 +677,26 @@ mmapv1 storage engine:
   to locate key information such as block manager extent lists and
   btree root node.
 
-The net result is that the smallest self-contained unit under from the
-file perspective is a db: the set of files constituting a db can be
-independently moved, deleted, or backed up. This is not the case for
-WT: the smallest self-contained unit is an entire dbpath for a db
-instance.
+The net result is that the whereas smallest self-contained unit under
+mmapv1 from the file perspective is a db (meaning the set of files
+constituting a db can be independently moved, deleted, or backed up),
+this is not the case for WT: the smallest self-contained unit is an
+entire dbpath for a db instance.
 
 Here is a summary of the files and their content:
 
-* WiredTiger.wt is a record store containing pointers to block manager
-  blocks identifying the in-use and available extents for each file,
-  and a pointer to the root btree node.
+* WiredTiger.wt is a record store containing metadata about other .wt
+  files, including pointers to the btree root node and extent lists in
+  each .wt file.
 
-* WiredtTiger.turtle is a text file containing pointers to block
-  manager blocks identifying the in-use and available extents for the
-  WiredTiger.wt file, and a pointer to the root btree node for that
-  file.
+* WiredtTiger.turtle is a text file containing metadata about
+  WiredTiger.wt, including pointers to the btree root node and extent
+  lists in WiredTiger.wt.
 
-* _mdb_catalog.wt is a record store containing MongoDB-specific
+* \_mdb\_catalog.wt is a record store containing MongoDB-specific
   collection metadata. This stores the information that was stored in
-  the separate .ns files unger mmapv1; all collections in all dbs are
-  listed in this file. It also contains the mapping from namespace
-  names to WT files.
+  the separate .ns files unger mmapv1. This file stores the mapping
+  from namespace names to .wt files.
 
 ** TBD ** The above summarizes some key information; what else should
    be included?
@@ -706,8 +704,8 @@ Here is a summary of the files and their content:
 ### <a name="3.9"></a> 3.9 WiredTiger.wt and WiredTiger.turtle
 
 WiredTiger.wt is a record store containing metadata about the other
-record stores, such as MongoDB collections and indexes. Here for
-example is the set of key/value pairs for a minimal installation:
+record stores .wt files, such as MongoDB collections and indexes. Here
+for example is the set of key/value pairs for a minimal installation:
 
     00001000: page recno=0 gen=1 msz=0xed5 entries=24 type=7(ROW_LEAF) flags=0x4(no0) 
     0000101c: block sz=0x1000 cksum=0x36c389de flags=0x1(cksum)
@@ -736,14 +734,18 @@ example is the set of key/value pairs for a minimal installation:
     00001e84:   key desc=0x45(short) sz=0x11(17) key='table:sizeStorer\x00'
     00001e96:   val desc=0xfb(short) sz=0x3e(62) 
 
-The values are ascii descriptor strings that contain, among other things,
-the pointers to the root btree node and used and available extent
-lists for that .wt file.
+* The keys are URLs identifying a specifc resource, such as a
+  collection or index record store .wt file.
 
-Where is the metadata about this metadata stored? It's not turtles all
-the way done; in fact there is only one turtle, the WiredTiger.turtle
-file, that serves as essentially the root of the tree. Here's an
-example:
+* The values are ascii descriptor strings that contain information
+  about that resource, for example, the pointers to the root btree
+  node and extent lists for that .wt file.
+
+This .wt file contains metadata about other .wt files; where is the
+metadata about this metadata .wt file stored? It's not turtles all the
+way done; in fact there is only one turtle, the WiredTiger.turtle
+file, that serves as essentially the root of the whole thing. Here's
+an example:
 
     WiredTiger version string
     WiredTiger 2.4.2: (November  6, 2014)
@@ -757,11 +759,11 @@ example:
     internal_page_max=4KB,key_format=S,key_gap=10,leaf_item_max=0,leaf_page_max=32KB,memory_page_max=5MB,os_cache_dirty_max=0,\
     os_cache_max=0,prefix_compression=0,prefix_compression_min=4,split_pct=75,value_format=S,version=(major=1,minor=1)
 
-This ascii file contains the same ascii descriptor string that the
-WiredTiger.wt file contains for the other .wt files. The pointers to
-the key locations in the .wt file such as btree root node pointer and
-location of extent lists is encoded in the hex string identified as
-"addr=...".
+This ascii WiredTiger.turtle file contains the same ascii descriptor
+string that the WiredTiger.wt file contains for the other .wt
+files. The pointers to the key locations in the .wt file such as btree
+root node pointer and location of extent lists is encoded in the hex
+string identified as "addr=...".
 
 Note that the key landmarks within each .wt file are associated with
 specific checkpoints. This means that a given .wt file may have
