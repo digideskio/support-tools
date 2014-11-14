@@ -65,10 +65,10 @@ for group in curs_groups:
             continue
 
         # Persist failures
-        failedTests.append({"test":r,"ignore":0,"notified":0,"priority": g.tests[r],"priorityScore":g.testPriorityScores[g.tests[r]]})
+        failedTests.append({"test":r,"ignore":0,"notified":0,"priority": g.tests[r]['priority'],"priorityScore":g.testPriorityScores[g.tests[r]['priority']]})
         match =  {'gid': group['GroupId'], 'test': r, 'ticket': {"$exists": 0}}
         updoc =  {"$addToSet": {'rids': group['_id']},
-                  "$setOnInsert": {'gid': group['GroupId'], 'test': r, 'priority': g.tests[r],
+                  "$setOnInsert": {'gid': group['GroupId'], 'test': r, 'priority': g.tests[r]['priority'],
                                   'name': group['GroupName']}}
         coll_failedtests.update(match, updoc, upsert=True)
 
