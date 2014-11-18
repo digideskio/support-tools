@@ -372,7 +372,6 @@ class Euphonia(karakuricommon.karakuriclient):
                         issue = res['data']
                     else:
                         issue = None
-                    print issue
                     if issue is not None:
                         issue_objs[str(task['iid'])] = issue['issue']['jira']
 
