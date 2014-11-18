@@ -18,7 +18,7 @@ end
 
 key = issue['key']
 
-company = issue['fields']['customfield_10030']
+company = issue['fields'].get('customfield_10030', None)
 if company is not None:
     companyName = company['name']
     companyLink = "<a href=\"javascript:void(0);\" onclick=\"showPage(this,'https://corp.10gen.com/clienthub/jira/view?name=%s','%s');\">%s</a>" % (companyName, companyName, companyName)
@@ -26,13 +26,18 @@ else:
     companyName = "None"
     companyLink = companyName
 end
-assignee = issue['fields']['assignee']
+assignee = issue['fields'].get('assignee', None)
 if assignee is not None:
     assigneeName = assignee['name']
     assigneeLink = "<a href=\"javascript:void(0);\" onclick=\"showPage(this,'https://corp.10gen.com/employees/%s','%s');\">%s</a>" % (assigneeName, assigneeName, assigneeName)
 else:
     assigneeName = "None"
     assigneeLink = assigneeName
+end
+
+approvedBy = task.get('approvedBy', None)
+if approvedBy is None:
+    approvedBy = "a god"
 end
 %>
 <tr id="{{task['_id']}}" class="tr_task {{class_done}} {{class_frozen}}" style="height:2em;{{style_done}};{{style_frozen}}">
@@ -74,6 +79,6 @@ end
                 hidden = "display:none"
             end
         %>
-        <i id="{{task['_id']}}-approve" class="glyphicon glyphicon-thumbs-up metadata stats" style="{{hidden}}" data-toggle="tooltip" data-placement="top" title="Approved, not Done"></i>
+        <i id="{{task['_id']}}-approve" class="glyphicon glyphicon-thumbs-up metadata stats" style="{{hidden}}" data-toggle="tooltip" data-placement="top" title="Approved by {{approvedBy}}"></i>
     </td>
 </tr>
