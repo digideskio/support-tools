@@ -443,7 +443,7 @@ def page(buf, at, root, avail, find=None):
     at += block_header_struct.size
     
     # decompress xxx only handles snappy for now
-    if pflags & 1:
+    if pflags & 1 and snappy:
         a = start + 64
         l, = snappy_header_struct.unpack(buf[a:a+snappy_header_struct.size])
         a += snappy_header_struct.size
