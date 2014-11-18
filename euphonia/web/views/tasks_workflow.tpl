@@ -34,7 +34,7 @@
                 <table class="table table-striped">
                     <thead>
                         <tr>
-                            <th colspan=3>
+                            <th colspan=4>
                                 <span id="selectTasksDropdown" class="dropdown">
                                     <input class="inactive" type="checkbox" onclick="toggleSelect(this)">
                                     <a href="javascript:void(0);" id="a_selectTasksDropdown" data-toggle="dropdown"><span class="caret"></span></a>
@@ -48,7 +48,7 @@
                                     </ul>
                                 </span>
                             </th>
-                            <th>
+                            <th colspan="2">
                                 <%
                                 if hide_frozen == True:
                                     showHideText = "show frozen"
@@ -70,6 +70,8 @@
                         <tr>
                             <th></th>
                             <th>Ticket</th>
+                            <th>Company</th>
+                            <th>Assignee</th>
                             <th>Start</th>
                             <th>Status</th>
                         </tr>
@@ -84,7 +86,7 @@
                                 include('tasks_workflow_task.tpl', task=task, hide_done=hide_done, hide_frozen=hide_frozen)
                             elif task['workflow'] == workflow['name'] and str(task['iid']) not in issues:
                         %>
-                                <tr id="{{task['_id']}}"><td colspan="4" class="bg-danger">Task {{task['_id']}} not found</td></tr>
+                                <tr id="{{task['_id']}}"><td colspan="6" class="bg-danger">Task {{task['_id']}} not found</td></tr>
                         <%
                             end
                         end

@@ -25,11 +25,17 @@ function showPage(context, url, issue) {
     $('#ticketLink').attr('href',url);
     list.addClass('col-lg-6');
     list.removeClass('col-lg-12');
-    $('#ticketTitle').find('span').text('Jira view of ' + issue);
+    $('#ticketTitle').find('span').text(issue);
     content.addClass('col-lg-6');
-    content.height(Math.max(list.height(),600));
+    $("#accordion div.panel-body", content).first().height($(window).height()-list.offset().top);
     content.show();
 }
+
+$(window).resize(function() {
+    var list = $('#ticketList');
+    var content = $('#ticketContent');
+    $("#accordion div.panel-body", content).first().height($(window).height()-list.offset().top);
+});
 
 /**
  * Closes the Jira preview pane of a given ticket.
