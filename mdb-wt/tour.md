@@ -561,10 +561,8 @@ and increasing by 100 for each record inserted:
   overflow page is stored, and the data is stored outside the leaf
   node in the overflow page.
 
-**TBD** Is the 24KB disk page size a parameter that can be tweaked?
-
-**TBD** What is the threshhold for using an overflow record? Appears
-to be 3KB in these examples. Tweakable?
+**TBD** Mention the parameters (leaf page size, split pct, overflow
+record threshold, etc.) that result in the observed page sizes.
 
 ### <a name="1.8"></a> 1.8 Large collections
 
@@ -770,7 +768,7 @@ specific checkpoints. This means that a given .wt file may have
 multiple btree root nodes, extent lists, etc., one associated with
 each checkpoint. Since MongoDB only maintains one checkpoint at a time
 however we can simply refer to _the_ btree root node, extent list,
-etc. when talking about WT in a MongoDB context.  ** TBD ** verify
+etc. when talking about WT in a MongoDB context.  **TBD** verify
 accuracy of this
 
 
