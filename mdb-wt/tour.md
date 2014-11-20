@@ -17,10 +17,11 @@ format as used by MongoDB.
 &emsp;&emsp;&emsp;&emsp;1.6 [Deletes](#1.6)  
 &emsp;&emsp;&emsp;&emsp;1.7 [Large records](#1.7)  
 &emsp;&emsp;&emsp;&emsp;1.8 [Large collections](#1.8)  
+&emsp;&emsp;&emsp;&emsp;1.9 [Parameters](#1.9)  
 &emsp;&emsp;2 [LSM mode](#2)  
 &emsp;&emsp;3 [Metadata files](#3)  
-&emsp;&emsp;&emsp;&emsp;3.9 [WiredTiger.wt and WiredTiger.turtle](#3.9)  
-&emsp;&emsp;&emsp;&emsp;3.10 [_mdb_catalog.wt](#3.10)  
+&emsp;&emsp;&emsp;&emsp;3.10 [WiredTiger.wt and WiredTiger.turtle](#3.10)  
+&emsp;&emsp;&emsp;&emsp;3.11 [\_mdb\_catalog.wt](#3.11)  
 &emsp;&emsp;4 [Durability](#4)  
 &emsp;&emsp;5 [Checksums and compression](#5)  
 
@@ -55,8 +56,8 @@ contain the collection and index data:
 Each filename follows a pattern as described above, encoding the following information:
 
 * $n is a collection or index number, starting at 1 and incrementing
-  by 1 for each collection or index
-* $x **TBD**
+  by 1 for each collection or index created
+* $x **TBD** what is this part of the filename exactly?
 
 Note that unlike mmapv1
 
@@ -68,8 +69,6 @@ Note that unlike mmapv1
   [later section](#metadata-files)).
 
 **TBD**: meaning of fields of collection and index filenames.
-
-**TBD** file size limits? multiple files for a single collection?
 
 ### <a name="1.1"></a> 1.1 Collection data
 
@@ -132,22 +131,22 @@ This is followed by a sequence of key/value pairs, sorted by
 key. Since this is a leaf node of a btree representing a MongoDB
 collection,
 
-* the key is an integer record id (stored as a packed int).
+* the key is an integer record id (stored as a packed int). Record ids
+  start at 1 and increment for each record added to a collection, and
+  are never re-used within a collection. **TBD** verify accuracy
 * the value is a BSON document which is the content of the record.
 
 Note that unlike mmapv1, wt btrees are used for storing collection
-data as well as for storing indexes.
-
-**TBD** maximum value sizes? overflow?
-
-**TBD** check terminology for "record id"
-
+data as well as for storing indexes. As we will see in a [later
+section](#large-records), the BSON document values are stored directly
+in the btree leaf nodes, as in this example, only up to a certain
+size; beyond that size they are stored in separate overflow pages.
 
 #### <a name="1.1.2"></a> 1.1.2 Collection btree internal node page
 
 For this example the file continues with three more leaf node pages
 for a total of four. This is then followed by an intenal btree node
-page (which happens to be the root):
+page (which happens in this case to be the root):
 
     00014000: page recno=0 gen=5 msz=0x57 entries=8 type=6(ROW_INT) flags=0x0()
     0001401c: block sz=0x1000 cksum=0x18eec00f flags=0x1(cksum)
@@ -171,7 +170,7 @@ pairs. For internal nodes:
   (**TBD** check terminology) referencing the child page, stored as a
   triple of packed ints:
     * first element appears to be page offset / 4KB - 1 (**TBD** check
-      this)
+      this - presumably allocation_size?)
     * second element appears to be page length / 4KB (**TBD** check
       this)
     * third element is checksum of referenced page
@@ -211,8 +210,6 @@ The location within each collection and index file of the block
 manager pages that contain the in-use and unused extent lists is
 stored in the WiredTiger.wt metadata file, which is described below in
 the section on [Metadata Files](#metadata-files).
-
-**TBD** file size limits?
 
 
 ### <a name="1.2"></a> 1.2 The _id index
@@ -254,7 +251,8 @@ The leaf node contains a sequence of key/value pairs (844/2 pairs in this case),
   key. In this case the _id index has keys with only one value, an
   objectid.
 * The value is an 8-byte record id, which are the keys in the
-  collection btree. (**TBD** exact format)
+  collection btree. (**TBD** exact format - appears to be either two
+  32-bit ints, or a 64-bit in a strange byte order)
 
 #### <a name="1.2.5"></a> 1.2.5 _id index internal node page
 
@@ -323,16 +321,16 @@ is the concatenation of
 * a BSON document containing fields whose names are the empty string,
   and whose values are the fields of the MongoDB key (a string and a
   double in this case), and
-* an 8-byte record id (**TBD exact format**)
+* an 8-byte record id (**TBD** exact format)
 
 Thus, whereas the _id index stores the record id as the value of a
 key/value pair, this index stores the record id as part of the key,
 and has no values.
 
-**TBD** to make keys unique since this isn't a unique index? what
-about non-\_id unique indexes? why not just do _id index the same way?
-Because it allows for more efficient retrieval in the case of a unique
-key?
+**TBD** is this to make keys unique since this isn't a unique index?
+what about non-\_id unique indexes - are they stored as k/v pairs like
+the _id index? why not just do _id index the same way? Because it
+allows for more efficient retrieval in the case of a unique key?
     
 ### <a name="1.4"></a> 1.4 Comparison of WT and mmapv1 btrees
 
@@ -471,12 +469,23 @@ real application generally many updates will be written to disk at
 once, resulting in less rearrangement of the data than this example
 shows.
 
-* **TBD** Are the examples shown here representative of typical behavior?
+* **TBD** Some questions:
+    * are the examples shown here representative of typical behavior?
+    * are disk pages always read from disk and written to disk as an
+      entire unit?
     * is it true that records are never updated in place?
     * is it always the case that when a page is changed, even if the
        page does not grow, it will not be re-written in place, but
        rather written to a currently unused extent, and the current
        location then marked as unused?
+    * this approach can cause pages in MongoDB collections, which start
+      out in the file in insertion order, to become disordered over
+      time as updates are done. This can impact the efficiency of
+      from-disk collection scans by requiring a lot of random i/o. Can
+      anything be done to improve this particular use case?
+    * files are not preallocated (as they are under mmpav1), so could
+      suffer from fs fragmentation. Is this an issue in practice? Any
+      way to migitgate the issue?
            
 * **TBD** Interestingly, the block manager page listing unused extents
     lists itself as unused.
@@ -484,6 +493,8 @@ shows.
 ### <a name="1.6"></a> 1.6 Deletes
 
 ### <a name="1.7"></a> 1.7 Large records
+
+<a name="large-records"></a>
 
 The preceding examples used small records, fitting 300 or so into each
 24KB page. What happens as the record size increases?
@@ -561,9 +572,6 @@ and increasing by 100 for each record inserted:
   overflow page is stored, and the data is stored outside the leaf
   node in the overflow page.
 
-**TBD** Mention the parameters (leaf page size, split pct, overflow
-record threshold, etc.) that result in the observed page sizes.
-
 ### <a name="1.8"></a> 1.8 Large collections
 
 Unlike mmapv1, which breaks a db up into files no larger than 2GB, WT
@@ -572,9 +580,23 @@ the file is only limited by the amount of available disk and resource
 limits like ulimit settings.
 
 **TBD** Is this correct? No internal upper bounds? For example, the
-address tokens appear to be in units of 4KB, so there is a potential
-for a limit at 2^31 or 2^32 * 4KB, that is 4TB or 8TB (depending on
-the internal data type used for handling the address tokens).
+address tokens appear to be in units of 4KB (presumably
+allocation_size), so there is a potential for a limit at 2^31 or 2^32
+* 4KB, that is 4TB or 8TB (depending on the internal data type used
+for handling the address tokens).
+
+### <a name="1.9"></a> 1.9 Parameters
+
+Several parameters (see [WT
+documentation](http://source.wiredtiger.com/2.4.1/struct_w_t___s_e_s_s_i_o_n.html#a358ca4141d59c345f401c58501276bbb)
+control the basic units of size seen in the preceding examples.
+
+* allocation_size
+* internal_page_max
+* leaf_page_max
+* split_pct
+* leaf_item_max
+
 
 ## <a name="2"></a> 2 LSM mode
 
@@ -589,7 +611,7 @@ Each filename follows a pattern as described above, encoding the following infor
 
 * $n is a collection or index number, starting at 1 and incrementing
   by 1 for each collection or index
-* $x **TBD**
+* $x **TBD** what is this exactly?
 * $seq **TBD** sequence number (*TBD* terminology?)
 
 Note that now rather than a single file for each collection, we will
@@ -696,10 +718,10 @@ Here is a summary of the files and their content:
   the separate .ns files unger mmapv1. This file stores the mapping
   from namespace names to .wt files.
 
-** TBD ** The above summarizes some key information; what else should
-   be included?
+**TBD** The above summarizes some key information; what else should
+   be included here?
 
-### <a name="3.9"></a> 3.9 WiredTiger.wt and WiredTiger.turtle
+### <a name="3.10"></a> 3.10 WiredTiger.wt and WiredTiger.turtle
 
 WiredTiger.wt is a record store containing metadata about the other
 record stores .wt files, such as MongoDB collections and indexes. Here
@@ -771,8 +793,19 @@ however we can simply refer to _the_ btree root node, extent list,
 etc. when talking about WT in a MongoDB context.  **TBD** verify
 accuracy of this
 
+**TBD** A useful feature of mmapv1 is that the set of files
+  constituting a single MongoDB database form a self-contained unit:
+  they for example can be backed up and restored independently of
+  other MongoDB dbs. That is not the case with .wt files representing
+  a single MongoDB collection, since using them requires metadata
+  store in WiredTiger.wt. What are the reasons for this design
+  decision?  Could this metadata be stored in each .wt file (say in
+  the descriptor page, or in a page pointed to by the descriptor
+  page)? Note that for the MongoDB use case to be truly self-contained
+  this would also have to include some of the MongoDB-specific
+  metadata described in the next section.
 
-### <a name="3.10"></a> 3.10 _mdb_catalog.wt
+### <a name="3.11"></a> 3.11 \_mdb\_catalog.wt
 
 The \_mdb\_catalog file is a collection containing metadata about
 collections and indexes. For example here is the entry in \_mdb\_catalog
@@ -832,8 +865,12 @@ related to our example collection:
 
 ## <a name="4"></a> 4 Durability
 
-**TBD** when are checkpoints done?
+**TBD** describe checkpoints
 
 **TBD** journal file format
+
+**TBD** question: MongoDB appears to have only one checkpoint at a
+  time. If there are multiple checkpoints, can pages be shared between
+  checkpoints?
 
 ## <a name="5"></a> 5 Checksums and compression
