@@ -1,10 +1,12 @@
+## Simple gdb-based profiling tool
+
 This is a simple gdb-based profiling tool, similar in spirit to [Poor
 Man's Profiler](http://poormansprofiler.org/), but a little
-fancier. The problem that addressed is that most profiling tools
-see only CPU execution time and don't see time spent waiting for
-things like i/o and locks.
+fancier. The problem addressed is that most profiling tools see only
+CPU execution time and don't see time spent waiting for things like
+i/o and locks. This tool improves on the simple Poor Man's Profiler
+approach in two ways:
 
-This tool improves on that simple approach in two ways:
 * it starts up gdb only once, and then scripts it to collect the stack
   traces, reducing overhead.
 * it includes a tool that aggregates stack traces into call trees to
