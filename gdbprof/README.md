@@ -28,7 +28,7 @@ include initAndListen or handleIncomingMsg:
 
 This produces the following output:
 
-    10 samples, 119 traces, 11.90 threads
+    10 samples, 120 traces, 12.00 threads
     count    thr  stack
        10   1.00  main:664
        10   1.00   mongoDbMain:848
@@ -83,12 +83,16 @@ This produces the following output:
         1   0.10                          ??
         1   0.10                           write
     
-* We saw on average 11.90 threads in execution over the course of
-  collecting the 10 samples.
+* We collected 120 stack traces over our 10 samples, indicating that
+  there were 12 threads running.
 
-* Of those our filter selects two threads - the main thread and a
-  pthread, represented by the two call trees, one rooted in main() and
-  the other rooted in clone().
+* Of those our filter serves to select two threads: the main thread
+  and a pthread, represented by the two call trees, one rooted in
+  main() and the other rooted in clone().
+
+* The call tree shows the count of each call site ("count" column),
+  and the average number of threads executing at that call site at any
+  given time ("thr" column).
 
 * The main thread is spending all of its time in select() waiting for
   a new connection. This is wait time that would be invisible to
@@ -99,10 +103,21 @@ This produces the following output:
   at line 403 calling __curfile_next. This begins to pinpoint the
   problem.
 
+* Each function is annotated with the line number within that
+  function, which means that if a given function calls another
+  function twice it will show up as two separate branches of the
+  tree. This gives the most information about what calls are
+  responsible for performance issues, but the line numbers can be
+  suppressed with the -n flag if you wish to count all callees for a
+  given caller in the same bucket.
+
 * Note that our sampling also caught the connection thread waiting in
   write for i/o to the mongod log, probably logging a slow op. This
   would have been invisible to CPU-based profiling tools. (We would
   need to collect more samples to determine how significant an impact
   this has on performance.)
+
+
+
 
 
