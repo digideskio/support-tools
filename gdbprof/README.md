@@ -95,13 +95,14 @@ This produces the following output:
   CPU-based profiling tools.
 
 * The other thread shown is servicing incoming messages on a
-  connection, and is spending most of its time in
-  cappedDeleteAsNeeded. This begins to pinpoint the problem.
+  connection, and is spending most of its time in cappedDeleteAsNeeded
+  at line 403 calling __curfile_next. This begins to pinpoint the
+  problem.
 
-* Note that our sampling also caught the connection thread waiting for
-  i/o to the mongod log, probably logging a slow op. This would have
-  been invisible to CPU-based profiling tools. (We would need to
-  collect more samples to determine how significant an impact this has
-  on performance.)
+* Note that our sampling also caught the connection thread waiting in
+  write for i/o to the mongod log, probably logging a slow op. This
+  would have been invisible to CPU-based profiling tools. (We would
+  need to collect more samples to determine how significant an impact
+  this has on performance.)
 
 

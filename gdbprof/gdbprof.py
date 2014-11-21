@@ -42,7 +42,9 @@ class node:
         for func in sorted(self.children, key=lambda c: self.children[c].count, reverse=True):
             child = self.children[func]
             thr = float(child.count) / child.root.samples
-            print '%5d %6.2f %s %s' % (child.count, thr, ' '*level, func)
+            #pfx = ' '*level + '|+'
+            pfx = ' ' * level
+            print '%5d %6.2f %s%s' % (child.count, thr, pfx, func)
             child.prt(level+1)
 
 def simplify(func):
