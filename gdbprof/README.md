@@ -92,7 +92,8 @@ This produces the following output:
 
 * The call tree shows the count of each call site ("count" column),
   and the average number of threads executing at that call site at any
-  given time ("thr" column).
+  given time ("thr" column), which is just the count divided by the
+  number of samples.
 
 * The main thread is spending all of its time in select() waiting for
   a new connection. This is wait time that would be invisible to
@@ -108,8 +109,8 @@ This produces the following output:
   function twice it will show up as two separate branches of the
   tree. This gives the most information about what calls are
   responsible for performance issues, but the line numbers can be
-  suppressed with the -n flag if you wish to count all callees for a
-  given caller in the same bucket.
+  suppressed with the -n flag if you wish to count all calls to a
+  given callee from a given caller in the same bucket.
 
 * Note that our sampling also caught the connection thread waiting in
   write for i/o to the mongod log, probably logging a slow op. This

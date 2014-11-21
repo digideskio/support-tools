@@ -4,11 +4,6 @@ import sys
 import re
 import argparse
 
-def count(stack):
-    if not stack in counts:
-        counts[stack] = 0
-    counts[stack] += 1
-
 class node:
 
     def __init__(self):
