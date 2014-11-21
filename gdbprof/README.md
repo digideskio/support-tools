@@ -24,7 +24,7 @@ This fires up gdb to collect 10 stack trace samples at 1 second
 intervals. Now analyze the results, focusing only on stack traces that
 include initAndListen or handleIncomingMsg:
 
-    python gdbprof.py -j 'handleIncomingMsg|initAndListen'
+    python gdbprof.py -j 'handleIncomingMsg|initAndListen' <example.gdbmon
 
 This produces the following output:
 

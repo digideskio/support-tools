@@ -6,7 +6,8 @@
 
 ## DESCRIPTION
 
-Display a call tree analysis of stack trace samples collected by [gdbmon](gdbmon.md)
+Display a call tree analysis of stack trace samples collected by
+[gdbmon](gdbmon.md). The stack trace samples are read from stdin.
 
 * -h, --help: show a help message
 * --maxdepth, -m: maximum stack depth to display
