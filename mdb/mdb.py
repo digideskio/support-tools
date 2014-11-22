@@ -201,7 +201,7 @@ def hash(buf):
     m = 0xffffffffffffffffL
     return (a^len(buf))&m, (b^c)&m
 
-def print_journal(fn):
+def print_journal(fn, at=0):
 
     # file structure
     header_struct = xstruct('< 5s 20s 1s 128s 2s Q')
@@ -219,7 +219,8 @@ def print_journal(fn):
     path = path[:path.find('\0')]
     date = date[:date.find('\0')]
     print '%08x: header magic=%s date=%s path=%s fid=%x' % (0, hex(magic), date, path, fileid)
-    at = 8192
+    if at==0:
+        at = 8192
     
     # traverse file
     while at < len(buf):
@@ -291,7 +292,11 @@ def print_journal_entries(section):
             if (f&0x80000000): db = 'local'
             else: db = ctx
             print '%08x: op=write f=%x fn=%s ofs=%x(%d) l=%x(%d) ' % \
-                (at, f, db + '.' + str(sfx), ofs, ofs, l, l)
+                (at, f, db + '.' + str(sfx), ofs, ofs, l, l),
+            if do_journal_entries_data:
+                print ' '.join('%02x' % ord(c) for c in section[at+12:at+12+l])
+            else:
+                print
             at += op + 12
 
 #
@@ -607,7 +612,8 @@ do_collection_details = 'C' in flags
 do_collection_indexes = 'i' in flags
 do_free = 'f' in flags
 do_journal = 'j' in flags
-do_journal_entries = 'e' in flags # not impl
+do_journal_entries = 'e' in flags or 'E' in flags
+do_journal_entries_data = 'E' in flags
 
 find = ''
 
@@ -616,7 +622,11 @@ if do_btree: print_content = print_btree
 if do_bson: print_content = print_record_bson
 
 if do_journal:
-    print_journal(sys.argv[2])
+    if len(sys.argv) > 3:
+        at = int(sys.argv[3], 0)
+    else:
+        at = 0
+    print_journal(sys.argv[2], at)
 elif do_collection:
     dbpath = sys.argv[2]
     ns = sys.argv[3]
