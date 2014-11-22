@@ -51,35 +51,35 @@ This produces the following output:
        10   1.00              mongo::WriteBatchExecutor::executeBatch:265
        10   1.00               mongo::WriteBatchExecutor::bulkExecute:756
        10   1.00                mongo::WriteBatchExecutor::execInserts:873
-        9   0.90                 mongo::WriteBatchExecutor::execOneInsert:1078
-        9   0.90                  insertOne:1051
-        9   0.90                   singleInsert:1107
-        9   0.90                    mongo::Collection::insertDocument:196
-        9   0.90                     mongo::Collection::_insertDocument:235
-        8   0.80                      mongo::WiredTigerRecordStore::insertRecord:507
-        8   0.80                       mongo::WiredTigerRecordStore::cappedDeleteAsNeeded:403
-        8   0.80                        __curfile_next:79
-        8   0.80                         __wt_btcur_next:439
-        8   0.80                          __cursor_row_next:279
-        8   0.80                           __wt_txn_read:173
-        6   0.60                            __wt_txn_visible:119
-        1   0.10                      mongo::WiredTigerRecordStore::insertRecord:498
-        1   0.10                       __curfile_insert:211
-        1   0.10                        __wt_btcur_insert:492
-        1   0.10                         __cursor_row_modify:263
-        1   0.10                          __wt_row_modify:205
-        1   0.10                           __wt_insert_serial:264
-        1   0.10                            __wt_cache_page_inmem_incr:50
-        1   0.10                             __wt_page_is_modified:25
-        1   0.10                 mongo::WriteBatchExecutor::execOneInsert:1084
+        9   0.90                ├mongo::WriteBatchExecutor::execOneInsert:1078
+        9   0.90                │ insertOne:1051
+        9   0.90                │  singleInsert:1107
+        9   0.90                │   mongo::Collection::insertDocument:196
+        9   0.90                │    mongo::Collection::_insertDocument:235
+        8   0.80                │    ├mongo::WiredTigerRecordStore::insertRecord:507
+        8   0.80                │    │ mongo::WiredTigerRecordStore::cappedDeleteAsNeeded:403
+        8   0.80                │    │  __curfile_next:79
+        8   0.80                │    │   __wt_btcur_next:439
+        8   0.80                │    │    __cursor_row_next:279
+        8   0.80                │    │     __wt_txn_read:173
+        6   0.60                │    │      __wt_txn_visible:119
+        1   0.10                │    └mongo::WiredTigerRecordStore::insertRecord:498
+        1   0.10                │      __curfile_insert:211
+        1   0.10                │       __wt_btcur_insert:492
+        1   0.10                │        __cursor_row_modify:263
+        1   0.10                │         __wt_row_modify:205
+        1   0.10                │          __wt_insert_serial:264
+        1   0.10                │           __wt_cache_page_inmem_incr:50
+        1   0.10                │            __wt_page_is_modified:25
+        1   0.10                └mongo::WriteBatchExecutor::execOneInsert:1084
         1   0.10                  mongo::finishCurrentOp:638
         1   0.10                   mongo::logger::LogstreamBuilder::~LogstreamBuilder:123
         1   0.10                    mongo::logger::LogDomain<...>::append:60
         1   0.10                     mongo::logger::RotatableFileAppender<...>::append:63
-        1   0.10                      std::ostream::flush()
-        1   0.10                       std::basic_filebuf<...>::sync()
-        1   0.10                        std::basic_filebuf<...>::overflow(int)
-        1   0.10                         std::basic_filebuf<...>::_M_convert_to_external(char*, long)
+        1   0.10                      std::ostream::flush
+        1   0.10                       std::basic_filebuf<...>::sync
+        1   0.10                        std::basic_filebuf<...>::overflow
+        1   0.10                         std::basic_filebuf<...>::_M_convert_to_external
         1   0.10                          ??
         1   0.10                           write
     
@@ -109,7 +109,7 @@ This produces the following output:
   function twice it will show up as two separate branches of the
   tree. This gives the most information about what calls are
   responsible for performance issues, but the line numbers can be
-  suppressed with the -n flag if you wish to count all calls to a
+  suppressed with the -l flag if you wish to count all calls to a
   given callee from a given caller in the same bucket.
 
 * Note that our sampling also caught the connection thread waiting in
