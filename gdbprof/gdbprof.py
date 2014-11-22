@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# -*- coding: utf-8 -*-
 
 import sys
 import re
@@ -27,14 +28,19 @@ class node:
         for func in stack:
             n = n.add_func(func)
 
-    def prt(self, samples, level=0, max_depth=float('inf')):
-        if level > max_depth:
+    def prt(self, samples, pfx, max_depth, tree):
+        if len(pfx) > max_depth:
             return
-        for func in sorted(self.children, key=lambda c: self.children[c].count, reverse=True):
+        children = sorted(self.children, key=lambda c: self.children[c].count, reverse=True)
+        for i, func in enumerate(children):
             child = self.children[func]
             thr = float(child.count) / samples
-            print '%5d %6.2f %s %s' % (child.count, thr, ' ' * level, func)
-            child.prt(samples, level+1)
+            if pfx and tree and i<len(children)-1: x = '├'
+            elif pfx and tree and i>0: x = '└'
+            else: x = ' '
+            print '%5d %6.2f %s%s' % (child.count, thr, pfx+x, func)
+            x = '│' if pfx and tree and i<len(children)-1 else ' '
+            child.prt(samples, pfx+x, max_depth, tree)
 
 def simplify(func):
     func = func.strip()
@@ -74,15 +80,17 @@ def hide_filter(arg):
 def main():
 
     p = argparse.ArgumentParser()
-    #p.add_argument('--debug', '-d', action='store_true', dest='dbg')
+    p.add_argument('--debug', '-d', action='store_true', dest='dbg')
     p.add_argument('--max-depth', '-m', dest='max_depth', type=int, default=float('inf'),
                    help='maximum stack depth to display')
     p.add_argument('--templates', '-t', action='store_true',
                    help='don\'t suppress C++ template args')
-    p.add_argument('--no-line-numbers', '-n', dest='no_line_numbers', action='store_true',
+    p.add_argument('--no-line-numbers', '-l', dest='no_line_numbers', action='store_true',
                    help='don\'t include line numbers in function names')
     p.add_argument('--just', '-j', dest='just', action='append', default=[],
                    help='include only stacks matching this pattern')
+    p.add_argument('--no-tree', '-e', dest='no_tree', action='store_true',
+                   help='omit tree lines from output')
     o = p.parse_args()
 
     root = node()
@@ -95,12 +103,21 @@ def main():
         if line.startswith('==='):
             samples += 1
         elif line.startswith('#'):
-            pat = '^#([0-9]+) +(?:0x[0-9a-f]+ in )?(.*) \(.* (?:from (.*)|at (.*):([0-9]+))\n?$'
+            plevel = '^#([0-9]+) +'
+            paddr = '(?:0x[0-9a-f]+ in )?'
+            pfunc = '((?:[^)]|\)[^ ])*)'
+            pargs = '((?: ?\(.*\) ?)+ *)'
+            pfile = '(?:from (.*)|at (.*):([0-9]+))?\n$'
+            pat = plevel + paddr + pfunc + pargs + pfile
             m = re.match(pat, line)
             if not m:
                 print 'not matched:', repr(line)
             else:
-                level, func, from_file, at_file, at_ln = m.groups()
+                if o.dbg:
+                    print line.strip()
+                    print m.groups()
+                level, func, args, from_file, at_file, at_ln = m.groups()
+                func = func.strip()
                 if level=='0' and stack:
                     root.add_stack(stack)
                     stack = []
@@ -113,6 +130,6 @@ def main():
     # print result
     print '%d samples, %d traces, %.2f threads' % (samples, root.count, float(root.count)/samples)
     print 'count    thr  stack'
-    root.prt(samples, max_depth=o.max_depth)
+    root.prt(samples, '', o.max_depth, not o.no_tree)
 
 main()

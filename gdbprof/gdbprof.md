@@ -12,7 +12,9 @@ Display a call tree analysis of stack trace samples collected by
 * -h, --help: show a help message
 * --maxdepth, -m: maximum stack depth to display
 * --templates, -t: don't suppress template args; normally they are suppressed because they can be quite verbose
+* --no-line-numbers, -l: don't include line numbers in function names
 * --just, -j: include only stacks matching this pattern
+* --no-tree, -e: omit tree lines from output
 
 ## EXAMPLES
 
