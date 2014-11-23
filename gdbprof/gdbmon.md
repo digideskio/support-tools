@@ -49,6 +49,24 @@ as follows:
   --before parameters of [gdbprof](#gdbprof.md) to select a portion of
   the samples collected to analyze.
 
+So for example you might use a stripped binary and start gdbmon as
+follows at the beginning of a run:
+
+    python gdbmon.py $(pidof mongod) 5 >samples
+
+This will collect samples at 5-second intervals until you terminate it
+with ctl-c. Do "grep times: samples" and look at the "traces"
+statistic to verify that collecting traces is only taking a fraction
+of a second. If it is you might be able to reduce the sample interval
+to say 2 seconds if desired.  Then determine an interval of interest
+and analyze with:
+
+    python gdbprof.py --after yyyy-mm-ddThh:mm:ss --before yyyy-mm-ddThh:mm:ss ... <samples
+
+By using a stripped binary, starting sample collection before the run,
+and collecting samples at sufficiently long intervals, you should be
+able to minimize the impact of sampling on the test.
+
 ## EXAMPLES
 
 See the [README](README.md).
