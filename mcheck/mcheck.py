@@ -285,7 +285,7 @@ class MCheckTool():
             print("%s - %s - %s - in %s" % (status, rule['id'], test_message, section_name))
             if self.verbosity >= 2:
                 print("  %s" % (status_message))
-                if self.verbosity >= 3:
+                if self.verbosity >= 4:
                     if rule.has_key("ref"):
                         print("  See: %s" % (rule["ref"]))
                 print()

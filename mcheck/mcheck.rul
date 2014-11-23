@@ -9,6 +9,7 @@
 	{
 		"id": "os-0002",
 		"desc": "SUSE is version 11 or more",
+		"message_fail": "SUSE version must at least 11",
 		"log": "mdiag",
 		"section": "/etc/system-release",
 		"match": "SUSE.+\\s(\\d+)\\s",
@@ -17,6 +18,7 @@
 	{
 		"id": "os-0003",
 		"desc": "Red Hat is version 5.7 or more",
+		"message_fail": "Red Hat must be at least 5.7",
 		"log": "mdiag",
 		"section": "/etc/system-release",
 		"match": "Red Hat.+\\s(\\d+\\.\\d+)\\s",
@@ -24,7 +26,8 @@
 	},
 	{
 		"id": "os-0011",
-		"desc": "Soft limit of 64000 processes or more",
+		"desc": "Soft limit of 64000 processes",
+		"message_fail": "Soft limit for processes is too low, must be at least 64000",
 		"log": "mdiag",
 		"section": "proc/limits",
 		"example": "Max processes             200000               200000               processes ",
@@ -34,6 +37,7 @@
 	{
 		"id": "os-0012",
 		"desc": "Hard limit of 64000 processes or more",
+		"message_fail": "Hard limit for processes is too low, must be at least 64000",
 		"log": "mdiag",
 		"section": "proc/limits",
 		"example": "Max processes             200000               200000               processes ",
@@ -43,6 +47,7 @@
 	{
 		"id": "os-0013",
 		"desc": "Soft limit of 64000 open files or more",
+		"message_fail": "Soft limit for open files is too low, must be at least 64000",
 		"log": "mdiag",
 		"section": "proc/limits",
 		"example": "Max open files             200000               200000               files ",
@@ -52,6 +57,7 @@
 	{
 		"id": "os-0014",
 		"desc": "Hard limit of 64000 open files or more",
+		"message_fail": "Hard limit for open files is too low, must be at least 64000",
 		"log": "mdiag",
 		"section": "proc/limits",
 		"example": "Max open files             200000               200000               files ",
@@ -61,6 +67,7 @@
 	{
 		"id": "os-0021",
 		"desc": "Kernel max of 98000 open files or more",
+		"message_fail": "Kernel setting for open files is too low, must be at least 98000",
 		"log": "mdiag",
 		"section": "sysctl",
 		"example": "fs.file-max = 131000",
@@ -71,6 +78,7 @@
 	{
 		"id": "os-0022",
 		"desc": "Kernel max PID of 32768 or more",
+		"message_fail": "Kernel setting for max PID is too low, must be at least 32768",
 		"log": "mdiag",
 		"section": "sysctl",
 		"example": "kernel.pid_max = 32768",
@@ -81,6 +89,7 @@
 	{
 		"id": "os-0023",
 		"desc": "Kernel max of 64000 threads or more",
+		"message_fail": "Kernel setting for threads is too low, must be at least 64000",
 		"log": "mdiag",
 		"section": "sysctl",
 		"example": "kernel.threads-max = 64000",
@@ -91,6 +100,7 @@
 	{
 		"id": "os-0024",
 		"desc": "Zone reclaim mode off",
+		"message_fail": "Zone reclaim mode is on, it should be off",
 		"log": "mdiag",
 		"section": "sysctl",
 		"example": "vm.zone_reclaim_mode = 0",
@@ -101,6 +111,7 @@
 	{
 		"id": "disk-0001",
 		"desc": "Presence of swap partition in /etc/fstab",
+		"message_fail": "Did not detect a swap partition in /etc/fstab",
 		"log": "mdiag",
 		"section": "etc/fstab",
 		"match": "\\sswap\\s",
@@ -109,6 +120,7 @@
 	{
 		"id": "disk-0002",
 		"desc": "Presence of swap partition in /proc/swaps",
+		"message_fail": "Did not detect a swap partition in /proc/swaps",
 		"log": "mdiag",
 		"section": "proc/swaps",
 		"match": "/dev",
@@ -117,6 +129,7 @@
 	{
 		"id": "disk-0003",
 		"desc": "Read ahead not higher than 64",
+		"message_fail": "Read ahead is too high, it should not be bigger than 64",
 		"log": "mdiag",
 		"section": "blockdev",
 		"example": "rw   256   512  4096          0    8650752  /dev/sda",
@@ -126,7 +139,9 @@
 	},
 	{
 		"id": "hugepage-0001",
-		"desc": "Hugepage are not enabled",
+		"desc": "Hugepage setting",
+		"message_pass": "Hugepage are not enabled",
+		"message_fail": "Hugepage are enabled, they should not",
 		"log": "mdiag",
 		"section": "/sys/kernel/mm/transparent_hugepage/enabled",
 		"example": "[always] never",
@@ -135,7 +150,9 @@
 	},
 	{
 		"id": "hugepage-0002",
-		"desc": "Hugepage are not enabled on RedHat",
+		"desc": "Hugepage setting for RedHat",
+		"message_pass": "Hugepage are not enabled",
+		"message_fail": "Hugepage are enabled, they should not",
 		"log": "mdiag",
 		"section": "/sys/kernel/mm/redhat_transparent_hugepage/enabled",
 		"example": "[always] never",
@@ -144,7 +161,9 @@
 	},
 	{
 		"id": "numa-0001",
-		"desc": "Numa does not show as enabled in dmesg",
+		"desc": "Numa messages in dmesg",
+		"message_pass": "No references to NUMA found in dmesg",
+		"message_fail": "References to NUMA in dmesg, it may be active",
 		"log": "mdiag",
 		"section": "dmesg",
 		"example": "numa",
@@ -154,7 +173,9 @@
 	},
 	{
 		"id": "log-0001",
-		"desc": "No errors or warnings in 'dmesg'",
+		"desc": "Checking 'dmesg' for errors or warnings",
+		"message_pass": "Did not find 'errors' or 'warnings' in dmesg",
+		"message_fail": "Found potential error or warning messages in dmesg",
 		"log": "mdiag",
 		"section": "dmesg",
 		"match": "error|fail|warn|blocked",
@@ -162,7 +183,9 @@
 	},
 	{
 		"id": "vm-0001",
-		"desc": "Should not use VMWare ballooning",
+		"desc": "Check for VMWare ballooning",
+		"message_pass": "VMWare ballooning is not enabled",
+		"message_fail": "VMWare ballooning is enabled",
 		"log": "mdiag",
 		"section": "procinfo",
 		"example" : "vmware_balloon 7199 0 - Live 0xffffffffa0016000",
