@@ -5,43 +5,80 @@ import sys
 import re
 import argparse
 import datetime
+import collections
 
 class node:
 
     def __init__(self):
         self.filters = []
         self.count = 0
+        self.counts = collections.defaultdict(int)
+        self.bins = collections.defaultdict(int)
         self.children = {}
 
-    def add_func(self, func):
+    def add_func(self, func, t, o):
         if not func in self.children:
             self.children[func] = node()
         child = self.children[func]
         child.count += 1
+        child.counts[t] += 1
         return child
 
-    def add_stack(self, stack):
-        stack.reverse()
-        for f in self.filters:
-            f(stack)
-        n = self # root
-        n.count += 1
-        for func in stack:
-            n = n.add_func(func)
+    def add_stack(self, stack, t, o):
+        if stack:
+            stack.reverse()
+            for f in self.filters:
+                f(stack)
+            n = self # root
+            n.count += 1
+            for func in stack:
+                n = n.add_func(func, t, o)
+        return []
 
     def prt(self, samples, pfx, o):
+
+        # prune
         if len(pfx) > o.max_depth:
             return
+
+        # children in order sorted by count
         children = sorted(self.children, key=lambda c: self.children[c].count, reverse=True)
         for i, func in enumerate(children):
             child = self.children[func]
+
+            # avg number of threads
             thr = float(child.count) / samples
+
+            # tree lines
             if pfx and i<len(children)-1: x = o.tree_mid
             elif pfx and i>0: x = o.tree_last
             else: x = ' '
-            print '%5d %6.2f %s%s' % (child.count, thr, pfx+x, func)
+
+            # graph over time for this call site
+            if o.graph:
+                bars = u' ▁▂▃▄▅▆▇█'
+                height = lambda count: int(float(count) / (o.max_bin*(1+1e-10)) * len(bars))
+                graph = ''.join(bars[height(child.bins[i])] for i in range(o.graph))
+            else:
+                graph = ''
+
+            # print the info
+            print '%5d %6.2f %s%s%s' % (child.count, thr, graph.encode('utf-8'), pfx+x, func)
+
+            # recursively print children
             x = o.tree_line if pfx and i<len(children)-1 else ' '
             child.prt(samples, pfx+x, o)
+
+    # divide counts into bins, and compute o.max_bin to scale all graphs to max_bin
+    def graph(self, o):
+        interval = (o.tmax - o.tmin).total_seconds() * (1+1e-10) / o.graph
+        for func in self.children:
+            child = self.children[func]
+            for t in child.counts:
+                bin = int((t - o.tmin).total_seconds() / interval)
+                child.bins[bin] += child.counts[t]
+                o.max_bin = max(o.max_bin, child.bins[bin])
+            child.graph(o)
 
 def simplify(func):
     func = func.strip()
@@ -96,6 +133,8 @@ def main():
                    help='include only samples at or after this time, in yyyy-mm-ddThh:mm:ss format')
     p.add_argument('--before', '-b', default='9999-01-01T00:00:00',
                    help='include only samples before this time, in yyyy-mm-ddThh:mm:ss format')
+    p.add_argument('--graph', '-g', type=int, default=0,
+                   help='produce a graph with the specified number of buckets')
     o = p.parse_args()
 
     root = node()
@@ -111,13 +150,22 @@ def main():
     o.after = datetime.datetime.strptime(o.after, '%Y-%m-%d %H:%M:%S')
     o.before = datetime.datetime.strptime(o.before, '%Y-%m-%d %H:%M:%S')
 
+    o.max_bin = 0
+    o.tmin = None
+    o.tmax = None
+
     samples = 0
     stack = []
+    t = None
     for line in sys.stdin:
         if line.startswith('==='):
+            stack = root.add_stack(stack, t, o)
             t = line.split()[1]
             t = datetime.datetime.strptime(t, '%Y-%m-%dT%H:%M:%S.%f')
-            if t>=o.after and t<o.before: samples += 1
+            if t>=o.after and t<o.before:
+                samples += 1
+                o.tmin = min(t, o.tmin) if o.tmin else t
+                o.tmax = max(t, o.tmax) if o.tmax else t
             if o.dbg: print 'after', o.after, 't', t, 'before', o.before
         elif line.startswith('#') and t>=o.after and t<o.before:
             plevel = '^#([0-9]+) +'
@@ -134,19 +182,19 @@ def main():
                     print line.strip()
                     print m.groups()
                 level, func, args, from_file, at_file, at_ln = m.groups()
+                if level=='0':
+                    stack = root.add_stack(stack, t, o)
                 func = func.strip()
-                if level=='0' and stack:
-                    root.add_stack(stack)
-                    stack = []
                 if not o.templates: func = simplify(func)
                 if at_ln and not o.no_line_numbers: func += ':' + at_ln
                 stack.append(func)
-    if stack:
-        root.add_stack(stack)
+    root.add_stack(stack, t, o)
 
     # print result
     print '%d samples, %d traces, %.2f threads' % (samples, root.count, float(root.count)/samples)
-    print 'count    thr  stack'
+    print 'count    thr  %sstack' % (' ' * o.graph)
+    if o.graph:
+        root.graph(o)
     root.prt(samples, '', o)
 
 main()
