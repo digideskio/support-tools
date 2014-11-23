@@ -4,6 +4,7 @@
 import sys
 import re
 import argparse
+import datetime
 
 class node:
 
@@ -28,19 +29,19 @@ class node:
         for func in stack:
             n = n.add_func(func)
 
-    def prt(self, samples, pfx, max_depth, tree):
-        if len(pfx) > max_depth:
+    def prt(self, samples, pfx, o):
+        if len(pfx) > o.max_depth:
             return
         children = sorted(self.children, key=lambda c: self.children[c].count, reverse=True)
         for i, func in enumerate(children):
             child = self.children[func]
             thr = float(child.count) / samples
-            if pfx and tree and i<len(children)-1: x = '├'
-            elif pfx and tree and i>0: x = '└'
+            if pfx and i<len(children)-1: x = o.tree_mid
+            elif pfx and i>0: x = o.tree_last
             else: x = ' '
             print '%5d %6.2f %s%s' % (child.count, thr, pfx+x, func)
-            x = '│' if pfx and tree and i<len(children)-1 else ' '
-            child.prt(samples, pfx+x, max_depth, tree)
+            x = o.tree_line if pfx and i<len(children)-1 else ' '
+            child.prt(samples, pfx+x, o)
 
 def simplify(func):
     func = func.strip()
@@ -80,29 +81,45 @@ def hide_filter(arg):
 def main():
 
     p = argparse.ArgumentParser()
-    p.add_argument('--debug', '-d', action='store_true', dest='dbg')
-    p.add_argument('--max-depth', '-m', dest='max_depth', type=int, default=float('inf'),
+    p.add_argument('--dbg', '-d', action='store_true')
+    p.add_argument('--max-depth', '-m', type=int, default=float('inf'),
                    help='maximum stack depth to display')
     p.add_argument('--templates', '-t', action='store_true',
                    help='don\'t suppress C++ template args')
-    p.add_argument('--no-line-numbers', '-l', dest='no_line_numbers', action='store_true',
+    p.add_argument('--no-line-numbers', '-l', action='store_true',
                    help='don\'t include line numbers in function names')
-    p.add_argument('--just', '-j', dest='just', action='append', default=[],
+    p.add_argument('--just', '-j', action='append', default=[],
                    help='include only stacks matching this pattern')
-    p.add_argument('--no-tree', '-e', dest='no_tree', action='store_true',
-                   help='omit tree lines from output')
+    p.add_argument('--tree', '-e', choices=['utf-8', 'ascii', 'none'], default='utf-8',
+                   help='tree lines can be drawn with utf-8 (default) or ascii, or can be omitted')
+    p.add_argument('--after', '-a', default='1900-01-01T00:00:00',
+                   help='include only samples at or after this time, in yyyy-mm-ddThh:mm:ss format')
+    p.add_argument('--before', '-b', default='9999-01-01T00:00:00',
+                   help='include only samples before this time, in yyyy-mm-ddThh:mm:ss format')
     o = p.parse_args()
 
     root = node()
     for s in o.just: root.filters.append(just_filter(s))
     #for s in o.hide: root.filters.append(hide_filter(s))
 
+    if o.tree=='utf-8': o.tree_line, o.tree_mid, o.tree_last = '│', '├', '└'
+    elif o.tree=='ascii': o.tree_line, o.tree_mid, o.tree_last = '|', '+', '+'
+    elif o.tree=='none': o.tree_line, o.tree_mid, o.tree_last = ' ', ' ', ' '
+
+    o.after = o.after.replace('T', ' ')
+    o.before = o.before.replace('T', ' ')
+    o.after = datetime.datetime.strptime(o.after, '%Y-%m-%d %H:%M:%S')
+    o.before = datetime.datetime.strptime(o.before, '%Y-%m-%d %H:%M:%S')
+
     samples = 0
     stack = []
     for line in sys.stdin:
         if line.startswith('==='):
-            samples += 1
-        elif line.startswith('#'):
+            t = line.split()[1]
+            t = datetime.datetime.strptime(t, '%Y-%m-%dT%H:%M:%S.%f')
+            if t>=o.after and t<o.before: samples += 1
+            if o.dbg: print 'after', o.after, 't', t, 'before', o.before
+        elif line.startswith('#') and t>=o.after and t<o.before:
             plevel = '^#([0-9]+) +'
             paddr = '(?:0x[0-9a-f]+ in )?'
             pfunc = '((?:[^)]|\)[^ ])*)'
@@ -130,6 +147,6 @@ def main():
     # print result
     print '%d samples, %d traces, %.2f threads' % (samples, root.count, float(root.count)/samples)
     print 'count    thr  stack'
-    root.prt(samples, '', o.max_depth, not o.no_tree)
+    root.prt(samples, '', o)
 
 main()
