@@ -1,0 +1,4 @@
+.project
+.pydevproject
+systemtests/test/*.out
+

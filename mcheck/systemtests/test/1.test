@@ -1,0 +1,6 @@
+{
+	"desc": "Test of mdiags, using the 2014-Q3 format, originally cs-15752/mdiag-x47prd15.txt",
+	"args": "--verbosity 2 --rules a.rul",
+	"infile": "1.mdiags",
+	"resfile": "1.res"
+}
