@@ -878,12 +878,63 @@ related to our example collection:
 
 ## <a name="4"></a> 4 Durability
 
-**TBD** describe checkpoints
+Durability in WT is provided by a combination of two features:
+checkpoints, which are similar to mmapv1 background flushes, and the
+write-ahead log, which is similar to the mmapv1 journal. While these
+WT features are similar to the corresponding mmapv1 features, the
+details differ, such as how they work and the durability guarantees
+they provide.
+
+Between checkpoints, new or updated data may be evicted from the WT
+cache and written to WT data files:
+
+* This may happen due to cache pressure, or due to other reasons such
+  as a page exceeding memory_page_max
+* At this time the data is not forced to disk (by fdatasync), but
+  rather remains in the kernel file cache until the kernel decides to
+  destage it to disk using its standard i/o scheduling algorithms.
+* This new or updated data is not "live" in the WT files yet because
+  it is not yet pointed to by the chain of pointers that are created
+  when a checkpoint is done.
+* So at this point the .wt file may contain two copies of the updated
+  data:
+    * The original data, which is accessible as part of a
+      checkpoint. (Note that in the general case WT supports multiple
+      checkpoints, so there may be multiple such accessible copies of
+      the data, possibly sharing common pages, although MongoDB
+      currently only uses one checkpoint at a time.)
+    * The updated data, which is not yet accessible in the data files.
+
+After a checkpoint:
+
+* All dirty data is written from WT cache to disk.
+* The chain of pointers specific to the checkpoint that is necessary
+  to access that data via the data files is established:
+    * "global" checkpoint info in WiredTiger.turtle file
+    * ---> root btree node in WiredTiger.wt file specific to that
+      checkpoint
+    * ---> (via internal btree nodes) leaf node in WiredTiger.wt file
+      containing checkpoint info for a specific .wt file
+    * ---> root btree node in a specific .wt file
+    * ---> (via internal bree nodes) leaf bree node in each a specific
+      .wt file containing application data
+* Writing the above data is carefully sequenced, with fdatasync being
+  done between each step to ensure proper sequencing of committing the
+  data to disk so that file consistency is maintained at each step.
+
+The consequence of all of the above is that at every point the WT
+files are in a consistent state as of the last checkpoint, even if
+mongod or the node crashes, even without journaling. However, since
+checkpointing is not done very frequently (every 60 seconds by default
+under mongod), WT also provides a write-ahead log that guarantees
+recovery of data up through the last data committed to the log. This
+is similar to the mmapv1 journal, but the role and function is a
+little different: because mmapv1 does updates in-place, the mmapv1
+journal is needed to allow recovery to a consistent state upon crash,
+whereas WT does not do updates in-place, so it can support guaranteed
+consistency up until the last checkpoint, even without the write-ahead
+log.
 
 **TBD** journal file format
-
-**TBD** question: MongoDB appears to have only one checkpoint at a
-  time. If there are multiple checkpoints, can pages be shared between
-  checkpoints?
 
 ## <a name="5"></a> 5 Checksums and compression
