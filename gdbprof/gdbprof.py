@@ -7,6 +7,67 @@ import argparse
 import datetime
 import collections
 
+html_down = '▽ '
+html_right = '▷ '
+
+#html_down = 'v '
+#html_right = '> '
+
+html_head = '''
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <script>
+      function toggle(ctl, e) {
+          if (ctl!='none') {
+              e.style.display = 'none'
+              document.getElementById('t'+e.id).innerHTML = '%s'
+          } else {
+              e.style.display = 'block'
+              document.getElementById('t'+e.id).innerHTML = '%s'
+          }
+      }
+      function hide(i) {
+          var e = document.getElementById(i)
+          toggle(e.style.display, e)
+      }
+      function hidec(i) {
+          var children = document.getElementById(i).childNodes
+          var ctl = undefined
+          for (var i in children) {
+              var c = children[i]
+              if (c.tagName=='DIV') {
+                  if (!ctl)
+                      ctl = children[i].style.display
+                  toggle(ctl, c)
+              }
+          }
+      }
+    </script>
+    <style>
+      pre {
+        font-family: menlo, "lucida console", courier, fixed;
+        font-size: 8pt;
+      }
+      body {
+        font-family: sans-serif;
+        font-size: 9pt
+      }
+    </style>
+  </head
+  <body>
+    Click on a triangle to open or close an item.<br/>
+    Click on a function name to open or close all children of that function
+    <pre>
+''' % (html_right, html_down)
+
+html_foot = '''
+    </pre>
+  </body
+</html>
+'''
+
+
 class node:
 
     def __init__(self):
@@ -53,6 +114,7 @@ class node:
             if pfx and i<len(children)-1: x = o.tree_mid
             elif pfx and i>0: x = o.tree_last
             else: x = ' '
+            xc = o.tree_line if pfx and i<len(children)-1 else ' '
 
             # graph over time for this call site
             if o.graph:
@@ -62,12 +124,24 @@ class node:
             else:
                 graph = ''
 
+            if o.html:
+                h1 = '<span id="t%d" onClick="hide(%d)">%s</span><span onClick="hidec(%d)">' % \
+                     (o.html_id, o.html_id, html_down, o.html_id)
+                h2 = '</span>\n<div id="%d">' % o.html_id
+                o.html_id += 1
+            else:
+                h1 = ''
+                h2 = '\n'
+
             # print the info
-            print '%5d %6.2f %s%s%s' % (child.count, thr, graph.encode('utf-8'), pfx+x, func)
+            sys.stdout.write('%5d %6.2f %s%s%s%s%s' % \
+                (child.count, thr, graph.encode('utf-8'), pfx+x, h1, func, h2))
 
             # recursively print children
-            x = o.tree_line if pfx and i<len(children)-1 else ' '
-            child.prt(samples, pfx+x, o)
+            child.prt(samples, pfx+xc, o)
+            if o.html:
+                sys.stdout.write('</div>')
+
 
     # divide counts into bins, and compute o.max_bin to scale all graphs to max_bin
     def graph(self, o):
@@ -135,6 +209,8 @@ def main():
                    help='include only samples before this time, in yyyy-mm-ddThh:mm:ss format')
     p.add_argument('--graph', '-g', type=int, default=0,
                    help='produce a graph with the specified number of buckets')
+    p.add_argument('--html', action='store_true',
+                   help='produce interactive html output; save to file and open in browser')
     o = p.parse_args()
 
     root = node()
@@ -191,10 +267,15 @@ def main():
     root.add_stack(stack, t, o)
 
     # print result
+    if o.html:
+        print html_head
+        o.html_id = 0
     print '%d samples, %d traces, %.2f threads' % (samples, root.count, float(root.count)/samples)
     print 'count    thr  %sstack' % (' ' * o.graph)
     if o.graph:
         root.graph(o)
     root.prt(samples, '', o)
+    if o.html:
+        print html_foot
 
 main()
