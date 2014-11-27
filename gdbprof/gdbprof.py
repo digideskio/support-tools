@@ -32,14 +32,19 @@ html_head = '''
           toggle(e.style.display, e)
       }
       function hidec(i) {
-          var children = document.getElementById(i).childNodes
-          var ctl = undefined
-          for (var i in children) {
-              var c = children[i]
-              if (c.tagName=='DIV') {
-                  if (!ctl)
-                      ctl = children[i].style.display
-                  toggle(ctl, c)
+          var e = document.getElementById(i)
+          if (e.style.display=='none') {
+              toggle(e.style.display, e)
+          } else {
+              var children = e.childNodes
+              var ctl = undefined
+              for (var i in children) {
+                  var c = children[i]
+                  if (c.tagName=='DIV') {
+                      if (!ctl)
+                          ctl = children[i].style.display
+                      toggle(ctl, c)
+                  }
               }
           }
       }
