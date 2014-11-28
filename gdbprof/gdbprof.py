@@ -18,7 +18,7 @@ html_head = '''
   <head>
     <meta charset="utf-8"/>
     <script>
-      function toggle(ctl, e) {
+      function _hide(ctl, e) {
           if (ctl!='none') {
               e.style.display = 'none'
               document.getElementById('t'+e.id).innerHTML = '%s'
@@ -29,24 +29,19 @@ html_head = '''
       }
       function hide(i) {
           var e = document.getElementById(i)
-          toggle(e.style.display, e)
+          _hide(e.style.display, e)
+      }
+      function _hidec(ctl, e) {
+          _hide(ctl, e)
+          for (var i in e.childNodes) {
+              var c = e.childNodes[i]
+              if (c.tagName=='DIV')
+                  _hidec(ctl, c)
+          }
       }
       function hidec(i) {
           var e = document.getElementById(i)
-          if (e.style.display=='none') {
-              toggle(e.style.display, e)
-          } else {
-              var children = e.childNodes
-              var ctl = undefined
-              for (var i in children) {
-                  var c = children[i]
-                  if (c.tagName=='DIV') {
-                      if (!ctl)
-                          ctl = children[i].style.display
-                      toggle(ctl, c)
-                  }
-              }
-          }
+          _hidec(e.style.display, e)
       }
     </script>
     <style>
@@ -61,8 +56,8 @@ html_head = '''
     </style>
   </head
   <body>
-    Click on a triangle to open or close an item.<br/>
-    Click on a function name to open or close all children of that function
+    Click on a triangle to hide or reveal direct children of item.<br/>
+    Click on a function name to hide or reveal all descendents of item.
     <pre>
 ''' % (html_right, html_down)
 
@@ -72,6 +67,29 @@ html_foot = '''
 </html>
 '''
 
+# graph over time for this call site
+def graph(o, child):
+    if o.graph:
+        if o.html:
+            tspan = (o.tmax-o.tmin).total_seconds()
+            gx = lambda t: (t-o.tmin).total_seconds() / tspan * o.graph
+            gy = lambda count: (1.0 - float(count) / (o.max_bin*(1+1e-10))) * 0.8 + 0.1
+            graph = '<svg width="%dem" height="1em" viewBox="0 0 %d 1">' % (o.graph, o.graph)
+            if child.counts:
+                points = ' '.join('%g,%g' % (gx(t), gy(child.counts[t])) for t in o.times)
+                style = 'fill:none; stroke:black; stroke-width:0.1'
+                graph += '<polyline points="%s" style="%s"/>' % (points, style)
+                points = '0,1 ' + points + ' %d,1' % o.graph
+                style = 'fill:rgb(230,230,230); stroke:none'
+                graph += '<polygon points="%s" style="%s"/>' % (points, style)
+            graph += '</svg>'
+        else:
+            bars = u' ▁▂▃▄▅▆▇█'
+            height = lambda count: int(float(count) / (o.max_bin*(1+1e-10)) * len(bars))
+            graph = ''.join(bars[height(child.bins[i])] for i in range(o.graph))
+    else:
+        graph = ''
+    return graph
 
 class node:
 
@@ -101,7 +119,7 @@ class node:
                 n = n.add_func(func, t, o)
         return []
 
-    def prt(self, samples, pfx, o):
+    def prt(self, pfx, o):
 
         # prune
         if len(pfx) > o.max_depth:
@@ -113,7 +131,7 @@ class node:
             child = self.children[func]
 
             # avg number of threads
-            thr = float(child.count) / samples
+            thr = float(child.count) / o.samples
 
             # tree lines
             if pfx and i<len(children)-1: x = o.tree_mid
@@ -121,14 +139,7 @@ class node:
             else: x = ' '
             xc = o.tree_line if pfx and i<len(children)-1 else ' '
 
-            # graph over time for this call site
-            if o.graph:
-                bars = u' ▁▂▃▄▅▆▇█'
-                height = lambda count: int(float(count) / (o.max_bin*(1+1e-10)) * len(bars))
-                graph = ''.join(bars[height(child.bins[i])] for i in range(o.graph))
-            else:
-                graph = ''
-
+            # html stuff
             if o.html:
                 h1 = '<span id="t%d" onClick="hide(%d)">%s</span><span onClick="hidec(%d)">' % \
                      (o.html_id, o.html_id, html_down, o.html_id)
@@ -140,24 +151,31 @@ class node:
 
             # print the info
             sys.stdout.write('%5d %6.2f %s%s%s%s%s' % \
-                (child.count, thr, graph.encode('utf-8'), pfx+x, h1, func, h2))
+                (child.count, thr, graph(o, child).encode('utf-8'), pfx+x, h1, func, h2))
 
             # recursively print children
-            child.prt(samples, pfx+xc, o)
+            child.prt(pfx+xc, o)
             if o.html:
                 sys.stdout.write('</div>')
 
 
     # divide counts into bins, and compute o.max_bin to scale all graphs to max_bin
     def graph(self, o):
-        interval = (o.tmax - o.tmin).total_seconds() * (1+1e-10) / o.graph
-        for func in self.children:
-            child = self.children[func]
-            for t in child.counts:
-                bin = int((t - o.tmin).total_seconds() / interval)
-                child.bins[bin] += child.counts[t]
-                o.max_bin = max(o.max_bin, child.bins[bin])
-            child.graph(o)
+        if o.html:
+            for func in self.children:
+                child = self.children[func]
+                for t in child.counts:
+                    o.max_bin = max(o.max_bin, child.counts[t])
+                child.graph(o)
+        else:
+            interval = (o.tmax - o.tmin).total_seconds() * (1+1e-10) / o.graph
+            for func in self.children:
+                child = self.children[func]
+                for t in child.counts:
+                    bin = int((t - o.tmin).total_seconds() / interval)
+                    child.bins[bin] += child.counts[t]
+                    o.max_bin = max(o.max_bin, child.bins[bin])
+                child.graph(o)
 
 def simplify(func):
     func = func.strip()
@@ -235,7 +253,8 @@ def main():
     o.tmin = None
     o.tmax = None
 
-    samples = 0
+    o.times = []
+    o.samples = 0
     stack = []
     t = None
     for line in sys.stdin:
@@ -244,7 +263,8 @@ def main():
             t = line.split()[1]
             t = datetime.datetime.strptime(t, '%Y-%m-%dT%H:%M:%S.%f')
             if t>=o.after and t<o.before:
-                samples += 1
+                o.times.append(t)
+                o.samples += 1
                 o.tmin = min(t, o.tmin) if o.tmin else t
                 o.tmax = max(t, o.tmax) if o.tmax else t
             if o.dbg: print 'after', o.after, 't', t, 'before', o.before
@@ -275,11 +295,11 @@ def main():
     if o.html:
         print html_head
         o.html_id = 0
-    print '%d samples, %d traces, %.2f threads' % (samples, root.count, float(root.count)/samples)
-    print 'count    thr  %sstack' % (' ' * o.graph)
+    print '%d samples, %d traces, %.2f threads' % (o.samples, root.count, float(root.count)/o.samples)
     if o.graph:
         root.graph(o)
-    root.prt(samples, '', o)
+    print 'count    thr  %scall tree' % graph(o, root)
+    root.prt('', o)
     if o.html:
         print html_foot
 
