@@ -27,7 +27,7 @@ class GroupReportTests:
             vers = group['MongoVersion'].split('|')
             for ver in vers:
                 # <= 2.0.1
-                if re.match('^2.0.[01]', ver):
+                if re.match('^2.0.[01](-|$)', ver):
                     return False
         return True
 
@@ -50,7 +50,7 @@ class GroupReportTests:
             vers = group['MongoVersion'].split('|')
             for ver in vers:
                 # <= 2.4.4
-                if re.match('^2.4.[0-4]', ver):
+                if re.match('^2.4.[0-4](-|$)', ver):
                     return False
         return True
 
@@ -61,7 +61,7 @@ class GroupReportTests:
             vers = group['MongoVersion'].split('|')
             for ver in vers:
                 # <= 2.4.7
-                if re.match('^2.4.[0-7]', ver):
+                if re.match('^2.4.[0-7](-|$)', ver):
                     return False
         return True
 
@@ -72,7 +72,7 @@ class GroupReportTests:
             vers = group['MongoVersion'].split('|')
             for ver in vers:
                 # <= 2.4.4
-                if re.match('^2.4.[0-4]', ver):
+                if re.match('^2.4.[0-4](-|$)', ver):
                     return False
         return True
 
@@ -116,7 +116,7 @@ class GroupReportTests:
             vers = group['MongoVersion'].split('|')
             for ver in vers:
                 # <= 2.6.1
-                if re.match('^2.6.[01]', ver):
+                if re.match('^2.6.[01](-|$)', ver):
                     return False
         return True
 
@@ -129,10 +129,10 @@ class GroupReportTests:
             vers = group['MongoVersion'].split('|')
             for ver in vers:
                 # <= 2.2.3
-                if re.match('^2.2.[0-3]', ver):
+                if re.match('^2.2.[0-3](-|$)', ver):
                     return False
                 # <= 2.4.1
-                if re.match('^2.4.[01]', ver):
+                if re.match('^2.4.[01](-|$)', ver):
                     return False
         return True
 
@@ -143,10 +143,10 @@ class GroupReportTests:
             vers = group['MongoVersion'].split('|')
             for ver in vers:
                 # <= 2.2.5
-                if re.match('^2.2.[0-5]', ver):
+                if re.match('^2.2.[0-5](-|$)', ver):
                     return False
                 # <= 2.4.5
-                if re.match('^2.4.[0-5]', ver):
+                if re.match('^2.4.[0-5](-|$)', ver):
                     return False
         return True
 
@@ -159,10 +159,10 @@ class GroupReportTests:
             vers = group['MongoVersion'].split('|')
             for ver in vers:
                 # <= 1.8.4
-                if re.match('^1.8.[0-4]', ver):
+                if re.match('^1.8.[0-4](-|$)', ver):
                     return False
                 # <= 2.0.1
-                if re.match('^2.0.[01]', ver):
+                if re.match('^2.0.[01](-|$)', ver):
                     return False
         return True
 
@@ -173,13 +173,13 @@ class GroupReportTests:
             vers = group['MongoVersion'].split('|')
             for ver in vers:
                 # <= 2.0.8
-                if re.match('^2.0.[0-8]', ver):
+                if re.match('^2.0.[0-8](-|$)', ver):
                     return False
                 # <= 2.2.3
-                if re.match('^2.2.[0-3]', ver):
+                if re.match('^2.2.[0-3](-|$)', ver):
                     return False
                 # <= 2.4.1
-                if re.match('^2.4.[01]', ver):
+                if re.match('^2.4.[01](-|$)', ver):
                     return False
         return True
 
@@ -190,10 +190,10 @@ class GroupReportTests:
             vers = group['MongoVersion'].split('|')
             for ver in vers:
                 # <= 2.4.10
-                if re.match('^2.4.([0-9]|10)', ver):
+                if re.match('^2.4.([0-9]|10)(-|$)', ver):
                     return False
                 # <= 2.6.3
-                if re.match('^2.6.[0-3]', ver):
+                if re.match('^2.6.[0-3](-|$)', ver):
                     return False
         return True
 
@@ -204,10 +204,10 @@ class GroupReportTests:
             vers = group['MongoVersion'].split('|')
             for ver in vers:
                 # <= 2.2.6
-                if re.match('^2.2.[0-6]', ver):
+                if re.match('^2.2.[0-6](-|$)', ver):
                     return False
                 # <= 2.4.8
-                if re.match('^2.4.[0-8]', ver):
+                if re.match('^2.4.[0-8](-|$)', ver):
                     return False
         return True
 
