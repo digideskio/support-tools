@@ -29,59 +29,59 @@ include initAndListen or handleIncomingMsg:
 This produces the following output:
 
     10 samples, 120 traces, 12.00 threads
-    count    thr  stack
-       10   1.00  main:664
-       10   1.00   mongoDbMain:848
-       10   1.00    mongo::initAndListen:615
-       10   1.00     _initAndListen:610
-       10   1.00      mongo::Listener::initAndListen:256
-       10   1.00       select
-       10   1.00  clone
-       10   1.00   start_thread
-       10   1.00    mongo::PortMessageServer::handleIncomingMsg:234
-       10   1.00     mongo::MyMessageHandler::process:190
-       10   1.00      mongo::assembleResponse:390
-       10   1.00       receivedQuery:220
-       10   1.00        mongo::newRunQuery:549
-       10   1.00         runCommands:131
-       10   1.00          mongo::_runCommands:1498
-       10   1.00           mongo::Command::execCommand:1423
-       10   1.00            mongo::_execCommand:1209
-       10   1.00             mongo::WriteCmd::run:144
-       10   1.00              mongo::WriteBatchExecutor::executeBatch:265
-       10   1.00               mongo::WriteBatchExecutor::bulkExecute:756
-       10   1.00                mongo::WriteBatchExecutor::execInserts:873
-        9   0.90                ├mongo::WriteBatchExecutor::execOneInsert:1078
-        9   0.90                │ insertOne:1051
-        9   0.90                │  singleInsert:1107
-        9   0.90                │   mongo::Collection::insertDocument:196
-        9   0.90                │    mongo::Collection::_insertDocument:235
-        8   0.80                │    ├mongo::WiredTigerRecordStore::insertRecord:507
-        8   0.80                │    │ mongo::WiredTigerRecordStore::cappedDeleteAsNeeded:403
-        8   0.80                │    │  __curfile_next:79
-        8   0.80                │    │   __wt_btcur_next:439
-        8   0.80                │    │    __cursor_row_next:279
-        8   0.80                │    │     __wt_txn_read:173
-        6   0.60                │    │      __wt_txn_visible:119
-        1   0.10                │    └mongo::WiredTigerRecordStore::insertRecord:498
-        1   0.10                │      __curfile_insert:211
-        1   0.10                │       __wt_btcur_insert:492
-        1   0.10                │        __cursor_row_modify:263
-        1   0.10                │         __wt_row_modify:205
-        1   0.10                │          __wt_insert_serial:264
-        1   0.10                │           __wt_cache_page_inmem_incr:50
-        1   0.10                │            __wt_page_is_modified:25
-        1   0.10                └mongo::WriteBatchExecutor::execOneInsert:1084
-        1   0.10                  mongo::finishCurrentOp:638
-        1   0.10                   mongo::logger::LogstreamBuilder::~LogstreamBuilder:123
-        1   0.10                    mongo::logger::LogDomain<...>::append:60
-        1   0.10                     mongo::logger::RotatableFileAppender<...>::append:63
-        1   0.10                      std::ostream::flush
-        1   0.10                       std::basic_filebuf<...>::sync
-        1   0.10                        std::basic_filebuf<...>::overflow
-        1   0.10                         std::basic_filebuf<...>::_M_convert_to_external
-        1   0.10                          ??
-        1   0.10                           write
+    avg.thr max.thr  call tree
+       1.00    1.00  main:664
+       1.00    1.00   mongoDbMain:848
+       1.00    1.00    mongo::initAndListen:615
+       1.00    1.00     _initAndListen:610
+       1.00    1.00      mongo::Listener::initAndListen:256
+       1.00    1.00       select
+       1.00    1.00  clone
+       1.00    1.00   start_thread
+       1.00    1.00    mongo::PortMessageServer::handleIncomingMsg:234
+       1.00    1.00     mongo::MyMessageHandler::process:190
+       1.00    1.00      mongo::assembleResponse:390
+       1.00    1.00       receivedQuery:220
+       1.00    1.00        mongo::newRunQuery:549
+       1.00    1.00         runCommands:131
+       1.00    1.00          mongo::_runCommands:1498
+       1.00    1.00           mongo::Command::execCommand:1423
+       1.00    1.00            mongo::_execCommand:1209
+       1.00    1.00             mongo::WriteCmd::run:144
+       1.00    1.00              mongo::WriteBatchExecutor::executeBatch:265
+       1.00    1.00               mongo::WriteBatchExecutor::bulkExecute:756
+       1.00    1.00                mongo::WriteBatchExecutor::execInserts:873
+       0.90    1.00                ├mongo::WriteBatchExecutor::execOneInsert:1078
+       0.90    1.00                │ insertOne:1051
+       0.90    1.00                │  singleInsert:1107
+       0.90    1.00                │   mongo::Collection::insertDocument:196
+       0.90    1.00                │    mongo::Collection::_insertDocument:235
+       0.80    1.00                │    ├mongo::WiredTigerRecordStore::insertRecord:507
+       0.80    1.00                │    │ mongo::WiredTigerRecordStore::cappedDeleteAsNeeded:403
+       0.80    1.00                │    │  __curfile_next:79
+       0.80    1.00                │    │   __wt_btcur_next:439
+       0.80    1.00                │    │    __cursor_row_next:279
+       0.80    1.00                │    │     __wt_txn_read:173
+       0.60    1.00                │    │      __wt_txn_visible:119
+       0.10    1.00                │    └mongo::WiredTigerRecordStore::insertRecord:498
+       0.10    1.00                │      __curfile_insert:211
+       0.10    1.00                │       __wt_btcur_insert:492
+       0.10    1.00                │        __cursor_row_modify:263
+       0.10    1.00                │         __wt_row_modify:205
+       0.10    1.00                │          __wt_insert_serial:264
+       0.10    1.00                │           __wt_cache_page_inmem_incr:50
+       0.10    1.00                │            __wt_page_is_modified:25
+       0.10    1.00                └mongo::WriteBatchExecutor::execOneInsert:1084
+       0.10    1.00                  mongo::finishCurrentOp:638
+       0.10    1.00                   mongo::logger::LogstreamBuilder::~LogstreamBuilder:123
+       0.10    1.00                    mongo::logger::LogDomain<...>::append:60
+       0.10    1.00                     mongo::logger::RotatableFileAppender<...>::append:63
+       0.10    1.00                      std::ostream::flush
+       0.10    1.00                       std::basic_filebuf<...>::sync
+       0.10    1.00                        std::basic_filebuf<...>::overflow
+       0.10    1.00                         std::basic_filebuf<...>::_M_convert_to_external
+       0.10    1.00                          ??
+       0.10    1.00                           write
     
 * We collected 120 stack traces over our 10 samples, indicating that
   there were 12 threads running.
@@ -90,10 +90,8 @@ This produces the following output:
   and a pthread, represented by the two call trees, one rooted in
   main() and the other rooted in clone().
 
-* The call tree shows the count of each call site ("count" column),
-  and the average number of threads executing at that call site at any
-  given time ("thr" column), which is just the count divided by the
-  number of samples.
+* The call tree shows the average and maximum number of threads
+  executing at each call site over the course of the run.
 
 * The main thread is spending all of its time in select() waiting for
   a new connection. This is wait time that would be invisible to
@@ -117,6 +115,27 @@ This produces the following output:
   would have been invisible to CPU-based profiling tools. (We would
   need to collect more samples to determine how significant an impact
   this has on performance.)
+
+### Interact HTML profile view with graphical timeline
+
+You can generate an interactive HTML profile for viewing in your
+browser. An example taken from
+[SERVER-16355](https://jira.mongodb.org/browse/SERVER-16355). This
+command produces the view shown below.
+
+    gdbprof -j handleIncomingMsg --html -g 10 --graph-scale log <example.gdbmon >example.html
+    open example.html
+
+When the generated HTML is viewed in a browser the tree can be
+interactively pruned to focus on the parts of interest. The -g option
+adds a timeline next to each call site showing the number of threads
+executing at that call site at each point in time. Here we see a
+correlation in time between the two call sites highlighted by the
+notes (added using Preview), giving us a clue as to the source of the
+bottleneck.
+
+<img src="example.png" width="5in"></img>
+
 
 
 
