@@ -8,8 +8,10 @@ import subprocess
 import sys
 import time
 import argparse
+import select
 
 print ' '.join(sys.argv)
+sys.stdout.flush()
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--debug', '-d', action='store_true', dest='dbg')
@@ -24,25 +26,33 @@ if not o.delay:
 cmd = ['gdb', '-p', str(o.pid), '--interpreter=mi']
 gdb = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
 
+def dbg(*ss):
+    if o.dbg:
+        sys.stderr.write(' '.join(str(s) for s in ss) + '\n')
+
 def put(cmd):
     if o.dbg: print >>sys.stderr, 'PUT', cmd
     gdb.stdin.write(cmd + '\n')
 
-def get(response, show=False):
-    if o.dbg: print >>sys.stderr, 'GET', response
+def get(response, show=False, timeout=None):
+    dbg('GET', response)
     while True:
+        rlist, _, _ = select.select([gdb.stdout], [], [], timeout)
+        if not rlist:
+            dbg('TIMEOUT')
+            return None
         line = gdb.stdout.readline().strip()
         if line.startswith('^error'):
             raise Exception(line)
         elif line.startswith(response):
-            if o.dbg: print >>sys.stderr, 'GOT expected', len(line), line
+            dbg('GOT expected', len(line), line)
             return line[len(response)+1:]
         elif line.startswith('~'):
             if show:
                 line = line[1:].strip('"').replace('\\n', '\n')
                 print line,
         else:
-            if o.dbg: print >>sys.stderr, 'GOT unexpected', line
+            dbg('GOT unexpected', line)
             pass
 
 put('cont')
@@ -50,16 +60,18 @@ get('^running')
 
 for i in (range(o.count) if o.count else itertools.count()):
     if o.delay: time.sleep(o.delay)
-    if o.dbg: print >>sys.stderr, 'SIGTRAP'
     t0 = time.time()
-    os.kill(int(o.pid), signal.SIGTRAP)
-    get('*stopped')
+    while True: # timeout and retry handles race condition btw thread starts and SIGTRAP
+        dbg('SIGTRAP')
+        os.kill(int(o.pid), signal.SIGTRAP)
+        if get('*stopped', timeout=1):
+            break
     t1 = time.time()
     sys.stdout.write(datetime.datetime.now().strftime('\n=== %FT%T.%f \n'))
     put('thread apply all bt')
     get('^done', True)
     t2 = time.time()
-    if o.dbg: print >>sys.stderr, 'cont'
+    dbg('cont')
     put('cont')
     get('^running')
     t3 = time.time()
