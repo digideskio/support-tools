@@ -14,6 +14,11 @@ import json
 #
 # html stuff
 #
+# All non-ascii stuff is encoded here as utf-8 to avoid Unicode encoding issues on output
+# However this requires that the eventual display medium understand utf-8
+# We ensure that for html by using a charset declaration
+# For display on a terminal or cut&paste into a file utf-8 support is required
+#
 
 html_down = '▽ '
 html_right = '▷ '
@@ -107,37 +112,6 @@ html_help = '''
     Click on a function name to hide or show all descendents of item.
 ''' % (html_down, html_right)
 
-#
-# time series graph
-#
-
-def graph(ts=None, ys=None, ymin=None, ymax=None):
-    if opt.graph:
-        elt('svg', width='%dem' % opt.graph, height='1.1em', viewBox='0 0 %d 1.1' % opt.graph)
-        if ts:
-            tspan = (opt.tmax-opt.tmin).total_seconds()
-            yspan = (ymax - ymin)* (1+1e-10)
-            if yspan==0:
-                ymin -= 1
-                yspan = 1
-            gx = lambda t: (t-opt.tmin).total_seconds() / tspan * opt.graph
-            gy = lambda y: (1.0 - (float(y)-ymin) / yspan) * 0.95 + 0.05
-            line = ' '.join('%g,%g' % (gx(t), gy(ys[t])) for t in ts)
-            shade = '0,1.05 ' + line + ' %d,1.05' % opt.graph
-            eltend('polygon', points=shade, style='fill:rgb(230,230,230); stroke:none;')
-            eltend('polyline', points=line, style='fill:none; stroke:black; stroke-width:0.1')
-            for i in range(opt.graph_ticks+1):
-                x = opt.graph * i / opt.graph_ticks
-                style = 'stroke:rgba(255,0,0,0.2); stroke-width:0.1'
-                eltend('line', x1=x, x2=x, y1=0, y2=1, style=style)
-        eltend('line', x1=0, x2=1, y1=0, y2=1, style='stroke:red, stroke-width:10')
-        end('svg')
-
-def graph_child(opt, child):
-    ymin = child.min_count if opt.graph_scale=='separate' else opt.min_count
-    ymax = child.max_count if opt.graph_scale=='separate' else opt.max_count
-    graph(opt.times, child.counts, ymin, ymax)
-
 
 #
 # call tree
@@ -196,7 +170,7 @@ class node:
 
             # print the info
             put('%7.2f %7.2f ' % (avg_thr, max_thr))
-            graph_child(opt, child)
+            graph_child(child)
             put(pfx+p)
             elt('span', id='t%d' % opt.html_id, onClick='hide(%d)'% opt.html_id)
             html(html_down)
@@ -263,107 +237,33 @@ def hide_filter(arg):
         stack[:] = s.split(stack_sep)
     return f
 
+
 #
-# time series
+# time series graphs
 #
 
-def op_for(fmt, s):
-    if s=='max': return lambda ys, t, d: max(ys[t], d)
-    if s=='count':
-        count_min_ms = float(fmt.get("count_min_ms", 0))
-        return lambda ys, t, d: ys[t]+1 if d>=count_min_ms else ys[t]
+def graph(ts=None, ys=None, ymin=None, ymax=None):
+    timeseries.graph(
+        ts=ts, tmin=opt.tmin, tmax=opt.tmax, width=opt.graph,
+        ys=ys, ymin=ymin, ymax=ymax, ticks=opt.graph_ticks
+    )
 
-def series_one(formats, series):
+def graph_child(child):
+    if opt.graph:
+        ymin = child.min_count if opt.graph_scale=='separate' else opt.min_count
+        ymax = child.max_count if opt.graph_scale=='separate' else opt.max_count
+        graph(opt.times, child.counts, ymin, ymax)
 
-    fmt_name, fn = series.split(':',2)
-    fmt_name_params = fmt_name.split('(')
-    fmt_name = fmt_name_params[0]
-    fmt = formats[fmt_name]
-    if len(fmt_name_params)>1:
-        params = fmt_name_params[1].strip(' )')
-        params = params.split(',')
-        for p in params:
-            n, v = p.split('=')
-            fmt[n] = v
-    description = fmt.get('description', fmt_name).format(**fmt)
+# read times series files
+def read_series():
+    if opt.series:
+        series = timeseries.series_all(opt.series)
+        if not opt.tmin:
+            opt.tmin = min(min(ts) for _, ts, _ in series)
+            opt.tmax = max(max(ts) for _, ts, _ in series)
+        return series
 
-    delta = fmt.get('delta', False)
-    if delta:
-        last_t = None
-
-    buckets = float(fmt.get('bucket_size', 0))
-    if buckets:
-        t0 = dateutil.parser.parse('2000-01-01')
-        op = op_for(fmt, fmt['bucket_op'])
-
-    queue = fmt.get('queue', False)
-    if queue:
-        queue_times = []
-        queue_min_ms = float(fmt.get('queue_min_ms', 0))
-
-    ts = []
-    ys = collections.defaultdict(int)
-
-    for line in open(fn):
-        line = line.strip()
-        m = re.search(fmt['re'], line)
-        if m:
-            t, d = m.groups()
-            t, d = dateutil.parser.parse(t), float(d)
-            if delta:
-                if last_t:
-                    ts.append(t)
-                    ys[t] = (d-last_d) / (t-last_t).total_seconds()
-                last_t = t
-                last_d = d
-            elif buckets:
-                s0 = (t - t0).total_seconds()
-                s1 = s0 // buckets * buckets
-                t = t + datetime.timedelta(0, s1-s0)
-                ys[t] = op(ys, t, d)
-            elif queue:
-                if d>queue_min_ms:
-                    ms = datetime.timedelta(0, d/1000.0)
-                    queue_times.append((t-ms,+1))
-                    queue_times.append((t,-1))
-            else:
-                ts.append(t)
-                ys[t] = d
-
-    if buckets:
-        tmin = min(ys.keys())
-        tmax = max(ys.keys())
-        n = int((tmax-tmin).total_seconds() / buckets)
-        dt = datetime.timedelta(0, buckets)
-        ts = [tmin + dt*i for i in range(n+1)]
-    elif queue:
-        q = 0
-        for t, d in sorted(queue_times):
-            q += d
-            ys[t] = q
-            ts.append(t)
-
-    return description, ts, ys
-
-def series_load(formats, fn):
-    if opt.dbg: print >>sys.stderr, '===', fn
-    try:
-        for fmt in json.load(open(fn)):
-            if opt.dbg: print >>sys.stderr, fmt['name']
-            formats[fmt['name']] = fmt
-    except Exception as e:
-        if opt.dbg:
-            print >>sys.stderr, e
-
-def series_all():
-    global dateutil
-    import dateutil.parser
-    formats = {}
-    series_load(formats, os.path.join(os.path.dirname(__file__), 'timeseries.json'))
-    series_load(formats, 'timeseries.json')
-    return [series_one(formats, s) for s in opt.series]
-
-def series_prt(series):
+def graph_series(series):
     if series:
         put('avg.val max.val\n')
         for label, ts, ys in series:
@@ -374,61 +274,13 @@ def series_prt(series):
             put(' ', label, '\n')
         put('\n')
 
-
 #
 #
 #
 
-def main():
-
-    p = argparse.ArgumentParser()
-    p.add_argument('--dbg', '-d', action='store_true')
-    p.add_argument('--max-depth', '-m', type=int, default=float('inf'),
-                   help='maximum stack depth to display')
-    p.add_argument('--templates', '-t', action='store_true',
-                   help='don\'t suppress C++ template args')
-    p.add_argument('--no-line-numbers', '-l', action='store_true',
-                   help='don\'t include line numbers in function names')
-    p.add_argument('--just', '-j', action='append', default=[],
-                   help='include only stacks matching this pattern')
-    p.add_argument('--tree', '-e', choices=['utf-8', 'ascii', 'none'], default='utf-8',
-                   help='tree lines can be drawn with utf-8 (default) or ascii, or can be omitted')
-    p.add_argument('--after', '-a', default='1900-01-01T00:00:00',
-                   help='include only samples at or after this time, in yyyy-mm-ddThh:mm:ss format')
-    p.add_argument('--before', '-b', default='9999-01-01T00:00:00',
-                   help='include only samples before this time, in yyyy-mm-ddThh:mm:ss format')
-    p.add_argument('--graph', '-g', type=int, default=0,
-                   help='produce a graph with the specified number of buckets')
-    p.add_argument('--graph-scale', choices=['common', 'separate', 'log'], default='common')
-    p.add_argument('--graph-ticks', type=int, default=5)
-    p.add_argument('--html', action='store_true',
-                   help='produce interactive html output; save to file and open in browser')
-    p.add_argument('--series', nargs='*', default=[])
-    global opt
-    opt = p.parse_args()
-
+def read_profile(filters):
     root = node()
-    for s in opt.just: root.filters.append(just_filter(s))
-    #for s in opt.hide: root.filters.append(hide_filter(s))
-
-    if opt.tree=='utf-8': opt.tree_line, opt.tree_mid, opt.tree_last = '│', '├', '└'
-    elif opt.tree=='ascii': opt.tree_line, opt.tree_mid, opt.tree_last = '|', '+', '+'
-    elif opt.tree=='none': opt.tree_line, opt.tree_mid, opt.tree_last = ' ', ' ', ' '
-
-    opt.after = opt.after.replace('T', ' ')
-    opt.before = opt.before.replace('T', ' ')
-    opt.after = datetime.datetime.strptime(opt.after, '%Y-%m-%d %H:%M:%S')
-    opt.before = datetime.datetime.strptime(opt.before, '%Y-%m-%d %H:%M:%S')
-
-    opt.max_count = float('-inf')
-    opt.min_count = float('inf')
-    opt.tmin = None
-    opt.tmax = None
-    opt.times = []
-    opt.samples = 0
-    opt.html_id = 0
-
-    # profile
+    root.filters = filters
     stack = []
     t = None
     for line in sys.stdin:
@@ -464,21 +316,78 @@ def main():
                 if at_ln and not opt.no_line_numbers: func += ':' + at_ln
                 stack.append(func)
     root.add_stack(stack, t)
+    return root
 
-    # read times series files
-    series = series_all()
-    if not opt.tmin:
-        opt.tmin = min(min(ts) for _, ts, _ in series)
-        opt.tmax = max(max(ts) for _, ts, _ in series)
+
+#
+#
+#
+
+def main():
+
+    p = argparse.ArgumentParser()
+    p.add_argument('--dbg', '-d', action='store_true')
+    p.add_argument('--max-depth', '-m', type=int, default=float('inf'),
+                   help='maximum stack depth to display')
+    p.add_argument('--templates', '-t', action='store_true',
+                   help='don\'t suppress C++ template args')
+    p.add_argument('--no-line-numbers', '-l', action='store_true',
+                   help='don\'t include line numbers in function names')
+    p.add_argument('--just', '-j', action='append', default=[],
+                   help='include only stacks matching this pattern')
+    p.add_argument('--tree', '-e', choices=['utf-8', 'ascii', 'none'], default='utf-8',
+                   help='tree lines can be drawn with utf-8 (default) or ascii, or can be omitted')
+    p.add_argument('--after', '-a', default='1900-01-01T00:00:00',
+                   help='include only samples at or after this time, in yyyy-mm-ddThh:mm:ss format')
+    p.add_argument('--before', '-b', default='9999-01-01T00:00:00',
+                   help='include only samples before this time, in yyyy-mm-ddThh:mm:ss format')
+    p.add_argument('--graph', '-g', type=int, default=0,
+                   help='produce a graph with the specified number of buckets')
+    p.add_argument('--graph-scale', choices=['common', 'separate', 'log'], default='common')
+    p.add_argument('--graph-ticks', type=int, default=5)
+    p.add_argument('--html', action='store_true',
+                   help='produce interactive html output; save to file and open in browser')
+    p.add_argument('--series', nargs='*', default=[])
+    global opt
+    opt = p.parse_args()
+
+    filters = []
+    for s in opt.just: filters.append(just_filter(s))
+    #for s in opt.hide: filters.append(hide_filter(s))
+
+    if opt.tree=='utf-8': opt.tree_line, opt.tree_mid, opt.tree_last = '│', '├', '└'
+    elif opt.tree=='ascii': opt.tree_line, opt.tree_mid, opt.tree_last = '|', '+', '+'
+    elif opt.tree=='none': opt.tree_line, opt.tree_mid, opt.tree_last = ' ', ' ', ' '
+
+    opt.after = opt.after.replace('T', ' ')
+    opt.before = opt.before.replace('T', ' ')
+    opt.after = datetime.datetime.strptime(opt.after, '%Y-%m-%d %H:%M:%S')
+    opt.before = datetime.datetime.strptime(opt.before, '%Y-%m-%d %H:%M:%S')
+
+    opt.max_count = float('-inf')
+    opt.min_count = float('inf')
+    opt.tmin = None
+    opt.tmax = None
+    opt.times = []
+    opt.samples = 0
+    opt.html_id = 0
+
+    if opt.series or opt.graph:
+        global timeseries
+        import timeseries
+
+    # read stuff
+    root = read_profile(filters)
+    series = read_series()
 
     # print result
     html_head()
-    series_prt(series)
+    graph_series(series)
     threads = float(root.count)/opt.samples if opt.samples else 0
     put('%d samples, %d traces, %.2f threads\n' % (opt.samples, root.count, threads))
     root.pre_graph()
     put('avg.thr max.thr  ')
-    graph()
+    if opt.graph or opt.series: graph()
     put('call tree\n')
     root.prt()
     html_foot()

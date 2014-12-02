@@ -1,0 +1,25 @@
+[{
+    "name": "test",
+    "re": "(....-..-.. ..:..:..) foobar (.*)",
+    "description": "test time series"
+},{
+    "name": "mongod_query_ms",
+    "description": "mongod max logged query (ms) per {bucket_size}s",
+    "re": "^(....-..-..T..:..:......).* query: .* ([0-9]+)ms$",
+    "bucket_op": "max",
+    "bucket_size": 1,       "//": "size of buckets in seconds"
+},{
+    "name": "mongod_query_count",
+    "description": "mongod logged queries longer than {count_min_ms}ms per {bucket_size}s",
+    "re": "^(....-..-..T..:..:......).* query: .* ([0-9]+)ms$",
+    "bucket_op": "count",
+    "bucket_size": 1,       "//": "size of buckets in seconds",
+    "count_min_ms": 0,      "//": "minimum query duration to count"
+},{
+    "name": "mongod_query_queue",
+    "description": "mongod queued queries longer than {queue_min_ms}ms",
+    "re": "^(....-..-..T..:..:......).* query: .* ([0-9]+)ms$",
+    "queue": true,
+    "queue_min_ms": 0,      "//": "minimum op duration to count for queue"
+}]
+    
