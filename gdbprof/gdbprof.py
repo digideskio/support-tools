@@ -20,9 +20,6 @@ import json
 # For display on a terminal or cut&paste into a file utf-8 support is required
 #
 
-html_down = '▽ '
-html_right = '▷ '
-
 def elt(name, **attrs):
     if opt.html:
         sys.stdout.write('<%s' % name)
@@ -47,26 +44,13 @@ def html(s):
     if opt.html:
         put(s)
 
-def html_head():
-    elt('html')
-    elt('head')
-    elt('meta', charset='utf-8')
-    elt('script')
-    html(html_script % (html_right, html_down))
-    end('script')
-    elt('style')
-    html(html_style)
-    end('style')
-    end('head')
-    elt('body')
-    html(html_help)
-    elt('pre')
+#
+# our html
+#
 
-def html_foot():
-    end('pre')
-    end('body')
-    end('html')
-    
+html_down = '▽ '
+html_right = '▷ '
+
 html_script = '''
     function _hide(ctl, e) {
         if (ctl!='none') {
@@ -93,7 +77,7 @@ html_script = '''
         var e = document.getElementById(id)
         _hide_all(e.style.display, e)
     }
-'''
+'''  % (html_right, html_down)
 
 html_style = '''
     pre, .fixed {
@@ -112,6 +96,26 @@ html_help = '''
     Click on a function name to hide or show all descendents of item.
 ''' % (html_down, html_right)
 
+def html_head():
+    elt('html')
+    elt('head')
+    elt('meta', charset='utf-8')
+    elt('script')
+    html(html_script)
+    end('script')
+    elt('style')
+    html(html_style)
+    end('style')
+    end('head')
+    elt('body')
+    html(html_help)
+    elt('pre')
+
+def html_foot():
+    end('pre')
+    end('body')
+    end('html')
+    
 
 #
 # call tree
@@ -237,47 +241,6 @@ def hide_filter(arg):
         stack[:] = s.split(stack_sep)
     return f
 
-
-#
-# time series graphs
-#
-
-def graph(ts=None, ys=None, ymin=None, ymax=None):
-    timeseries.graph(
-        ts=ts, tmin=opt.tmin, tmax=opt.tmax, width=opt.graph,
-        ys=ys, ymin=ymin, ymax=ymax, ticks=opt.graph_ticks
-    )
-
-def graph_child(child):
-    if opt.graph:
-        ymin = child.min_count if opt.graph_scale=='separate' else opt.min_count
-        ymax = child.max_count if opt.graph_scale=='separate' else opt.max_count
-        graph(opt.times, child.counts, ymin, ymax)
-
-# read times series files
-def read_series():
-    if opt.series:
-        series = timeseries.series_all(opt.series)
-        if not opt.tmin:
-            opt.tmin = min(min(ts) for _, ts, _ in series)
-            opt.tmax = max(max(ts) for _, ts, _ in series)
-        return series
-
-def graph_series(series):
-    if series:
-        put('avg.val max.val\n')
-        for label, ts, ys in series:
-            ymax = max(ys.values())
-            yavg = float(sum(ys.values())) / len(ys)
-            put('%7g %7g ' % (yavg, ymax))
-            graph(ts, ys, 0, ymax)
-            put(' ', label, '\n')
-        put('\n')
-
-#
-#
-#
-
 def read_profile(filters):
     root = node()
     root.filters = filters
@@ -318,6 +281,42 @@ def read_profile(filters):
     root.add_stack(stack, t)
     return root
 
+
+#
+# time series graphs
+#
+
+def graph(ts=None, ys=None, ymin=None, ymax=None):
+    timeseries.graph(
+        ts=ts, tmin=opt.tmin, tmax=opt.tmax, width=opt.graph,
+        ys=ys, ymin=ymin, ymax=ymax, ticks=opt.graph_ticks
+    )
+
+def graph_child(child):
+    if opt.graph:
+        ymin = child.min_count if opt.graph_scale=='separate' else opt.min_count
+        ymax = child.max_count if opt.graph_scale=='separate' else opt.max_count
+        graph(opt.times, child.counts, ymin, ymax)
+
+# read times series files
+def read_series():
+    if opt.series:
+        series = timeseries.series_all(opt.series)
+        if not opt.tmin:
+            opt.tmin = min(min(ts) for _, ts, _ in series)
+            opt.tmax = max(max(ts) for _, ts, _ in series)
+        return series
+
+def graph_series(series):
+    if series:
+        put('avg.val max.val\n')
+        for label, ts, ys in series:
+            ymax = max(ys.values())
+            yavg = float(sum(ys.values())) / len(ys)
+            put('%7g %7g ' % (yavg, ymax))
+            graph(ts, ys, 0, ymax)
+            put(' ', label, '\n')
+        put('\n')
 
 #
 #
