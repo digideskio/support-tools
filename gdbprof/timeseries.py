@@ -32,30 +32,29 @@ def graph(
     ys=None, ymin=None, ymax=None, height=1,
     ticks=None, line_width=0.1, shaded=True
 ):
-    if width:
-        elt('svg', width='%gem' % width, height='%gem' % height,
-            viewBox='0 0 %g %g' % (width, height))
-        if ts:
-            tspan = (tmax-tmin).total_seconds()
-            yspan = (ymax - ymin)* (1+1e-10)
-            if yspan==0:
-                ymin -= 1
-                yspan = 1
-            ypad = 1.5 * line_width
-            gx = lambda t: (t-tmin).total_seconds() / tspan * width
-            gy = lambda y: (1.0 - (float(y)-ymin) / yspan) * (height-ypad) + ypad/2
-            line = ' '.join('%g,%g' % (gx(t), gy(ys[t])) for t in ts)
-            if shaded:
-                shade = '0,1.05 ' + line + ' %d,1.05' % width
-                eltend('polygon', points=shade, style='fill:rgb(230,230,230); stroke:none;')
-            eltend('polyline', points=line, style='fill:none; stroke:black; stroke-width:0.1')
-            if ticks:
-                for i in range(ticks+1):
-                    x = width * i / ticks
-                    style = 'stroke:rgba(255,0,0,0.2); stroke-width:0.1'
-                    eltend('line', x1=x, x2=x, y1=0, y2=height, style=style)
-        eltend('line', x1=0, x2=1, y1=0, y2=1, style='stroke:red, stroke-width:10')
-        end('svg')
+    elt('svg', width='%gem' % width, height='%gem' % height,
+        viewBox='0 0 %g %g' % (width, height))
+    if ts:
+        tspan = (tmax-tmin).total_seconds()
+        yspan = (ymax - ymin)* (1+1e-10)
+        if yspan==0:
+            ymin -= 1
+            yspan = 1
+        ypad = 1.5 * line_width
+        gx = lambda t: (t-tmin).total_seconds() / tspan * width
+        gy = lambda y: (1.0 - (float(y)-ymin) / yspan) * (height-ypad) + ypad/2
+        line = ' '.join('%g,%g' % (gx(t), gy(ys[t])) for t in ts)
+        if shaded:
+            shade = '0,1.05 ' + line + ' %d,1.05' % width
+            eltend('polygon', points=shade, style='fill:rgb(230,230,230); stroke:none;')
+        eltend('polyline', points=line, style='fill:none; stroke:black; stroke-width:0.1')
+        if ticks:
+            for i in range(ticks+1):
+                x = width * i / ticks
+                style = 'stroke:rgba(255,0,0,0.2); stroke-width:0.1'
+                eltend('line', x1=x, x2=x, y1=0, y2=height, style=style)
+    eltend('line', x1=0, x2=1, y1=0, y2=1, style='stroke:red, stroke-width:10')
+    end('svg')
 
 #
 #
