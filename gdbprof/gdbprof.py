@@ -116,9 +116,6 @@ def graph(ts=None, ys=None, ymin=None, ymax=None):
         elt('svg', width='%dem' % opt.graph, height='1.1em', viewBox='0 0 %d 1.1' % opt.graph)
         if ts:
             tspan = (opt.tmax-opt.tmin).total_seconds()
-            if ymin==None:
-                ymin = opt.min_count
-                ymax = opt.max_count
             yspan = (ymax - ymin)* (1+1e-10)
             if yspan==0:
                 ymin -= 1
@@ -135,6 +132,12 @@ def graph(ts=None, ys=None, ymin=None, ymax=None):
                 eltend('line', x1=x, x2=x, y1=0, y2=1, style=style)
         eltend('line', x1=0, x2=1, y1=0, y2=1, style='stroke:red, stroke-width:10')
         end('svg')
+
+def graph_child(opt, child):
+    ymin = child.min_count if opt.graph_scale=='separate' else opt.min_count
+    ymax = child.max_count if opt.graph_scale=='separate' else opt.max_count
+    graph(opt.times, child.counts, ymin, ymax)
+
 
 #
 # call tree
@@ -182,7 +185,8 @@ class node:
             child = self.children[func]
 
             # avg number of threads
-            thr = float(child.count) / opt.samples
+            avg_thr = float(child.count) / opt.samples
+            max_thr = child.max_count
 
             # tree lines
             if pfx and i<len(children)-1: p = opt.tree_mid
@@ -191,8 +195,8 @@ class node:
             pc = opt.tree_line if pfx and i<len(children)-1 else ' '
 
             # print the info
-            put('%5d %6.2f ' % (child.count, thr))
-            graph(opt.times, child.counts, child.min_count, child.max_count)
+            put('%7.2f %7.2f ' % (avg_thr, max_thr))
+            graph_child(opt, child)
             put(pfx+p)
             elt('span', id='t%d' % opt.html_id, onClick='hide(%d)'% opt.html_id)
             html(html_down)
@@ -210,6 +214,8 @@ class node:
     def pre_graph(self):
         for func in self.children:
             child = self.children[func]
+            child.min_count = 0
+            child.max_count = max(child.counts.values())
             for t in child.counts:
                 if opt.graph_scale=='log':
                     c = child.counts[t]
@@ -220,9 +226,6 @@ class node:
                 elif opt.graph_scale=='common':
                     opt.min_count = 0
                     opt.max_count = max(opt.max_count, child.counts[t])
-            if opt.graph_scale=='separate':
-                child.min_count = 0
-                child.max_count = max(child.counts.values())
             child.pre_graph()
 
 def simplify(func):
@@ -343,8 +346,10 @@ def series_one(formats, series):
     return description, ts, ys
 
 def series_load(formats, fn):
+    if opt.dbg: print >>sys.stderr, '===', fn
     try:
         for fmt in json.load(open(fn)):
+            if opt.dbg: print >>sys.stderr, fmt['name']
             formats[fmt['name']] = fmt
     except Exception as e:
         if opt.dbg:
@@ -357,6 +362,17 @@ def series_all():
     series_load(formats, os.path.join(os.path.dirname(__file__), 'timeseries.json'))
     series_load(formats, 'timeseries.json')
     return [series_one(formats, s) for s in opt.series]
+
+def series_prt(series):
+    if series:
+        put('avg.val max.val\n')
+        for label, ts, ys in series:
+            ymax = max(ys.values())
+            yavg = float(sum(ys.values())) / len(ys)
+            put('%7g %7g ' % (yavg, ymax))
+            graph(ts, ys, 0, ymax)
+            put(' ', label, '\n')
+        put('\n')
 
 
 #
@@ -457,16 +473,11 @@ def main():
 
     # print result
     html_head()
-    for label, ts, ys in series:
-        ymax = max(ys.values())
-        put('%12g ' % ymax)
-        graph(ts, ys, 0, ymax)
-        put(' ', label, '\n')
-    if series: put('\n')
+    series_prt(series)
     threads = float(root.count)/opt.samples if opt.samples else 0
     put('%d samples, %d traces, %.2f threads\n' % (opt.samples, root.count, threads))
     root.pre_graph()
-    put('count    thr  ')
+    put('avg.thr max.thr  ')
     graph()
     put('call tree\n')
     root.prt()
