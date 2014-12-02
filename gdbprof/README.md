@@ -134,7 +134,7 @@ correlation in time between the two call sites highlighted by the
 notes (added using Preview), giving us a clue as to the source of the
 bottleneck.
 
-<img src="example.png" width="5in"></img>
+![Example](example.png)
 
 
 
