@@ -21,5 +21,752 @@
     "re": "^(....-..-..T..:..:......).* query: .* ([0-9]+)ms$",
     "queue": true,
     "queue_min_ms": 0,      "//": "minimum op duration to count for queue"
+},{
+    "name": "_wt",
+    "re": "^(... .. ..:..:..) ([0-9]+) .* {_wt}",
+    "description": "{_wt}"
+},{
+    "name": "_wt_delta",
+    "_inherit": "_wt",
+    "delta": true,
+    "description": "{_wt} (/s)"
+},{
+    "name": "_wt_mb",
+    "re": "^(... .. ..:..:..) ([0-9]+) .* {_wt}",
+    "description": "{_wt} (MB)",
+    "scale": 1048576
+},{
+    "name": "_wt_delta_mb",
+    "_inherit": "_wt",
+    "delta": true,
+    "scale": 1048576,
+    "description": "{_wt} (MB/s)"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_async_maximum_work_queue_length",
+    "_wt": "async: maximum work queue length"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_async_number_of_allocation_state_races",
+    "_wt": "async: number of allocation state races"
+},{
+    "_inherit": "_wt_delta",
+    "name": "async_number_of_flush_calls",
+    "_wt": "async: number of flush calls"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_async_number_of_operation_slots_viewed_for_allocation",
+    "_wt": "async: number of operation slots viewed for allocation"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_async_number_of_times_operation_allocation_failed",
+    "_wt": "async: number of times operation allocation failed"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_async_number_of_times_worker_found_no_work",
+    "_wt": "async: number of times worker found no work"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_async_total_allocations",
+    "_wt": "async: total allocations"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_async_total_compact_calls",
+    "_wt": "async: total compact calls"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_async_total_insert_calls",
+    "_wt": "async: total insert calls"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_async_total_remove_calls",
+    "_wt": "async: total remove calls"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_async_total_search_calls",
+    "_wt": "async: total search calls"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_async_total_update_calls",
+    "_wt": "async: total update calls"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_block-manager_allocations_requiring_file_extension",
+    "_wt": "block-manager: allocations requiring file extension"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_block-manager_blocks_allocated",
+    "_wt": "block-manager: blocks allocated"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_block-manager_blocks_freed",
+    "_wt": "block-manager: blocks freed"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_block-manager_blocks_pre-loaded",
+    "_wt": "block-manager: blocks pre-loaded"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_block-manager_blocks_read",
+    "_wt": "block-manager: blocks read"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_block-manager_blocks_written",
+    "_wt": "block-manager: blocks written"
+},{
+    "_inherit": "_wt_delta_mb",
+    "name": "wtstats_block-manager_bytes_read",
+    "_wt": "block-manager: bytes read"
+},{
+    "_inherit": "_wt_delta_mb",
+    "name": "wtstats_block-manager_bytes_written",
+    "_wt": "block-manager: bytes written"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_block-manager_checkpoint_size",
+    "_wt": "block-manager: checkpoint size"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_block-manager_file_allocation_unit_size",
+    "_wt": "block-manager: file allocation unit size"
+},{
+    "_inherit": "_wt_mb",
+    "name": "wtstats_block-manager_file_bytes_available_for_reuse",
+    "_wt": "block-manager: file bytes available for reuse"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_block-manager_file_magic_number",
+    "_wt": "block-manager: file magic number"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_block-manager_file_major_version_number",
+    "_wt": "block-manager: file major version number"
+},{
+    "_inherit": "_wt_mb",
+    "name": "wtstats_block-manager_file_size_in_bytes",
+    "_wt": "block-manager: file size in bytes"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_block-manager_mapped_blocks_read",
+    "_wt": "block-manager: mapped blocks read"
+},{
+    "_inherit": "_wt_mb",
+    "name": "wtstats_block-manager_mapped_bytes_read",
+    "_wt": "block-manager: mapped bytes read"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_block-manager_minor_version_number",
+    "_wt": "block-manager: minor version number"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_btree_column-store_fixed-size_leaf_pages",
+    "_wt": "btree: column-store fixed-size leaf pages"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_btree_column-store_internal_pages",
+    "_wt": "btree: column-store internal pages"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_btree_column-store_variable-size_deleted_values",
+    "_wt": "btree: column-store variable-size deleted values"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_btree_column-store_variable-size_leaf_pages",
+    "_wt": "btree: column-store variable-size leaf pages"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_btree_cursor_create_calls",
+    "_wt": "btree: cursor create calls"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_btree_cursor_insert_calls",
+    "_wt": "btree: cursor insert calls"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_btree_cursor_next_calls",
+    "_wt": "btree: cursor next calls"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_btree_cursor_prev_calls",
+    "_wt": "btree: cursor prev calls"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_btree_cursor_remove_calls",
+    "_wt": "btree: cursor remove calls"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_btree_cursor_reset_calls",
+    "_wt": "btree: cursor reset calls"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_btree_cursor_search_calls",
+    "_wt": "btree: cursor search calls"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_btree_cursor_search_near_calls",
+    "_wt": "btree: cursor search near calls"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_btree_cursor_update_calls",
+    "_wt": "btree: cursor update calls"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_btree_fixed-record_size",
+    "_wt": "btree: fixed-record size"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_btree_maximum_internal_page_item_size",
+    "_wt": "btree: maximum internal page item size"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_btree_maximum_internal_page_size",
+    "_wt": "btree: maximum internal page size"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_btree_maximum_leaf_page_item_size",
+    "_wt": "btree: maximum leaf page item size"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_btree_maximum_leaf_page_size",
+    "_wt": "btree: maximum leaf page size"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_btree_maximum_tree_depth",
+    "_wt": "btree: maximum tree depth"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_btree_number_of_key/value_pairs",
+    "_wt": "btree: number of key/value pairs"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_btree_overflow_pages",
+    "_wt": "btree: overflow pages"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_btree_pages_rewritten_by_compaction",
+    "_wt": "btree: pages rewritten by compaction"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_btree_row-store_internal_pages",
+    "_wt": "btree: row-store internal pages"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_btree_row-store_leaf_pages",
+    "_wt": "btree: row-store leaf pages"
+},{
+    "_inherit": "_wt_mb",
+    "name": "wtstats_cache_bytes_currently_in_the_cache",
+    "_wt": "cache: bytes currently in the cache"
+},{
+    "_inherit": "_wt_delta_mb",
+    "name": "wtstats_cache_bytes_read_into_cache",
+    "_wt": "cache: bytes read into cache"
+},{
+    "_inherit": "_wt_delta_mb",
+    "name": "wtstats_cache_bytes_written_from_cache",
+    "_wt": "cache: bytes written from cache"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_cache_checkpoint_blocked_page_eviction",
+    "_wt": "cache: checkpoint blocked page eviction"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_cache_data_source_pages_selected_for_eviction_unable_to_be_evicted",
+    "_wt": "cache: data source pages selected for eviction unable to be evicted"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_cache_eviction_server_candidate_queue_empty_when_topping_up",
+    "_wt": "cache: eviction server candidate queue empty when topping up"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_cache_eviction_server_candidate_queue_not_empty_when_topping_up",
+    "_wt": "cache: eviction server candidate queue not empty when topping up"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_cache_eviction_server_evicting_pages",
+    "_wt": "cache: eviction server evicting pages"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_cache_eviction_server_populating_queue,_but_not_evicting_pages",
+    "_wt": "cache: eviction server populating queue, but not evicting pages"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_cache_eviction_server_unable_to_reach_eviction_goal",
+    "_wt": "cache: eviction server unable to reach eviction goal"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_cache_failed_eviction_of_pages_that_exceeded_the_in-memory_maximum",
+    "_wt": "cache: failed eviction of pages that exceeded the in-memory maximum"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_cache_hazard_pointer_blocked_page_eviction",
+    "_wt": "cache: hazard pointer blocked page eviction"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_cache_internal_pages_evicted",
+    "_wt": "cache: internal pages evicted"
+},{
+    "_inherit": "_wt_mb",
+    "name": "wtstats_cache_maximum_bytes_configured",
+    "_wt": "cache: maximum bytes configured"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_cache_modified_pages_evicted",
+    "_wt": "cache: modified pages evicted"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_cache_overflow_pages_read_into_cache",
+    "_wt": "cache: overflow pages read into cache"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_cache_overflow_values_cached_in_memory",
+    "_wt": "cache: overflow values cached in memory"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_cache_page_split_during_eviction_deepened_the_tree",
+    "_wt": "cache: page split during eviction deepened the tree"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_cache_pages_currently_held_in_the_cache",
+    "_wt": "cache: pages currently held in the cache"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_cache_pages_evicted_because_they_exceeded_the_in-memory_maximum",
+    "_wt": "cache: pages evicted because they exceeded the in-memory maximum"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_cache_pages_read_into_cache",
+    "_wt": "cache: pages read into cache"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_cache_pages_selected_for_eviction_unable_to_be_evicted",
+    "_wt": "cache: pages selected for eviction unable to be evicted"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_cache_pages_split_during_eviction",
+    "_wt": "cache: pages split during eviction"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_cache_pages_walked_for_eviction",
+    "_wt": "cache: pages walked for eviction"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_cache_pages_written_from_cache",
+    "_wt": "cache: pages written from cache"
+},{
+    "_inherit": "_wt_mb",
+    "name": "wtstats_cache_tracked_dirty_bytes_in_the_cache",
+    "_wt": "cache: tracked dirty bytes in the cache"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_cache_tracked_dirty_pages_in_the_cache",
+    "_wt": "cache: tracked dirty pages in the cache"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_cache_unmodified_pages_evicted",
+    "_wt": "cache: unmodified pages evicted"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_compression_compressed_pages_read",
+    "_wt": "compression: compressed pages read"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_compression_compressed_pages_written",
+    "_wt": "compression: compressed pages written"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_compression_page_written_failed_to_compress",
+    "_wt": "compression: page written failed to compress"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_compression_page_written_was_too_small_to_compress",
+    "_wt": "compression: page written was too small to compress"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_compression_raw_compression_call_failed,_additional_data_available",
+    "_wt": "compression: raw compression call failed, additional data available"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_compression_raw_compression_call_failed,_no_additional_data_available",
+    "_wt": "compression: raw compression call failed, no additional data available"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_compression_raw_compression_call_succeeded",
+    "_wt": "compression: raw compression call succeeded"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_connection_files_currently_open",
+    "_wt": "connection: files currently open"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_connection_memory_allocations",
+    "_wt": "connection: memory allocations"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_connection_memory_frees",
+    "_wt": "connection: memory frees"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_connection_memory_re-allocations",
+    "_wt": "connection: memory re-allocations"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_connection_pthread_mutex_condition_wait_calls",
+    "_wt": "connection: pthread mutex condition wait calls"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_connection_pthread_mutex_shared_lock_read-lock_calls",
+    "_wt": "connection: pthread mutex shared lock read-lock calls"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_connection_pthread_mutex_shared_lock_write-lock_calls",
+    "_wt": "connection: pthread mutex shared lock write-lock calls"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_connection_total_read_I/Os",
+    "_wt": "connection: total read I/Os"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_connection_total_write_I/Os",
+    "_wt": "connection: total write I/Os"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_cursor_bulk-loaded_cursor-insert_calls",
+    "_wt": "cursor: bulk-loaded cursor-insert calls"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_cursor_create_calls",
+    "_wt": "cursor: create calls"
+},{
+    "_inherit": "_wt_delta_mb",
+    "name": "wtstats_cursor_cursor-insert_key_and_value_bytes_inserted",
+    "_wt": "cursor: cursor-insert key and value bytes inserted"
+},{
+    "_inherit": "_wt_delta_mb",
+    "name": "wtstats_cursor_cursor-remove_key_bytes_removed",
+    "_wt": "cursor: cursor-remove key bytes removed"
+},{
+    "_inherit": "_wt_delta_mb",
+    "name": "wtstats_cursor_cursor-update_value_bytes_updated",
+    "_wt": "cursor: cursor-update value bytes updated"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_cursor_insert_calls",
+    "_wt": "cursor: insert calls"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_cursor_next_calls",
+    "_wt": "cursor: next calls"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_cursor_prev_calls",
+    "_wt": "cursor: prev calls"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_cursor_remove_calls",
+    "_wt": "cursor: remove calls"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_cursor_reset_calls",
+    "_wt": "cursor: reset calls"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_cursor_search_calls",
+    "_wt": "cursor: search calls"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_cursor_search_near_calls",
+    "_wt": "cursor: search near calls"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_cursor_update_calls",
+    "_wt": "cursor: update calls"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_data-handle_session_dhandles_swept",
+    "_wt": "data-handle: session dhandles swept"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_data-handle_session_sweep_attempts",
+    "_wt": "data-handle: session sweep attempts"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_log_consolidated_slot_closures",
+    "_wt": "log: consolidated slot closures"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_log_consolidated_slot_join_races",
+    "_wt": "log: consolidated slot join races"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_log_consolidated_slot_join_transitions",
+    "_wt": "log: consolidated slot join transitions"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_log_consolidated_slot_joins",
+    "_wt": "log: consolidated slot joins"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_log_failed_to_find_a_slot_large_enough_for_record",
+    "_wt": "log: failed to find a slot large enough for record"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_log_log_buffer_size_increases",
+    "_wt": "log: log buffer size increases"
+},{
+    "_inherit": "_wt_delta_mb",
+    "name": "wtstats_log_log_bytes_of_payload_data",
+    "_wt": "log: log bytes of payload data"
+},{
+    "_inherit": "_wt_delta_mb",
+    "name": "wtstats_log_log_bytes_written",
+    "_wt": "log: log bytes written"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_log_log_read_operations",
+    "_wt": "log: log read operations"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_log_log_scan_operations",
+    "_wt": "log: log scan operations"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_log_log_scan_records_requiring_two_reads",
+    "_wt": "log: log scan records requiring two reads"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_log_log_sync_operations",
+    "_wt": "log: log sync operations"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_log_log_write_operations",
+    "_wt": "log: log write operations"
+},{
+    "_inherit": "_wt_delta_mb",
+    "name": "wtstats_log_logging_bytes_consolidated",
+    "_wt": "log: logging bytes consolidated"
+},{
+    "_inherit": "_wt_mb",
+    "name": "wtstats_log_maximum_log_file_size",
+    "_wt": "log: maximum log file size"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_log_record_size_exceeded_maximum",
+    "_wt": "log: record size exceeded maximum"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_log_records_processed_by_log_scan",
+    "_wt": "log: records processed by log scan"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_log_slots_selected_for_switching_that_were_unavailable",
+    "_wt": "log: slots selected for switching that were unavailable"
+},{
+    "_inherit": "_wt_mb",
+    "name": "wtstats_log_total_log_buffer_size",
+    "_wt": "log: total log buffer size"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_log_yields_waiting_for_previous_log_file_close",
+    "_wt": "log: yields waiting for previous log file close"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_reconciliation_dictionary_matches",
+    "_wt": "reconciliation: dictionary matches"
+},{
+    "_inherit": "_wt_delta_mb",
+    "name": "wtstats_reconciliation_internal_page_key_bytes_discarded_using_suffix_compression",
+    "_wt": "reconciliation: internal page key bytes discarded using suffix compression"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_reconciliation_internal_page_multi-block_writes",
+    "_wt": "reconciliation: internal page multi-block writes"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_reconciliation_internal-page_overflow_keys",
+    "_wt": "reconciliation: internal-page overflow keys"
+},{
+    "_inherit": "_wt_delta_mb",
+    "name": "wtstats_reconciliation_leaf_page_key_bytes_discarded_using_prefix_compression",
+    "_wt": "reconciliation: leaf page key bytes discarded using prefix compression"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_reconciliation_leaf_page_multi-block_writes",
+    "_wt": "reconciliation: leaf page multi-block writes"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_reconciliation_leaf-page_overflow_keys",
+    "_wt": "reconciliation: leaf-page overflow keys"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_reconciliation_maximum_blocks_required_for_a_page",
+    "_wt": "reconciliation: maximum blocks required for a page"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_reconciliation_overflow_values_written",
+    "_wt": "reconciliation: overflow values written"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_reconciliation_page_checksum_matches",
+    "_wt": "reconciliation: page checksum matches"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_reconciliation_page_reconciliation_calls",
+    "_wt": "reconciliation: page reconciliation calls"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_reconciliation_page_reconciliation_calls_for_eviction",
+    "_wt": "reconciliation: page reconciliation calls for eviction"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_reconciliation_pages_deleted",
+    "_wt": "reconciliation: pages deleted"
+},{
+    "_inherit": "_wt_mb",
+    "name": "wtstats_reconciliation_split_bytes_currently_awaiting_free",
+    "_wt": "reconciliation: split bytes currently awaiting free"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_reconciliation_split_objects_currently_awaiting_free",
+    "_wt": "reconciliation: split objects currently awaiting free"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_session_object_compaction",
+    "_wt": "session: object compaction"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_session_open_cursor_count",
+    "_wt": "session: open cursor count"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_session_open_session_count",
+    "_wt": "session: open session count"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_transaction_transaction_begins",
+    "_wt": "transaction: transaction begins"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_transaction_transaction_checkpoint_currently_running",
+    "_wt": "transaction: transaction checkpoint currently running"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_transaction_transaction_checkpoint_max_time_(msecs)",
+    "_wt": "transaction: transaction checkpoint max time (msecs)"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_transaction_transaction_checkpoint_min_time_(msecs)",
+    "_wt": "transaction: transaction checkpoint min time (msecs)"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_transaction_transaction_checkpoint_most_recent_time_(msecs)",
+    "_wt": "transaction: transaction checkpoint most recent time (msecs)"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_transaction_transaction_checkpoint_total_time_(msecs)",
+    "_wt": "transaction: transaction checkpoint total time (msecs)"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_transaction_transaction_checkpoints",
+    "_wt": "transaction: transaction checkpoints"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_transaction_transaction_failures_due_to_cache_overflow",
+    "_wt": "transaction: transaction failures due to cache overflow"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_transaction_transaction_range_of_IDs_currently_pinned",
+    "_wt": "transaction: transaction range of IDs currently pinned"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_transaction_transactions_committed",
+    "_wt": "transaction: transactions committed"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_transaction_transactions_rolled_back",
+    "_wt": "transaction: transactions rolled back"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_transaction_update_conflicts",
+    "_wt": "transaction: update conflicts"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_LSM_application_work_units_currently_queued",
+    "_wt": "LSM: application work units currently queued"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_LSM_bloom_filter_false_positives",
+    "_wt": "LSM: bloom filter false positives"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_LSM_bloom_filter_hits",
+    "_wt": "LSM: bloom filter hits"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_LSM_bloom_filter_misses",
+    "_wt": "LSM: bloom filter misses"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_LSM_bloom_filter_pages_evicted_from_cache",
+    "_wt": "LSM: bloom filter pages evicted from cache"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_LSM_bloom_filter_pages_read_into_cache",
+    "_wt": "LSM: bloom filter pages read into cache"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_LSM_bloom_filters_in_the_LSM_tree",
+    "_wt": "LSM: bloom filters in the LSM tree"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_LSM_chunks_in_the_LSM_tree",
+    "_wt": "LSM: chunks in the LSM tree"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_LSM_highest_merge_generation_in_the_LSM_tree",
+    "_wt": "LSM: highest merge generation in the LSM tree"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_LSM_merge_work_units_currently_queued",
+    "_wt": "LSM: merge work units currently queued"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_LSM_queries_that_could_have_benefited_from_a_Bloom_filter_that_did_not_ex",
+    "_wt": "LSM: queries that could have benefited from a Bloom filter that did not ex"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_LSM_rows_merged_in_an_LSM_tree",
+    "_wt": "LSM: rows merged in an LSM tree"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_LSM_sleep_for_LSM_checkpoint_throttle",
+    "_wt": "LSM: sleep for LSM checkpoint throttle"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_LSM_sleep_for_LSM_merge_throttle",
+    "_wt": "LSM: sleep for LSM merge throttle"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_LSM_switch_work_units_currently_queued",
+    "_wt": "LSM: switch work units currently queued"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_LSM_total_size_of_bloom_filters",
+    "_wt": "LSM: total size of bloom filters"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_LSM_tree_maintenance_operations_discarded",
+    "_wt": "LSM: tree maintenance operations discarded"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_LSM_tree_maintenance_operations_executed",
+    "_wt": "LSM: tree maintenance operations executed"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wtstats_LSM_tree_maintenance_operations_scheduled",
+    "_wt": "LSM: tree maintenance operations scheduled"
+},{
+    "_inherit": "_wt",
+    "name": "wtstats_LSM_tree_queue_hit_maximum",
+    "_wt": "LSM: tree queue hit maximum"
 }]
-    
