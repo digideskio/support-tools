@@ -29,7 +29,7 @@ def put(*content):
 #
 
 def dbg(*ss):
-    if opt.dbg:
+    if __name__=='__main__' and 'opt.dbg':
         sys.stderr.write(' '.join(str(s) for s in ss) + '\n')
 
 #

@@ -311,12 +311,12 @@ def read_series():
 def graph_series(series):
     if series:
         put('avg.val max.val\n')
-        for label, ts, ys in series:
-            ymax = max(ys.values())
-            yavg = float(sum(ys.values())) / len(ys)
-            put('%7g %7g ' % (yavg, ymax))
-            graph(ts, ys, 0, ymax)
-            put(' ', label, '\n')
+        for s in series:
+            if s.ys.values():
+                yavg = sum(s.ys.values()) / len(s.ys.values())
+                put('%7g %7g ' % (yavg, s.ymax))
+                graph(s.ts, s.ys, 0, s.ymax)
+                put(' ', s.description, '\n')
         put('\n')
 
 #
