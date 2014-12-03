@@ -104,6 +104,7 @@ def html_head():
     html(html_script)
     end('script')
     elt('style')
+    if opt.graph: html(timeseries.style)
     html(html_style)
     end('style')
     end('head')
@@ -289,7 +290,7 @@ def read_profile(filters):
 def graph(ts=None, ys=None, ymin=None, ymax=None):
     timeseries.graph(
         ts=ts, tmin=opt.tmin, tmax=opt.tmax, width=opt.graph,
-        ys=ys, ymin=ymin, ymax=ymax, ticks=opt.graph_ticks
+        ys=ys, ymin=ymin, ymax=ymax, height=1.1, ticks=opt.graph_ticks
     )
 
 def graph_child(child):
@@ -301,7 +302,7 @@ def graph_child(child):
 # read times series files
 def read_series():
     if opt.series:
-        series = timeseries.series_all(opt.series)
+        series = timeseries.series_all([], opt.series)
         if not opt.tmin:
             opt.tmin = min(min(ts) for _, ts, _ in series)
             opt.tmax = max(max(ts) for _, ts, _ in series)
@@ -340,7 +341,7 @@ def main():
                    help='include only samples at or after this time, in yyyy-mm-ddThh:mm:ss format')
     p.add_argument('--before', '-b', default='9999-01-01T00:00:00',
                    help='include only samples before this time, in yyyy-mm-ddThh:mm:ss format')
-    p.add_argument('--graph', '-g', type=int, default=0,
+    p.add_argument('--graph', '-g', type=int, default=0, nargs='?', const=20,
                    help='produce a graph with the specified number of buckets')
     p.add_argument('--graph-scale', choices=['common', 'separate', 'log'], default='common')
     p.add_argument('--graph-ticks', type=int, default=5)
