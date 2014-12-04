@@ -104,7 +104,7 @@ def html_head():
     html(html_script)
     end('script')
     elt('style')
-    if opt.graph: html(timeseries.style)
+    if opt.graph: html(timeseries.graph_style)
     html(html_style)
     end('style')
     end('head')

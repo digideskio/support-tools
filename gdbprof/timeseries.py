@@ -10,7 +10,7 @@ import argparse
 def elt(name, **attrs):
     sys.stdout.write('<%s' % name)
     for a in attrs:
-        sys.stdout.write(' %s="%s"' % (a, attrs[a]))
+        sys.stdout.write(' %s="%s"' % (a.strip('_'), attrs[a]))
     sys.stdout.write('>')
 
 def eltend(name, **attrs):
@@ -36,7 +36,7 @@ def dbg(*ss):
 #
 #
 
-style = '''
+graph_style = '''
     .data {
         fill: none;
         stroke: black;
@@ -247,6 +247,92 @@ def series_all(format_file, specs):
 
 
 #
+# cursors
+#
+
+cursors_style = '''
+    .cursor {
+        stroke: blue;
+        stroke-width: 1;
+        vector-effect: non-scaling-stroke;
+    }
+    .circle {
+        fill: blue;
+    }
+'''
+
+cursors_script = '''
+
+    function ex(e) {
+        var evt = window.event
+        return (evt.pageX - e.offsetLeft - e.offsetParent.offsetLeft) / e.offsetWidth
+    }
+  
+    var svg_ns = "http://www.w3.org/2000/svg"
+  
+    function set_attrs(e, attrs) {
+        for (a in attrs)
+            e.setAttribute(a, attrs[a])
+    }
+  
+    function elt(ns, name, attrs) {
+        var e = document.createElementNS(ns, name)
+        set_attrs(e, attrs)
+        return e
+    }
+  
+    function del_id(id) {
+        var e = document.getElementById(id)
+        e.parentNode.removeChild(e)
+    }
+  
+    function move(e) {
+        var x = ex(e)
+        set_attrs(document.getElementById('lll'), {x1:x, x2:x})
+    }
+  
+    function out(e) {
+        set_attrs(document.getElementById('lll'), {x1:-1, x2:-1})
+    }
+  
+    var cnum = 0;
+    var width = %d;
+  
+    function add(e) {
+        var x = ex(e)
+        var line = elt(svg_ns, "line", {id:"l"+cnum, x1:x, x2:x, y1:0, y2:1, class:"cursor"})
+        document.getElementById("cursors").appendChild(line)
+        var circle = elt(svg_ns, "circle",
+            {id:"c"+cnum, cx:x*width-1, cy:0.6, r:0.4, class:"circle", onclick:"del("+cnum+")"})
+        document.getElementById("circles").appendChild(circle)
+        cnum += 1
+    }
+  
+    function del(i) {
+        del_id("c"+i)
+        del_id("l"+i)
+    }
+'''
+
+def cursors_html(width):
+    elt('table')
+    elt('tr')
+    td('graph')
+    eltend('svg', id='circles', width='%dem'%(width+2), height="1em", viewBox="0 0 %d 1" % width)
+    end('td')
+    end('tr')
+    elt('tr')
+    td('graph')
+    elt('svg', id='cursors', width='%dem'%width, height='100%', viewBox='0 0 1 1',
+        preserveAspectRatio='none', style='position:absolute; background:none;',
+        onmousemove='move(this)', onmouseout='out(this)',  onclick='add(this)')
+    elt('line', id='lll', _class='cursor', x1=0, y1=0, x2=0, y2=1)
+    end('svg')
+    end('td')
+    end('tr')
+    end('table')
+
+#
 #
 #
 
@@ -268,8 +354,107 @@ _style = '''
     .head {
         font-weight: bold;
     }
+    .selected {
+        background: rgb(240,245,255)
+    }
 '''
         
+_script = '''
+
+    var selected = undefined
+    var last_selected = undefined
+
+    function _desel() {
+        if (selected)
+            selected.classList.remove('selected')
+    }
+
+    function _sel(s) {
+        if (selected) {
+            last_selected = selected
+            selected.classList.add('selected')
+            for (var p=selected, y=0; p && p.tagName!='BODY'; p=p.offsetParent)
+                y += p.offsetTop
+            var h = selected.offsetHeight
+            if (window.pageYOffset + window.innerHeight < y + h)
+                selected.scrollIntoView(false)
+            else if (y < window.pageYOffset)
+                selected.scrollIntoView(true)
+        }
+    }
+
+    function sel(e) {
+        _desel()
+        if (selected!=e) {
+            selected = e
+            _sel()
+        } else {
+            selected = undefined
+        }
+    }
+
+    function key() {
+        var evt = window.event
+        var c = String.fromCharCode(evt.charCode)
+        first_row = document.getElementById("table").firstChild.firstChild
+        while (first_row && !first_row.classList.contains('row'))
+            first_row = first_row.nextSibling
+        if (!last_selected)
+            last_selected = first_row
+        if (c=='') {
+            if (!selected)
+                selected = last_selected
+            else if (selected.nextSibling) {
+                _desel()
+                selected = selected.nextSibling
+            }
+        } else if (c=='') {
+            if (!selected)
+                selected = last_selected
+            else if (selected != first_row) {
+                selected.classList.remove('selected')
+                selected = selected.previousSibling
+            }
+        } else if (c=='n') {
+            if (selected) {
+                next = selected.nextSibling
+                if (next) {
+                    parent = selected.parentNode
+                    parent.removeChild(selected)
+                    parent.insertBefore(selected, next.nextSibling)
+                }
+            }
+        } else if (c=='p') {
+            if (selected) {
+                if (selected!=first_row) {
+                    prev = selected.previousSibling
+                    parent = selected.parentNode
+                    parent.removeChild(selected)
+                    parent.insertBefore(selected, prev)
+                }
+            }
+        } else if (c=='N') {
+            if (selected) {
+                parent = selected.parentNode
+                parent.removeChild(selected)
+                parent.insertBefore(selected, null)
+            }
+        } else if (c=='P') {
+            if (selected) {
+                parent = selected.parentNode
+                parent.removeChild(selected)
+                parent.insertBefore(selected, first_row)
+            }
+        }
+        _sel(selected)
+    }    
+'''
+
+
+#
+#
+#
+
 def td(cls, *content):
     elt('td', **{'class':cls})
     if content:
@@ -305,18 +490,23 @@ if __name__ == '__main__':
     elt('head')
     elt('meta', charset='utf-8')
     elt('style')
-    put(style)
+    put(graph_style)
+    put(cursors_style)
     put(_style)
     end('style')
+    elt('script')
+    put(cursors_script % width)
+    put(_script)
+    end('script')
     end('head')
-    elt('body')
-    elt('table')
+    elt('body', onkeypress='key()')
+    elt('table', id='table', style='position:relative;')
 
     elt('tr')
     td('head data', 'avg')
     td('head data', 'max')
-    td('head graph')
-    _graph()
+    elt('td')
+    cursors_html(width)
     end('td')
     td('head desc', 'description')
     end('tr')
@@ -325,7 +515,7 @@ if __name__ == '__main__':
         if s.ys.values():
             yavg = float(sum(s.ys.values())) / len(s.ys)
             if s.ymax!=0 or s.ymin!=0 or show_zero:
-                elt('tr')
+                elt('tr', onclick='sel(this)', _class='row')
                 td('data', '%.3f' % yavg)
                 td('data', '%.3f' % s.ymax)
                 td('graph')
@@ -334,7 +524,7 @@ if __name__ == '__main__':
                 td('desc', s.description)
                 end('tr')
         elif show_empty:
-            elt('tr')
+            elt('tr', onclick='sel(this)', _class='row')
             td('data', 'n/a')
             td('data', 'n/a')
             td('graph')

@@ -1,7 +1,7 @@
 [{
     "name": "test",
-    "re": "(....-..-.. ..:..:..) foobar (.*)",
-    "description": "test time series"
+    "description": "test time series",
+    "re": "^(... ... .. .... ..:..:..) .* find .* ([0-9]+)$"
 },{
     "name": "mongod_query_ms",
     "description": "mongod max logged query (ms) per {bucket_size}s",
