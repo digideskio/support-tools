@@ -2,10 +2,11 @@
 # mdiag.ps1 - Windows Diagnostic Script for MongoDB
 
 param(
-[string] $ticket
+	[Parameter(Mandatory=$true)]
+	[string] $jira_ticket_number
 )
 
-$diagfile = $("mdiag-" + $(hostname) + ".txt")
+$diagfile = Join-Path @([Environment]::GetFolderPath('Personal')) $("mdiag-" + $(hostname) + ".txt")
 
 ##################
 # Public API
@@ -14,47 +15,69 @@ $diagfile = $("mdiag-" + $(hostname) + ".txt")
 # Use these in the script portion below. Please don't directly call other functions; the
 #	interfaces there are not guaranteed to be constant between versions of this script.
 
-Function section($sname) {
-	if( _in_section ) {
-		throw "Internal error: starting new section [$sname] when already in section [$thissection]";
+Function fingerprint {
+	_emitdocument "fingerprint" $(_jsondate) @{
+		command = $False;
+		ok = $True;
+		output = @{
+			os = "Windows";
+			shell = "powershell";
+			script = "mdiag";
+			version = "1.3";
+			revdate = "2014-11-27";
+		}
+	}
+}
+
+Function probe( $doc ) {
+	# $doc should be: @{ name = "section"; cmd = "invoke-cmd" ; alt = "alternative-invoke-cmd"; }
+
+	if( !( $doc.name ) -or !( $doc.cmd ) ) {
+		throw "assert: malformed section descriptor document, must have 'name' and 'cmd' members at least";
 	}
 
-	$script:thissection = $sname
-	echo "Gathering section [$script:thissection]"
-}
+	echo "Gathering section [$($doc.name)]"
 
-Function endsection {
-	echo "Finished with section [$thissection]. Closing`n"
-	$script:thissection = $Null # Only real way to clear this; Remove-Variable didn't work right
-}
+	$startts = _jsondate # { $date: ISO-8601 }
+	$cmdobj = _docmd $doc.cmd
 
-Function subsection($ssname) {
-	if( _in_subsection ) {
-		throw "Internal error: starting new subsection [$ssname] when already in subsection [$subsection]";
+	if( !( $cmdobj.ok ) -and ( $null -ne $doc.alt ) ) {
+		# preferred cmd failed and we have a fallback, so try that
+		echo " | Preference attempt failed, but have a fallback to try..."
+
+		$fbcobj = _docmd $doc.alt
+
+		if( $fbcobj.ok ) {
+			echo " | ... which succeeded, bananarama!"
+		}
+
+		$fbcobj.fallback_from = @{
+			command = $cmdobj.command;
+			error = $cmdobj.error;
+		}
+		$cmdobj = $fbcobj;
 	}
 
-	$script:subsection = $ssname
-	echo "Gathering subsection [$script:subsection]"
+	_emitdocument $doc.name $startts $cmdobj
+
+	echo "Finished with section [$($doc.name)]. Closing`n"
 }
 
-Function endsubsection {
-	echo "Finished with subsection [$subsection]. Closing`n"
-	$script:subsection = $Null
-}
+###############
+# Generic internal functions
+#
+# Please don't call these in the script portion of the code. The API here will never freeze.
 
-Function emitdocument( $startts, $cmdobj ) {
 
-	$cmdobj.ref = $ticket;
+Function _emitdocument( $section, $startts, $cmdobj ) {
+
+	$cmdobj.ref = $jira_ticket_number;
 	$cmdobj.run = $script:rundate;
-	$cmdobj.section = $thissection;
+	$cmdobj.section = $section;
 	$cmdobj.ts = @{
 		start = $startts;
 		end = _jsondate;
 	};
-
-	if( _in_subsection ) {
-		$cmdobj.subsection = $subsection
-	}
 
 	# make an array of  documents
 	if( !( $isfirstdocument ) ) {
@@ -76,115 +99,11 @@ Function emitdocument( $startts, $cmdobj ) {
 	}
 }
 
-Function runcommand( $preferred_cmd, $fallback_cmd = $null ) {
-	if( !( _in_section ) ) {
-		throw "Internal error: Trying to run a command while not in a section";
-	}
-
-	$startts = _jsondate # { $date: seconds-since-epoch }
-	$cmdobj = _docmd "$preferred_cmd" # Quotes stringify the object
-
-	if( !( $cmdobj.ok ) -and ( $null -ne $fallback_cmd ) ) {
-		# preferred cmd failed and we have a fallback, so try that
-		echo " | Preference attempt failed, but have a fallback to try..."
-		
-		$fbcobj = _docmd "$fallback_cmd"
-
-		if( $fbcobj.ok ) {
-			echo " | ... which succeeded, bananarama!"
-		}
-		
-		$fbcobj.fallback_from = @{
-			command = $cmdobj.command;
-			error = $cmdobj.error;
-		}
-		$cmdobj = $fbcobj;
-	}
-
-	emitdocument $startts $cmdobj
-}
-
-Function runjsoncommand {
-	if( !( _in_section ) ) {
-		throw "Internal error: Trying to run a jsoncommand while not in a section";
-	}
-
-	$objout = _dojsoncmd "$args" # Quotes stringify the object
-	$objout.ref = $ticket
-	$objout.run = $script:rundate
-	$objout.section = $thissection
-
-	if( _in_subsection ) {
-		$objout.subsection = $subsection
-	}
-
-	Add-Content $diagfile $(ConvertTo-Json $objout)
-}
-
-Function getfiles {
-	if( !( _in_section ) ) {
-		throw "Internal error: Trying to run getfiles while not in a section";
-	}
-
-	foreach( $filename in $args ) {
-		$fileobj = _dofile "$filename"
-		$fileobj.ref = $ticket
-		$fileobj.run = $script:rundate
-		$fileobj.section = $thissection
-		if( _in_subsection ) {
-			$fileobj.subsection = $subsection
-		}
-
-		Add-Content $diagfile $(ConvertTo-Json $fileobj)
-	}
-}
-
-###############
-# Generic internal functions
-#
-# Please don't call these in the script portion of the code. The API here will never freeze.
-
-Function _in_section {
-	if( $thissection -ne $Null ) {
-		return 1;
-	}
-	return 0;
-}
-
-Function _in_subsection {
-	if( $subsection -ne $Null ) {
-		return 1;
-	}
-	return 0;
-}
-
 Function _jsondate {
 	# ISO-8601
 	return @{ "`$date" = Get-Date -Format s; }
 	# Unix time
 	#return @{ "`$date" = [int64]( New-TimeSpan -Start @(Get-Date -Date "01/01/1970") -End (Get-Date).ToUniversalTime() ).TotalSeconds; }
-}
-
-Function _dofile($fn) {
-	if(_file_exists $fn) {
-		$fobj = Get-ChildItem $fn
-		return @{ 
-			filename = $((Resolve-Path $fn).toString());
-			exists = $True; # Needed to get boolean value
-			ls = $((ls -l $fn).toString() );
-			ctime = $fobj.CreationTimeUTC;
-			atime = $fobj.LastAccessTimeUTC;
-			mtime = $fobj.LastWriteTimeUTC;
-			size = $fobj.Length;
-			# There are other things we could add to this if we liked.
-			output = $(_readfile $fn);
-		}
-	}
-
-	return @{
-		filename = "$fn"; # Note this will not expand any wildcards or paths
-		exists = $False; # Needed to get boolean value
-	}
 }
 
 Function _docmd {
@@ -229,53 +148,13 @@ Function _docmd {
 	return $ret
 }
 
-Function _dojsoncmd {
-	# This runs a statement that returns JSON, being careful not to stringify it!
-	$ok = $True
-	
-	Try { # The redirect here is a special hack for systeminfo which is chatty.
-		$val = Invoke-Expression "$args" 2>$null 3>$null
-	}
-	Catch {
-		#$val = @{ output = "Error" } <- why was this here? it was never used
-		$ok = $False
-	}
-
-	$ret = @{
-		command = "$args";
-		ok = $ok;
-	}
-
-	if( $ok ) {
-		$ret.JSONOutput = $True
-		$ret.JSONValue = $val
-	}
-
-	return $ret
-}
-
-###############
-# File I/O operations (internal only)
-
-Function _file_exists($filename) {
-	if( Test-Path $filename ) {
-		return 1;
-	}
-	return 0;
-}
-
-Function _readfile($filename) {
-	$ret = Get-Content $filename | ForEach-Object {$_.toString()} # From Object list to list of strings
-	return $ret;
-}
-
 ###############
 # Script-scoped variables
 $script:isfirstdocument = $True
-$script:thissection = $Null
-$script:subsection  = $Null
 $script:rundate = _jsondate
 
+###############
+# Begin diag output
 
 Set-Content $diagfile "["
 
@@ -286,75 +165,84 @@ $error.Clear();
 ###############
 # Script portion
 #
-# This is where you you define the tests you want to run, using the functions in the public API
-# section above. 
+# This is where  you define the tests you want to run, using the document structure definition provided
 
-#
-#section stuff4
-#	getfiles sample.txt
-#	getfiles /etc/*release*
-#endsection
+# probe @{ name = "", cmd = "", alt = "" }
+# 
+# name = verbatim content of the "section" value in the output for this probe result
+# cmd = powershell command-line to execute and capture output from
+# alt = alternative to cmd to try if 'cmd' reports any kind of error (stderr still goes to the console)
+# 
 ##>
 
-section fingerprint
-$startts = _jsondate
-$obj = @{
-	command = $False;
-	ok = $True;
-	output = @{
-		os = "Windows";
-		shell = "powershell";
-		script = "mdiag";
-		version = "1.1";
-		revdate = "2014-10-02";
-	}
+fingerprint
+
+probe @{ name = "sysinfo";
+	cmd = "systeminfo /FO CSV | ConvertFrom-Csv";
 }
-emitdocument $startts $obj
-endsection
 
-section sysinfo
-$cmd = "systeminfo /FO CSV | ConvertFrom-Csv"
-runcommand $cmd
-endsection
+probe @{ name = "is_admin";
+	cmd = "([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] 'Administrator')"
+}
 
-section tasklist
-$cmd = "Get-Process | Select Name,Handles,VM,WS,PM,NPM,Path,Company,CPU,FileVersion,ProductVersion,Description,Product,Id,PriorityClass,TotalProcessorTime,BasePriority,PeakWorkingSet64,PeakVirtualMemorySize64,StartTime,@{Name='Threads';Expression={`$_.Threads.Count}}"
-runcommand $cmd
-endsection
+probe @{ name = "tasklist";
+	cmd = "Get-Process | Select Name,Handles,VM,WS,PM,NPM,Path,Company,CPU,FileVersion,ProductVersion,Description,Product,Id,PriorityClass,TotalProcessorTime,BasePriority,PeakWorkingSet64,PeakVirtualMemorySize64,StartTime,@{Name='Threads';Expression={`$_.Threads.Count}}";
+	alt = "tasklist /FO CSV | ConvertFrom-Csv"
+}
 
-section network
-$cmd = "Get-NetAdapter | Select ifIndex,ifAlias,ifDesc,ifName,DriverVersion,MacAddress,Status,LinkSpeed,MediaType,MediaConnectionState,DriverInformation,DriverFileName,NdisVersion,DeviceName,DriverName,DriverVersionString,MtuSize"
-runcommand $cmd
-$cmd = "Get-NetIPAddress | Select ifIndex,PrefixOrigin,SuffixOrigin,Type,AddressFamily,AddressState,Name,ProtocolIFType,IPv4Address,IPv6Address,IPVersionSupport,PrefixLength,SubnetMask,InterfaceAlias,PreferredLifetime,SkipAsSource,ValidLifetime"
-runcommand $cmd
-endsection
+probe @{ name = "network-adapter";
+	cmd = "Get-NetAdapter | Select ifIndex,ifAlias,ifDesc,ifName,DriverVersion,MacAddress,Status,LinkSpeed,MediaType,MediaConnectionState,DriverInformation,DriverFileName,NdisVersion,DeviceName,DriverName,DriverVersionString,MtuSize";
+	alt = "netsh wlan show interfaces";
+}
+probe @{ name = "network-interface";
+	cmd = "Get-NetIPAddress | Select ifIndex,PrefixOrigin,SuffixOrigin,Type,AddressFamily,AddressState,Name,ProtocolIFType,IPv4Address,IPv6Address,IPVersionSupport,PrefixLength,SubnetMask,InterfaceAlias,PreferredLifetime,SkipAsSource,ValidLifetime";
+	alt = "ipconfig /all";
+}
+probe @{ name = "network-route";
+	cmd = "Get-NetRoute | Select DestinationPrefix,InterfaceAlias,InterfaceIndex,RouteMetric,TypeOfRoute";
+	alt = "route print";
+}
+probe @{ name = "network-dns-cache";
+	cmd = "Get-DnsClientCache | Get-Unique | Select Entry,Name,Data,DataLength,Section,Status,TimeToLive,Type";
+}
 
-section services
-$cmd = "Get-Service | Where-Object {`$_.ServiceName -like '*Mongo*'}"
-runcommand $cmd
-$cmd = "Get-NetFirewallRule | Where-Object {`$_.DisplayName -like '*mongo*'} | Select Name,DisplayName,Enabled,@{Name='Profile';Expression={`$_.Profile.ToString()}},@{Name='Direction';Expression={`$_.Direction.ToString()}},@{Name='Action';Expression={`$_.Action.ToString()}},@{Name='PolicyStoreSourceType';Expression={`$_.PolicyStoreSourceType.ToString()}}"
-runcommand $cmd
-endsection
+probe @{ name = "services";
+	cmd = "Get-Service | Where-Object {`$_.ServiceName -like '*Mongo*'}";
+}
 
-section storage
-$cmd = "Get-Disk | Select PartitionStyle,ProvisioningType,OperationalStatus,HealthStatus,BusType,BootFromDisk,FirmwareVersion,FriendlyName,IsBoot,IsClustered,IsOffline,IsReadOnly,IsSystem,LogicalSectorSize,Manufacturer,Model,Number,NumberOfPartitions,Path,PhysicalSectorSize,SerialNumber,Size"
-$fbc = "Get-WmiObject Win32_DiskDrive | Select SystemName,BytesPerSector,Caption,CompressionMethod,Description,DeviceID,InterfaceType,Manufacturer,MediaType,Model,Name,Partitions,PNPDeviceID,SCSIBus,SCSILogicalUnit,SCSIPort,SCSITargetId,SectorsPerTrack,SerialNumber,Signature,Size,Status,TotalCylinders,TotalHeads,TotalSectors,TotalTracks,TracksPerCylinder"
-runcommand $cmd $fbc
-$cmd = "Get-Partition | Select OperationalStatus,Type,AccessPaths,DiskId,DiskNumber,DriveLetter,GptType,Guid,IsActive,IsBoot,IsHidden,IsOffline,IsReadOnly,IsShadowCopy,IsSystem,MbrType,NoDefaultDriveLetter,Offset,PartitionNumber,Size,TransitionState"
-$fbc = "Get-WmiObject Win32_LogicalDisk | Select Compressed,Description,DeviceID,DriveType,FileSystem,FreeSpace,MediaType,Name,Size,SystemName,VolumeSerialNumber"
-runcommand $cmd $fbc
-endsection
+probe @{ name = "firewall";
+	cmd = "Get-NetFirewallRule | Where-Object {`$_.DisplayName -like '*mongo*'} | Select Name,DisplayName,Enabled,@{Name='Profile';Expression={`$_.Profile.ToString()}},@{Name='Direction';Expression={`$_.Direction.ToString()}},@{Name='Action';Expression={`$_.Action.ToString()}},@{Name='PolicyStoreSourceType';Expression={`$_.PolicyStoreSourceType.ToString()}}";
+}
 
-section environment
-runcommand "Get-WMIObject Win32_UserAccount | Select Caption,Name,Domain,Description,AccountType,Disabled,LocalAccount,Lockout,SID,Status"
-# Get-Content env:username / env:userdomain <- this is just a difficult way of doing whoami
-runcommand "whoami"
-endsection
+probe @{ name = "storage-disk";
+	cmd = "Get-Disk | Select PartitionStyle,ProvisioningType,OperationalStatus,HealthStatus,BusType,BootFromDisk,FirmwareVersion,FriendlyName,IsBoot,IsClustered,IsOffline,IsReadOnly,IsSystem,LogicalSectorSize,Manufacturer,Model,Number,NumberOfPartitions,Path,PhysicalSectorSize,SerialNumber,Size";
+	alt = "Get-WmiObject Win32_DiskDrive | Select SystemName,BytesPerSector,Caption,CompressionMethod,Description,DeviceID,InterfaceType,Manufacturer,MediaType,Model,Name,Partitions,PNPDeviceID,SCSIBus,SCSILogicalUnit,SCSIPort,SCSITargetId,SectorsPerTrack,SerialNumber,Signature,Size,Status,TotalCylinders,TotalHeads,TotalSectors,TotalTracks,TracksPerCylinder";
+}
 
-section drivers
-runcommand "Get-WmiObject -Class Win32_SystemDriver | Where-Object -FilterScript {`$_.State -eq 'Running'} | Select Name,Status,Description"
-endsection
+probe @{ name = "storage-volume";
+	cmd = "Get-Partition | Select OperationalStatus,Type,AccessPaths,DiskId,DiskNumber,DriveLetter,GptType,Guid,IsActive,IsBoot,IsHidden,IsOffline,IsReadOnly,IsShadowCopy,IsSystem,MbrType,NoDefaultDriveLetter,Offset,PartitionNumber,Size,TransitionState";
+	alt = "Get-WmiObject Win32_LogicalDisk | Select Compressed,Description,DeviceID,DriveType,FileSystem,FreeSpace,MediaType,Name,Size,SystemName,VolumeSerialNumber";
+}
 
+probe @{ name = "environment";
+	cmd = "Get-Childitem env: | Select Key,Value";
+}
+
+probe @{ name = "user-list-local";
+	cmd = "Get-WMIObject Win32_UserAccount | Where-Object {`$_.LocalAccount -eq `$true} | Select Caption,Name,Domain,Description,AccountType,Disabled,Lockout,SID,Status";
+}
+probe @{ name = "user-current";
+	cmd = "[System.Security.Principal.WindowsIdentity]::GetCurrent()";
+	alt = "whoami";
+}
+
+probe @{ name = "drivers";
+	cmd = "Get-WmiObject -Class Win32_SystemDriver | Where-Object -FilterScript {`$_.State -eq 'Running'} | Select Name,Status,Description";
+}
+
+probe @{ name = "time-change";
+	cmd = "Get-EventLog -LogName System -Source @('Microsoft-Windows-Kernel-General','Microsoft-Windows-Time-Service') | Select -first 10";
+}
 
 ###############
 # Final
@@ -362,4 +250,7 @@ endsection
 #
 Add-Content $diagfile "]`n"
 
-echo "Finished. Please attach $diagfile to the support case $ticket."
+echo "Finished. Please attach '$diagfile' to the support case $jira_ticket_number."
+
+echo "Press any key to continue ..."
+$x = $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
