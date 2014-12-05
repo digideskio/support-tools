@@ -74,8 +74,10 @@ def graph(
         gy = lambda y: (1.0 - (float(y)-ymin) / yspan) * height
         line = ' '.join('%g,%g' % (gx(t), gy(ys[t])) for t in ts)
         if shaded:
-            shade = '0,%g ' % (height+0.05) + line + ' %g,%g' % (width,height+0.05)
-            eltend('polygon', points=shade, **{'class':'shade'})
+            left = '%g,%g' % (gx(ts[0]), height+0.05)
+            right = '%g,%g' % (gx(ts[-1]), height+0.05)
+            points = left + ' ' + line + ' ' + right
+            eltend('polygon', points=points, _class='shade')
         eltend('polyline', points=line, **{'class':'data'})
         if ticks:
             for i in range(ticks+1):
@@ -105,7 +107,7 @@ class Series:
         self.buckets = float(get(self.fmt, 'bucket_size', 0))
         if self.buckets:
             self.t0 = dateutil.parser.parse('2000-01-01')
-            self.op = op_for(self.fmt, self.fmt['bucket_op'])
+            self.op = op_for(self.fmt, get(self.fmt, 'bucket_op', 'max'))
     
         self.queue = get(self.fmt, 'queue', False)
         if self.queue:
@@ -180,19 +182,36 @@ def get(fmt, *n):
 
 def series_spec(formats, spec):
 
+    # parse helper
+    def split(s, expect, err, full):
+        m = re.split('([' + expect + err + '])', s, 1)
+        s1, d, s2 = m if len(m)==3 else (m[0], '$', '')
+        if d in err:
+            msg = 'expected %s at pos %d in %s, found %s' % (expect, len(full)-len(s)+1, full, d)
+            raise Exception(msg)
+        return s1, d, s2
+
     # parse the spec
-    fmt_name, fn = spec.split(':',2)
-    fmt_name_params = fmt_name.split('(')
-    fmt_name = fmt_name_params[0]
+    fmt_name, d, s = split(spec, '(:', ')=', spec)
     params = {}
-    if len(fmt_name_params)>1:
-        params = fmt_name_params[1].strip(' )')
-        params = dict(p.split('=') for p in params.split(','))
-    
+    if d == '(': # has args
+        while d != ')': # consume args
+            name, d, s = split(s, '=)', '(', spec) # get arg name
+            value, d, s = split(s, '()', '', spec) # bare value
+            p = 0
+            while d=='(' or p>0: # plus balanced parens
+                value += d
+                if d=='(': p += 1
+                elif d==')': p -= 1
+                v, d, s = split(s, '(),', '', spec)
+                value += v
+            params[name] = value
+    fn = s.lstrip(':')
+
     # a series for all formats that match the specified name
     series = []
     for name, fmt in sorted(formats.items()):
-        if re.match(fmt_name, name):
+        if re.search('^' + fmt_name, name):
             series.append(Series(fmt, params, fmt_name))
 
     # Python re impl can only handle 100 groups
@@ -399,9 +418,23 @@ _script = '''
         first_row = document.getElementById("table").firstChild.firstChild
         while (first_row && !first_row.classList.contains('row'))
             first_row = first_row.nextSibling
-        if (!last_selected)
+        if (!last_selected) {
+            for (var r = first_row; r && !selected; r = r.nextSibling) {
+                if (r.classList.contains('selected'))
+                   selected = r
+            }
+            last_selected = selected
+        }
+        if (!last_selected)       
             last_selected = first_row
-        if (c=='') {
+        if (c=='s') {
+            if (confirm('Save?')) {
+                req = new XMLHttpRequest()
+                req.open('PUT', '')
+                req.send(document)
+                alert('Saved')
+            }
+        } else if (c=='') {
             if (!selected)
                 selected = last_selected
             else if (selected.nextSibling) {
@@ -435,15 +468,21 @@ _script = '''
             }
         } else if (c=='N') {
             if (selected) {
-                parent = selected.parentNode
-                parent.removeChild(selected)
-                parent.insertBefore(selected, null)
+                s = selected.nextSibling
+                if (s) {
+                    parent = selected.parentNode
+                    parent.removeChild(selected)
+                    parent.insertBefore(selected, null)
+                    sel(s)
+                }
             }
         } else if (c=='P') {
-            if (selected) {
+            if (selected && selected != first_row) {
+                s = selected.previousSibling
                 parent = selected.parentNode
                 parent.removeChild(selected)
                 parent.insertBefore(selected, first_row)
+                sel(s)
             }
         }
         _sel(selected)
