@@ -29,8 +29,11 @@ def put(*content):
 #
 
 def dbg(*ss):
-    if __name__=='__main__' and 'opt.dbg':
+    if __name__=='__main__' and opt.dbg:
         sys.stderr.write(' '.join(str(s) for s in ss) + '\n')
+
+def msg(*ss):
+    sys.stderr.write(' '.join(str(s) for s in ss) + '\n')
 
 #
 #
@@ -60,7 +63,7 @@ def graph(
     ticks=None, line_width=0.1, shaded=True
 ):
     elt('svg', width='%gem' % width, height='%gem' % height,
-        viewBox='%g %g %g %g' % (-0.05, -0.05, width+0.2, height+0.2))
+        viewBox='%g %g %g %g' % (-0.05, -0.05, width, height+0.2))
     if ts:
         tspan = float((tmax-tmin).total_seconds())
         yspan = float(ymax - ymin)
@@ -92,11 +95,13 @@ def graph(
 
 class Series:
 
-    def __init__(self, fmt, params, fmt_name):
+    def __init__(self, spec, fmt_name, fmt, params, fn):
 
+        self.spec = spec
+        self.fmt_name = fmt_name
         self.fmt = dict(fmt)
         self.fmt.update(params)
-        self.fmt_name = fmt_name
+        self.fn = fn
 
         self.description = get(self.fmt, 'description', self.fmt_name)
     
@@ -116,13 +121,23 @@ class Series:
     
         self.scale = get(self.fmt, 'scale', 1)
     
+        self.spec_ymax = float(get(self.fmt, 'ymax', '-inf'))
+
         self.ts = []
         self.ys = collections.defaultdict(int)
     
         self.re = get(self.fmt, 're')
+        if re.compile(self.re).groups==0:
+            raise Exception('re ' + self.re + ' does not have any groups')
+
+        self.time_group = get(self.fmt, 'time_group', 0)
+        self.data_group = get(self.fmt, 'data_group', 1)
+
+        tz = float(get(self.fmt, 'tz', 0))
+        self.tz = datetime.timedelta(hours=tz)
 
     def data_point(self, t, d):
-        t = dateutil.parser.parse(t)
+        t = dateutil.parser.parse(t) + self.tz
         d = float(d) / self.scale
         if self.delta:
             if self.last_t and self.last_t!=t:
@@ -173,8 +188,10 @@ def op_for(fmt, s):
         return lambda ys, t, d: ys[t]+1 if d>=count_min_ms else ys[t]
 
 
-def get(fmt, *n):
-    v = fmt.get(*n)
+def get(fmt, n, default=None):
+    v = fmt.get(n, default)
+    if not v and default==None:
+        raise Exception('missing required parameter ' + repr(n) + ' in ' + fmt['name'])
     if (type(v)==str or type(v)==unicode):
         v = v.format(**fmt)
     return v
@@ -197,7 +214,7 @@ def series_spec(formats, spec):
     if d == '(': # has args
         while d != ')': # consume args
             name, d, s = split(s, '=)', '(', spec) # get arg name
-            value, d, s = split(s, '()', '', spec) # bare value
+            value, d, s = split(s, '(),', '', spec) # bare value
             p = 0
             while d=='(' or p>0: # plus balanced parens
                 value += d
@@ -207,34 +224,64 @@ def series_spec(formats, spec):
                 value += v
             params[name] = value
     fn = s.lstrip(':')
+    dbg(fmt_name, params, fn)
 
     # a series for all formats that match the specified name
     series = []
     for name, fmt in sorted(formats.items()):
         if re.search('^' + fmt_name, name):
-            series.append(Series(fmt, params, fmt_name))
+            series.append(Series(spec, fmt_name, fmt, params, fn))
+    if not series:
+        msg('no formats match', fmt_name)
 
+    return series
+
+def series_process(fn, series):
+
+    # group series by re
+    series_by_re = collections.defaultdict(list)
+    for s in series:
+        series_by_re[s.re].append(s)
+
+    # group res into chunks
     # Python re impl can only handle 100 groups
-    # so we process the formats in chunks, constructing one regex for each chunk
+    # so we process the formats in chunks, constructing one chunk_re for each chunk
     # and match each line against the regex for each chunk
     chunk_size = 40
-    rs = {}
-    for i in range(0, len(series), chunk_size):
-        chunk = series[i:i+chunk_size]
-        r = '|'.join('(?:' + s.re + ')' for s in chunk)
-        rs[i] = re.compile(r)
+    chunks = []
+    for i in range(0, len(series_by_re), chunk_size):
+        chunk = series_by_re.keys()[i:i+chunk_size]
+        chunk_re = ''
+        chunk_groups = []
+        chunk_group = 0
+        for s_re in chunk:
+            if chunk_re: chunk_re += '|'
+            chunk_re += '(?:' + s_re + ')'
+            chunk_groups.append(chunk_group)
+            chunk_group += re.compile(s_re).groups
+        dbg(chunk_re)
+        chunk_re = re.compile(chunk_re)
+        chunks.append((chunk_re, chunk, chunk_groups))
+
+    # process the file
+    last_time = None
     for line in open(fn):
         line = line.strip()
-        for i in range(0, len(series), chunk_size):
-            chunk = series[i:i+chunk_size]
-            m = rs[i].match(line)
+        for chunk_re, chunk, chunk_groups in chunks:
+            m = chunk_re.match(line)
             if m:
-                groups = m.groups()
-                for i, s in enumerate(chunk):
-                    t = groups[2*i]
-                    if t:
-                        d = groups[2*i+1]
-                        s.data_point(t, d)
+                dbg(m.groups())
+                for chunk_group, s_re in zip(chunk_groups, chunk):
+                    group = lambda g: m.group(chunk_group+g+1) if type(g)==int else m.group(g)
+                    for s in series_by_re[s_re]:
+                        t = group(s.time_group)
+                        if not t:
+                            t = last_time                            
+                        if t:
+                            d = group(s.data_group)
+                            if d != None:
+                                s.data_point(t, d)
+                            last_time = t
 
     # finish each series
     for s in series:
@@ -252,17 +299,33 @@ def series_load(formats, fn):
                 fmt = dict(formats[fmt['_inherit']].items() + fmt.items())
             formats[fmt['name']] = fmt
     except Exception as e:
-        dbg(e)
-        pass
+        msg(fn + ': ' + e.message)
 
 
 def series_all(format_file, specs):
+
+    # read timeseries.json files
     formats = {}
     series_load(formats, os.path.join(os.path.dirname(__file__), 'timeseries.json'))
     series_load(formats, 'timeseries.json')
     for fn in format_file:
-        series_load(formats, fn)
-    return [series for spec in specs for series in series_spec(formats, spec)]
+        if fn:
+            series_load(formats, fn)
+
+    # parse specs, group them by file
+    series = [] # all
+    fns = collections.defaultdict(list) # grouped by fn
+    for spec in specs:
+        for s in series_spec(formats, spec):
+            fns[s.fn].append(s)
+            series.append(s)
+
+    # process by file
+    for fn in fns:
+        series_process(fn, fns[fn])
+        
+    # return them all
+    return series
 
 
 #
@@ -322,7 +385,7 @@ cursors_script = '''
         var line = elt(svg_ns, "line", {id:"l"+cnum, x1:x, x2:x, y1:0, y2:1, class:"cursor"})
         document.getElementById("cursors").appendChild(line)
         var circle = elt(svg_ns, "circle",
-            {id:"c"+cnum, cx:x*width-1, cy:0.6, r:0.4, class:"circle", onclick:"del("+cnum+")"})
+            {id:"c"+cnum, cx:x*width, cy:0.6, r:0.4, class:"circle", onclick:"del("+cnum+")"})
         document.getElementById("circles").appendChild(circle)
         cnum += 1
     }
@@ -337,7 +400,7 @@ def cursors_html(width):
     elt('table')
     elt('tr')
     td('graph')
-    eltend('svg', id='circles', width='%dem'%(width+2), height="1em", viewBox="0 0 %d 1" % width)
+    eltend('svg', id='circles', width='%dem'%(width), height="1em", viewBox="0 0 %d 1" % width)
     end('td')
     end('tr')
     elt('tr')
@@ -356,9 +419,9 @@ def cursors_html(width):
 #
 
 _style = '''
-    body {
+    body, table {
         font-family: sans-serif;
-        font-size: 8pt;
+        font-size: 10pt;
     }
     .data {
         text-align: right;
@@ -367,8 +430,8 @@ _style = '''
         text-align: left;
     }
     .graph {
-        padding-left: 1em;
-        padding-right: 1em;
+        padding-left: 0em;
+        padding-right: 0em;
     }
     .head {
         font-weight: bold;
@@ -500,12 +563,13 @@ def td(cls, *content):
         put(*content)
         end('td')
 
-if __name__ == '__main__':
+def main():
 
     p = argparse.ArgumentParser()
     p.add_argument('--dbg', '-d', action='store_true')
     p.add_argument(dest='series', nargs='+')
     p.add_argument('--format-file', '-f', default=None)
+    global opt
     opt = p.parse_args()
 
     # xxx make these parameters
@@ -517,6 +581,9 @@ if __name__ == '__main__':
     shade = True
 
     series = series_all([opt.format_file], opt.series)
+    if not series:
+        msg('no series specified')
+        return
     tmin = min(s.tmin for s in series)
     tmax = max(s.tmax for s in series)
 
@@ -550,7 +617,7 @@ if __name__ == '__main__':
     td('head desc', 'description')
     end('tr')
 
-    for s in series:
+    for s in sorted(series, key=lambda s: s.description):
         if s.ys.values():
             yavg = float(sum(s.ys.values())) / len(s.ys)
             if s.ymax!=0 or s.ymin!=0 or show_zero:
@@ -558,10 +625,12 @@ if __name__ == '__main__':
                 td('data', '%.3f' % yavg)
                 td('data', '%.3f' % s.ymax)
                 td('graph')
-                _graph(s.ts, s.ys, s.ymax)
+                _graph(s.ts, s.ys, max(s.ymax, s.spec_ymax))
                 end('td')
                 td('desc', s.description)
                 end('tr')
+            else:
+                msg('skipping uniformly zero data for', s.spec)
         elif show_empty:
             elt('tr', onclick='sel(this)', _class='row')
             td('data', 'n/a')
@@ -571,7 +640,12 @@ if __name__ == '__main__':
             end('td')
             td('desc', s.description)
             end('tr')
+        else:
+            msg('no data for', s.spec, s.data_group)
 
     end('table')
     end('body')
     end('html')
+
+if __name__ == '__main__':
+    main()

@@ -1,7 +1,88 @@
 [{
     "name": "grep",
     "description": "{pat}",
-    "re": "^(....-..-..T..:..:...(?:...)?|(?:... )?... .. .... ..:..:..) .*{pat}"
+    "re": "^.*(....-..-..T..:..:..(?:\\....)?|(?:... )?... .. .... ..:..:..).*{pat}"
+},{
+    "name": "_iostat",
+    "re": "(?P<time>^../../.... ..:..:.. ..)|(?:^ *(?P<user>[0-9\\.]+) +(?P<nice>[0-9\\.]+) +(?P<system>[0-9\\.]+) +(?P<iowait>[0-9\\.]+) +(?P<steal>[0-9\\.]+) +(?P<idle>[0-9\\.]+))|(?:^[a-z]+ +(?P<rrqm>[0-9\\.]+) +(?P<wrqm>[0-9\\.]+) +(?P<r>[0-9\\.]+) +(?P<w>[0-9\\.]+) +(?P<rkB>[0-9\\.]+) +(?P<wkB>[0-9\\.]+) +(?P<avgrq>[0-9\\.]+) +(?P<avgqu>[0-9\\.]+) +(?P<await>[0-9\\.]+) +(?P<svctime>[0-9\\.]+) +(?P<util>[0-9\\.]+))",
+    "time_group": "time"
+},{
+    "name": "_iostat_cpu",
+    "_inherit": "_iostat",
+    "description": "iostat: cpu {data_group}",
+    "ymax": "100"
+},{
+    "name": "_iostat_disk",
+    "_inherit": "_iostat",
+    "description": "iostat: disk {data_group}"
+},{
+    "name": "iostat_user",
+    "_inherit": "_iostat_cpu",
+    "data_group": "user"
+},{
+    "name": "iostat_nice",
+    "_inherit": "_iostat_cpu",
+    "data_group": "nice"
+},{
+    "name": "iostat_system",
+    "_inherit": "_iostat_cpu",
+    "data_group": "system"
+},{
+    "name": "iostat_iowait",
+    "_inherit": "_iostat_cpu",
+    "data_group": "iowait"
+},{
+    "name": "iostat_steal",
+    "_inherit": "_iostat_cpu",
+    "data_group": "steal"
+},{
+    "name": "iostat_idle",
+    "_inherit": "_iostat_cpu",
+    "data_group": "idle"
+},{
+    "name": "iostat_rrqm",
+    "_inherit": "_iostat_disk",
+    "data_group": "rrqm"
+},{
+    "name": "iostat_wrqm",
+    "_inherit": "_iostat_disk",
+    "data_group": "wrqm"
+},{
+    "name": "iostat_r",
+    "_inherit": "_iostat_disk",
+    "data_group": "r"
+},{
+    "name": "iostat_w",
+    "_inherit": "_iostat_disk",
+    "data_group": "w"
+},{
+    "name": "iostat_rkB",
+    "_inherit": "_iostat_disk",
+    "data_group": "rkB"
+},{
+    "name": "iostat_wkB",
+    "_inherit": "_iostat_disk",
+    "data_group": "wkB"
+},{
+    "name": "iostat_avgrq",
+    "_inherit": "_iostat_disk",
+    "data_group": "avgrq"
+},{
+    "name": "iostat_avgqu",
+    "_inherit": "_iostat_disk",
+    "data_group": "avgqu"
+},{
+    "name": "iostat_await",
+    "_inherit": "_iostat_disk",
+    "data_group": "await"
+},{
+    "name": "iostat_svctime",
+    "_inherit": "_iostat_disk",
+    "data_group": "svctime"
+},{
+    "name": "iostat_util",
+    "_inherit": "_iostat_disk",
+    "data_group": "util"
 },{
     "name": "mongod_query_ms",
     "description": "mongod max logged query (ms) per {bucket_size}s",
@@ -652,19 +733,19 @@
 },{
     "_inherit": "_wt",
     "name": "wt_transaction_transaction_checkpoint_max_time_(msecs)",
-    "_wt": "transaction: transaction checkpoint max time (msecs)"
+    "_wt": "transaction: transaction checkpoint max time .msecs."
 },{
     "_inherit": "_wt",
     "name": "wt_transaction_transaction_checkpoint_min_time_(msecs)",
-    "_wt": "transaction: transaction checkpoint min time (msecs)"
+    "_wt": "transaction: transaction checkpoint min time .msecs."
 },{
     "_inherit": "_wt",
     "name": "wt_transaction_transaction_checkpoint_most_recent_time_(msecs)",
-    "_wt": "transaction: transaction checkpoint most recent time (msecs)"
+    "_wt": "transaction: transaction checkpoint most recent time .msecs."
 },{
     "_inherit": "_wt",
     "name": "wt_transaction_transaction_checkpoint_total_time_(msecs)",
-    "_wt": "transaction: transaction checkpoint total time (msecs)"
+    "_wt": "transaction: transaction checkpoint total time .msecs."
 },{
     "_inherit": "_wt_delta",
     "name": "wt_transaction_transaction_checkpoints",
