@@ -4,17 +4,17 @@
     "re": "^.*(....-..-..T..:..:..(?:\\....)?|(?:... )?... .. .... ..:..:..).*{pat}"
 },{
     "name": "_iostat",
-    "re": "(?P<time>^../../.... ..:..:.. ..)|(?:^ *(?P<user>[0-9\\.]+) +(?P<nice>[0-9\\.]+) +(?P<system>[0-9\\.]+) +(?P<iowait>[0-9\\.]+) +(?P<steal>[0-9\\.]+) +(?P<idle>[0-9\\.]+))|(?:^[a-z]+ +(?P<rrqm>[0-9\\.]+) +(?P<wrqm>[0-9\\.]+) +(?P<r>[0-9\\.]+) +(?P<w>[0-9\\.]+) +(?P<rkB>[0-9\\.]+) +(?P<wkB>[0-9\\.]+) +(?P<avgrq>[0-9\\.]+) +(?P<avgqu>[0-9\\.]+) +(?P<await>[0-9\\.]+) +(?P<svctime>[0-9\\.]+) +(?P<util>[0-9\\.]+))",
+    "re": "(?P<time>^../../.... ..:..:.. ..)|(?:^ *(?P<user>[0-9\\.]+) +(?P<nice>[0-9\\.]+) +(?P<system>[0-9\\.]+) +(?P<iowait>[0-9\\.]+) +(?P<steal>[0-9\\.]+) +(?P<idle>[0-9\\.]+))|(?:^[a-z]+ +(?P<rrqms>[0-9\\.]+) +(?P<wrqms>[0-9\\.]+) +(?P<rs>[0-9\\.]+) +(?P<ws>[0-9\\.]+) +(?P<rkBs>[0-9\\.]+) +(?P<wkBs>[0-9\\.]+) +(?P<avgrqsz>[0-9\\.]+) +(?P<avgqusz>[0-9\\.]+) +(?P<await>[0-9\\.]+) +(?P<svctime>[0-9\\.]+) +(?P<util>[0-9\\.]+))",
     "time_group": "time"
 },{
     "name": "_iostat_cpu",
     "_inherit": "_iostat",
-    "description": "iostat: cpu {data_group}",
-    "ymax": "100"
+    "description": "iostat cpu: {data_group} (%)",
+    "ymax": 100
 },{
     "name": "_iostat_disk",
     "_inherit": "_iostat",
-    "description": "iostat: disk {data_group}"
+    "description": "iostat disk: {data_group}"
 },{
     "name": "iostat_user",
     "_inherit": "_iostat_cpu",
@@ -40,49 +40,64 @@
     "_inherit": "_iostat_cpu",
     "data_group": "idle"
 },{
-    "name": "iostat_rrqm",
+    "name": "iostat_rrqms",
     "_inherit": "_iostat_disk",
-    "data_group": "rrqm"
+    "data_group": "rrqms",
+    "description": "iostat disk: read requests merged (/s)",
+    "ygroup": "iostat_disk_req"
 },{
-    "name": "iostat_wrqm",
+    "name": "iostat_wrqms",
     "_inherit": "_iostat_disk",
-    "data_group": "wrqm"
+    "data_group": "wrqms",
+    "description": "iostat disk: write requests merged (/s)",
+    "ygroup": "iostat_disk_req"
 },{
-    "name": "iostat_r",
+    "name": "iostat_rs",
     "_inherit": "_iostat_disk",
-    "data_group": "r"
+    "data_group": "rs",
+    "description": "iostat disk: read requests issued (/s)",
+    "ygroup": "iostat_disk_req"
 },{
-    "name": "iostat_w",
+    "name": "iostat_ws",
     "_inherit": "_iostat_disk",
-    "data_group": "w"
+    "data_group": "ws",
+    "description": "iostat disk: write requests issued (/s)",
+    "ygroup": "iostat_disk_req"
 },{
-    "name": "iostat_rkB",
+    "name": "iostat_rkBs",
     "_inherit": "_iostat_disk",
-    "data_group": "rkB"
+    "data_group": "rkBs",
+    "scale": 1024,
+    "description": "iostat disk: bytes read (MB/s)",
+    "ygroup": "iostat_disk_MBs"
 },{
-    "name": "iostat_wkB",
+    "name": "iostat_wkBs",
     "_inherit": "_iostat_disk",
-    "data_group": "wkB"
+    "data_group": "wkBs",
+    "scale": 1024,
+    "description": "iostat disk: bytes written (MB/s)",
+    "ygroup": "iostat_disk_MBs"
 },{
-    "name": "iostat_avgrq",
+    "name": "iostat_avgrqsz",
     "_inherit": "_iostat_disk",
-    "data_group": "avgrq"
+    "data_group": "avgrqsz",
+    "description": "iostat disk: average request size (sectors)"
 },{
-    "name": "iostat_avgqu",
+    "name": "iostat_avgqusz",
     "_inherit": "_iostat_disk",
-    "data_group": "avgqu"
+    "data_group": "avgqusz",
+    "description": "iostat disk: average queue length"
 },{
     "name": "iostat_await",
     "_inherit": "_iostat_disk",
-    "data_group": "await"
-},{
-    "name": "iostat_svctime",
-    "_inherit": "_iostat_disk",
-    "data_group": "svctime"
+    "data_group": "await",
+    "description": "iostat disk: average wait time (ms)"
 },{
     "name": "iostat_util",
     "_inherit": "_iostat_disk",
-    "data_group": "util"
+    "data_group": "util",
+    "ymax": 100,
+    "description": "iostat disk: average utilization (%)"
 },{
     "name": "mongod_query_ms",
     "description": "mongod max logged query (ms) per {bucket_size}s",
@@ -105,23 +120,24 @@
 },{
     "name": "_wt",
     "re": "^(... .. ..:..:..) ([0-9]+) .* {_wt}",
-    "description": "{_wt}"
+    "description": "wt {_wt}"
 },{
     "name": "_wt_delta",
     "_inherit": "_wt",
     "delta": true,
-    "description": "{_wt} (/s)"
+    "description": "wt {_wt} (/s)"
 },{
     "name": "_wt_mb",
     "_inherit": "_wt",
-    "description": "{_wt} (MB)",
+    "description": "wt {_wt} (MB)",
     "scale": 1048576
 },{
     "name": "_wt_delta_mb",
     "_inherit": "_wt",
     "delta": true,
     "scale": 1048576,
-    "description": "{_wt} (MB/s)"
+    "description": "wt {_wt} (MB/s)",
+    "ygroup": "wt_MBs"
 },{
     "_inherit": "_wt",
     "name": "wt_async_maximum_work_queue_length",
