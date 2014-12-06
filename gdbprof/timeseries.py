@@ -136,6 +136,9 @@ class Series:
         tz = float(get(self.fmt, 'tz', 0))
         self.tz = datetime.timedelta(hours=tz)
 
+        self.ygroup = get(self.fmt, 'ygroup', '')
+
+
     def data_point(self, t, d):
         t = dateutil.parser.parse(t) + self.tz
         d = float(d) / self.scale
@@ -272,7 +275,9 @@ def series_process(fn, series):
             if m:
                 dbg(m.groups())
                 for chunk_group, s_re in zip(chunk_groups, chunk):
-                    group = lambda g: m.group(chunk_group+g+1) if type(g)==int else m.group(g)
+                    def group(g):
+                        try: return m.group(chunk_group+g+1) if type(g)==int else m.group(g)
+                        except Exception as e: raise Exception(g + ': ' + e.message)
                     for s in series_by_re[s_re]:
                         t = group(s.time_group)
                         if not t:
@@ -314,16 +319,26 @@ def series_all(format_file, specs):
 
     # parse specs, group them by file
     series = [] # all
+    ygroups = collections.defaultdict(list)
     fns = collections.defaultdict(list) # grouped by fn
     for spec in specs:
         for s in series_spec(formats, spec):
             fns[s.fn].append(s)
+            if s.ygroup: ygroups[s.ygroup].append(s)
             series.append(s)
 
     # process by file
     for fn in fns:
         series_process(fn, fns[fn])
         
+    # compute display max
+    for s in series:
+        s.display_ymax = max(s.ymax, s.spec_ymax)
+    for ygroup in ygroups.values():
+        group_ymax = max(s.ymax for s in ygroup)
+        for s in ygroup:
+            s.display_ymax = max(s.display_ymax, group_ymax)
+
     # return them all
     return series
 
@@ -622,15 +637,15 @@ def main():
             yavg = float(sum(s.ys.values())) / len(s.ys)
             if s.ymax!=0 or s.ymin!=0 or show_zero:
                 elt('tr', onclick='sel(this)', _class='row')
-                td('data', '%.3f' % yavg)
-                td('data', '%.3f' % s.ymax)
+                td('data', '{:,.3f}'.format(yavg))
+                td('data', '{:,.3f}'.format(s.ymax))
                 td('graph')
-                _graph(s.ts, s.ys, max(s.ymax, s.spec_ymax))
+                _graph(s.ts, s.ys, s.display_ymax)
                 end('td')
                 td('desc', s.description)
                 end('tr')
             else:
-                msg('skipping uniformly zero data for', s.spec)
+                msg('skipping uniformly zero data for', s.spec, s.fmt['name'])
         elif show_empty:
             elt('tr', onclick='sel(this)', _class='row')
             td('data', 'n/a')
