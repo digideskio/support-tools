@@ -132,6 +132,7 @@ msection timezone_config getfiles /etc/timezone /etc/sysconfig/clock
 msection timedatectl timedatectl
 msection localtime lsfiles /etc/localtime
 msection localtime_matches find /usr/share/zoneinfo -type f -exec cmp -s \{\} /etc/localtime \; -print
+msection clocksource getfiles /sys/devices/system/clocksource/clocksource0/current_clocksource
 
 # Block device/filesystem info
 msection scsi getfiles /proc/scsi/scsi
