@@ -4,7 +4,7 @@
     "re": "^.*(....-..-..T..:..:..(?:\\....)?|(?:... )?... .. .... ..:..:..).*{pat}"
 },{
     "name": "_iostat",
-    "re": "(?P<time>^../../.... ..:..:.. ..)|(?:^ *(?P<user>[0-9\\.]+) +(?P<nice>[0-9\\.]+) +(?P<system>[0-9\\.]+) +(?P<iowait>[0-9\\.]+) +(?P<steal>[0-9\\.]+) +(?P<idle>[0-9\\.]+))|(?:^[a-z]+ +(?P<rrqms>[0-9\\.]+) +(?P<wrqms>[0-9\\.]+) +(?P<rs>[0-9\\.]+) +(?P<ws>[0-9\\.]+) +(?P<rkBs>[0-9\\.]+) +(?P<wkBs>[0-9\\.]+) +(?P<avgrqsz>[0-9\\.]+) +(?P<avgqusz>[0-9\\.]+) +(?P<await>[0-9\\.]+) +(?P<svctime>[0-9\\.]+) +(?P<util>[0-9\\.]+))",
+    "re": "(?P<time>^../../.... ..:..:.. ..)|(?:^ *(?P<user>[0-9\\.]+) +(?P<nice>[0-9\\.]+) +(?P<system>[0-9\\.]+) +(?P<iowait>[0-9\\.]+) +(?P<steal>[0-9\\.]+) +(?P<idle>[0-9\\.]+))|(?:^(?P<disk>[a-z]+) +(?P<rrqms>[0-9\\.]+) +(?P<wrqms>[0-9\\.]+) +(?P<rs>[0-9\\.]+) +(?P<ws>[0-9\\.]+) +(?P<rkBs>[0-9\\.]+) +(?P<wkBs>[0-9\\.]+) +(?P<avgrqsz>[0-9\\.]+) +(?P<avgqusz>[0-9\\.]+) +(?P<await>[0-9\\.]+) +(?P<svctime>[0-9\\.]+) +(?P<util>[0-9\\.]+))",
     "time_group": "time"
 },{
     "name": "_iostat_cpu",
@@ -12,102 +12,105 @@
     "description": "iostat cpu: {data} (%)",
     "ymax": 100
 },{
-    "name": "_iostat_disk",
-    "_inherit": "_iostat",
-    "description": "iostat disk: {data}"
-},{
     "name": "iostat_cpu_user",
     "_inherit": "_iostat_cpu",
     "data": "user",
-    "graph": "iostat_cpu"
+    "merge": "iostat_cpu"
 
 },{
     "name": "iostat_cpu_nice",
     "_inherit": "_iostat_cpu",
     "data": "nice",
-    "graph": "iostat_cpu"
+    "merge": "iostat_cpu"
 
 },{
     "name": "iostat_cpu_system",
     "_inherit": "_iostat_cpu",
     "data": "system",
-    "graph": "iostat_cpu"
+    "merge": "iostat_cpu"
 
 },{
     "name": "iostat_cpu_iowait",
     "_inherit": "_iostat_cpu",
     "data": "iowait",
-    "graph": "iostat_cpu"
+    "merge": "iostat_cpu"
 
 },{
     "name": "iostat_cpu_steal",
     "_inherit": "_iostat_cpu",
     "data": "steal",
-    "graph": "iostat_cpu"
+    "merge": "iostat_cpu"
 
 },{
     "name": "iostat_cpu_idle",
     "_inherit": "_iostat_cpu",
     "data": "idle"
 },{
+    "name": "_iostat_disk",
+    "_inherit": "_iostat",
+    "split": "disk"
+},{
     "name": "iostat_disk_rrqms",
     "_inherit": "_iostat_disk",
     "data": "rrqms",
-    "description": "iostat disk: read requests merged (/s)",
+    "description": "iostat disk: {disk} read requests merged (/s)",
+    "merge": "iostat_disk_req_merged {disk}",
     "ygroup": "iostat_disk_req"
 },{
     "name": "iostat_disk_wrqms",
     "_inherit": "_iostat_disk",
     "data": "wrqms",
-    "description": "iostat disk: write requests merged (/s)",
+    "description": "iostat disk: {disk} write requests merged (/s)",
     "ygroup": "iostat_disk_req"
 },{
     "name": "iostat_disk_rs",
     "_inherit": "_iostat_disk",
     "data": "rs",
-    "description": "iostat disk: read requests issued (/s)",
+    "description": "iostat disk: {disk} read requests issued (/s)",
+    "merge": "iostat_disk_req_issued {disk}",
     "ygroup": "iostat_disk_req"
 },{
     "name": "iostat_disk_ws",
     "_inherit": "_iostat_disk",
     "data": "ws",
-    "description": "iostat disk: write requests issued (/s)",
+    "description": "iostat disk: {disk} write requests issued (/s)",
+    "merge": "iostat_disk_req_issued {disk}",
     "ygroup": "iostat_disk_req"
 },{
     "name": "iostat_disk_rkBs",
     "_inherit": "_iostat_disk",
     "data": "rkBs",
     "scale": 1024,
-    "description": "iostat disk: bytes read (MB/s)",
-    "ygroup": "iostat_disk_MBs"
+    "description": "iostat disk: {disk} bytes read (MB/s)",
+    "merge": "iostat_disk_MBs {disk}"
 },{
     "name": "iostat_disk_wkBs",
     "_inherit": "_iostat_disk",
     "data": "wkBs",
     "scale": 1024,
-    "description": "iostat disk: bytes written (MB/s)",
-    "ygroup": "iostat_disk_MBs"
+    "description": "iostat disk: {disk} bytes written (MB/s)",
+    "merge": "iostat_disk_MBs {disk}"
 },{
     "name": "iostat_disk_avgrqsz",
     "_inherit": "_iostat_disk",
     "data": "avgrqsz",
-    "description": "iostat disk: average request size (sectors)"
+    "description": "iostat disk: {disk} average request size (sectors)"
 },{
     "name": "iostat_avgqusz",
     "_inherit": "_iostat_disk",
     "data": "avgqusz",
-    "description": "iostat disk: average queue length"
+    "description": "iostat disk: {disk} average queue length"
 },{
     "name": "iostat_disk_await",
     "_inherit": "_iostat_disk",
     "data": "await",
-    "description": "iostat disk: average wait time (ms)"
+    "description": "iostat disk: {disk} average wait time (ms)"
 },{
     "name": "iostat_disk_util",
     "_inherit": "_iostat_disk",
     "data": "util",
     "ymax": 100,
-    "description": "iostat disk: average utilization (%)"
+    "description": "iostat disk: {disk} average utilization (%)"
 },{
     "name": "mongod_query_ms",
     "description": "mongod max logged query (ms) per {bucket_size}s",
@@ -215,18 +218,22 @@
 },{
     "_inherit": "_wt_delta",
     "name": "wt_block-manager_blocks_read",
+    "merge": "wt_block-manager_blocks",
     "_wt": "block-manager: blocks read"
 },{
     "_inherit": "_wt_delta",
     "name": "wt_block-manager_blocks_written",
+    "merge": "wt_block-manager_blocks",
     "_wt": "block-manager: blocks written"
 },{
     "_inherit": "_wt_delta_mb",
     "name": "wt_block-manager_bytes_read",
+    "merge": "wt_block-manager_bytes",
     "_wt": "block-manager: bytes read"
 },{
     "_inherit": "_wt_delta_mb",
     "name": "wt_block-manager_bytes_written",
+    "merge": "wt_block-manager_bytes",
     "_wt": "block-manager: bytes written"
 },{
     "_inherit": "_wt",
@@ -367,10 +374,12 @@
 },{
     "_inherit": "_wt_delta_mb",
     "name": "wt_cache_bytes_read_into_cache",
+    "merge": "wt_cache_bytes_cache",
     "_wt": "cache: bytes read into cache"
 },{
     "_inherit": "_wt_delta_mb",
     "name": "wt_cache_bytes_written_from_cache",
+    "merge": "wt_cache_bytes_cache",
     "_wt": "cache: bytes written from cache"
 },{
     "_inherit": "_wt",
@@ -475,10 +484,12 @@
 },{
     "_inherit": "_wt_delta",
     "name": "wt_compression_compressed_pages_read",
+    "merge": "wt_compression_compressed_pages",
     "_wt": "compression: compressed pages read"
 },{
     "_inherit": "_wt_delta",
     "name": "wt_compression_compressed_pages_written",
+    "merge": "wt_compression_compressed_pages",
     "_wt": "compression: compressed pages written"
 },{
     "_inherit": "_wt_delta",
@@ -531,10 +542,12 @@
 },{
     "_inherit": "_wt_delta",
     "name": "wt_connection_total_read_I/Os",
+    "merge": "wt_connection_total_I/Os",
     "_wt": "connection: total read I/Os"
 },{
     "_inherit": "_wt_delta",
     "name": "wt_connection_total_write_I/Os",
+    "merge": "wt_connection_total_I/Os",
     "_wt": "connection: total write I/Os"
 },{
     "_inherit": "_wt_delta",

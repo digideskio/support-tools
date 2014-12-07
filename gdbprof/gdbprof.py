@@ -23,7 +23,7 @@ import json
 def elt(name, attrs={}):
     if opt.html:
         sys.stdout.write('<%s' % name)
-        for a in attrs:
+        for a in sorted(attrs):
             sys.stdout.write(' %s="%s"' % (a, attrs[a]))
         sys.stdout.write('>')
 

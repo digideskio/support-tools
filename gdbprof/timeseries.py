@@ -10,7 +10,7 @@ import itertools
 
 def elt(name, attrs={}):
     sys.stdout.write('<%s' % name)
-    for a in attrs:
+    for a in sorted(attrs):
         sys.stdout.write(' %s="%s"' % (a.strip('_'), attrs[a]))
     sys.stdout.write('>')
 
@@ -110,8 +110,6 @@ class Series:
         self.fmt.update(params)
         self.fn = fn
 
-        self.description = get(self.fmt, 'description', self.fmt_name)
-    
         self.delta = get(self.fmt, 'delta', False)
         if self.delta:
             self.last_t = None
@@ -145,10 +143,31 @@ class Series:
 
         self.ygroup = get(self.fmt, 'ygroup', Series.n)
 
-        self.graph = get(self.fmt, 'graph', Series.n)
+        self.graph = Series.n # will update with fmt['merge'] later so can use split key
+
+        self.split = get(self.fmt, 'split', None)
+        self.splits = {}
 
         Series.n += 1
 
+    def get_split(self, split):
+        if split not in self.splits:
+            new = Series(self.spec, self.fmt_name, self.fmt, {}, self.fn)
+            new.fmt[self.split] = split # make split key available for formatting
+            new.split = None
+            self.splits[split] = new
+        return self.splits[split]
+
+    def get_graphs(self, graphs, ygroups, merges):
+        if not self.split:
+            # do self.graph and .description late so they can use split key
+            if merges: self.graph = get(self.fmt, 'merge', self.graph)
+            self.description = get(self.fmt, 'description', self.fmt_name)
+            graphs[self.graph].append(self)
+            ygroups[self.ygroup].append(self)
+        else:
+            for s in self.splits.values():
+                s.get_graphs(graphs, ygroups, merges)
 
     def data_point(self, t, d):
         t = dateutil.parser.parse(t) + self.tz
@@ -195,6 +214,8 @@ class Series:
         self.ymax = max(self.ys.values()) if self.ys else float('-inf')
         self.ysum = sum(self.ys.values()) if self.ys else 0
     
+        for s in self.splits.values():
+            s.finish()
 
 def op_for(fmt, s):
     if s=='max': return lambda ys, t, d: max(ys[t], d)
@@ -299,6 +320,8 @@ def series_read(fn, series):
                         if t:
                             d = group(s.data)
                             if d != None:
+                                if s.split:
+                                    s = s.get_split(group(s.split))
                                 s.data_point(t, d)
                             last_time = t
 
@@ -321,7 +344,7 @@ def series_load(formats, fn):
         msg(fn + ': ' + e.message)
 
 
-def series_all(format_file, specs):
+def series_all(format_file, specs, merges=True):
 
     # read timeseries.json files
     formats = {}
@@ -333,29 +356,32 @@ def series_all(format_file, specs):
 
     # parse specs, group them by file
     series = [] # all
-    ygroups = collections.defaultdict(list)
-    graphs = collections.defaultdict(list)
     fns = collections.defaultdict(list) # grouped by fn
     for spec in specs:
         for s in series_spec(formats, spec):
             fns[s.fn].append(s)
-            ygroups[s.ygroup].append(s)
-            graphs[s.graph].append(s)
             series.append(s)
 
     # process by file
     for fn in fns:
         series_read(fn, fns[fn])
         
-    # compute display max taking into account spec_ymax and ygroup
+    # get graphs taking into account splits and merges
+    graphs = collections.defaultdict(list)
+    ygroups = collections.defaultdict(list)
     for s in series:
-        s.display_ymax = max(s.ymax, s.spec_ymax)
+        s.get_graphs(graphs, ygroups, merges)
+
+    # compute display_ymax taking into account spec_ymax and ygroup
+    for g in graphs.values():
+        for s in g:
+            s.display_ymax = max(s.ymax, s.spec_ymax)
     for ygroup in ygroups.values():
         ygroup_ymax = max(s.ymax for s in ygroup)
         for s in ygroup:
             s.display_ymax = max(s.display_ymax, ygroup_ymax)
 
-    # return them all
+    # return the graphs
     return graphs.values()
 
 
@@ -604,18 +630,18 @@ def main():
     p.add_argument('--dbg', '-d', action='store_true')
     p.add_argument(dest='series', nargs='+')
     p.add_argument('--format-file', '-f', default=None)
+    p.add_argument('--width', type=float, default=30)
+    p.add_argument('--height', type=float, default=1.5)
+    p.add_argument('--ticks', type=int, default=5)
+    p.add_argument('--show-empty', action='store_true')
+    p.add_argument('--show-zero', action='store_true')
+    p.add_argument('--no-shade', action='store_true')
+    p.add_argument('--no-merges', action='store_true')
+
     global opt
     opt = p.parse_args()
 
-    # xxx make these parameters
-    width = 30
-    height = 1.5
-    ticks = 5
-    show_empty = False
-    show_zero = False
-    shade = True
-
-    graphs = series_all([opt.format_file], opt.series)
+    graphs = series_all([opt.format_file], opt.series, not opt.no_merges)
     if not graphs:
         msg('no series specified')
         return
@@ -624,9 +650,9 @@ def main():
 
     def _graph(data=[], ymax=None):
         graph(data=data,
-              tmin=tmin, tmax=tmax, width=width,
-              ymin=0, ymax=ymax, height=height,
-              ticks=ticks, shaded=shade and len(data)==1)
+              tmin=tmin, tmax=tmax, width=opt.width,
+              ymin=0, ymax=ymax, height=opt.height,
+              ticks=opt.ticks, shaded=not opt.no_shade and len(data)==1)
 
     elt('html')
     elt('head')
@@ -637,7 +663,7 @@ def main():
     put(_style)
     end('style')
     elt('script')
-    put(cursors_script % width)
+    put(cursors_script % opt.width)
     put(_script)
     end('script')
     end('head')
@@ -648,12 +674,13 @@ def main():
     td('head data', 'avg')
     td('head data', 'max')
     elt('td')
-    cursors_html(width)
+    cursors_html(opt.width)
     end('td')
     td('head desc', 'description')
     end('tr')
 
-    colors = ['blue', 'red', 'limegreen', 'gold', 'gray']
+    colors = ['rgb(50,102,204)','rgb(220,57,24)','rgb(253,153,39)','rgb(20,150,24)',
+              'rgb(153,20,153)', 'rgb(200,200,200)']
 
     def description(g):
         td('desc')
@@ -674,7 +701,7 @@ def main():
         ylen = sum(len(s.ys) for s in g)
         display_ymax = max(s.display_ymax for s in g)
         if ylen:
-            if ymax!=0 or ymin!=0 or show_zero:
+            if ymax!=0 or ymin!=0 or opt.show_zero:
                 elt('tr', {'onclick':'sel(this)', 'class':'row'})
                 td('data', '{:,.3f}'.format(float(ysum)/ylen))
                 td('data', '{:,.3f}'.format(ymax))
@@ -686,7 +713,7 @@ def main():
                 end('tr')
             else:
                 msg('skipping uniformly zero data for', g[0].fmt['name'] + ':' + g[0].fn)
-        elif show_empty:
+        elif opt.show_empty:
             elt('tr', {'onclick':'sel(this)', 'class':'row'})
             td('data', 'n/a')
             td('data', 'n/a')
