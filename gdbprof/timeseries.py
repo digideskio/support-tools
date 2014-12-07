@@ -6,15 +6,17 @@ import re
 import datetime
 import dateutil.parser
 import argparse
+import itertools
 
-def elt(name, **attrs):
+def elt(name, attrs={}):
     sys.stdout.write('<%s' % name)
     for a in attrs:
         sys.stdout.write(' %s="%s"' % (a.strip('_'), attrs[a]))
     sys.stdout.write('>')
 
-def eltend(name, **attrs):
-    elt(name, **attrs)
+def eltend(name, attrs={}, *content):
+    elt(name, attrs)
+    put(*content)
     end(name)
 
 def end(name):
@@ -40,7 +42,7 @@ def msg(*ss):
 #
 
 graph_style = '''
-    .data {
+    .curve {
         fill: none;
         stroke: black;
         stroke-width: 1;
@@ -58,13 +60,16 @@ graph_style = '''
 '''
 
 def graph(
-    ts=None, tmin=None, tmax=None, width=None,
-    ys=None, ymin=None, ymax=None, height=None,
+    data=[],
+    tmin=None, tmax=None, width=None,
+    ymin=None, ymax=None, height=None,
     ticks=None, line_width=0.1, shaded=True
 ):
-    elt('svg', width='%gem' % width, height='%gem' % height,
-        viewBox='%g %g %g %g' % (-0.05, -0.05, width, height+0.2))
-    if ts:
+    elt('svg', {
+        'width':'%gem' % width, 'height':'%gem' % height,
+        'viewBox':'%g %g %g %g' % (-0.05, -0.05, width, height+0.2)
+    })
+    for ts, ys, color in data:
         tspan = float((tmax-tmin).total_seconds())
         yspan = float(ymax - ymin)
         if yspan==0:
@@ -80,12 +85,12 @@ def graph(
             left = '%g,%g' % (gx(ts[0]), height+0.05)
             right = '%g,%g' % (gx(ts[-1]), height+0.05)
             points = left + ' ' + line + ' ' + right
-            eltend('polygon', points=points, _class='shade')
-        eltend('polyline', points=line, **{'class':'data'})
-        if ticks:
-            for i in range(ticks+1):
-                x = width * i / ticks
-                eltend('line', x1=x, x2=x, y1=0, y2=height, **{'class':'tick'})
+            eltend('polygon', {'points':points, 'class':'shade'})
+        eltend('polyline', {'points':line, 'class':'curve', 'style':'stroke:%s'%color})
+    if data and ticks:
+        for i in range(ticks+1):
+            x = width * i / ticks
+            eltend('line', {'x1':x, 'x2':x, 'y1':0, 'y2':height, 'class':'tick'})
     end('svg')
 
 
@@ -94,6 +99,8 @@ def graph(
 #
 
 class Series:
+
+    n = 0
 
     def __init__(self, spec, fmt_name, fmt, params, fn):
 
@@ -130,13 +137,17 @@ class Series:
         if re.compile(self.re).groups==0:
             raise Exception('re ' + self.re + ' does not have any groups')
 
-        self.time_group = get(self.fmt, 'time_group', 0)
-        self.data_group = get(self.fmt, 'data_group', 1)
+        self.time = get(self.fmt, 'time', 0)
+        self.data = get(self.fmt, 'data', 1)
 
         tz = float(get(self.fmt, 'tz', 0))
         self.tz = datetime.timedelta(hours=tz)
 
-        self.ygroup = get(self.fmt, 'ygroup', '')
+        self.ygroup = get(self.fmt, 'ygroup', Series.n)
+
+        self.graph = get(self.fmt, 'graph', Series.n)
+
+        Series.n += 1
 
 
     def data_point(self, t, d):
@@ -182,6 +193,7 @@ class Series:
         self.tmax = max(self.ts) if self.ts else datetime.datetime.min
         self.ymin = min(self.ys.values()) if self.ys else float('inf')
         self.ymax = max(self.ys.values()) if self.ys else float('-inf')
+        self.ysum = sum(self.ys.values()) if self.ys else 0
     
 
 def op_for(fmt, s):
@@ -191,9 +203,11 @@ def op_for(fmt, s):
         return lambda ys, t, d: ys[t]+1 if d>=count_min_ms else ys[t]
 
 
-def get(fmt, n, default=None):
+REQUIRED = []
+
+def get(fmt, n, default=REQUIRED):
     v = fmt.get(n, default)
-    if not v and default==None:
+    if v is REQUIRED:
         raise Exception('missing required parameter ' + repr(n) + ' in ' + fmt['name'])
     if (type(v)==str or type(v)==unicode):
         v = v.format(**fmt)
@@ -239,7 +253,7 @@ def series_spec(formats, spec):
 
     return series
 
-def series_process(fn, series):
+def series_read(fn, series):
 
     # group series by re
     series_by_re = collections.defaultdict(list)
@@ -273,17 +287,17 @@ def series_process(fn, series):
         for chunk_re, chunk, chunk_groups in chunks:
             m = chunk_re.match(line)
             if m:
-                dbg(m.groups())
+                #dbg(m.groups())
                 for chunk_group, s_re in zip(chunk_groups, chunk):
                     def group(g):
                         try: return m.group(chunk_group+g+1) if type(g)==int else m.group(g)
                         except Exception as e: raise Exception(g + ': ' + e.message)
                     for s in series_by_re[s_re]:
-                        t = group(s.time_group)
+                        t = group(s.time)
                         if not t:
                             t = last_time                            
                         if t:
-                            d = group(s.data_group)
+                            d = group(s.data)
                             if d != None:
                                 s.data_point(t, d)
                             last_time = t
@@ -320,27 +334,29 @@ def series_all(format_file, specs):
     # parse specs, group them by file
     series = [] # all
     ygroups = collections.defaultdict(list)
+    graphs = collections.defaultdict(list)
     fns = collections.defaultdict(list) # grouped by fn
     for spec in specs:
         for s in series_spec(formats, spec):
             fns[s.fn].append(s)
-            if s.ygroup: ygroups[s.ygroup].append(s)
+            ygroups[s.ygroup].append(s)
+            graphs[s.graph].append(s)
             series.append(s)
 
     # process by file
     for fn in fns:
-        series_process(fn, fns[fn])
+        series_read(fn, fns[fn])
         
-    # compute display max
+    # compute display max taking into account spec_ymax and ygroup
     for s in series:
         s.display_ymax = max(s.ymax, s.spec_ymax)
     for ygroup in ygroups.values():
-        group_ymax = max(s.ymax for s in ygroup)
+        ygroup_ymax = max(s.ymax for s in ygroup)
         for s in ygroup:
-            s.display_ymax = max(s.display_ymax, group_ymax)
+            s.display_ymax = max(s.display_ymax, ygroup_ymax)
 
     # return them all
-    return series
+    return graphs.values()
 
 
 #
@@ -415,15 +431,19 @@ def cursors_html(width):
     elt('table')
     elt('tr')
     td('graph')
-    eltend('svg', id='circles', width='%dem'%(width), height="1em", viewBox="0 0 %d 1" % width)
+    eltend('svg', {
+        'id':'circles', 'width':'%dem'%(width), 'height':"1em", 'viewBox':"0 0 %d 1" % width
+    })
     end('td')
     end('tr')
     elt('tr')
     td('graph')
-    elt('svg', id='cursors', width='%dem'%width, height='100%', viewBox='0 0 1 1',
-        preserveAspectRatio='none', style='position:absolute; background:none;',
-        onmousemove='move(this)', onmouseout='out(this)',  onclick='add(this)')
-    elt('line', id='lll', _class='cursor', x1=0, y1=0, x2=0, y2=1)
+    elt('svg', {
+        'id':'cursors', 'width':'%dem'%width, 'height':'100%', 'viewBox':'0 0 1 1',
+        'preserveAspectRatio':'none', 'style':'position:absolute; background:none;',
+        'onmousemove':'move(this)', 'onmouseout':'out(this)',  'onclick':'add(this)'
+    })
+    elt('line', {'id':'lll', 'class':'cursor', 'x1':0, 'y1':0, 'x2':0, 'y2':1})
     end('svg')
     end('td')
     end('tr')
@@ -573,7 +593,7 @@ _script = '''
 #
 
 def td(cls, *content):
-    elt('td', **{'class':cls})
+    elt('td', {'class':cls})
     if content:
         put(*content)
         end('td')
@@ -595,21 +615,22 @@ def main():
     show_zero = False
     shade = True
 
-    series = series_all([opt.format_file], opt.series)
-    if not series:
+    graphs = series_all([opt.format_file], opt.series)
+    if not graphs:
         msg('no series specified')
         return
-    tmin = min(s.tmin for s in series)
-    tmax = max(s.tmax for s in series)
+    tmin = min(s.tmin for g in graphs for s in g)
+    tmax = max(s.tmax for g in graphs for s in g)
 
-    def _graph(ts=None, ys=None, ymax=None):
-        graph(ts=ts, tmin=tmin, tmax=tmax, width=width,
-              ys=ys, ymin=0, ymax=ymax, height=height,
-              ticks=ticks, shaded=shade)
+    def _graph(data=[], ymax=None):
+        graph(data=data,
+              tmin=tmin, tmax=tmax, width=width,
+              ymin=0, ymax=ymax, height=height,
+              ticks=ticks, shaded=shade and len(data)==1)
 
     elt('html')
     elt('head')
-    elt('meta', charset='utf-8')
+    elt('meta', {'charset':'utf-8'})
     elt('style')
     put(graph_style)
     put(cursors_style)
@@ -620,8 +641,8 @@ def main():
     put(_script)
     end('script')
     end('head')
-    elt('body', onkeypress='key()')
-    elt('table', id='table', style='position:relative;')
+    elt('body', {'onkeypress':'key()'})
+    elt('table', {'id':'table', 'style':'position:relative;'})
 
     elt('tr')
     td('head data', 'avg')
@@ -632,31 +653,50 @@ def main():
     td('head desc', 'description')
     end('tr')
 
-    for s in sorted(series, key=lambda s: s.description):
-        if s.ys.values():
-            yavg = float(sum(s.ys.values())) / len(s.ys)
-            if s.ymax!=0 or s.ymin!=0 or show_zero:
-                elt('tr', onclick='sel(this)', _class='row')
-                td('data', '{:,.3f}'.format(yavg))
-                td('data', '{:,.3f}'.format(s.ymax))
+    colors = ['blue', 'red', 'limegreen', 'gold', 'gray']
+
+    def description(g):
+        td('desc')
+        pfx = os.path.commonprefix([s.description for s in g])
+        sfx = os.path.commonprefix([s.description[::-1] for s in g])[::-1]
+        put(pfx)
+        if sfx != pfx:
+            for i,s in enumerate(g):
+                mid = ' ' + s.description[len(pfx):-len(sfx)]
+                eltend('span', {'style':'color:%s' % colors[i]}, mid)
+            put(sfx)
+        end('td')
+
+    for g in sorted(graphs, key=lambda g: g[0].description):
+        ymin = min(s.ymin for s in g)
+        ymax = max(s.ymax for s in g)
+        ysum = sum(s.ysum for s in g)
+        ylen = sum(len(s.ys) for s in g)
+        display_ymax = max(s.display_ymax for s in g)
+        if ylen:
+            if ymax!=0 or ymin!=0 or show_zero:
+                elt('tr', {'onclick':'sel(this)', 'class':'row'})
+                td('data', '{:,.3f}'.format(float(ysum)/ylen))
+                td('data', '{:,.3f}'.format(ymax))
                 td('graph')
-                _graph(s.ts, s.ys, s.display_ymax)
+                data = [(s.ts, s.ys, colors[i] if len(g)>1 else 'black') for i,s in enumerate(g)]
+                _graph(data, display_ymax)
                 end('td')
-                td('desc', s.description)
+                description(g)
                 end('tr')
             else:
-                msg('skipping uniformly zero data for', s.spec, s.fmt['name'])
+                msg('skipping uniformly zero data for', g[0].fmt['name'] + ':' + g[0].fn)
         elif show_empty:
-            elt('tr', onclick='sel(this)', _class='row')
+            elt('tr', {'onclick':'sel(this)', 'class':'row'})
             td('data', 'n/a')
             td('data', 'n/a')
             td('graph')
             _graph()
             end('td')
-            td('desc', s.description)
+            description(g)
             end('tr')
         else:
-            msg('no data for', s.spec, s.data_group)
+            msg('no data for', g[0].fmt['name'] + ':' + g[0].fn)
 
     end('table')
     end('body')

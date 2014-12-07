@@ -9,93 +9,103 @@
 },{
     "name": "_iostat_cpu",
     "_inherit": "_iostat",
-    "description": "iostat cpu: {data_group} (%)",
+    "description": "iostat cpu: {data} (%)",
     "ymax": 100
 },{
     "name": "_iostat_disk",
     "_inherit": "_iostat",
-    "description": "iostat disk: {data_group}"
+    "description": "iostat disk: {data}"
 },{
-    "name": "iostat_user",
+    "name": "iostat_cpu_user",
     "_inherit": "_iostat_cpu",
-    "data_group": "user"
+    "data": "user",
+    "graph": "iostat_cpu"
+
 },{
-    "name": "iostat_nice",
+    "name": "iostat_cpu_nice",
     "_inherit": "_iostat_cpu",
-    "data_group": "nice"
+    "data": "nice",
+    "graph": "iostat_cpu"
+
 },{
-    "name": "iostat_system",
+    "name": "iostat_cpu_system",
     "_inherit": "_iostat_cpu",
-    "data_group": "system"
+    "data": "system",
+    "graph": "iostat_cpu"
+
 },{
-    "name": "iostat_iowait",
+    "name": "iostat_cpu_iowait",
     "_inherit": "_iostat_cpu",
-    "data_group": "iowait"
+    "data": "iowait",
+    "graph": "iostat_cpu"
+
 },{
-    "name": "iostat_steal",
+    "name": "iostat_cpu_steal",
     "_inherit": "_iostat_cpu",
-    "data_group": "steal"
+    "data": "steal",
+    "graph": "iostat_cpu"
+
 },{
-    "name": "iostat_idle",
+    "name": "iostat_cpu_idle",
     "_inherit": "_iostat_cpu",
-    "data_group": "idle"
+    "data": "idle"
 },{
-    "name": "iostat_rrqms",
+    "name": "iostat_disk_rrqms",
     "_inherit": "_iostat_disk",
-    "data_group": "rrqms",
+    "data": "rrqms",
     "description": "iostat disk: read requests merged (/s)",
     "ygroup": "iostat_disk_req"
 },{
-    "name": "iostat_wrqms",
+    "name": "iostat_disk_wrqms",
     "_inherit": "_iostat_disk",
-    "data_group": "wrqms",
+    "data": "wrqms",
     "description": "iostat disk: write requests merged (/s)",
     "ygroup": "iostat_disk_req"
 },{
-    "name": "iostat_rs",
+    "name": "iostat_disk_rs",
     "_inherit": "_iostat_disk",
-    "data_group": "rs",
+    "data": "rs",
     "description": "iostat disk: read requests issued (/s)",
     "ygroup": "iostat_disk_req"
 },{
-    "name": "iostat_ws",
+    "name": "iostat_disk_ws",
     "_inherit": "_iostat_disk",
-    "data_group": "ws",
+    "data": "ws",
     "description": "iostat disk: write requests issued (/s)",
     "ygroup": "iostat_disk_req"
 },{
-    "name": "iostat_rkBs",
+    "name": "iostat_disk_rkBs",
     "_inherit": "_iostat_disk",
-    "data_group": "rkBs",
+    "data": "rkBs",
     "scale": 1024,
     "description": "iostat disk: bytes read (MB/s)",
     "ygroup": "iostat_disk_MBs"
 },{
-    "name": "iostat_wkBs",
+    "name": "iostat_disk_wkBs",
     "_inherit": "_iostat_disk",
-    "data_group": "wkBs",
+    "data": "wkBs",
     "scale": 1024,
     "description": "iostat disk: bytes written (MB/s)",
     "ygroup": "iostat_disk_MBs"
 },{
-    "name": "iostat_avgrqsz",
+    "name": "iostat_disk_avgrqsz",
     "_inherit": "_iostat_disk",
-    "data_group": "avgrqsz",
+    "data": "avgrqsz",
     "description": "iostat disk: average request size (sectors)"
 },{
     "name": "iostat_avgqusz",
     "_inherit": "_iostat_disk",
-    "data_group": "avgqusz",
+    "data": "avgqusz",
     "description": "iostat disk: average queue length"
 },{
-    "name": "iostat_await",
+    "name": "iostat_disk_await",
     "_inherit": "_iostat_disk",
-    "data_group": "await",
+    "data": "await",
     "description": "iostat disk: average wait time (ms)"
 },{
-    "name": "iostat_util",
+    "name": "iostat_disk_util",
     "_inherit": "_iostat_disk",
-    "data_group": "util",
+    "data": "util",
     "ymax": 100,
     "description": "iostat disk: average utilization (%)"
 },{

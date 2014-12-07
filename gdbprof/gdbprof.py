@@ -20,16 +20,17 @@ import json
 # For display on a terminal or cut&paste into a file utf-8 support is required
 #
 
-def elt(name, **attrs):
+def elt(name, attrs={}):
     if opt.html:
         sys.stdout.write('<%s' % name)
         for a in attrs:
             sys.stdout.write(' %s="%s"' % (a, attrs[a]))
         sys.stdout.write('>')
 
-def eltend(name, **attrs):
+def eltend(name, attrs, *content):
     if opt.html:
-        elt(name, **attrs)
+        elt(name, attrs)
+        put(*content)
         end(name)
 
 def end(name):
@@ -99,7 +100,7 @@ html_help = '''
 def html_head():
     elt('html')
     elt('head')
-    elt('meta', charset='utf-8')
+    elt('meta', {'charset':'utf-8'})
     elt('script')
     html(html_script)
     end('script')
@@ -177,14 +178,14 @@ class node:
             put('%7.2f %7.2f ' % (avg_thr, max_thr))
             graph_child(child)
             put(pfx+p)
-            elt('span', id='t%d' % opt.html_id, onClick='hide(%d)'% opt.html_id)
+            elt('span', {'id':'t%d' % opt.html_id, 'onClick':'hide(%d)'% opt.html_id})
             html(html_down)
             end('span')
-            elt('span', onClick='hide_all(%d)' % opt.html_id)
+            elt('span', {'onClick':'hide_all(%d)' % opt.html_id})
             put(func)
             end('span')
             put('\n')
-            elt('div', id=str(opt.html_id))
+            elt('div', {'id':str(opt.html_id)})
             opt.html_id += 1
             child.prt(pfx+pc)
             end('div')
@@ -289,8 +290,9 @@ def read_profile(filters):
 
 def graph(ts=None, ys=None, ymin=None, ymax=None):
     timeseries.graph(
-        ts=ts, tmin=opt.tmin, tmax=opt.tmax, width=opt.graph,
-        ys=ys, ymin=ymin, ymax=ymax, height=1.1, ticks=opt.graph_ticks
+        data=[(ts, ys, 'black')] if ts else [],
+        tmin=opt.tmin, tmax=opt.tmax, width=opt.graph,
+        ymin=ymin, ymax=ymax, height=1.1, ticks=opt.graph_ticks
     )
 
 def graph_child(child):
@@ -302,7 +304,7 @@ def graph_child(child):
 # read times series files
 def read_series():
     if opt.series:
-        series = timeseries.series_all([], opt.series)
+        series = [g[0] for g in timeseries.series_all([], opt.series)] # xxx
         if not opt.tmin:
             opt.tmin = min(min(ts) for _, ts, _ in series)
             opt.tmax = max(max(ts) for _, ts, _ in series)
