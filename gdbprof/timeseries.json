@@ -18,12 +18,6 @@
     "merge": "iostat_cpu"
 
 },{
-    "name": "iostat_cpu_nice",
-    "_inherit": "_iostat_cpu",
-    "data": "nice",
-    "merge": "iostat_cpu"
-
-},{
     "name": "iostat_cpu_system",
     "_inherit": "_iostat_cpu",
     "data": "system",
@@ -33,6 +27,12 @@
     "name": "iostat_cpu_iowait",
     "_inherit": "_iostat_cpu",
     "data": "iowait",
+    "merge": "iostat_cpu"
+
+},{
+    "name": "iostat_cpu_nice",
+    "_inherit": "_iostat_cpu",
+    "data": "nice",
     "merge": "iostat_cpu"
 
 },{
@@ -50,24 +50,17 @@
     "_inherit": "_iostat",
     "split": "disk"
 },{
-    "name": "iostat_disk_rrqms",
-    "_inherit": "_iostat_disk",
-    "data": "rrqms",
-    "description": "iostat disk: {disk} read requests merged (/s)",
-    "merge": "iostat_disk_req_merged {disk}",
-    "ygroup": "iostat_disk_req"
-},{
     "name": "iostat_disk_wrqms",
     "_inherit": "_iostat_disk",
     "data": "wrqms",
     "description": "iostat disk: {disk} write requests merged (/s)",
     "ygroup": "iostat_disk_req"
 },{
-    "name": "iostat_disk_rs",
+    "name": "iostat_disk_rrqms",
     "_inherit": "_iostat_disk",
-    "data": "rs",
-    "description": "iostat disk: {disk} read requests issued (/s)",
-    "merge": "iostat_disk_req_issued {disk}",
+    "data": "rrqms",
+    "description": "iostat disk: {disk} read requests merged (/s)",
+    "merge": "iostat_disk_req_merged {disk}",
     "ygroup": "iostat_disk_req"
 },{
     "name": "iostat_disk_ws",
@@ -77,18 +70,25 @@
     "merge": "iostat_disk_req_issued {disk}",
     "ygroup": "iostat_disk_req"
 },{
-    "name": "iostat_disk_rkBs",
+    "name": "iostat_disk_rs",
     "_inherit": "_iostat_disk",
-    "data": "rkBs",
-    "scale": 1024,
-    "description": "iostat disk: {disk} bytes read (MB/s)",
-    "merge": "iostat_disk_MBs {disk}"
+    "data": "rs",
+    "description": "iostat disk: {disk} read requests issued (/s)",
+    "merge": "iostat_disk_req_issued {disk}",
+    "ygroup": "iostat_disk_req"
 },{
     "name": "iostat_disk_wkBs",
     "_inherit": "_iostat_disk",
     "data": "wkBs",
     "scale": 1024,
     "description": "iostat disk: {disk} bytes written (MB/s)",
+    "merge": "iostat_disk_MBs {disk}"
+},{
+    "name": "iostat_disk_rkBs",
+    "_inherit": "_iostat_disk",
+    "data": "rkBs",
+    "scale": 1024,
+    "description": "iostat disk: {disk} bytes read (MB/s)",
     "merge": "iostat_disk_MBs {disk}"
 },{
     "name": "iostat_disk_avgrqsz",
@@ -217,24 +217,24 @@
     "_wt": "block-manager: blocks pre-loaded"
 },{
     "_inherit": "_wt_delta",
-    "name": "wt_block-manager_blocks_read",
-    "merge": "wt_block-manager_blocks",
-    "_wt": "block-manager: blocks read"
-},{
-    "_inherit": "_wt_delta",
     "name": "wt_block-manager_blocks_written",
     "merge": "wt_block-manager_blocks",
     "_wt": "block-manager: blocks written"
 },{
-    "_inherit": "_wt_delta_mb",
-    "name": "wt_block-manager_bytes_read",
-    "merge": "wt_block-manager_bytes",
-    "_wt": "block-manager: bytes read"
+    "_inherit": "_wt_delta",
+    "name": "wt_block-manager_blocks_read",
+    "merge": "wt_block-manager_blocks",
+    "_wt": "block-manager: blocks read"
 },{
     "_inherit": "_wt_delta_mb",
     "name": "wt_block-manager_bytes_written",
     "merge": "wt_block-manager_bytes",
     "_wt": "block-manager: bytes written"
+},{
+    "_inherit": "_wt_delta_mb",
+    "name": "wt_block-manager_bytes_read",
+    "merge": "wt_block-manager_bytes",
+    "_wt": "block-manager: bytes read"
 },{
     "_inherit": "_wt",
     "name": "wt_block-manager_checkpoint_size",
@@ -373,14 +373,14 @@
     "_wt": "cache: bytes currently in the cache"
 },{
     "_inherit": "_wt_delta_mb",
-    "name": "wt_cache_bytes_read_into_cache",
-    "merge": "wt_cache_bytes_cache",
-    "_wt": "cache: bytes read into cache"
-},{
-    "_inherit": "_wt_delta_mb",
     "name": "wt_cache_bytes_written_from_cache",
     "merge": "wt_cache_bytes_cache",
     "_wt": "cache: bytes written from cache"
+},{
+    "_inherit": "_wt_delta_mb",
+    "name": "wt_cache_bytes_read_into_cache",
+    "merge": "wt_cache_bytes_cache",
+    "_wt": "cache: bytes read into cache"
 },{
     "_inherit": "_wt",
     "name": "wt_cache_checkpoint_blocked_page_eviction",
@@ -483,14 +483,14 @@
     "_wt": "cache: unmodified pages evicted"
 },{
     "_inherit": "_wt_delta",
-    "name": "wt_compression_compressed_pages_read",
-    "merge": "wt_compression_compressed_pages",
-    "_wt": "compression: compressed pages read"
-},{
-    "_inherit": "_wt_delta",
     "name": "wt_compression_compressed_pages_written",
     "merge": "wt_compression_compressed_pages",
     "_wt": "compression: compressed pages written"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wt_compression_compressed_pages_read",
+    "merge": "wt_compression_compressed_pages",
+    "_wt": "compression: compressed pages read"
 },{
     "_inherit": "_wt_delta",
     "name": "wt_compression_page_written_failed_to_compress",
@@ -541,14 +541,14 @@
     "_wt": "connection: pthread mutex shared lock write-lock calls"
 },{
     "_inherit": "_wt_delta",
-    "name": "wt_connection_total_read_I/Os",
-    "merge": "wt_connection_total_I/Os",
-    "_wt": "connection: total read I/Os"
-},{
-    "_inherit": "_wt_delta",
     "name": "wt_connection_total_write_I/Os",
     "merge": "wt_connection_total_I/Os",
     "_wt": "connection: total write I/Os"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wt_connection_total_read_I/Os",
+    "merge": "wt_connection_total_I/Os",
+    "_wt": "connection: total read I/Os"
 },{
     "_inherit": "_wt_delta",
     "name": "wt_cursor_bulk-loaded_cursor-insert_calls",

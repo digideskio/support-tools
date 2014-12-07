@@ -100,8 +100,6 @@ def graph(
 
 class Series:
 
-    n = 0
-
     def __init__(self, spec, fmt_name, fmt, params, fn):
 
         self.spec = spec
@@ -109,6 +107,7 @@ class Series:
         self.fmt = dict(fmt)
         self.fmt.update(params)
         self.fn = fn
+        self.key = fmt['_ord']
 
         self.delta = get(self.fmt, 'delta', False)
         if self.delta:
@@ -141,32 +140,32 @@ class Series:
         tz = float(get(self.fmt, 'tz', 0))
         self.tz = datetime.timedelta(hours=tz)
 
-        self.ygroup = get(self.fmt, 'ygroup', Series.n)
+        self.ygroup = get(self.fmt, 'ygroup', id(self))
 
-        self.graph = Series.n # will update with fmt['merge'] later so can use split key
+        self.graph = id(self) # will update with fmt['merge'] later so can use split key
 
-        self.split = get(self.fmt, 'split', None)
-        self.splits = {}
+        self.split_field = get(self.fmt, 'split', None)
+        self.split_series = {}
 
-        Series.n += 1
 
-    def get_split(self, split):
-        if split not in self.splits:
+    def get_split(self, split_key):
+        if split_key not in self.split_series:
             new = Series(self.spec, self.fmt_name, self.fmt, {}, self.fn)
-            new.fmt[self.split] = split # make split key available for formatting
-            new.split = None
-            self.splits[split] = new
-        return self.splits[split]
+            new.fmt[self.split_field] = split_key # make split key available for formatting
+            new.split_field = None
+            new.key = (split_ords[self.split_field], split_key, new.key)
+            self.split_series[split_key] = new
+        return self.split_series[split_key]
 
     def get_graphs(self, graphs, ygroups, merges):
-        if not self.split:
+        if not self.split_field:
             # do self.graph and .description late so they can use split key
             if merges: self.graph = get(self.fmt, 'merge', self.graph)
             self.description = get(self.fmt, 'description', self.fmt_name)
             graphs[self.graph].append(self)
             ygroups[self.ygroup].append(self)
         else:
-            for s in self.splits.values():
+            for s in self.split_series.values():
                 s.get_graphs(graphs, ygroups, merges)
 
     def data_point(self, t, d):
@@ -214,7 +213,7 @@ class Series:
         self.ymax = max(self.ys.values()) if self.ys else float('-inf')
         self.ysum = sum(self.ys.values()) if self.ys else 0
     
-        for s in self.splits.values():
+        for s in self.split_series.values():
             s.finish()
 
 def op_for(fmt, s):
@@ -235,7 +234,7 @@ def get(fmt, n, default=REQUIRED):
     return v
 
 
-def series_spec(formats, spec):
+def series_spec(spec):
 
     # parse helper
     def split(s, expect, err, full):
@@ -266,7 +265,7 @@ def series_spec(formats, spec):
 
     # a series for all formats that match the specified name
     series = []
-    for name, fmt in sorted(formats.items()):
+    for name, fmt in formats.items():
         if re.search('^' + fmt_name, name):
             series.append(Series(spec, fmt_name, fmt, params, fn))
     if not series:
@@ -310,18 +309,18 @@ def series_read(fn, series):
             if m:
                 #dbg(m.groups())
                 for chunk_group, s_re in zip(chunk_groups, chunk):
-                    def group(g):
+                    def field(g):
                         try: return m.group(chunk_group+g+1) if type(g)==int else m.group(g)
                         except Exception as e: raise Exception(g + ': ' + e.message)
                     for s in series_by_re[s_re]:
-                        t = group(s.time)
+                        t = field(s.time)
                         if not t:
                             t = last_time                            
                         if t:
-                            d = group(s.data)
+                            d = field(s.data)
                             if d != None:
-                                if s.split:
-                                    s = s.get_split(group(s.split))
+                                if s.split_field:
+                                    s = s.get_split(field(s.split_field))
                                 s.data_point(t, d)
                             last_time = t
 
@@ -333,32 +332,39 @@ def series_read(fn, series):
     return series
 
 
-def series_load(formats, fn):
+formats = {}     # formats loaded from various def files
+split_ords = {}  # sort order for each split_key - first occurrence of split_key in def file
+
+def series_load(fn, ord):
     dbg('loading', fn)
     try:
-        for fmt in json.load(open(fn)):
+        for o, fmt in enumerate(json.load(open(fn))):
+            fmt['_ord'] = (ord, o)
+            if 'split' in fmt:
+                split_field = fmt['split']
+                if not split_field in split_ords:
+                    split_ords[split_field] = fmt['_ord']
             if '_inherit' in fmt:
                 fmt = dict(formats[fmt['_inherit']].items() + fmt.items())
             formats[fmt['name']] = fmt
     except Exception as e:
         msg(fn + ': ' + e.message)
 
-
 def series_all(format_file, specs, merges=True):
 
     # read timeseries.json files
-    formats = {}
-    series_load(formats, os.path.join(os.path.dirname(__file__), 'timeseries.json'))
-    series_load(formats, 'timeseries.json')
-    for fn in format_file:
+    fn = os.path.join(os.path.dirname(__file__), 'timeseries.json')
+    series_load(fn, 1001)
+    series_load('timeseries.json', 1000)
+    for ord, fn in enumerate(format_file):
         if fn:
-            series_load(formats, fn)
+            series_load(fn, ord)
 
     # parse specs, group them by file
     series = [] # all
     fns = collections.defaultdict(list) # grouped by fn
     for spec in specs:
-        for s in series_spec(formats, spec):
+        for s in series_spec(spec):
             fns[s.fn].append(s)
             series.append(s)
 
@@ -694,7 +700,8 @@ def main():
             put(sfx)
         end('td')
 
-    for g in sorted(graphs, key=lambda g: g[0].description):
+    for g in sorted(graphs, key=lambda g: g[0].key):
+        g.sort(key=lambda s: s.key)
         ymin = min(s.ymin for s in g)
         ymax = max(s.ymax for s in g)
         ysum = sum(s.ysum for s in g)
