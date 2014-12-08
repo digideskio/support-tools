@@ -7,6 +7,7 @@ import datetime
 import dateutil.parser
 import argparse
 import itertools
+import pytz
 
 def elt(name, attrs={}):
     sys.stdout.write('<%s' % name)
@@ -109,41 +110,58 @@ class Series:
         self.fn = fn
         self.key = fmt['_ord']
 
+        # compute delta (/s) 
         self.delta = get(self.fmt, 'delta', False)
         if self.delta:
             self.last_t = None
     
+        # request to bucketize the data
         self.buckets = float(get(self.fmt, 'bucket_size', 0))
         if self.buckets:
-            self.t0 = dateutil.parser.parse('2000-01-01')
+            self.t0 = dateutil.parser.parse('2000-01-01T00:00:00Z')
             self.op = op_for(self.fmt, get(self.fmt, 'bucket_op', 'max'))
     
+        # compute queued ops from op execution time
         self.queue = get(self.fmt, 'queue', False)
         if self.queue:
             self.queue_times = []
             self.queue_min_ms = float(get(self.fmt, 'queue_min_ms', 0))
     
+        # scale the data (divide by this)
         self.scale = get(self.fmt, 'scale', 1)
     
+        # requested ymax
         self.spec_ymax = float(get(self.fmt, 'ymax', '-inf'))
 
+        # initially empty timeseries data
         self.ts = []
         self.ys = collections.defaultdict(int)
     
-        self.re = get(self.fmt, 're')
-        if re.compile(self.re).groups==0:
+        # re, json, ...
+        self.type = get(self.fmt, 'type', 're')
+
+        # info for re-format files
+        self.re = get(self.fmt, 're', None)
+        if self.re and re.compile(self.re).groups==0:
             raise Exception('re ' + self.re + ' does not have any groups')
+        self.re_time = get(self.fmt, 're_time', 0)
+        self.re_data = get(self.fmt, 're_data', 1)
 
-        self.time = get(self.fmt, 'time', 0)
-        self.data = get(self.fmt, 'data', 1)
+        # info for json-format files
+        self.json_time = get(self.fmt, 'json_time', None)
+        self.json_data = get(self.fmt, 'json_data', None)
 
+        # timezone offset
         tz = float(get(self.fmt, 'tz', 0))
         self.tz = datetime.timedelta(hours=tz)
 
+        # all graphs in a ygroup will be plotted with a common display_ymax
         self.ygroup = get(self.fmt, 'ygroup', id(self))
 
+        # which output graph this series will be plotted on
         self.graph = id(self) # will update with fmt['merge'] later so can use split key
 
+        # split into multiple series based on a data value
         self.split_field = get(self.fmt, 'split', None)
         self.split_series = {}
 
@@ -160,7 +178,9 @@ class Series:
     def get_graphs(self, graphs, ygroups, merges):
         if not self.split_field:
             # do self.graph and .description late so they can use split key
-            if merges: self.graph = get(self.fmt, 'merge', self.graph)
+            if merges:
+                merge = get(self.fmt, 'merge', None)
+                if merge: self.graph = merge
             self.description = get(self.fmt, 'description', self.fmt_name)
             graphs[self.graph].append(self)
             ygroups[self.ygroup].append(self)
@@ -168,8 +188,10 @@ class Series:
             for s in self.split_series.values():
                 s.get_graphs(graphs, ygroups, merges)
 
-    def data_point(self, t, d):
-        t = dateutil.parser.parse(t) + self.tz
+    def _data_point(self, t, d):
+        t = dateutil.parser.parse(t)
+        if not t.tzinfo:
+            t = pytz.utc.localize(t-self.tz)
         d = float(d) / self.scale
         if self.delta:
             if self.last_t and self.last_t!=t:
@@ -192,6 +214,11 @@ class Series:
             self.ts.append(t)
             self.ys[t] = d
 
+    def data_point(self, t, d, field):
+        s = self.get_split(field(self.split_field)) if self.split_field else self
+        s._data_point(t, d)
+
+
     def finish(self):
 
         if self.buckets:
@@ -207,8 +234,8 @@ class Series:
                 self.ys[t] = q
                 self.ts.append(t)
     
-        self.tmin = min(self.ts) if self.ts else datetime.datetime.max
-        self.tmax = max(self.ts) if self.ts else datetime.datetime.min
+        self.tmin = min(self.ts) if self.ts else None
+        self.tmax = max(self.ts) if self.ts else None
         self.ymin = min(self.ys.values()) if self.ys else float('inf')
         self.ymax = max(self.ys.values()) if self.ys else float('-inf')
         self.ysum = sum(self.ys.values()) if self.ys else 0
@@ -230,7 +257,9 @@ def get(fmt, n, default=REQUIRED):
     if v is REQUIRED:
         raise Exception('missing required parameter ' + repr(n) + ' in ' + fmt['name'])
     if (type(v)==str or type(v)==unicode):
-        v = v.format(**fmt)
+        v = str(v).format(**fmt)
+    elif type(v)==list:
+        v = [str(s).format(**fmt) for s in v] # xxx recursive? dict?
     return v
 
 
@@ -273,7 +302,56 @@ def series_spec(spec):
 
     return series
 
-def series_read(fn, series):
+def series_read_json(fn, series):
+
+    # add a path to the path tree
+    def add_path(node, path, leaf):
+        head = str(path[0])
+        if len(path)==1:
+            node[head] = leaf
+        else:
+            if not head in node:
+                node[head] = interior()
+            add_path(node[head], path[1:], leaf)
+        return node
+
+    # construct combined path tree for all series
+    # assumes 1) each path is specified only for one series and 2) all series specify same time path
+    interior = collections.OrderedDict
+    root = interior()
+    for s in series:
+        if not s.json_data: raise Exception(s.fmt['name'] + ' does not specify json_data')
+        if not s.json_time: raise Exception(s.fmt['name'] + ' does not specify json_time')
+        add_path(root, s.json_time, 'time') # must go first so we get a t first
+        add_path(root, s.json_data, s)
+
+    # match a path tree with a json doc
+    def match(node, jline):
+        for name in node:
+            if name in jline:
+                node_child = node[name]
+                jline_child = jline[name]
+                if type(node_child)==interior and type(jline_child)==dict:
+                    for n, j in match(node_child, jline_child):
+                        yield n, j
+                elif type(node_child)!=interior and type(jline_child)!=dict:
+                    yield node_child, jline_child
+
+    # process lines
+    for line in open(fn):
+        time = None
+        if line.startswith('{'):
+            j = json.loads(line)
+            for s, v in match(root, j):
+                if s=='time':
+                    time = v
+                else:
+                    if not time:
+                        raise Exception('time not found in ' + line)
+                    s.data_point(time, v, None) # xxx splits?
+
+
+def series_read_re(fn, series):
 
     # group series by re
     series_by_re = collections.defaultdict(list)
@@ -313,24 +391,14 @@ def series_read(fn, series):
                         try: return m.group(chunk_group+g+1) if type(g)==int else m.group(g)
                         except Exception as e: raise Exception(g + ': ' + e.message)
                     for s in series_by_re[s_re]:
-                        t = field(s.time)
+                        t = field(s.re_time)
                         if not t:
                             t = last_time                            
                         if t:
-                            d = field(s.data)
+                            d = field(s.re_data)
                             if d != None:
-                                if s.split_field:
-                                    s = s.get_split(field(s.split_field))
-                                s.data_point(t, d)
+                                s.data_point(t, d, field)
                             last_time = t
-
-    # finish each series
-    for s in series:
-        s.finish()
-
-    # our result
-    return series
-
 
 formats = {}     # formats loaded from various def files
 split_ords = {}  # sort order for each split_key - first occurrence of split_key in def file
@@ -365,13 +433,18 @@ def series_all(format_file, specs, merges=True):
     fns = collections.defaultdict(list) # grouped by fn
     for spec in specs:
         for s in series_spec(spec):
-            fns[s.fn].append(s)
+            fns[(s.fn, s.type)].append(s)
             series.append(s)
 
-    # process by file
-    for fn in fns:
-        series_read(fn, fns[fn])
+    # process by file according to file type
+    for fn, type in sorted(fns):
+        if type=='re': series_read_re(fn, fns[(fn,type)])
+        elif type=='json': series_read_json(fn, fns[(fn,type)])
         
+    # finish each series
+    for s in series:
+        s.finish()
+
     # get graphs taking into account splits and merges
     graphs = collections.defaultdict(list)
     ygroups = collections.defaultdict(list)
@@ -643,6 +716,7 @@ def main():
     p.add_argument('--show-zero', action='store_true')
     p.add_argument('--no-shade', action='store_true')
     p.add_argument('--no-merges', action='store_true')
+    p.add_argument('--number-rows', action='store_true')
 
     global opt
     opt = p.parse_args()
@@ -651,8 +725,9 @@ def main():
     if not graphs:
         msg('no series specified')
         return
-    tmin = min(s.tmin for g in graphs for s in g)
-    tmax = max(s.tmax for g in graphs for s in g)
+    #dbg('zzz', [s.tmin for g in graphs for s in g])
+    tmin = min(s.tmin for g in graphs for s in g if s.tmin)
+    tmax = max(s.tmax for g in graphs for s in g if s.tmax)
 
     def _graph(data=[], ymax=None):
         graph(data=data,
@@ -682,6 +757,8 @@ def main():
     elt('td')
     cursors_html(opt.width)
     end('td')
+    if opt.number_rows:
+        td('head row-number', 'row&emsp;&emsp;') # xxx
     td('head desc', 'description')
     end('tr')
 
@@ -695,11 +772,12 @@ def main():
         put(pfx)
         if sfx != pfx:
             for i,s in enumerate(g):
-                mid = ' ' + s.description[len(pfx):-len(sfx)]
+                mid = ' ' + s.description[len(pfx):len(s.description)-len(sfx)]
                 eltend('span', {'style':'color:%s' % colors[i]}, mid)
             put(sfx)
         end('td')
 
+    row = 0
     for g in sorted(graphs, key=lambda g: g[0].key):
         g.sort(key=lambda s: s.key)
         ymin = min(s.ymin for s in g)
@@ -716,6 +794,9 @@ def main():
                 data = [(s.ts, s.ys, colors[i] if len(g)>1 else 'black') for i,s in enumerate(g)]
                 _graph(data, display_ymax)
                 end('td')
+                if opt.number_rows:
+                    td('data', '%d&emsp;&emsp;' % row) # xxx
+                    row += 1
                 description(g)
                 end('tr')
             else:
@@ -727,6 +808,9 @@ def main():
             td('graph')
             _graph()
             end('td')
+            if opt.number_rows:
+                td('data', '%d&emsp;&emsp;' % row) # xxx
+                row += 1
             description(g)
             end('tr')
         else:

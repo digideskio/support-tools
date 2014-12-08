@@ -9,6 +9,7 @@ import collections
 import math
 import os
 import json
+import pytz
 
 
 #
@@ -243,6 +244,12 @@ def hide_filter(arg):
         stack[:] = s.split(stack_sep)
     return f
 
+def strptime(t, fmt):
+    t = datetime.datetime.strptime(t, fmt)
+    if not t.tzinfo:
+        t = pytz.utc.localize(t-opt.tz)
+    return t
+
 def read_profile(filters):
     root = node()
     root.filters = filters
@@ -252,7 +259,7 @@ def read_profile(filters):
         if line.startswith('==='):
             stack = root.add_stack(stack, t)
             t = line.split()[1]
-            t = datetime.datetime.strptime(t, '%Y-%m-%dT%H:%M:%S.%f')
+            t = strptime(t, '%Y-%m-%dT%H:%M:%S.%f')
             if t>=opt.after and t<opt.before:
                 opt.times.append(t)
                 opt.samples += 1
@@ -350,6 +357,7 @@ def main():
     p.add_argument('--html', action='store_true',
                    help='produce interactive html output; save to file and open in browser')
     p.add_argument('--series', nargs='*', default=[])
+    p.add_argument('--tz', type=float, nargs=1, default=0) # xxx default to local time
     global opt
     opt = p.parse_args()
 
@@ -361,10 +369,11 @@ def main():
     elif opt.tree=='ascii': opt.tree_line, opt.tree_mid, opt.tree_last = '|', '+', '+'
     elif opt.tree=='none': opt.tree_line, opt.tree_mid, opt.tree_last = ' ', ' ', ' '
 
+    opt.tz = datetime.timedelta(hours=opt.tz)
     opt.after = opt.after.replace('T', ' ')
     opt.before = opt.before.replace('T', ' ')
-    opt.after = datetime.datetime.strptime(opt.after, '%Y-%m-%d %H:%M:%S')
-    opt.before = datetime.datetime.strptime(opt.before, '%Y-%m-%d %H:%M:%S')
+    opt.after = strptime(opt.after, '%Y-%m-%d %H:%M:%S')
+    opt.before = strptime(opt.before, '%Y-%m-%d %H:%M:%S')
 
     opt.max_count = float('-inf')
     opt.min_count = float('inf')
