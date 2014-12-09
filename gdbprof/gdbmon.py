@@ -58,7 +58,7 @@ def get(response, show=False, timeout=None):
 put('cont')
 get('^running')
 
-for i in (range(o.count) if o.count else itertools.count()):
+for i in itertools.count():
     if o.delay: time.sleep(o.delay)
     t0 = time.time()
     while True: # timeout and retry handles race condition btw thread starts and SIGTRAP
@@ -71,6 +71,8 @@ for i in (range(o.count) if o.count else itertools.count()):
     put('thread apply all bt')
     get('^done', True)
     t2 = time.time()
+    if i==o.count-1:
+        break
     dbg('cont')
     put('cont')
     get('^running')
