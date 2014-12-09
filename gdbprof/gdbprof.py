@@ -4,12 +4,13 @@
 import sys
 import re
 import argparse
-import datetime
+from datetime import datetime, timedelta
 import collections
 import math
 import os
 import json
 import pytz
+import time
 
 
 #
@@ -245,7 +246,7 @@ def hide_filter(arg):
     return f
 
 def strptime(t, fmt):
-    t = datetime.datetime.strptime(t, fmt)
+    t = datetime.strptime(t, fmt)
     if not t.tzinfo:
         t = pytz.utc.localize(t-opt.tz)
     return t
@@ -323,7 +324,7 @@ def graph_series(series):
         for s in series:
             if s.ys.values():
                 yavg = sum(s.ys.values()) / len(s.ys.values())
-                put('%7g %7g ' % (yavg, s.ymax))
+                put(('%7g'%yavg)[0:7], ' ', ('%7g'%s.ymax)[0:7], ' ')
                 graph(s.ts, s.ys, 0, s.ymax)
                 put(' ', s.description, '\n')
         put('\n')
@@ -357,7 +358,7 @@ def main():
     p.add_argument('--html', action='store_true',
                    help='produce interactive html output; save to file and open in browser')
     p.add_argument('--series', nargs='*', default=[])
-    p.add_argument('--tz', type=float, nargs=1, default=0) # xxx default to local time
+    p.add_argument('--tz', type=float, nargs=1, default=None)
     global opt
     opt = p.parse_args()
 
@@ -369,7 +370,10 @@ def main():
     elif opt.tree=='ascii': opt.tree_line, opt.tree_mid, opt.tree_last = '|', '+', '+'
     elif opt.tree=='none': opt.tree_line, opt.tree_mid, opt.tree_last = ' ', ' ', ' '
 
-    opt.tz = datetime.timedelta(hours=opt.tz)
+    if opt.tz==None:
+        opt.tz = datetime(*time.gmtime()[:6]) - datetime(*time.localtime()[:6])        
+    else:
+        opt.tz = timedelta(hours=opt.tz[0])
     opt.after = opt.after.replace('T', ' ')
     opt.before = opt.before.replace('T', ' ')
     opt.after = strptime(opt.after, '%Y-%m-%d %H:%M:%S')
