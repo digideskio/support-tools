@@ -3,11 +3,12 @@ import sys
 import os
 import collections
 import re
-import datetime
+from datetime import datetime, timedelta
 import dateutil.parser
 import argparse
 import itertools
 import pytz
+import time
 
 def elt(name, attrs={}):
     sys.stdout.write('<%s' % name)
@@ -152,8 +153,11 @@ class Series:
         self.json_data = get(self.fmt, 'json_data', None)
 
         # timezone offset
-        tz = float(get(self.fmt, 'tz', 0))
-        self.tz = datetime.timedelta(hours=tz)
+        tz = get(self.fmt, 'tz', None)
+        if tz==None:
+            self.tz = datetime(*time.gmtime()[:6]) - datetime(*time.localtime()[:6])
+        else:
+            self.tz = timedelta(hours=float(tz))
 
         # all graphs in a ygroup will be plotted with a common display_ymax
         self.ygroup = get(self.fmt, 'ygroup', id(self))
@@ -203,11 +207,11 @@ class Series:
         elif self.buckets:
             s0 = (t - self.t0).total_seconds()
             s1 = s0 // self.buckets * self.buckets
-            t = t + datetime.timedelta(0, s1-s0)
+            t = t + timedelta(0, s1-s0)
             self.ys[t] = self.op(self.ys, t, d)
         elif self.queue:
             if d>self.queue_min_ms:
-                ms = datetime.timedelta(0, d/1000.0)
+                ms = timedelta(0, d/1000.0)
                 self.queue_times.append((t-ms,+1))
                 self.queue_times.append((t,-1))
         else:
@@ -225,7 +229,7 @@ class Series:
             tmin = min(self.ys.keys())
             tmax = max(self.ys.keys())
             n = int((tmax-tmin).total_seconds() / self.buckets)
-            dt = datetime.timedelta(0, self.buckets)
+            dt = timedelta(0, self.buckets)
             self.ts = [tmin + dt*i for i in range(n+1)]
         elif self.queue:
             q = 0
@@ -374,7 +378,7 @@ def series_read_re(fn, series):
             chunk_re += '(?:' + s_re + ')'
             chunk_groups.append(chunk_group)
             chunk_group += re.compile(s_re).groups
-        dbg(chunk_re)
+        #dbg(chunk_re)
         chunk_re = re.compile(chunk_re)
         chunks.append((chunk_re, chunk, chunk_groups))
 
@@ -474,14 +478,14 @@ cursors_style = '''
         stroke-width: 1;
         vector-effect: non-scaling-stroke;
     }
-    .circle {
+    .deleter {
         fill: blue;
     }
 '''
 
 cursors_script = '''
 
-    function ex(e) {
+    function event_x(e) {
         var evt = window.event
         return (evt.pageX - e.offsetLeft - e.offsetParent.offsetLeft) / e.offsetWidth
     }
@@ -501,11 +505,10 @@ cursors_script = '''
   
     function del_id(id) {
         var e = document.getElementById(id)
-        e.parentNode.removeChild(e)
     }
   
     function move(e) {
-        var x = ex(e)
+        var x = event_x(e)
         set_attrs(document.getElementById('lll'), {x1:x, x2:x})
     }
   
@@ -513,34 +516,66 @@ cursors_script = '''
         set_attrs(document.getElementById('lll'), {x1:-1, x2:-1})
     }
   
-    var cnum = 0;
     var width = %d;
   
     function add(e) {
-        var x = ex(e)
-        var line = elt(svg_ns, "line", {id:"l"+cnum, x1:x, x2:x, y1:0, y2:1, class:"cursor"})
-        document.getElementById("cursors").appendChild(line)
-        var circle = elt(svg_ns, "circle",
-            {id:"c"+cnum, cx:x*width, cy:0.6, r:0.4, class:"circle", onclick:"del("+cnum+")"})
-        document.getElementById("circles").appendChild(circle)
-        cnum += 1
+        var x = event_x(e)
+        var cursor = elt(svg_ns, "line",
+            {x1:x, x2:x, y1:0, y2:1, class:"cursor"})
+        var deleter = elt(svg_ns, "circle",
+            {cx:(x*100)+'%%', cy:0.7, r:.3, class:"deleter", onclick:"del(this)"})
+        var letter = elt(svg_ns, "text",
+            {x:(x*100)+'%%', y:'55%%', 'text-anchor':'middle', 'class':'letter'})
+        document.getElementById("cursors").appendChild(cursor)
+        document.getElementById("deleters").appendChild(deleter)
+        document.getElementById("letters").appendChild(letter)
+        deleter.related = [deleter, cursor, letter]
+        re_letter()
     }
   
-    function del(i) {
-        del_id("c"+i)
-        del_id("l"+i)
+    function del(deleter) {
+        for (var i in deleter.related) {
+            e = deleter.related[i]
+            e.parentNode.removeChild(e)
+        }
+        re_letter()
+    }
+
+    function pos(e) {
+        return Number(e.getAttribute('x').replace('%%',''))
+    }
+
+    function re_letter() {
+        console.log('re_letter')
+        ls = []
+        letters = document.getElementById("letters")
+        for (var i=0; i<letters.children.length; i++) {
+            child = letters.children[i]
+            if (child.classList.contains('letter')) {
+                console.log(child.getAttribute('x') + ' ' + child.innerHTML)
+                ls.push(child)
+            }
+        }
+        ls = ls.sort(function(a,b) {return pos(a)-pos(b)})
+        for (var i in ls)
+            ls[i].innerHTML = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijlkmnopqrstuvwxyz'[i]
     }
 '''
 
 def cursors_html(width):
+
     elt('table')
+
     elt('tr')
     td('graph')
+    elt('svg', {'id':'letters', 'width':'%dem'%width, 'height':"2em"})
     eltend('svg', {
-        'id':'circles', 'width':'%dem'%(width), 'height':"1em", 'viewBox':"0 0 %d 1" % width
+        'id':'deleters', 'width':'100%', 'height':'1em', 'y':'1em', 'viewBox':"0 0 %d 1" % width,
     })
+    end('svg')
     end('td')
     end('tr')
+
     elt('tr')
     td('graph')
     elt('svg', {
@@ -548,10 +583,11 @@ def cursors_html(width):
         'preserveAspectRatio':'none', 'style':'position:absolute; background:none;',
         'onmousemove':'move(this)', 'onmouseout':'out(this)',  'onclick':'add(this)'
     })
-    elt('line', {'id':'lll', 'class':'cursor', 'x1':0, 'y1':0, 'x2':0, 'y2':1})
+    elt('line', {'id':'lll', 'class':'cursor', 'x1':-1, 'y1':0, 'x2':-1, 'y2':1})
     end('svg')
     end('td')
     end('tr')
+
     end('table')
 
 #
@@ -564,6 +600,10 @@ _style = '''
         font-size: 10pt;
     }
     .data {
+        text-align: right;
+    }
+    .row-number {
+        padding-right: 2em;
         text-align: right;
     }
     .desc {
@@ -615,6 +655,23 @@ _script = '''
         }
     }
 
+    function re_number() {
+        n = 0
+        row = document.getElementById("table").firstChild.firstChild    
+        while (row) {
+            td = row.firstChild
+            while (td && !td.classList.contains("row-number"))
+                td = td.nextSibling            
+            if (!td)
+                return
+            if (!td.classList.contains("head")) {
+                td.innerHTML = n
+                n += 1
+            }
+            row = row.nextSibling
+        }
+    }
+
     function key() {
         var evt = window.event
         var c = String.fromCharCode(evt.charCode)
@@ -658,6 +715,7 @@ _script = '''
                     parent = selected.parentNode
                     parent.removeChild(selected)
                     parent.insertBefore(selected, next.nextSibling)
+                    re_number()
                 }
             }
         } else if (c=='p') {
@@ -667,6 +725,7 @@ _script = '''
                     parent = selected.parentNode
                     parent.removeChild(selected)
                     parent.insertBefore(selected, prev)
+                    re_number()
                 }
             }
         } else if (c=='N') {
@@ -677,6 +736,7 @@ _script = '''
                     parent.removeChild(selected)
                     parent.insertBefore(selected, null)
                     sel(s)
+                    re_number()
                 }
             }
         } else if (c=='P') {
@@ -686,6 +746,7 @@ _script = '''
                 parent.removeChild(selected)
                 parent.insertBefore(selected, first_row)
                 sel(s)
+                re_number()
             }
         }
         _sel(selected)
@@ -717,6 +778,7 @@ def main():
     p.add_argument('--no-shade', action='store_true')
     p.add_argument('--no-merges', action='store_true')
     p.add_argument('--number-rows', action='store_true')
+    p.add_argument('--duration', type=float, default=None)
 
     global opt
     opt = p.parse_args()
@@ -728,6 +790,12 @@ def main():
     #dbg('zzz', [s.tmin for g in graphs for s in g])
     tmin = min(s.tmin for g in graphs for s in g if s.tmin)
     tmax = max(s.tmax for g in graphs for s in g if s.tmax)
+
+    msg('start:', tmin)
+    msg('finish:', tmax)
+    msg('duration:', tmax - tmin)
+    if opt.duration: # in seconds
+        tmax = tmin + timedelta(0, opt.duration)
 
     def _graph(data=[], ymax=None):
         graph(data=data,
@@ -758,7 +826,7 @@ def main():
     cursors_html(opt.width)
     end('td')
     if opt.number_rows:
-        td('head row-number', 'row&emsp;&emsp;') # xxx
+        td('head row-number', 'row')
     td('head desc', 'description')
     end('tr')
 
@@ -795,7 +863,7 @@ def main():
                 _graph(data, display_ymax)
                 end('td')
                 if opt.number_rows:
-                    td('data', '%d&emsp;&emsp;' % row) # xxx
+                    td('row-number', str(row))
                     row += 1
                 description(g)
                 end('tr')
@@ -809,7 +877,7 @@ def main():
             _graph()
             end('td')
             if opt.number_rows:
-                td('data', '%d&emsp;&emsp;' % row) # xxx
+                td('row-number', str(row))
                 row += 1
             description(g)
             end('tr')
