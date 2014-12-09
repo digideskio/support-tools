@@ -1,7 +1,7 @@
 [{
     "name": "grep",
     "description": "{pat}",
-    "re": "^.*(....-..-..T..:..:..(?:\\....)?|(?:... )?... .. .... ..:..:..).*{pat}"
+    "re": "^.*(....-..-..T..:..:..(?:\\....)?Z?|(?:... )?... .. .... ..:..:..).*{pat}"
 },{
     "name": "_iostat",
     "re": "(?P<time>^../../.... ..:..:.. ..)|(?:^ *(?P<user>[0-9\\.]+) +(?P<nice>[0-9\\.]+) +(?P<system>[0-9\\.]+) +(?P<iowait>[0-9\\.]+) +(?P<steal>[0-9\\.]+) +(?P<idle>[0-9\\.]+))|(?:^(?P<iostat_disk>[a-z]+) +(?P<rrqms>[0-9\\.]+) +(?P<wrqms>[0-9\\.]+) +(?P<rs>[0-9\\.]+) +(?P<ws>[0-9\\.]+) +(?P<rkBs>[0-9\\.]+) +(?P<wkBs>[0-9\\.]+) +(?P<avgrqsz>[0-9\\.]+) +(?P<avgqusz>[0-9\\.]+) +(?P<await>[0-9\\.]+) +(?P<svctime>[0-9\\.]+) +(?P<util>[0-9\\.]+))",
@@ -558,7 +558,14 @@
     "_wt_name": "pages evicted because they exceeded the in-memory maximum"
 },{
     "_inherit": "_wt_delta",
+    "name": "wt_cache_pages_written_from_cache",
+    "merge": "wt_cache_pages_cache",
+    "_wt_cat": "cache",
+    "_wt_name": "pages written from cache"
+},{
+    "_inherit": "_wt_delta",
     "name": "wt_cache_pages_read_into_cache",
+    "merge": "wt_cache_pages_cache",
     "_wt_cat": "cache",
     "_wt_name": "pages read into cache"
 },{
@@ -576,11 +583,6 @@
     "name": "wt_cache_pages_walked_for_eviction",
     "_wt_cat": "cache",
     "_wt_name": "pages walked for eviction"
-},{
-    "_inherit": "_wt_delta",
-    "name": "wt_cache_pages_written_from_cache",
-    "_wt_cat": "cache",
-    "_wt_name": "pages written from cache"
 },{
     "_inherit": "_wt_mb",
     "name": "wt_cache_tracked_dirty_bytes_in_the_cache",
