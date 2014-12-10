@@ -71,7 +71,7 @@ for i in itertools.count():
     put('thread apply all bt')
     get('^done', True)
     t2 = time.time()
-    if i==o.count-1:
+    if o.count and i==o.count-1:
         break
     dbg('cont')
     put('cont')
