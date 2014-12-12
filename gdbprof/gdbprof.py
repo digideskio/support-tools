@@ -312,7 +312,8 @@ def graph_child(child):
 # read times series files
 def read_series():
     if opt.series:
-        series = [g[0] for g in timeseries.series_all([], opt.series)] # xxx
+        opt.merges = True # xxx get from cmd line instead?
+        series = [g[0] for g in timeseries.series_all([], opt.series, opt)]
         if not opt.tmin:
             opt.tmin = min(min(ts) for _, ts, _ in series)
             opt.tmax = max(max(ts) for _, ts, _ in series)
