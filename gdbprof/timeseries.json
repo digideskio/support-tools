@@ -7,12 +7,19 @@
     "re": "(?P<time>^../../.... ..:..:.. ..)|(?:^ *(?P<user>[0-9\\.]+) +(?P<nice>[0-9\\.]+) +(?P<system>[0-9\\.]+) +(?P<iowait>[0-9\\.]+) +(?P<steal>[0-9\\.]+) +(?P<idle>[0-9\\.]+))|(?:^(?P<iostat_disk>[a-z]+) +(?P<rrqms>[0-9\\.]+) +(?P<wrqms>[0-9\\.]+) +(?P<rs>[0-9\\.]+) +(?P<ws>[0-9\\.]+) +(?P<rkBs>[0-9\\.]+) +(?P<wkBs>[0-9\\.]+) +(?P<avgrqsz>[0-9\\.]+) +(?P<avgqusz>[0-9\\.]+) +(?P<await>[0-9\\.]+) +(?P<svctime>[0-9\\.]+) +(?P<util>[0-9\\.]+))",
     "re_time": "time"
 },{
-    "name": "_ss_opcounters",
+    "name": "_ss",
     "type": "json",
     "json_time": ["localTime"],
+    "description": "{name}"
+},{
+    "name": "_ss_delta",
+    "_inherit": "_ss",
+    "delta": true
+},{
+    "name": "_ss_opcounters",
+    "_inherit": "_ss_delta",
     "json_data": ["opcounters", "{_opcounter_name}"],
     "merge": "ss_opcounters",
-    "delta": true,
     "description": "ss opcounters: {_opcounter_name} (/s)"
 },{
     "_inherit": "_ss_opcounters",
@@ -38,6 +45,44 @@
     "_inherit": "_ss_opcounters",
     "name": "ss_opcounters_command",
     "_opcounter_name": "command"
+},{
+    "name": "ss_globalLock_activeClients_readers",
+    "_inherit": "_ss",
+    "json_data": ["globalLock", "activeClients", "readers"],
+    "description": "ss global: read queue",
+    "merge": "_ss_queue"
+},{
+    "name": "ss_globalLock_activeClients_writers",
+    "_inherit": "_ss",
+    "json_data": ["globalLock", "activeClients", "writers"],
+    "description": "ss global: write queue",
+    "merge": "_ss_queue"
+},{
+    "name": "ss_globalLock_activeClients_total",
+    "_inherit": "_ss",
+    "json_data": ["globalLock", "activeClients", "total"]
+},{
+    "name": "ss_globalLock_currentQueue_readers",
+    "_inherit": "_ss",
+    "json_data": ["globalLock", "currentQueue", "readers"]
+},{
+    "name": "ss_globalLock_currentQueue_writers",
+    "_inherit": "_ss",
+    "json_data": ["globalLock", "currentQueue", "writers"]
+},{
+    "name": "ss_globalLock_currentQueue_total",
+    "_inherit": "_ss",
+    "json_data": ["globalLock", "currentQueue", "total"]
+},{
+    "name": "ss_globalLock_totalTime_floatApprox",
+    "_inherit": "_ss",
+    "delta": true,
+    "json_data": ["globalLock", "totalTime", "floatApprox"]
+},{
+    "name": "ss_connections_current",
+    "_inherit": "_ss",
+    "json_data": ["connections", "current"],
+    "description": "ss connections: current"
 },{
     "name": "_iostat_cpu",
     "_inherit": "_iostat",
@@ -144,24 +189,37 @@
     "ymax": 100,
     "description": "iostat disk: {iostat_disk} average utilization (%)"
 },{
+    "name": "_mongod",
+    "_ts": "(....-..-..T..:..:..\\....[+-]....)"
+},{
     "name": "mongod_query_ms",
+    "_inherit": "_mongod",
     "description": "mongod max logged query (ms) per {bucket_size}s",
-    "re": "^(....-..-..T..:..:......).* query: .* ([0-9]+)ms$",
+    "re": "^{_ts}.* query: .* ([0-9]+)ms$",
     "bucket_op": "max",
     "bucket_size": 1,       "//": "size of buckets in seconds"
 },{
     "name": "mongod_query_count",
+    "_inherit": "_mongod",
     "description": "mongod logged queries longer than {count_min_ms}ms per {bucket_size}s",
-    "re": "^(....-..-..T..:..:......).* query: .* ([0-9]+)ms$",
+    "re": "^{_ts}.* query: .* ([0-9]+)ms$",
     "bucket_op": "count",
     "bucket_size": 1,       "//": "size of buckets in seconds",
     "count_min_ms": 0,      "//": "minimum query duration to count"
 },{
     "name": "mongod_query_queue",
+    "_inherit": "_mongod",
     "description": "mongod queued queries longer than {queue_min_ms}ms",
-    "re": "^(....-..-..T..:..:......).* query: .* ([0-9]+)ms$",
+    "re": "^{_ts}.* query: .* ([0-9]+)ms$",
     "queue": true,
     "queue_min_ms": 0,      "//": "minimum op duration to count for queue"
+},{
+    "name": "mongod_waiting_for_lock",
+    "_inherit": "_mongod",
+    "description": "mongod: waiting to acquire lock per {bucket_size}s",
+    "re": "^{_ts}.* has been waiting to acquire lock for more than (30) seconds",
+    "bucket_op": "count",
+    "bucket_size": 1,       "//": "size of buckets in seconds"
 },{
     "name": "_wt",
     "re": "^(... .. ..:..:..) ([0-9]+) .* {_wt_cat}: {_wt_name}",
@@ -398,6 +456,51 @@
     "_inherit": "_wt_delta",
     "name": "wt_btree_cursor_update_calls",
     "_wt_cat": "btree",
+    "_wt_name": "cursor update calls"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wt_cursor_cursor_create_calls",
+    "_wt_cat": "cursor",
+    "_wt_name": "cursor create calls"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wt_cursor_cursor_insert_calls",
+    "_wt_cat": "cursor",
+    "_wt_name": "cursor insert calls"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wt_cursor_cursor_next_calls",
+    "_wt_cat": "cursor",
+    "_wt_name": "cursor next calls"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wt_cursor_cursor_prev_calls",
+    "_wt_cat": "cursor",
+    "_wt_name": "cursor prev calls"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wt_cursor_cursor_remove_calls",
+    "_wt_cat": "cursor",
+    "_wt_name": "cursor remove calls"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wt_cursor_cursor_reset_calls",
+    "_wt_cat": "cursor",
+    "_wt_name": "cursor reset calls"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wt_cursor_cursor_search_calls",
+    "_wt_cat": "cursor",
+    "_wt_name": "cursor search calls"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wt_cursor_cursor_search_near_calls",
+    "_wt_cat": "cursor",
+    "_wt_name": "cursor search near calls"
+},{
+    "_inherit": "_wt_delta",
+    "name": "wt_cursor_cursor_update_calls",
+    "_wt_cat": "cursor",
     "_wt_name": "cursor update calls"
 },{
     "_inherit": "_wt",
