@@ -1,13 +1,14 @@
-import json
-import sys
-import os
-import collections
-import re
-from datetime import datetime, timedelta
-import dateutil.parser
 import argparse
+import collections
+import dateutil.parser
+from datetime import datetime, timedelta
 import itertools
+import json
+import math
+import os
 import pytz
+import re
+import sys
 import time
 
 def elt(name, attrs={}):
@@ -44,6 +45,11 @@ def msg(*ss):
 #
 
 graph_style = '''
+    table, tr, td {
+        padding: 0;
+        margin: 0;
+        border-spacing:0;
+    }
     .curve {
         fill: none;
         stroke: black;
@@ -52,14 +58,19 @@ graph_style = '''
     }
     .shade {
         fill: rgb(230,230,230);
-        stroke: none;
+        stroke: rgb(230,230,230);
+        stroke-width: 1;
+        vector-effect: non-scaling-stroke;
     }
     .tick {
-        stroke: rgba(255,0,0,0.2);
+        stroke: rgba(0,0,0,0.08);
         stroke-width: 1;
         vector-effect: non-scaling-stroke;
     }
 '''
+
+x_pad = 1.5
+y_pad = 0.1
 
 def graph(
     data=[],
@@ -68,8 +79,9 @@ def graph(
     ticks=None, line_width=0.1, shaded=True
 ):
     elt('svg', {
-        'width':'%gem' % width, 'height':'%gem' % height,
-        'viewBox':'%g %g %g %g' % (-0.05, -0.05, width, height+0.2)
+        'width':'%gem' % width,
+        'height':'%gem' % height,
+        'viewBox':'%g %g %g %g' % (0, 0, width, height)
     })
     for ts, ys, color in data:
         tspan = float((tmax-tmin).total_seconds())
@@ -80,25 +92,40 @@ def graph(
             else:
                 ymin -= 1
                 yspan = 1
-        gx = lambda t: (t-tmin).total_seconds() / tspan * width
-        gy = lambda y: (1.0 - (float(y)-ymin) / yspan) * height
+        gx = lambda t: (t-tmin).total_seconds() / tspan * (width-2*x_pad) + x_pad
+        gy = lambda y: ((1 - (y-ymin) / yspan) * (1-2*y_pad) + y_pad) * height
         line = ' '.join('%g,%g' % (gx(t), gy(ys[t])) for t in ts)
         if shaded:
-            left = '%g,%g' % (gx(ts[0]), height+0.05)
-            right = '%g,%g' % (gx(ts[-1]), height+0.05)
+            left = '%g,%g' % (gx(ts[0]), gy(0))
+            right = '%g,%g' % (gx(ts[-1]), gy(0))
             points = left + ' ' + line + ' ' + right
             eltend('polygon', {'points':points, 'class':'shade'})
         eltend('polyline', {'points':line, 'class':'curve', 'style':'stroke:%s'%color})
     if data and ticks:
-        for i in range(ticks+1):
-            x = width * i / ticks
+        if type(ticks)==int:
+            ticks = [tmin + (tmax-tmin)*i/ticks for i in range(ticks+1)]
+        for t in ticks:
+            x = gx(t)
             eltend('line', {'x1':x, 'x2':x, 'y1':0, 'y2':height, 'class':'tick'})
     end('svg')
 
+def labels(tmin, tmax, width, ts, labels):
+    elt('div', {'style':'height: 1.1em; position:relative; width:%gem' % width})
+    tspan = float((tmax-tmin).total_seconds())
+    gx = lambda t: (t-tmin).total_seconds() / tspan * (width-2*x_pad) + x_pad
+    for t, label in zip(ts, labels):
+        style = 'left:{x}em; position:absolute; width:100em'.format(x=gx(t)-50)
+        elt('span', {'align':'center', 'style':style})
+        eltend('span', {'align':'center', 'style':'font-size:80%'}, label)
+        end('span')
+    end('div')
+
 
 #
 #
 #
+
+t0 = dateutil.parser.parse('2000-01-01T00:00:00Z')
 
 class Series:
 
@@ -119,7 +146,6 @@ class Series:
         # request to bucketize the data
         self.buckets = float(get(self.fmt, 'bucket_size', 0))
         if self.buckets:
-            self.t0 = dateutil.parser.parse('2000-01-01T00:00:00Z')
             self.op = op_for(self.fmt, get(self.fmt, 'bucket_op', 'max'))
     
         # compute queued ops from op execution time
@@ -179,10 +205,10 @@ class Series:
             self.split_series[split_key] = new
         return self.split_series[split_key]
 
-    def get_graphs(self, graphs, ygroups, merges):
+    def get_graphs(self, graphs, ygroups, opt):
         if not self.split_field:
             # do self.graph and .description late so they can use split key
-            if merges:
+            if opt.merges:
                 merge = get(self.fmt, 'merge', None)
                 if merge: self.graph = merge
             self.description = get(self.fmt, 'description', self.fmt_name)
@@ -190,12 +216,12 @@ class Series:
             ygroups[self.ygroup].append(self)
         else:
             for s in self.split_series.values():
-                s.get_graphs(graphs, ygroups, merges)
+                s.get_graphs(graphs, ygroups, opt)
 
     def _data_point(self, t, d):
-        t = dateutil.parser.parse(t)
-        if not t.tzinfo:
-            t = pytz.utc.localize(t-self.tz)
+        #t = dateutil.parser.parse(t) xxxxxxxxxxxxxxxxxxx
+        #if not t.tzinfo:
+        #    t = pytz.utc.localize(t-self.tz)
         d = float(d) / self.scale
         if self.delta:
             if self.last_t and self.last_t!=t:
@@ -205,7 +231,7 @@ class Series:
                 self.last_t = t
                 self.last_d = d
         elif self.buckets:
-            s0 = (t - self.t0).total_seconds()
+            s0 = (t - t0).total_seconds()
             s1 = s0 // self.buckets * self.buckets
             t = t + timedelta(0, s1-s0)
             self.ys[t] = self.op(self.ys, t, d)
@@ -226,11 +252,14 @@ class Series:
     def finish(self):
 
         if self.buckets:
-            tmin = min(self.ys.keys())
-            tmax = max(self.ys.keys())
-            n = int((tmax-tmin).total_seconds() / self.buckets)
-            dt = timedelta(0, self.buckets)
-            self.ts = [tmin + dt*i for i in range(n+1)]
+            if self.ys.keys():
+                tmin = min(self.ys.keys())
+                tmax = max(self.ys.keys())
+                n = int((tmax-tmin).total_seconds() / self.buckets)
+                dt = timedelta(0, self.buckets)
+                self.ts = [tmin + dt*i for i in range(n+1)]
+            else:
+                self.ts = []
         elif self.queue:
             q = 0
             for t, d in sorted(self.queue_times):
@@ -306,7 +335,20 @@ def series_spec(spec):
 
     return series
 
-def series_read_json(fn, series):
+def get_time(time, opt, s):
+    time = dateutil.parser.parse(time)
+    if not time.tzinfo:
+        time = pytz.utc.localize(time-s.tz)
+    if time < opt.after or time >= opt.before:
+        return None
+    elif opt.every:
+        if time - opt.last_time < opt.every:
+            return None
+        else:
+            opt.last_time = time
+    return time
+
+def series_read_json(fn, series, opt):
 
     # add a path to the path tree
     def add_path(node, path, leaf):
@@ -349,13 +391,16 @@ def series_read_json(fn, series):
             for s, v in match(root, j):
                 if s=='time':
                     time = v
+                    time = get_time(time, opt, s)
+                    if not time:
+                        break
                 else:
                     if not time:
                         raise Exception('time not found in ' + line)
                     s.data_point(time, v, None) # xxx splits?
 
 
-def series_read_re(fn, series):
+def series_read_re(fn, series, opt):
 
     # group series by re
     series_by_re = collections.defaultdict(list)
@@ -396,7 +441,11 @@ def series_read_re(fn, series):
                         except Exception as e: raise Exception(g + ': ' + e.message)
                     for s in series_by_re[s_re]:
                         t = field(s.re_time)
-                        if not t:
+                        if t:
+                            t = get_time(t, opt, s)
+                            if not t:
+                                continue
+                        else:
                             t = last_time                            
                         if t:
                             d = field(s.re_data)
@@ -422,7 +471,14 @@ def series_load(fn, ord):
     except Exception as e:
         msg(fn + ': ' + e.message)
 
-def series_all(format_file, specs, merges=True):
+def series_all(format_file, specs, opt):
+
+    if not hasattr(opt, 'after') or not opt.after: opt.after = pytz.utc.localize(datetime.min)
+    if not hasattr(opt, 'before') or not opt.before: opt.before = pytz.utc.localize(datetime.max)
+    if not hasattr(opt, 'every'): opt.every = None
+    if type(opt.every)==float: opt.every = timedelta(seconds=opt.every)
+    if type(opt.after)==str: opt.after = dateutil.parser.parse(opt.after) # xxx local tz by default
+    if type(opt.before)==str: opt.before = dateutil.parser.parse(opt.before) # xxx local tz
 
     # read timeseries.json files
     fn = os.path.join(os.path.dirname(__file__), 'timeseries.json')
@@ -441,9 +497,10 @@ def series_all(format_file, specs, merges=True):
             series.append(s)
 
     # process by file according to file type
-    for fn, type in sorted(fns):
-        if type=='re': series_read_re(fn, fns[(fn,type)])
-        elif type=='json': series_read_json(fn, fns[(fn,type)])
+    for fn, filetype in sorted(fns):
+        opt.last_time = pytz.utc.localize(datetime.min)
+        if filetype=='re': series_read_re(fn, fns[(fn,filetype)], opt)
+        elif filetype=='json': series_read_json(fn, fns[(fn,filetype)], opt)
         
     # finish each series
     for s in series:
@@ -453,7 +510,7 @@ def series_all(format_file, specs, merges=True):
     graphs = collections.defaultdict(list)
     ygroups = collections.defaultdict(list)
     for s in series:
-        s.get_graphs(graphs, ygroups, merges)
+        s.get_graphs(graphs, ygroups, opt)
 
     # compute display_ymax taking into account spec_ymax and ygroup
     for g in graphs.values():
@@ -474,12 +531,18 @@ def series_all(format_file, specs, merges=True):
 
 cursors_style = '''
     .cursor {
-        stroke: blue;
+        stroke: rgba(0,0,255,.4);
         stroke-width: 1;
         vector-effect: non-scaling-stroke;
     }
     .deleter {
         fill: blue;
+    }
+    .letter {
+        font-size: 85%
+    }
+    .data {
+        padding-left: 0.5em
     }
 '''
 
@@ -523,9 +586,9 @@ cursors_script = '''
         var cursor = elt(svg_ns, "line",
             {x1:x, x2:x, y1:0, y2:1, class:"cursor"})
         var deleter = elt(svg_ns, "circle",
-            {cx:(x*100)+'%%', cy:0.7, r:.3, class:"deleter", onclick:"del(this)"})
+            {cx:(x*100)+'%%', cy:'50%%', r:0.3, class:"deleter", onclick:"del(this)"})
         var letter = elt(svg_ns, "text",
-            {x:(x*100)+'%%', y:'55%%', 'text-anchor':'middle', 'class':'letter'})
+            {x:(x*100)+'%%', y:'80%%', 'text-anchor':'middle', 'class':'letter'})
         document.getElementById("cursors").appendChild(cursor)
         document.getElementById("deleters").appendChild(deleter)
         document.getElementById("letters").appendChild(letter)
@@ -562,33 +625,27 @@ cursors_script = '''
     }
 '''
 
-def cursors_html(width):
+def cursors_html(width, tmin, tmax, ticks):
 
-    elt('table')
-
-    elt('tr')
-    td('graph')
-    elt('svg', {'id':'letters', 'width':'%dem'%width, 'height':"2em"})
-    eltend('svg', {
-        'id':'deleters', 'width':'100%', 'height':'1em', 'y':'1em', 'viewBox':"0 0 %d 1" % width,
-    })
-    end('svg')
-    end('td')
-    end('tr')
-
-    elt('tr')
-    td('graph')
     elt('svg', {
         'id':'cursors', 'width':'%dem'%width, 'height':'100%', 'viewBox':'0 0 1 1',
-        'preserveAspectRatio':'none', 'style':'position:absolute; background:none;',
+        'preserveAspectRatio':'none', 'style':'position:absolute; background:none',
         'onmousemove':'move(this)', 'onmouseout':'out(this)',  'onclick':'add(this)'
     })
     elt('line', {'id':'lll', 'class':'cursor', 'x1':-1, 'y1':0, 'x2':-1, 'y2':1})
     end('svg')
-    end('td')
-    end('tr')
 
-    end('table')
+    elt('div', {'style':'position:relative; z-index:1000; background:white; margin-bottom:0.3em'})
+    eltend('svg', {'id':'letters', 'width':'%dem'%width, 'height':'1em'})
+    h = 0.8
+    viewBox = '0 0 %g %g' % (width, h)
+    put('<br/>')
+    eltend('svg', {'id':'deleters', 'width':'100%', 'height':'%gem'%h, 'viewBox':viewBox}),
+    end('div')
+
+    labels(tmin, tmax, width, ticks, [t.strftime('%H:%M:%S') for t in ticks])
+
+
 
 #
 #
@@ -771,25 +828,28 @@ def main():
     p.add_argument(dest='series', nargs='+')
     p.add_argument('--format-file', '-f', default=None)
     p.add_argument('--width', type=float, default=30)
-    p.add_argument('--height', type=float, default=1.5)
+    p.add_argument('--height', type=float, default=1.8)
     p.add_argument('--ticks', type=int, default=5)
     p.add_argument('--show-empty', action='store_true')
     p.add_argument('--show-zero', action='store_true')
     p.add_argument('--no-shade', action='store_true')
-    p.add_argument('--no-merges', action='store_true')
+    p.add_argument('--no-merges', action='store_false', dest='merges')
     p.add_argument('--number-rows', action='store_true')
     p.add_argument('--duration', type=float, default=None)
+    p.add_argument('--after')
+    p.add_argument('--before')
+    p.add_argument('--every', type=float)
 
     global opt
     opt = p.parse_args()
 
-    graphs = series_all([opt.format_file], opt.series, not opt.no_merges)
+    graphs = series_all([opt.format_file], opt.series, opt)
     if not graphs:
         msg('no series specified')
         return
-    #dbg('zzz', [s.tmin for g in graphs for s in g])
     tmin = min(s.tmin for g in graphs for s in g if s.tmin)
     tmax = max(s.tmax for g in graphs for s in g if s.tmax)
+    tspan = float((tmax-tmin).total_seconds())
 
     msg('start:', tmin)
     msg('finish:', tmax)
@@ -797,11 +857,30 @@ def main():
     if opt.duration: # in seconds
         tmax = tmin + timedelta(0, opt.duration)
 
+    # compute ticks
+    ranges = [1, 2.5, 5, 10, 15, 20, 30, 60] # seconds
+    ranges += [r*60 for r in ranges] # minutes
+    ranges += [r*3600 for r in 1, 2, 3, 4, 6, 8, 12, 24] # hours
+    nticks = int(opt.width / 5)
+    if nticks<1: nticks = 1
+    tickdelta = tspan / nticks
+    for r in ranges:
+        if tickdelta<r:
+            tickdelta = r
+            break
+    tickmin = t0 + timedelta(0, math.ceil((tmin-t0).total_seconds()/tickdelta)*tickdelta)
+    tickdelta = timedelta(0, tickdelta)
+    ticks = []
+    for i in range(nticks+1):
+        t = tickmin + i * tickdelta
+        if t > tmax: break
+        ticks.append(t)
+
     def _graph(data=[], ymax=None):
         graph(data=data,
               tmin=tmin, tmax=tmax, width=opt.width,
               ymin=0, ymax=ymax, height=opt.height,
-              ticks=opt.ticks, shaded=not opt.no_shade and len(data)==1)
+              ticks=ticks, shaded=not opt.no_shade and len(data)==1)
 
     elt('html')
     elt('head')
@@ -823,7 +902,7 @@ def main():
     td('head data', 'avg')
     td('head data', 'max')
     elt('td')
-    cursors_html(opt.width)
+    cursors_html(opt.width, tmin, tmax, ticks)
     end('td')
     if opt.number_rows:
         td('head row-number', 'row')
