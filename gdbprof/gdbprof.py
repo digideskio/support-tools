@@ -13,6 +13,14 @@ import pytz
 import time
 
 
+def dbg(*ss):
+    if __name__=='__main__' and opt.dbg:
+        sys.stderr.write(' '.join(str(s) for s in ss) + '\n')
+
+def msg(*ss):
+    sys.stderr.write(' '.join(str(s) for s in ss) + '\n')
+
+
 #
 # html stuff
 #
@@ -266,7 +274,7 @@ def read_profile(filters):
                 opt.samples += 1
                 opt.tmin = min(t, opt.tmin) if opt.tmin else t
                 opt.tmax = max(t, opt.tmax) if opt.tmax else t
-            if opt.dbg: print 'after', opt.after, 't', t, 'before', opt.before
+            dbg('after', opt.after, 't', t, 'before', opt.before)
         elif line.startswith('#') and t>=opt.after and t<opt.before:
             plevel = '^#([0-9]+) +'
             paddr = '(?:0x[0-9a-f]+ in )?'
@@ -279,8 +287,8 @@ def read_profile(filters):
                 print 'not matched:', repr(line)
             else:
                 if opt.dbg:
-                    print line.strip()
-                    print m.groups()
+                    msg(line.strip())
+                    msg(m.groups())
                 level, func, args, from_file, at_file, at_ln = m.groups()
                 if level=='0':
                     stack = root.add_stack(stack, t)

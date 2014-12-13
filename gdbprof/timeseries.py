@@ -2,6 +2,7 @@ import argparse
 import collections
 import dateutil.parser
 from datetime import datetime, timedelta
+import importlib
 import itertools
 import json
 import math
@@ -129,14 +130,15 @@ t0 = dateutil.parser.parse('2000-01-01T00:00:00Z')
 
 class Series:
 
-    def __init__(self, spec, fmt_name, fmt, params, fn):
+    def __init__(self, spec, fmt_name, fmt, params, fn, spec_ord):
 
         self.spec = spec
         self.fmt_name = fmt_name
         self.fmt = dict(fmt)
         self.fmt.update(params)
         self.fn = fn
-        self.key = fmt['_ord']
+        self.spec_ord = spec_ord
+        self.key = (fmt['_ord'], spec_ord)
 
         # compute delta (/s) 
         self.delta = get(self.fmt, 'delta', False)
@@ -198,7 +200,7 @@ class Series:
 
     def get_split(self, split_key):
         if split_key not in self.split_series:
-            new = Series(self.spec, self.fmt_name, self.fmt, {}, self.fn)
+            new = Series(self.spec, self.fmt_name, self.fmt, {}, self.fn, self.spec_ord)
             new.fmt[self.split_field] = split_key # make split key available for formatting
             new.split_field = None
             new.key = (split_ords[self.split_field], split_key, new.key)
@@ -219,9 +221,6 @@ class Series:
                 s.get_graphs(graphs, ygroups, opt)
 
     def _data_point(self, t, d):
-        #t = dateutil.parser.parse(t) xxxxxxxxxxxxxxxxxxx
-        #if not t.tzinfo:
-        #    t = pytz.utc.localize(t-self.tz)
         d = float(d) / self.scale
         if self.delta:
             if self.last_t and self.last_t!=t:
@@ -289,14 +288,17 @@ def get(fmt, n, default=REQUIRED):
     v = fmt.get(n, default)
     if v is REQUIRED:
         raise Exception('missing required parameter ' + repr(n) + ' in ' + fmt['name'])
-    if (type(v)==str or type(v)==unicode):
-        v = str(v).format(**fmt)
-    elif type(v)==list:
-        v = [str(s).format(**fmt) for s in v] # xxx recursive? dict?
+    try:
+        if (type(v)==str or type(v)==unicode):
+            v = str(v).format(**fmt)
+        elif type(v)==list:
+            v = [str(s).format(**fmt) for s in v] # xxx recursive? dict?
+    except KeyError as e:
+        raise Exception('missing required parameter ' + repr(e.message) + ' in ' + fmt['name'])
     return v
 
 
-def series_spec(spec):
+def series_spec(spec, spec_ord):
 
     # parse helper
     def split(s, expect, err, full):
@@ -329,7 +331,7 @@ def series_spec(spec):
     series = []
     for name, fmt in formats.items():
         if re.search('^' + fmt_name, name):
-            series.append(Series(spec, fmt_name, fmt, params, fn))
+            series.append(Series(spec, fmt_name, fmt, params, fn, spec_ord))
     if not series:
         msg('no formats match', fmt_name)
 
@@ -455,21 +457,18 @@ def series_read_re(fn, series, opt):
 
 formats = {}     # formats loaded from various def files
 split_ords = {}  # sort order for each split_key - first occurrence of split_key in def file
+format_ord = 0
 
-def series_load(fn, ord):
-    dbg('loading', fn)
-    try:
-        for o, fmt in enumerate(json.load(open(fn))):
-            fmt['_ord'] = (ord, o)
-            if 'split' in fmt:
-                split_field = fmt['split']
-                if not split_field in split_ords:
-                    split_ords[split_field] = fmt['_ord']
-            if '_inherit' in fmt:
-                fmt = dict(formats[fmt['_inherit']].items() + fmt.items())
-            formats[fmt['name']] = fmt
-    except Exception as e:
-        msg(fn + ': ' + e.message)
+def format(**fmt):
+    global format_ord
+    fmt['_ord'] = format_ord
+    if 'split' in fmt:
+        split_field = fmt['split']
+        if not split_field in split_ords:
+            split_ords[split_field] = fmt['_ord']
+    formats[fmt['name']] = fmt
+    format_ord += 1
+
 
 def series_all(format_file, specs, opt):
 
@@ -480,19 +479,16 @@ def series_all(format_file, specs, opt):
     if type(opt.after)==str: opt.after = dateutil.parser.parse(opt.after) # xxx local tz by default
     if type(opt.before)==str: opt.before = dateutil.parser.parse(opt.before) # xxx local tz
 
-    # read timeseries.json files
-    fn = os.path.join(os.path.dirname(__file__), 'timeseries.json')
-    series_load(fn, 1001)
-    series_load('timeseries.json', 1000)
-    for ord, fn in enumerate(format_file):
-        if fn:
-            series_load(fn, ord)
+    # load formats
+    if not 'timeseries' in sys.modules:
+        sys.modules['timeseries'] = sys.modules['__main__']
+    importlib.import_module('timeseries_formats')
 
     # parse specs, group them by file
     series = [] # all
     fns = collections.defaultdict(list) # grouped by fn
-    for spec in specs:
-        for s in series_spec(spec):
+    for spec_ord, spec in enumerate(specs):
+        for s in series_spec(spec, spec_ord):
             fns[(s.fn, s.type)].append(s)
             series.append(s)
 
