@@ -16,7 +16,7 @@ import string
 def elt(name, attrs={}):
     sys.stdout.write('<%s' % name)
     for a in sorted(attrs):
-        sys.stdout.write(' %s="%s"' % (a.strip('_'), attrs[a]))
+        sys.stdout.write(' %s="%s"' % (a, attrs[a]))
     sys.stdout.write('>')
 
 def eltend(name, attrs={}, *content):
@@ -74,7 +74,7 @@ graph_style = '''
 x_pad = 1.5
 y_pad = 0.1
 
-def graph(
+def html_graph(
     data=[],
     tmin=None, tmax=None, width=None,
     ymin=None, ymax=None, height=None,
@@ -129,86 +129,107 @@ def labels(tmin, tmax, width, ts, labels):
 
 t0 = dateutil.parser.parse('2000-01-01T00:00:00Z')
 
+REQUIRED = []
+fmtr = string.Formatter()
+
+def get(descriptor, n, default=REQUIRED):
+    v = descriptor.get(n, default)
+    if v is REQUIRED:
+        raise Exception('missing required parameter '+repr(n)+' in '+descriptor['name'])
+    try:
+        if (type(v)==str or type(v)==unicode):
+            v = fmtr.vformat(str(v), (), descriptor)
+        elif type(v)==list:
+            v = [fmtr.vformat(str(s), (), descriptor) for s in v] # xxx recursive? dict?
+    except KeyError as e:
+        raise Exception('missing required parameter '+repr(e.message)+' in '+descriptor['name'])
+    return v
+
 class Series:
 
-    def __init__(self, spec, fmt, params, fn, spec_ord):
+    def __init__(self, spec, descriptor, params, fn, spec_ord):
 
         self.spec = spec
-        self.fmt = dict(fmt)
-        self.fmt.update(params)
+        self.descriptor = dict(descriptor)
+        self.descriptor.update(params)
         self.fn = fn
         self.spec_ord = spec_ord
-        self.key = (fmt['_ord'], spec_ord)
+        self.key = (descriptor['_ord'], spec_ord)
 
-        # compute delta (/s) 
-        self.delta = get(self.fmt, 'delta', False)
-        if self.delta:
+        # compute rate (/s) 
+        self.rate = self.get('rate', False)
+        if self.rate:
             self.last_t = None
     
         # request to bucketize the data
-        self.buckets = float(get(self.fmt, 'bucket_size', 0))
+        self.buckets = float(self.get('bucket_size', 0))
         if self.buckets:
-            self.op = op_for(self.fmt, get(self.fmt, 'bucket_op', 'max'))
+            self.op = op_for(self.descriptor, self.get('bucket_op', 'max'))
     
         # compute queued ops from op execution time
-        self.queue = get(self.fmt, 'queue', False)
+        self.queue = self.get('queue', False)
         if self.queue:
             self.queue_times = []
-            self.queue_min_ms = float(get(self.fmt, 'queue_min_ms', 0))
+            self.queue_min_ms = float(self.get('queue_min_ms', 0))
     
         # scale the data (divide by this)
-        self.scale = get(self.fmt, 'scale', 1)
+        self.scale = self.get('scale', 1)
     
         # requested ymax
-        self.spec_ymax = float(get(self.fmt, 'ymax', '-inf'))
+        self.spec_ymax = float(self.get('ymax', '-inf'))
 
         # initially empty timeseries data
         self.ts = []
         self.ys = collections.defaultdict(int)
     
         # re, json, ...
-        self.type = get(self.fmt, 'type', 're')
+        self.type = self.get('type', 'text')
 
         # info for re-format files
-        if self.type=='re':
-            self.re = get(self.fmt, 're', None)
+        if self.type=='text':
+            self.re = self.get('re', None)
             if self.re and re.compile(self.re).groups==0:
                 raise Exception('re ' + self.re + ' does not have any groups')
-            self.re_time = get(self.fmt, 're_time', 0)
-            self.re_data = get(self.fmt, 're_data', 1)
+            self.re_time = self.get('re_time', 0)
+            self.re_data = self.get('re_data', 1)
 
         # info for json-format files
         if self.type=='json':
-            self.json_time = get(self.fmt, 'json_time', None)
-            self.json_data = get(self.fmt, 'json_data', None)
+            self.json_time = self.get('json_time', None)
+            self.json_data = self.get('json_data', None)
 
         # timezone offset
-        tz = get(self.fmt, 'tz', None)
+        tz = self.get('tz', None)
         if tz==None:
             self.tz = datetime(*time.gmtime()[:6]) - datetime(*time.localtime()[:6])
         else:
             self.tz = timedelta(hours=float(tz))
 
         # all graphs in a ygroup will be plotted with a common display_ymax
-        self.ygroup = get(self.fmt, 'ygroup', id(self))
+        self.ygroup = self.get('ygroup', id(self))
 
         # which output graph this series will be plotted on
-        self.graph = id(self) # will update with fmt['merge'] later so can use split key
+        self.graph = id(self) # will update with desc['merge'] later so can use split key
 
         # split into multiple series based on a data value
-        self.split_field = get(self.fmt, 'split', None)
+        self.split_field = self.get('split', None)
         self.split_series = {}
 
         # hack to account for wrapping data
-        self.wrap = get(self.fmt, 'wrap', None)
+        self.wrap = self.get('wrap', None)
         self.wrap_offset = 0
         self.last_d = 0
 
+        # level
+        self.level = self.get('level', 0)
+
+    def get(self, *args):
+        return get(self.descriptor, *args)
 
     def get_split(self, split_key):
         if split_key not in self.split_series:
-            new = Series(self.spec, self.fmt, {}, self.fn, self.spec_ord)
-            new.fmt[self.split_field] = split_key # make split key available for formatting
+            new = Series(self.spec, self.descriptor, {}, self.fn, self.spec_ord)
+            new.descriptor[self.split_field] = split_key # make split key available for formatting
             new.split_field = None
             new.key = (split_ords[self.split_field], split_key, new.key)
             self.split_series[split_key] = new
@@ -218,9 +239,9 @@ class Series:
         if not self.split_field:
             # do self.graph and .name late so they can use split key
             if opt.merges:
-                merge = get(self.fmt, 'merge', None)
+                merge = self.get('merge', None)
                 if merge: self.graph = merge
-            self.name = get(self.fmt, 'name')
+            self.name = self.get('name')
             graphs[self.graph].append(self)
             ygroups[self.ygroup].append(self)
         else:
@@ -239,7 +260,7 @@ class Series:
             self.last_d = d
             d += self.wrap_offset
         d /= self.scale
-        if self.delta:
+        if self.rate:
             if self.last_t and self.last_t!=t:
                 self.ts.append(t)
                 self.ys[t] = (d-self.last_d) / (t-self.last_t).total_seconds()
@@ -292,31 +313,14 @@ class Series:
         for s in self.split_series.values():
             s.finish()
 
-def op_for(fmt, s):
+def op_for(desc, s):
     if s=='max': return lambda ys, t, d: max(ys[t], d)
     if s=='count':
-        count_min_ms = float(fmt.get("count_min_ms", 0))
+        count_min_ms = float(desc.get("count_min_ms", 0))
         return lambda ys, t, d: ys[t]+1 if d>=count_min_ms else ys[t]
 
 
-REQUIRED = []
-fmtr = string.Formatter()
-
-def get(fmt, n, default=REQUIRED):
-    v = fmt.get(n, default)
-    if v is REQUIRED:
-        raise Exception('missing required parameter '+repr(n)+' in '+fmt['name'])
-    try:
-        if (type(v)==str or type(v)==unicode):
-            v = fmtr.vformat(str(v), (), fmt)
-        elif type(v)==list:
-            v = [fmtr.vformat(str(s), (), fmt) for s in v] # xxx recursive? dict?
-    except KeyError as e:
-        raise Exception('missing required parameter '+repr(e.message)+' in '+fmt['name'])
-    return v
-
-
-def series_spec(spec, spec_ord, opt):
+def get_series(spec, spec_ord, opt):
 
     # parse helper
     def split(s, expect, err, full):
@@ -358,23 +362,23 @@ def series_spec(spec, spec_ord, opt):
                     return 'json'
                 except:
                     pass
-        return 're'
+        return 'text'
 
     file_type = detect(fn)
     msg('detected type of', fn, 'as', file_type)
 
-    # find matching formats
+    # find matching descriptors
     scored = collections.defaultdict(list)
     spec_name_words = words(spec_name)
-    for fmt in formats:
-        if get(fmt,'type','re') != file_type:
+    for desc in descriptors:
+        if get(desc,'type','text') != file_type:
             continue
-        fmt_name_words = words(fmt['name'])
+        desc_name_words = words(desc['name'])
         last_i = -1
         beginning = matched = in_order = adjacent = 0
         for w, word in enumerate(spec_name_words):
             try:
-                i = fmt_name_words.index(word)
+                i = desc_name_words.index(word)
                 if i==0 and w==0: beginning = 1
                 matched += 1
                 if i==last_i+1: adjacent += 1
@@ -383,14 +387,14 @@ def series_spec(spec, spec_ord, opt):
             except ValueError:
                 pass
         score = (beginning, matched, adjacent, in_order)
-        scored[score].append(fmt)
+        scored[score].append(desc)
     best_score = sorted(scored.keys())[-1]
-    best_fmts = scored[best_score] if best_score != (0,0,0,0) else []
-    series = [Series(spec, fmt, params, fn, spec_ord) for fmt in best_fmts]
+    best_descs = scored[best_score] if best_score != (0,0,0,0) else []
+    series = [Series(spec, desc, params, fn, spec_ord) for desc in best_descs]
 
     # no match?
     if not series:
-        msg('no formats match', spec_name)
+        msg('no descriptors match', spec_name)
 
     return series
 
@@ -425,12 +429,13 @@ def series_read_json(fn, series, opt):
     interior = collections.OrderedDict
     root = interior()
     for s in series:
-        if not s.json_data: raise Exception(s.fmt['name'] + ' does not specify json_data')
-        if not s.json_time: raise Exception(s.fmt['name'] + ' does not specify json_time')
+        if not s.json_data: raise Exception(s.descriptor['name'] + ' does not specify json_data')
+        if not s.json_time: raise Exception(s.descriptor['name'] + ' does not specify json_time')
         add_path(root, s.json_time, 'time') # must go first so we get a t first
         add_path(root, s.json_data, s)
 
     # match a path tree with a json doc
+    # xxx use set intersection, should be faster, now that we don't have to preserve order
     def match(node, jline):
         for name in node:
             if name in jline:
@@ -468,7 +473,7 @@ def series_read_re(fn, series, opt):
 
     # group res into chunks
     # Python re impl can only handle 100 groups
-    # so we process the formats in chunks, constructing one chunk_re for each chunk
+    # so we process the descriptors in chunks, constructing one chunk_re for each chunk
     # and match each line against the regex for each chunk
     chunk_size = 40
     chunks = []
@@ -512,22 +517,22 @@ def series_read_re(fn, series, opt):
                                 s.data_point(t, d, field)
                             last_time = t
 
-formats = []     # formats loaded from various def files
-split_ords = {}  # sort order for each split_key - first occurrence of split_key in def file
-format_ord = 0
+descriptors = []     # descriptors loaded from various def files
+split_ords = {}      # sort order for each split_key - first occurrence of split_key in def file
+descriptor_ord = 0
 
-def format(**fmt):
-    global format_ord
-    fmt['_ord'] = format_ord
-    if 'split' in fmt:
-        split_field = fmt['split']
+def descriptor(**desc):
+    global descriptor_ord
+    desc['_ord'] = descriptor_ord
+    if 'split' in desc:
+        split_field = desc['split']
         if not split_field in split_ords:
-            split_ords[split_field] = fmt['_ord']
-    formats.append(fmt)
-    format_ord += 1
+            split_ords[split_field] = desc['_ord']
+    descriptors.append(desc)
+    descriptor_ord += 1
 
 
-def series_all(specs, opt):
+def get_graphs(specs, opt):
 
     if not hasattr(opt, 'after') or not opt.after: opt.after = pytz.utc.localize(datetime.min)
     if not hasattr(opt, 'before') or not opt.before: opt.before = pytz.utc.localize(datetime.max)
@@ -540,14 +545,14 @@ def series_all(specs, opt):
     series = [] # all
     fns = collections.defaultdict(list) # grouped by fn
     for spec_ord, spec in enumerate(specs):
-        for s in series_spec(spec, spec_ord, opt):
+        for s in get_series(spec, spec_ord, opt):
             fns[(s.fn,s.type)].append(s) # xxx canonicalize filename
             series.append(s)
 
     # process by file according to file type
     for fn, filetype in sorted(fns):
         opt.last_time = pytz.utc.localize(datetime.min)
-        if filetype=='re': series_read_re(fn, fns[(fn,filetype)], opt)
+        if filetype=='text': series_read_re(fn, fns[(fn,filetype)], opt)
         elif filetype=='json': series_read_json(fn, fns[(fn,filetype)], opt)
         
     # finish each series
@@ -711,7 +716,7 @@ _style = '''
         padding-right: 2em;
         text-align: right;
     }
-    .desc {
+    .name {
         text-align: left;
     }
     .graph {
@@ -775,6 +780,21 @@ _script = '''
             }
             row = row.nextSibling
         }
+    }
+
+    function set_level(c) {
+        c = String(c)
+        row = document.getElementById("table").firstChild.firstChild    
+        while (row) {
+            row_level = row.getAttribute('_level')
+            if (row_level <= c) {
+                row.style.display = ''
+            } else {
+                row.style.display = 'none'
+            }
+            row = row.nextSibling
+        }
+        document.getElementById("current_level").innerHTML = c
     }
 
     function key() {
@@ -853,6 +873,8 @@ _script = '''
                 sel(s)
                 re_number()
             }
+        } else if ('1'<=c && c<='9') {
+            set_level(c)
         }
         _sel(selected)
     }    
@@ -895,8 +917,8 @@ def main():
 
     p = argparse.ArgumentParser()
     p.add_argument('--dbg', '-d', action='store_true')
-    p.add_argument(dest='series', nargs='*')
-    #p.add_argument('--format-file', '-f', default=None)
+    p.add_argument(dest='specs', nargs='*')
+    #p.add_argument('--descriptor-file', '-f', default=None)
     p.add_argument('--width', type=float, default=30)
     p.add_argument('--height', type=float, default=1.8)
     p.add_argument('--show-empty', action='store_true')
@@ -909,26 +931,35 @@ def main():
     p.add_argument('--before')
     p.add_argument('--every', type=float)
     p.add_argument('--list', action='store_true')
+    p.add_argument('--level', type=int, choices=range(1,10), default=1)
 
     global opt
     opt = p.parse_args()
 
     # just list?
     if opt.list:
-        for fmt in sorted(formats, key=lambda fmt: fmt['name'].lower()):
-            f = collections.defaultdict(lambda: '...')
-            f.update(fmt)
-            msg(get(f, 'name'))
+        for desc in sorted(descriptors, key=lambda desc: desc['name'].lower()):
+            d = collections.defaultdict(lambda: '...')
+            d.update(desc)
+            msg(get(d, 'name'))
         return
 
     # get our graphs
-    graphs = series_all(opt.series, opt)
+    graphs = get_graphs(opt.specs, opt)
     if not graphs:
         msg('no series specified')
         return
     tmin = min(s.tmin for g in graphs for s in g if s.tmin)
     tmax = max(s.tmax for g in graphs for s in g if s.tmax)
     tspan = float((tmax-tmin).total_seconds())
+
+    # stats
+    spec_matches = collections.defaultdict(int)
+    for graph in graphs:
+        for series in graph:
+            spec_matches[series.spec] += 1
+    spec_empty = collections.defaultdict(int)
+    spec_zero = collections.defaultdict(int)
 
     msg('start:', tmin)
     msg('finish:', tmax)
@@ -956,7 +987,7 @@ def main():
         ticks.append(t)
 
     def _graph(data=[], ymax=None):
-        graph(data=data,
+        html_graph(data=data,
               tmin=tmin, tmax=tmax, width=opt.width,
               ymin=0, ymax=ymax, height=opt.height,
               #ticks=ticks, shaded=not opt.no_shade and len(data)==1)
@@ -975,10 +1006,11 @@ def main():
     put(_script)
     end('script')
     end('head')
-    elt('body', {'onkeypress':'key()'})
+    elt('body', {'onkeypress':'key()', 'onload':'set_level(%d)'%opt.level})
 
     elt('div', {'onclick':'toggle_help()'})
-    put('click to toggle help')
+    put('1-9 to choose detail level; current level: <span id="current_level"></span><br/>')
+    put('click to toggle more help')
     eltend('div', {'id':'help', 'style':'display:none'}, _help)
     end('div')
     put('</br>')
@@ -1002,7 +1034,7 @@ def main():
         return colors[i] if i <len(colors) else 'black'
 
     def name_td(g):
-        td('desc')
+        td('name')
         pfx = os.path.commonprefix([s.name for s in g])
         sfx = os.path.commonprefix([s.name[::-1] for s in g])[::-1]
         put(pfx)
@@ -1014,32 +1046,34 @@ def main():
         end('td')
 
     row = 0
-    for g in sorted(graphs, key=lambda g: g[0].key):
-        g.sort(key=lambda s: s.key)
-        ymin = min(s.ymin for s in g)
-        ymax = max(s.ymax for s in g)
-        ysum = sum(s.ysum for s in g)
-        ylen = sum(len(s.ys) for s in g)
-        display_ymax = max(s.display_ymax for s in g)
+    for graph in sorted(graphs, key=lambda g: g[0].key):
+        graph.sort(key=lambda s: s.key)
+        ymin = min(s.ymin for s in graph)
+        ymax = max(s.ymax for s in graph)
+        ysum = sum(s.ysum for s in graph)
+        ylen = sum(len(s.ys) for s in graph)
+        display_ymax = max(s.display_ymax for s in graph)
         if ylen:
             if ymax!=0 or ymin!=0 or opt.show_zero:
-                elt('tr', {'onclick':'sel(this)', 'class':'row'})
+                elt('tr', {'onclick':'sel(this)', 'class':'row', '_level':graph[0].level})
                 td('data', '{:,.3f}'.format(float(ysum)/ylen))
                 td('data', '{:,.3f}'.format(ymax))
                 td('graph')
-                data = [(s.ts, s.ys, color(i) if len(g)>1 else 'black') for i,s in enumerate(g)]
+                graph_color = lambda graph, i: color(i) if len(graph)>1 else 'black'
+                data = [(s.ts, s.ys, graph_color(graph,i)) for i,s in enumerate(graph)]
                 _graph(data, display_ymax)
                 end('td')
                 if opt.number_rows:
                     td('row-number', str(row))
                     row += 1
-                name_td(g)
+                name_td(graph)
                 end('tr')
             else:
-                name = get(g[0].fmt, 'name')
-                msg('skipping uniformly zero data for', name, 'in', g[0].fn)
+                dbg('skipping uniformly zero data for', graph[0].get('name'), 'in', graph[0].fn)
+                for s in graph:
+                    spec_zero[s.spec] += 1
         elif opt.show_empty:
-            elt('tr', {'onclick':'sel(this)', 'class':'row'})
+            elt('tr', {'onclick':'sel(this)', 'class':'row', '_level':graph[0].level})
             td('data', 'n/a')
             td('data', 'n/a')
             td('graph')
@@ -1048,31 +1082,43 @@ def main():
             if opt.number_rows:
                 td('row-number', str(row))
                 row += 1
-            name_td(g)
+            name_td(graph)
             end('tr')
         else:
-            msg('no data for', get(g[0].fmt, 'name'), 'in', g[0].fn)
+            dbg('no data for', graph[0].get('name'), 'in', graph[0].fn)
+            for s in graph:
+                spec_empty[s.spec] += 1
 
     end('table')
     end('body')
     end('html')
 
+    for spec in opt.specs:
+        msg('spec', repr(spec), 'matched:', spec_matches[spec],
+            'zero:', spec_zero[spec], 'empty:', spec_empty[spec])
+
 
 ################################################################################
 #
-# built-in formats
+# built-in descriptors
+#
+# levels:
+# 1 - important basic non-engine-specific
+# 2 - add basic engine-specific
+# 3 - everything not of dubious meaning
+# 9 - dubious meaning; investigate these further
 #
 
 #
-# generic grep format
+# generic grep descriptor
 # usage: timeseries 'grep(pat=pat):fn
 #     pat - re to locate data; must include one re group identifying data
 #     fn - file to be searched
-# this format supplies a generic re to identify a timestamp
+# this descriptor supplies a generic re to identify a timestamp
 # assumes the timestamp precedes the data
 #
 
-format(
+descriptor(
     name = 'grep {pat}',
     re = '^.*(....-..-..T..:..:..(?:\....)?Z?|(?:... )?... .. .... ..:..:..).*{pat}',
 )
@@ -1085,24 +1131,27 @@ format(
 
 MB = 1024*1024
 
-def fmt_units(scale, delta):
+def desc_units(scale, rate):
     units = ''
     if scale==MB: units = 'MB'
-    if delta: units += '/s'
+    if rate: units += '/s'
     return units
 
-def ss(json_data, name=None, scale=1, delta=False, units=None, **kwargs):
-    if not name: name = 'ss ' + json_data[0] +  ': ' + ' '.join(json_data[1:])
-    if not units: units = fmt_units(scale, delta)
+def ss(json_data, name=None, scale=1, rate=False, units=None, level=3, **kwargs):
+    if not name:
+        name = ' '.join(s for s in json_data[1:] if s!='floatApprox')
+        name = 'ss ' + json_data[0] +  ': ' + name
+    if not units: units = desc_units(scale, rate)
     if units: units = ' (' + units + ')'
     name = name + units
-    format(
+    descriptor(
         type = 'json',
         name = name,
         json_data = json_data,
         json_time = ['localTime'],        
         scale = scale,
-        delta = delta,
+        rate = rate,
+        level = level,
         **kwargs
     )
 
@@ -1111,7 +1160,8 @@ def ss_opcounter(opcounter, **kwargs):
         json_data = ['opcounters', opcounter],
         merge = 'ss_opcounters',
         name = 'ss opcounters: ' + opcounter,
-        delta = True,
+        level = 1,
+        rate = True,
         **kwargs
     )
 
@@ -1126,12 +1176,14 @@ ss(
     json_data = ['globalLock', 'activeClients', 'readers'],
     name = 'ss global: read queue',
     merge = '_ss_queue',
+    level = 1
 )
 
 ss(
     json_data = ['globalLock', 'activeClients', 'writers'],
     name = 'ss global: write queue',
     merge = '_ss_queue',
+    level = 1
 )
 
 # TBD
@@ -1146,7 +1198,7 @@ ss(
 #["backgroundFlushing", "last_ms"]
 #["backgroundFlushing", "total_ms"]
 #["connections", "available"]
-ss(["connections", "current"])
+ss(["connections", "current"], level=1)
 #["connections", "totalCreated", "floatApprox"]
 #["cursors", "clientCursors_size"]
 #["cursors", "note"]
@@ -1165,88 +1217,68 @@ ss(["connections", "current"])
 #["dur", "timeMs", "writeToDataFiles"]
 #["dur", "timeMs", "writeToJournal"]
 #["dur", "writeToDataFilesMB"]
-ss(["extra_info", "heap_usage_bytes"], scale=MB, level=1, wrap=2.0**31)
+ss(["extra_info", "heap_usage_bytes"], scale=MB, wrap=2.0**31)
 #["extra_info", "note"]
-ss(["extra_info", "page_faults"], delta=True, level=1)
+ss(["extra_info", "page_faults"], rate=True, level=1)
 ###["globalLock", "activeClients", "readers"] # see above
-ss(['globalLock', 'activeClients', 'total'], level=99)
+ss(['globalLock', 'activeClients', 'total'], level=9)
 ####["globalLock", "activeClients", "writers"] # see above
-ss(['globalLock', 'currentQueue', 'readers'], level=99)
-ss(['globalLock', 'currentQueue', 'writers'], level=99)
-ss(['globalLock', 'currentQueue', 'total'], level=99)
-ss(['globalLock', 'totalTime', 'floatApprox'], level=99)
+ss(['globalLock', 'currentQueue', 'readers'], level=9)
+ss(['globalLock', 'currentQueue', 'writers'], level=9)
+ss(['globalLock', 'currentQueue', 'total'], level=9)
+ss(['globalLock', 'totalTime', 'floatApprox'], level=9)
 #["host"]
 #["localTime"]
 #["mem", "bits"]
-ss(["mem", "mapped"], scale=MB, level=1)
+ss(["mem", "mapped"], scale=MB)
 ss(["mem", "mappedWithJournal"], scale=MB)
-ss(["mem", "resident"], units="MB", level=1)
+ss(["mem", "resident"], units="MB")
 #["mem", "supported"]
-ss(["mem", "virtual"], units="MB", level=1)
-ss(["metrics", "commands", "serverStatus", "failed", "floatApprox"], delta=True, level=1)
-ss(["metrics", "commands", "serverStatus", "total", "floatApprox"], delta=True, level=1)
-ss(["metrics", "commands", "whatsmyuri", "failed", "floatApprox"], delta=True, level=1)
-ss(["metrics", "commands", "whatsmyuri", "total", "floatApprox"], delta=True, level=1)
-ss(["metrics", "cursor", "open", "noTimeout", "floatApprox"], level=1)
-ss(["metrics", "cursor", "open", "pinned", "floatApprox"], level=1)
-ss(["metrics", "cursor", "open", "total", "floatApprox"], level=1)
-ss(["metrics", "cursor", "timedOut", "floatApprox"], delta=True, level=1)
-ss(["metrics", "document", "deleted", "floatApprox"], delta=True, level=1)
-ss(["metrics", "document", "inserted", "floatApprox"], delta=True, level=1)
-ss(["metrics", "document", "returned", "floatApprox"], delta=True, level=1)
-ss(["metrics", "document", "updated", "floatApprox"], delta=True, level=1)
-ss(["metrics", "getLastError", "wtime", "num"], delta=True, level=1)
-ss(["metrics", "getLastError", "wtime", "totalMillis"], delta=True, level=1)
-ss(["metrics", "getLastError", "wtimeouts", "floatApprox"], delta=True, level=1)
-ss(["metrics", "operation", "fastmod", "floatApprox"], delta=True, level=1)
-ss(["metrics", "operation", "idhack", "floatApprox"], delta=True, level=1)
-ss(["metrics", "operation", "scanAndOrder", "floatApprox"], delta=True, level=1)
-ss(["metrics", "queryExecutor", "scanned", "floatApprox"], delta=True, level=1)
-ss(["metrics", "queryExecutor", "scannedObjects", "floatApprox"], delta=True, level=1)
-ss(["metrics", "record", "moves", "floatApprox"], delta=True, level=1)
-ss(["metrics", "repl", "apply", "batches", "num"], delta=True, level=1)
-ss(["metrics", "repl", "apply", "batches", "totalMillis"], delta=True, level=1)
-ss(["metrics", "repl", "apply", "ops", "floatApprox"], delta=True, level=1)
-ss(["metrics", "repl", "buffer", "count", "floatApprox"], delta=True, level=1)
-ss(["metrics", "repl", "buffer", "maxSizeBytes"], delta=True, level=1)
-ss(["metrics", "repl", "buffer", "sizeBytes", "floatApprox"], delta=True, level=1)
-ss(["metrics", "repl", "network", "bytes", "floatApprox"], delta=True)
-ss(["metrics", "repl", "network", "getmores", "num"], delta=True, level=1)
-ss(["metrics", "repl", "network", "getmores", "totalMillis"], delta=True)
-ss(["metrics", "repl", "network", "ops", "floatApprox"], delta=True, level=1)
-ss(["metrics", "repl", "network", "readersCreated", "floatApprox"], delta=True)
-ss(["metrics", "repl", "preload", "docs", "num"], delta=True, level=1)
-ss(["metrics", "repl", "preload", "docs", "totalMillis"], delta=True)
-ss(["metrics", "repl", "preload", "indexes", "num"], delta=True, level=1)
-ss(["metrics", "repl", "preload", "indexes", "totalMillis"], delta=True)
-ss(["metrics", "storage", "freelist", "search", "bucketExhausted", "floatApprox"], delta=True, level=1)
-ss(["metrics", "storage", "freelist", "search", "requests", "floatApprox"], delta=True)
-ss(["metrics", "storage", "freelist", "search", "scanned", "floatApprox"], delta=True, level=1)
-ss(["metrics", "ttl", "deletedDocuments", "floatApprox"], delta=True, level=1)
-ss(["metrics", "ttl", "passes", "floatApprox"], delta=True, level=1)
-ss(["network", "bytesIn"], delta=True, scale=MB, level=1)
-ss(["network", "bytesOut"], delta=True, scale=MB, level=1)
-ss(["network", "numRequests"], delta=True, level=1)
-#["ok"]
-#["opcounters", "command"]
-#["opcounters", "delete"]
-#["opcounters", "getmore"]
-#["opcounters", "insert"]
-#["opcounters", "query"]
-#["opcounters", "update"]
-#["opcountersRepl", "command"]
-#["opcountersRepl", "delete"]
-#["opcountersRepl", "getmore"]
-#["opcountersRepl", "insert"]
-#["opcountersRepl", "query"]
-#["opcountersRepl", "update"]
-#["pid", "floatApprox"]
-#["process"]
-#["storageEngine", "name"]
-#["uptime"]
-#["uptimeEstimate"]
-#["uptimeMillis", "floatApprox"]
-#["version"]
+ss(["mem", "virtual"], scale=MB, level=1)
+ss(["metrics", "commands", "serverStatus", "failed", "floatApprox"], rate=True)
+ss(["metrics", "commands", "serverStatus", "total", "floatApprox"], rate=True)
+ss(["metrics", "commands", "whatsmyuri", "failed", "floatApprox"], rate=True)
+ss(["metrics", "commands", "whatsmyuri", "total", "floatApprox"], rate=True)
+ss(["metrics", "cursor", "open", "noTimeout", "floatApprox"])
+ss(["metrics", "cursor", "open", "pinned", "floatApprox"])
+ss(["metrics", "cursor", "open", "total", "floatApprox"])
+ss(["metrics", "cursor", "timedOut", "floatApprox"], rate=True)
+ss(["metrics", "document", "deleted", "floatApprox"], rate=True)
+ss(["metrics", "document", "inserted", "floatApprox"], rate=True)
+ss(["metrics", "document", "returned", "floatApprox"], rate=True)
+ss(["metrics", "document", "updated", "floatApprox"], rate=True)
+ss(["metrics", "getLastError", "wtime", "num"], rate=True)
+ss(["metrics", "getLastError", "wtime", "totalMillis"], rate=True)
+ss(["metrics", "getLastError", "wtimeouts", "floatApprox"], rate=True)
+ss(["metrics", "operation", "fastmod", "floatApprox"], rate=True)
+ss(["metrics", "operation", "idhack", "floatApprox"], rate=True)
+ss(["metrics", "operation", "scanAndOrder", "floatApprox"], rate=True)
+ss(["metrics", "queryExecutor", "scanned", "floatApprox"], rate=True)
+ss(["metrics", "queryExecutor", "scannedObjects", "floatApprox"], rate=True)
+ss(["metrics", "record", "moves", "floatApprox"], rate=True)
+ss(["metrics", "repl", "apply", "batches", "num"], rate=True)
+ss(["metrics", "repl", "apply", "batches", "totalMillis"], rate=True)
+ss(["metrics", "repl", "apply", "ops", "floatApprox"], rate=True)
+ss(["metrics", "repl", "buffer", "count", "floatApprox"], rate=True)
+ss(["metrics", "repl", "buffer", "maxSizeBytes"], rate=True)
+ss(["metrics", "repl", "buffer", "sizeBytes", "floatApprox"], rate=True)
+ss(["metrics", "repl", "network", "bytes", "floatApprox"], rate=True)
+ss(["metrics", "repl", "network", "getmores", "num"], rate=True)
+ss(["metrics", "repl", "network", "getmores", "totalMillis"], rate=True)
+ss(["metrics", "repl", "network", "ops", "floatApprox"], rate=True)
+ss(["metrics", "repl", "network", "readersCreated", "floatApprox"], rate=True)
+ss(["metrics", "repl", "preload", "docs", "num"], rate=True)
+ss(["metrics", "repl", "preload", "docs", "totalMillis"], rate=True)
+ss(["metrics", "repl", "preload", "indexes", "num"], rate=True)
+ss(["metrics", "repl", "preload", "indexes", "totalMillis"], rate=True)
+ss(["metrics", "storage", "freelist", "search", "bucketExhausted", "floatApprox"], rate=True)
+ss(["metrics", "storage", "freelist", "search", "requests", "floatApprox"], rate=True)
+ss(["metrics", "storage", "freelist", "search", "scanned", "floatApprox"], rate=True)
+ss(["metrics", "ttl", "deletedDocuments", "floatApprox"], rate=True)
+ss(["metrics", "ttl", "passes", "floatApprox"], rate=True)
+ss(["network", "bytesIn"], rate=True, scale=MB, merge='network bytes', level=1)
+ss(["network", "bytesOut"], rate=True, scale=MB, merge='network bytes', level=1)
+ss(["network", "numRequests"], rate=True)
 
 
 #
@@ -1259,8 +1291,8 @@ iostat_cpu_re = '(?:^ *(?P<user>[0-9\.]+) *(?P<nice>[0-9\.]+) *(?P<system>[0-9\.
 iostat_disk_re = '(?:^(?P<iostat_disk>[a-z]+) *(?P<rrqms>[0-9\.]+) *(?P<wrqms>[0-9\.]+) *(?P<rs>[0-9\.]+) *(?P<ws>[0-9\.]+) *(?P<rkBs>[0-9\.]+) *(?P<wkBs>[0-9\.]+) *(?P<avgrqsz>[0-9\.]+) *(?P<avgqusz>[0-9\.]+) *(?P<await>[0-9\.]+) *(?P<r_await>[0-9\.]+)? *(?P<w_await>[0-9\.]+)? *(?P<svctime>[0-9\.]+) *(?P<util>[0-9\.]+))'
 
 def iostat(**kwargs):
-    format(
-        type = 're',
+    descriptor(
+        type = 'text',
         re = '|'.join([iostat_time_re, iostat_cpu_re, iostat_disk_re]),
         re_time = 'time',
         **kwargs
@@ -1279,13 +1311,14 @@ iostat_cpu('system', merge = 'iostat_cpu')
 iostat_cpu('iowait', merge = 'iostat_cpu')
 iostat_cpu('nice', merge = 'iostat_cpu')
 iostat_cpu('steal', merge = 'iostat_cpu')
-iostat_cpu('idle')
+iostat_cpu('idle', level = 3)
 
-def iostat_disk(re_data, name, **kwargs):
+def iostat_disk(re_data, name, level=3, **kwargs):
     iostat(
         re_data = re_data,
         split = 'iostat_disk',
         name = 'iostat disk: {iostat_disk} ' + name,
+        level = level,
         **kwargs
     )
 
@@ -1293,12 +1326,12 @@ iostat_disk('wrqms',   'write requests merged (/s)', merge='iostat_disk_req_merg
 iostat_disk('rrqms',   'read requests merged (/s)',  merge='iostat_disk_req_merged {iostat_disk}',  ygroup='iostat_disk_req')
 iostat_disk('ws',      'write requests issued (/s)', merge='iostat_disk_req_issued {iostat_disk}',  ygroup='iostat_disk_req')
 iostat_disk('rs',      'read requests issued (/s)',  merge='iostat_disk_req_issued {iostat_disk}',  ygroup='iostat_disk_req')
-iostat_disk('wkBs',    'bytes written (MB/s)',       merge='iostat_disk_MBs {iostat_disk}',         scale=1024)
-iostat_disk('rkBs',    'bytes read (MB/s)',          merge='iostat_disk_MBs {iostat_disk}',         scale = 1024)
+iostat_disk('wkBs',    'bytes written (MB/s)',       merge='iostat_disk_MBs {iostat_disk}',         scale=1024, level=1)
+iostat_disk('rkBs',    'bytes read (MB/s)',          merge='iostat_disk_MBs {iostat_disk}',         scale=1024, level=1)
 iostat_disk('avgrqsz', 'average request size (sectors)')
 iostat_disk('avgqusz', 'average queue length')
 iostat_disk('await',   'average wait time (ms)')
-iostat_disk('util',    'average utilization (%)', ymax = 100)
+iostat_disk('util',    'average utilization (%)', ymax=100, level=1)
 
 
 #
@@ -1307,13 +1340,14 @@ iostat_disk('util',    'average utilization (%)', ymax = 100)
 
 def mongod(**kwargs):
     kwargs['re'] = '^(....-..-..T..:..:..\....[+-]....)' + kwargs['re']
-    format(**kwargs)
+    descriptor(**kwargs)
 
 mongod(
     name = 'mongod max logged query (ms) per {bucket_size}s',
     re = '.* query: .* ([0-9]+)ms$',
     bucket_op = 'max',
     bucket_size = 1, # size of buckets in seconds
+    level = 1
 )
 
 mongod(
@@ -1322,6 +1356,7 @@ mongod(
     bucket_op = 'count',
     bucket_size = 1,       # size of buckets in seconds
     count_min_ms = 0,      # minimum query duration to count',
+    level = 1
 )
 
 mongod(
@@ -1329,88 +1364,92 @@ mongod(
     re = '.* query: .* ([0-9]+)ms$',
     queue = True,
     queue_min_ms = 0,  # minimum op duration to count for queue',
+    level = 3
 )
+
 
 mongod(
     name = 'mongod: waiting to acquire lock per {bucket_size}s',
     re = '.* has been waiting to acquire lock for more than (30) seconds',
     bucket_op = 'count',
     bucket_size = 1,  # size of buckets in seconds
+    level = 1
 )
 
 #
 # wt
 #
 
-def wt(wt_cat, wt_name, delta=False, scale=1.0, **kwargs):
+def wt(wt_cat, wt_name, rate=False, scale=1.0, level=3, **kwargs):
 
-    units = fmt_units(scale, delta)
+    kwargs['scale'] = scale
+    kwargs['rate'] = rate
+    kwargs['level'] = level
+
+    units = desc_units(scale, rate)
     if units: units = ' (' + units + ')'
+    name = 'wt {}: {}{}'.format(wt_cat, wt_name, units)
 
-    # for parsing wt data in json format files
-    format(
+    # for parsing wt data in json format ss files
+    descriptor(
         type = 'json',
         json_time = ['localTime'],
         json_data = ['wiredTiger', wt_cat, wt_name],
-        scale = scale,
-        delta = delta,
-        name = 'ss wt {}: {}{}'.format(wt_cat, wt_name, units),
+        name = 'ss ' + name,
         **kwargs
     )
 
-    # for parsing wt data in json re format files
-    format(
-        type = 're',
+    # for parsing wt data in json re format wtstats files
+    descriptor(
+        type = 'text',
         re = '^(... .. ..:..:..) ([0-9]+) .* {}: {}'.format(wt_cat, wt_name),
-        scale = scale,
-        delta = delta,
-        name = 'wt {}: {}{}'.format(wt_cat, wt_name, units),
+        name = name,
         **kwargs
     )
-
 
 wt('async', 'maximum work queue length')
-wt('async', 'number of allocation state races', delta=True)
-wt('async', 'number of flush calls', delta=True)
-wt('async', 'number of operation slots viewed for allocation', delta=True)
-wt('async', 'number of times operation allocation failed', delta=True)
-wt('async', 'number of times worker found no work', delta=True)
-wt('async', 'total allocations', delta=True)
-wt('async', 'total compact calls', delta=True)
-wt('async', 'total insert calls', delta=True)
-wt('async', 'total remove calls', delta=True)
-wt('async', 'total search calls', delta=True)
-wt('async', 'total update calls', delta=True)
-wt('block-manager', 'allocations requiring file extension', delta=True)
-wt('block-manager', 'blocks allocated', delta=True)
-wt('block-manager', 'blocks freed', delta=True)
-wt('block-manager', 'blocks pre-loaded', delta=True)
-wt('block-manager', 'blocks written', merge='wt_block-manager_blocks', delta=True)
-wt('block-manager', 'blocks read', merge='wt_block-manager_blocks', delta=True)
-wt('block-manager', 'bytes written', merge='wt_block-manager_bytes', scale=MB, delta=True)
-wt('block-manager', 'bytes read', merge='wt_block-manager_bytes', scale=MB, delta=True)
+wt('async', 'current work queue length', level=2)
+wt('async', 'number of allocation state races', rate=True)
+wt('async', 'number of flush calls', rate=True)
+wt('async', 'number of operation slots viewed for allocation', rate=True)
+wt('async', 'number of times operation allocation failed', rate=True)
+wt('async', 'number of times worker found no work', rate=True)
+wt('async', 'total allocations', rate=True)
+wt('async', 'total compact calls', rate=True)
+wt('async', 'total insert calls', rate=True)
+wt('async', 'total remove calls', rate=True)
+wt('async', 'total search calls', rate=True)
+wt('async', 'total update calls', rate=True)
+wt('block-manager', 'allocations requiring file extension', rate=True)
+wt('block-manager', 'blocks allocated', rate=True)
+wt('block-manager', 'blocks freed', rate=True)
+wt('block-manager', 'blocks pre-loaded', rate=True)
+wt('block-manager', 'blocks written', merge='wt_block-manager_blocks', rate=True)
+wt('block-manager', 'blocks read', merge='wt_block-manager_blocks', rate=True)
+wt('block-manager', 'bytes written', merge='wt_block-manager_bytes', scale=MB, rate=True, level=2)
+wt('block-manager', 'bytes read', merge='wt_block-manager_bytes', scale=MB, rate=True, level=2)
 wt('block-manager', 'checkpoint size')
 wt('block-manager', 'file allocation unit size')
 wt('block-manager', 'file bytes available for reuse', scale=MB)
-wt('block-manager', 'file magic number')
-wt('block-manager', 'file major version number')
+wt('block-manager', 'file magic number', level=9)
+wt('block-manager', 'file major version number', level=9)
 wt('block-manager', 'file size in bytes', scale=MB)
-wt('block-manager', 'mapped blocks read', delta=True)
-wt('block-manager', 'mapped bytes read', delta=True, scale=MB)
-wt('block-manager', 'minor version number')
+wt('block-manager', 'mapped blocks read', rate=True)
+wt('block-manager', 'mapped bytes read', rate=True, scale=MB)
+wt('block-manager', 'minor version number', level=9)
 wt('btree', 'column-store fixed-size leaf pages')
 wt('btree', 'column-store internal pages')
 wt('btree', 'column-store variable-size deleted values')
 wt('btree', 'column-store variable-size leaf pages')
-wt('btree', 'cursor create calls', delta=True)
-wt('btree', 'cursor insert calls', delta=True)
-wt('btree', 'cursor next calls', delta=True)
-wt('btree', 'cursor prev calls', delta=True)
-wt('btree', 'cursor remove calls', delta=True)
-wt('btree', 'cursor reset calls', delta=True)
-wt('btree', 'cursor search calls', delta=True)
-wt('btree', 'cursor search near calls', delta=True)
-wt('btree', 'cursor update calls', delta=True)
+wt('btree', 'cursor create calls', rate=True, level=2)
+wt('btree', 'cursor insert calls', rate=True, level=2)
+wt('btree', 'cursor next calls', rate=True)
+wt('btree', 'cursor prev calls', rate=True)
+wt('btree', 'cursor remove calls', rate=True, level=2)
+wt('btree', 'cursor reset calls', rate=True)
+wt('btree', 'cursor search calls', rate=True, level=2)
+wt('btree', 'cursor search near calls', rate=True, level=3)
+wt('btree', 'cursor update calls', rate=True, level=2)
 wt('btree', 'fixed-record size')
 wt('btree', 'maximum internal page item size')
 wt('btree', 'maximum internal page size')
@@ -1419,261 +1458,148 @@ wt('btree', 'maximum leaf page size')
 wt('btree', 'maximum tree depth')
 wt('btree', 'number of key/value pairs')
 wt('btree', 'overflow pages')
-wt('btree', 'pages rewritten by compaction', delta=True)
+wt('btree', 'pages rewritten by compaction', rate=True)
 wt('btree', 'row-store internal pages')
 wt('btree', 'row-store leaf pages')
-wt('cache', 'bytes currently in the cache', scale=MB)
-wt('cache', 'bytes written from cache', merge='wt_cache_bytes_cache', scale=MB, delta=True)
-wt('cache', 'bytes read into cache', merge='wt_cache_bytes_cache', scale=MB, delta=True)
-wt('cache', 'checkpoint blocked page eviction', delta=True)
+wt('cache', 'bytes currently in the cache', scale=MB, level=2)
+wt('cache', 'bytes written from cache', merge='wt_cache_bytes_cache', scale=MB, rate=True, level=2)
+wt('cache', 'bytes read into cache', merge='wt_cache_bytes_cache', scale=MB, rate=True, level=2)
+wt('cache', 'checkpoint blocked page eviction', rate=True)
 wt('cache', 'data source pages selected for eviction unable to be evicted')
-wt('cache', 'eviction server candidate queue empty when topping up', delta=True)
-wt('cache', 'eviction server candidate queue not empty when topping up', delta=True)
-wt('cache', 'eviction server evicting pages', delta=True)
+wt('cache', 'eviction server candidate queue empty when topping up', rate=True)
+wt('cache', 'eviction server candidate queue not empty when topping up', rate=True)
+wt('cache', 'eviction server evicting pages', rate=True, level=2)
 wt('cache', 'eviction server populating queue, but not evicting pages')
 wt('cache', 'eviction server unable to reach eviction goal')
-wt('cache', 'failed eviction of pages that exceeded the in-memory maximum', delta=True)
-wt('cache', 'hazard pointer blocked page eviction', delta=True)
-wt('cache', 'internal pages evicted', delta=True)
+wt('cache', 'failed eviction of pages that exceeded the in-memory maximum', rate=True)
+wt('cache', 'hazard pointer blocked page eviction', rate=True)
+wt('cache', 'internal pages evicted', rate=True)
 wt('cache', 'maximum bytes configured', scale=MB)
-wt('cache', 'modified pages evicted', delta=True)
-wt('cache', 'overflow pages read into cache', delta=True)
+wt('cache', 'modified pages evicted', rate=True)
+wt('cache', 'overflow pages read into cache', rate=True)
 wt('cache', 'overflow values cached in memory')
-wt('cache', 'page split during eviction deepened the tree', delta=True)
+wt('cache', 'page split during eviction deepened the tree', rate=True)
 wt('cache', 'pages currently held in the cache')
-wt('cache', 'pages evicted because they exceeded the in-memory maximum', delta=True)
-wt('cache', 'pages read into cache', merge = 'wt_cache_pages_cache', delta=True)
-wt('cache', 'pages selected for eviction unable to be evicted', delta=True)
-wt('cache', 'pages split during eviction', delta=True)
-wt('cache', 'pages walked for eviction', delta=True)
-wt('cache', 'pages written from cache', merge = 'wt_cache_pages_cache', delta=True)
+wt('cache', 'pages evicted because they exceeded the in-memory maximum', rate=True)
+wt('cache', 'pages read into cache', merge = 'wt_cache_pages_cache', rate=True)
+wt('cache', 'pages selected for eviction unable to be evicted', rate=True)
+wt('cache', 'pages split during eviction', rate=True)
+wt('cache', 'pages walked for eviction', rate=True)
+wt('cache', 'pages written from cache', merge = 'wt_cache_pages_cache', rate=True)
 wt('cache', 'tracked dirty bytes in the cache', scale=MB)
 wt('cache', 'tracked dirty pages in the cache')
-wt('cache', 'unmodified pages evicted', delta=True)
-wt('compression', 'compressed pages written', merge = 'wt_compression_compressed_pages', delta=True)
-wt('compression', 'compressed pages read', merge = 'wt_compression_compressed_pages', delta=True)
-wt('compression', 'page written failed to compress', delta=True)
-wt('compression', 'page written was too small to compress', delta=True)
-wt('compression', 'raw compression call failed, additional data available', delta=True)
-wt('compression', 'raw compression call failed, no additional data available', delta=True)
-wt('compression', 'raw compression call succeeded', delta=True)
+wt('cache', 'unmodified pages evicted', rate=True)
+wt('compression', 'compressed pages written', merge = 'wt_compression_compressed_pages', rate=True)
+wt('compression', 'compressed pages read', merge = 'wt_compression_compressed_pages', rate=True)
+wt('compression', 'page written failed to compress', rate=True)
+wt('compression', 'page written was too small to compress', rate=True)
+wt('compression', 'raw compression call failed, additional data available', rate=True)
+wt('compression', 'raw compression call failed, no additional data available', rate=True)
+wt('compression', 'raw compression call succeeded', rate=True)
 wt('connection', 'files currently open')
-wt('connection', 'memory allocations', delta=True)
-wt('connection', 'memory frees', delta=True)
-wt('connection', 'memory re-allocations', delta=True)
-wt('connection', 'pthread mutex condition wait calls', delta=True)
-wt('connection', 'pthread mutex shared lock read-lock calls', delta=True)
-wt('connection', 'pthread mutex shared lock write-lock calls', delta=True)
-wt('connection', 'total write I/Os', merge = 'wt_connection_total_I/Os', delta=True)
-wt('connection', 'total read I/Os', merge = 'wt_connection_total_I/Os', delta=True)
-wt('cursor', 'bulk-loaded cursor-insert calls', delta=True)
-wt('cursor', 'create calls', delta=True)
-wt('cursor', 'cursor create calls', delta=True)
-wt('cursor', 'cursor insert calls', delta=True)
-wt('cursor', 'cursor next calls', delta=True)
-wt('cursor', 'cursor prev calls', delta=True)
-wt('cursor', 'cursor remove calls', delta=True)
-wt('cursor', 'cursor reset calls', delta=True)
-wt('cursor', 'cursor search calls', delta=True)
-wt('cursor', 'cursor search near calls', delta=True)
-wt('cursor', 'cursor update calls', delta=True)
+wt('connection', 'memory allocations', rate=True)
+wt('connection', 'memory frees', rate=True)
+wt('connection', 'memory re-allocations', rate=True)
+wt('connection', 'pthread mutex condition wait calls', rate=True)
+wt('connection', 'pthread mutex shared lock read-lock calls', rate=True)
+wt('connection', 'pthread mutex shared lock write-lock calls', rate=True)
+wt('connection', 'total write I/Os', merge = 'wt_connection_total_I/Os', rate=True)
+wt('connection', 'total read I/Os', merge = 'wt_connection_total_I/Os', rate=True)
+wt('cursor', 'bulk-loaded cursor-insert calls', rate=True)
+wt('cursor', 'create calls', rate=True, level=2)
+wt('cursor', 'cursor create calls', rate=True, level=2)
+wt('cursor', 'cursor insert calls', rate=True, level=2)
+wt('cursor', 'cursor next calls', rate=True)
+wt('cursor', 'cursor prev calls', rate=True)
+wt('cursor', 'cursor remove calls', rate=True, level=2)
+wt('cursor', 'cursor reset calls', rate=True)
+wt('cursor', 'cursor search calls', rate=True, level=2)
+wt('cursor', 'cursor search near calls', rate=True, level=3)
+wt('cursor', 'cursor update calls', rate=True, level=2)
 wt('cursor', 'cursor-insert key and value bytes inserted', scale=MB)
 wt('cursor', 'cursor-remove key bytes removed', scale=MB)
 wt('cursor', 'cursor-update value bytes updated', scale=MB)
-wt('cursor', 'insert calls', delta=True)
-wt('cursor', 'next calls', delta=True)
-wt('cursor', 'prev calls', delta=True)
-wt('cursor', 'remove calls', delta=True)
-wt('cursor', 'reset calls', delta=True)
-wt('cursor', 'search calls', delta=True)
-wt('cursor', 'search near calls', delta=True)
-wt('cursor', 'update calls', delta=True)
-wt('data-handle', 'session dhandles swept', delta=True)
-wt('data-handle', 'session sweep attempts', delta=True)
-wt('log', 'consolidated slot closures', delta=True)
-wt('log', 'consolidated slot join races', delta=True)
-wt('log', 'consolidated slot join transitions', delta=True)
-wt('log', 'consolidated slot joins', delta=True)
-wt('log', 'failed to find a slot large enough for record', delta=True)
-wt('log', 'log buffer size increases', delta=True)
-wt('log', 'log bytes of payload data', scale=MB, delta=True)
-wt('log', 'log bytes written', scale=MB, delta=True)
-wt('log', 'log read operations', delta=True)
-wt('log', 'log scan operations', delta=True)
-wt('log', 'log scan records requiring two reads', delta=True)
-wt('log', 'log sync operations', delta=True)
-wt('log', 'log write operations', delta=True)
+wt('cursor', 'insert calls', rate=True, level=2)
+wt('cursor', 'next calls', rate=True)
+wt('cursor', 'prev calls', rate=True)
+wt('cursor', 'remove calls', rate=True, level=2)
+wt('cursor', 'reset calls', rate=True)
+wt('cursor', 'search calls', rate=True, level=2)
+wt('cursor', 'search near calls', rate=True, level=3)
+wt('cursor', 'update calls', rate=True, level=2)
+wt('data-handle', 'session dhandles swept', rate=True)
+wt('data-handle', 'session sweep attempts', rate=True)
+wt('log', 'consolidated slot closures', rate=True)
+wt('log', 'consolidated slot join races', rate=True)
+wt('log', 'consolidated slot join transitions', rate=True)
+wt('log', 'consolidated slot joins', rate=True)
+wt('log', 'failed to find a slot large enough for record', rate=True)
+wt('log', 'log buffer size increases', rate=True)
+wt('log', 'log bytes of payload data', scale=MB, rate=True)
+wt('log', 'log bytes written', scale=MB, rate=True, level=2)
+wt('log', 'log read operations', rate=True)
+wt('log', 'log scan operations', rate=True)
+wt('log', 'log scan records requiring two reads', rate=True)
+wt('log', 'log sync operations', rate=True)
+wt('log', 'log write operations', rate=True)
 wt('log', 'logging bytes consolidated', scale=MB)
 wt('log', 'maximum log file size', scale=MB)
-wt('log', 'record size exceeded maximum', delta=True)
-wt('log', 'records processed by log scan', delta=True)
-wt('log', 'slots selected for switching that were unavailable', delta=True)
+wt('log', 'record size exceeded maximum', rate=True)
+wt('log', 'records processed by log scan', rate=True)
+wt('log', 'slots selected for switching that were unavailable', rate=True)
 wt('log', 'total log buffer size', scale=MB)
-wt('log', 'yields waiting for previous log file close', delta=True)
-wt('reconciliation', 'dictionary matches', delta=True)
+wt('log', 'yields waiting for previous log file close', rate=True)
+wt('reconciliation', 'dictionary matches', rate=True)
 wt('reconciliation', 'internal page key bytes discarded using suffix compression', scale=MB)
-wt('reconciliation', 'internal page multi-block writes', delta=True)
-wt('reconciliation', 'internal-page overflow keys', delta=True)
+wt('reconciliation', 'internal page multi-block writes', rate=True)
+wt('reconciliation', 'internal-page overflow keys', rate=True)
 wt('reconciliation', 'leaf page key bytes discarded using prefix compression', scale=MB)
-wt('reconciliation', 'leaf page multi-block writes', delta=True)
-wt('reconciliation', 'leaf-page overflow keys', delta=True)
+wt('reconciliation', 'leaf page multi-block writes', rate=True)
+wt('reconciliation', 'leaf-page overflow keys', rate=True)
 wt('reconciliation', 'maximum blocks required for a page')
-wt('reconciliation', 'overflow values written', delta=True)
-wt('reconciliation', 'page checksum matches', delta=True)
-wt('reconciliation', 'page reconciliation calls for eviction', delta=True)
-wt('reconciliation', 'page reconciliation calls', delta=True)
-wt('reconciliation', 'pages deleted', delta=True)
+wt('reconciliation', 'overflow values written', rate=True)
+wt('reconciliation', 'page checksum matches', rate=True)
+wt('reconciliation', 'page reconciliation calls for eviction', rate=True, level=3)
+wt('reconciliation', 'page reconciliation calls', rate=True, level=2)
+wt('reconciliation', 'pages deleted', rate=True)
 wt('reconciliation', 'split bytes currently awaiting free', scale=MB)
 wt('reconciliation', 'split objects currently awaiting free')
 wt('session', 'object compaction')
 wt('session', 'open cursor count')
 wt('session', 'open session count')
-wt('transaction', 'transaction begins', delta=True)
-wt('transaction', 'transaction checkpoint currently running')
+wt('transaction', 'transaction begins', rate=True, level=3)
+wt('transaction', 'transaction checkpoint currently running', level=2)
 wt('transaction', 'transaction checkpoint max time .msecs.')
 wt('transaction', 'transaction checkpoint min time .msecs.')
 wt('transaction', 'transaction checkpoint most recent time .msecs.')
 wt('transaction', 'transaction checkpoint total time .msecs.')
-wt('transaction', 'transaction checkpoints', delta=True)
-wt('transaction', 'transaction failures due to cache overflow', delta=True)
+wt('transaction', 'transaction checkpoints', rate=True)
+wt('transaction', 'transaction failures due to cache overflow', rate=True)
 wt('transaction', 'transaction range of IDs currently pinned')
-wt('transaction', 'transactions committed', delta=True)
-wt('transaction', 'transactions rolled back', delta=True)
-wt('transaction', 'update conflicts', delta=True)
+wt('transaction', 'transactions committed', rate=True, level=2)
+wt('transaction', 'transactions rolled back', rate=True, level=2)
+wt('transaction', 'update conflicts', rate=True, level=2)
 wt('LSM', 'application work units currently queued')
-wt('LSM', 'bloom filter false positives', delta=True)
-wt('LSM', 'bloom filter hits', delta=True)
-wt('LSM', 'bloom filter misses', delta=True)
-wt('LSM', 'bloom filter pages evicted from cache', delta=True)
-wt('LSM', 'bloom filter pages read into cache', delta=True)
+wt('LSM', 'bloom filter false positives', rate=True)
+wt('LSM', 'bloom filter hits', rate=True)
+wt('LSM', 'bloom filter misses', rate=True)
+wt('LSM', 'bloom filter pages evicted from cache', rate=True)
+wt('LSM', 'bloom filter pages read into cache', rate=True)
 wt('LSM', 'bloom filters in the LSM tree')
 wt('LSM', 'chunks in the LSM tree')
 wt('LSM', 'highest merge generation in the LSM tree')
 wt('LSM', 'merge work units currently queued')
-wt('LSM', 'queries that could have benefited from a Bloom filter that did not ex', delta=True)
-wt('LSM', 'rows merged in an LSM tree', delta=True)
-wt('LSM', 'sleep for LSM checkpoint throttle', delta=True)
-wt('LSM', 'sleep for LSM merge throttle', delta=True)
+wt('LSM', 'queries that could have benefited from a Bloom filter that did not ex', rate=True)
+wt('LSM', 'rows merged in an LSM tree', rate=True)
+wt('LSM', 'sleep for LSM checkpoint throttle', rate=True)
+wt('LSM', 'sleep for LSM merge throttle', rate=True)
 wt('LSM', 'switch work units currently queued')
 wt('LSM', 'total size of bloom filters')
-wt('LSM', 'tree maintenance operations discarded', delta=True)
-wt('LSM', 'tree maintenance operations executed', delta=True)
-wt('LSM', 'tree maintenance operations scheduled', delta=True)
+wt('LSM', 'tree maintenance operations discarded', rate=True)
+wt('LSM', 'tree maintenance operations executed', rate=True)
+wt('LSM', 'tree maintenance operations scheduled', rate=True)
 wt('LSM', 'tree queue hit maximum')
 
-#["wiredTiger", "LSM", "application work units currently queued"]
-#["wiredTiger", "LSM", "merge work units currently queued"]
-#["wiredTiger", "LSM", "rows merged in an LSM tree"]
-#["wiredTiger", "LSM", "sleep for LSM checkpoint throttle"]
-#["wiredTiger", "LSM", "sleep for LSM merge throttle"]
-#["wiredTiger", "LSM", "switch work units currently queued"]
-#["wiredTiger", "LSM", "tree maintenance operations discarded"]
-#["wiredTiger", "LSM", "tree maintenance operations executed"]
-#["wiredTiger", "LSM", "tree maintenance operations scheduled"]
-#["wiredTiger", "LSM", "tree queue hit maximum"]
-#["wiredTiger", "async", "current work queue length"]
-#["wiredTiger", "async", "maximum work queue length"]
-#["wiredTiger", "async", "number of allocation state races"]
-#["wiredTiger", "async", "number of flush calls"]
-#["wiredTiger", "async", "number of operation slots viewed for allocation"]
-#["wiredTiger", "async", "number of times operation allocation failed"]
-#["wiredTiger", "async", "number of times worker found no work"]
-#["wiredTiger", "async", "total allocations"]
-#["wiredTiger", "async", "total compact calls"]
-#["wiredTiger", "async", "total insert calls"]
-#["wiredTiger", "async", "total remove calls"]
-#["wiredTiger", "async", "total search calls"]
-#["wiredTiger", "async", "total update calls"]
-#["wiredTiger", "block-manager", "blocks pre-loaded"]
-#["wiredTiger", "block-manager", "blocks read"]
-#["wiredTiger", "block-manager", "blocks written"]
-#["wiredTiger", "block-manager", "bytes read"]
-#["wiredTiger", "block-manager", "bytes written"]
-#["wiredTiger", "block-manager", "mapped blocks read"]
-#["wiredTiger", "block-manager", "mapped bytes read"]
-#["wiredTiger", "btree", "cursor create calls"]
-#["wiredTiger", "btree", "cursor insert calls"]
-#["wiredTiger", "btree", "cursor next calls"]
-#["wiredTiger", "btree", "cursor prev calls"]
-#["wiredTiger", "btree", "cursor remove calls"]
-#["wiredTiger", "btree", "cursor reset calls"]
-#["wiredTiger", "btree", "cursor search calls"]
-#["wiredTiger", "btree", "cursor search near calls"]
-#["wiredTiger", "btree", "cursor update calls"]
-#["wiredTiger", "cache", "bytes currently in the cache"]
-#["wiredTiger", "cache", "bytes read into cache"]
-#["wiredTiger", "cache", "bytes written from cache"]
-#["wiredTiger", "cache", "checkpoint blocked page eviction"]
-#["wiredTiger", "cache", "eviction server candidate queue empty when topping up"]
-#["wiredTiger", "cache", "eviction server candidate queue not empty when topping up"]
-#["wiredTiger", "cache", "eviction server evicting pages"]
-#["wiredTiger", "cache", "eviction server populating queue, but not evicting pages"]
-#["wiredTiger", "cache", "eviction server unable to reach eviction goal"]
-#["wiredTiger", "cache", "failed eviction of pages that exceeded the in-memory maximum"]
-#["wiredTiger", "cache", "hazard pointer blocked page eviction"]
-#["wiredTiger", "cache", "internal pages evicted"]
-#["wiredTiger", "cache", "maximum bytes configured"]
-#["wiredTiger", "cache", "modified pages evicted"]
-#["wiredTiger", "cache", "page split during eviction deepened the tree"]
-#["wiredTiger", "cache", "pages currently held in the cache"]
-#["wiredTiger", "cache", "pages evicted because they exceeded the in-memory maximum"]
-#["wiredTiger", "cache", "pages read into cache"]
-#["wiredTiger", "cache", "pages selected for eviction unable to be evicted"]
-#["wiredTiger", "cache", "pages split during eviction"]
-#["wiredTiger", "cache", "pages walked for eviction"]
-#["wiredTiger", "cache", "pages written from cache"]
-#["wiredTiger", "cache", "tracked dirty bytes in the cache"]
-#["wiredTiger", "cache", "tracked dirty pages in the cache"]
-#["wiredTiger", "cache", "unmodified pages evicted"]
-#["wiredTiger", "connection", "files currently open"]
-#["wiredTiger", "connection", "memory allocations"]
-#["wiredTiger", "connection", "memory frees"]
-#["wiredTiger", "connection", "memory re-allocations"]
-#["wiredTiger", "connection", "pthread mutex condition wait calls"]
-#["wiredTiger", "connection", "pthread mutex shared lock read-lock calls"]
-#["wiredTiger", "connection", "pthread mutex shared lock write-lock calls"]
-#["wiredTiger", "connection", "total read I/Os"]
-#["wiredTiger", "connection", "total write I/Os"]
-#["wiredTiger", "data-handle", "session dhandles swept"]
-#["wiredTiger", "data-handle", "session sweep attempts"]
-#["wiredTiger", "log", "consolidated slot closures"]
-#["wiredTiger", "log", "consolidated slot join races"]
-#["wiredTiger", "log", "consolidated slot join transitions"]
-#["wiredTiger", "log", "consolidated slot joins"]
-#["wiredTiger", "log", "failed to find a slot large enough for record"]
-#["wiredTiger", "log", "log buffer size increases"]
-#["wiredTiger", "log", "log bytes of payload data"]
-#["wiredTiger", "log", "log bytes written"]
-#["wiredTiger", "log", "log read operations"]
-#["wiredTiger", "log", "log scan operations"]
-#["wiredTiger", "log", "log scan records requiring two reads"]
-#["wiredTiger", "log", "log sync operations"]
-#["wiredTiger", "log", "log write operations"]
-#["wiredTiger", "log", "logging bytes consolidated"]
-#["wiredTiger", "log", "maximum log file size"]
-#["wiredTiger", "log", "record size exceeded maximum"]
-#["wiredTiger", "log", "records processed by log scan"]
-#["wiredTiger", "log", "slots selected for switching that were unavailable"]
-#["wiredTiger", "log", "total log buffer size"]
-#["wiredTiger", "log", "yields waiting for previous log file close"]
-#["wiredTiger", "reconciliation", "page reconciliation calls"]
-#["wiredTiger", "reconciliation", "page reconciliation calls for eviction"]
-#["wiredTiger", "reconciliation", "split bytes currently awaiting free"]
-#["wiredTiger", "reconciliation", "split objects currently awaiting free"]
-#["wiredTiger", "session", "open cursor count"]
-#["wiredTiger", "session", "open session count"]
-#["wiredTiger", "transaction", "transaction begins"]
-#["wiredTiger", "transaction", "transaction checkpoint currently running"]
-#["wiredTiger", "transaction", "transaction checkpoint max time (msecs)"]
-#["wiredTiger", "transaction", "transaction checkpoint min time (msecs)"]
-#["wiredTiger", "transaction", "transaction checkpoint most recent time (msecs)"]
-#["wiredTiger", "transaction", "transaction checkpoint total time (msecs)"]
-#["wiredTiger", "transaction", "transaction checkpoints"]
-#["wiredTiger", "transaction", "transaction failures due to cache overflow"]
-#["wiredTiger", "transaction", "transaction range of IDs currently pinned"]
-#["wiredTiger", "transaction", "transactions committed"]
-#["wiredTiger", "transaction", "transactions rolled back"]
-#["wiredTiger", "uri"]
 
 
 
