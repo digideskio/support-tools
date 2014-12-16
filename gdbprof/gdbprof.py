@@ -305,7 +305,7 @@ def read_profile(filters):
 #
 
 def graph(ts=None, ys=None, ymin=None, ymax=None):
-    timeseries.graph(
+    timeseries.html_graph(
         data=[(ts, ys, 'black')] if ts else [],
         tmin=opt.tmin, tmax=opt.tmax, width=opt.graph,
         ymin=ymin, ymax=ymax, height=1.1, ticks=opt.graph_ticks
@@ -322,7 +322,7 @@ def read_series():
     if opt.series:
         opt.merges = True # xxx get from cmd line instead?
         opt.level = 0 # xxx get from cmd line instead?
-        series = [g[0] for g in timeseries.series_all(opt.series, opt)]
+        series = [graph[0] for graph in timeseries.get_graphs(opt.series, opt)]
         if not opt.tmin:
             opt.tmin = min(min(ts) for _, ts, _ in series)
             opt.tmax = max(max(ts) for _, ts, _ in series)
