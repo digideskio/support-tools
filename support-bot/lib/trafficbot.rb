@@ -147,7 +147,6 @@ while true
   else
     if @botReboot
       Thread.kill(jthr)
-      client.close
       client = Mongo::MongoClient.from_uri(@dbURI,@dbConnOpts).db('support')
       jthr = Thread.new { mainJiraThread(client) }
       @botReboot = false
