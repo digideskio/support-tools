@@ -2,7 +2,7 @@
 * gdbprof - generic timeseries visualization tool
 
 ## SYNOPSIS
-* python timeseries.py [--width WIDTH] [--height HEIGHT] [--show-empty] [--show-zero] [--no-shade] [--no-merges] [--number-rows] [--duration DURATION] [--after AFTER] [--before BEFORE] [--every EVERY] what:where [what:where ...]
+* python timeseries.py [--width WIDTH] [--height HEIGHT] [--show-empty] [--show-zero] [--no-merges] [--number-rows] [--duration DURATION] [--after AFTER] [--before BEFORE] [--every EVERY] [--level {1,2,3,4,5,6,7,8,9}] [--list] what:where [what:where ...]
 
 ## DESCRIPTION
 
@@ -16,9 +16,10 @@
 * --after AFTER: plot only data after the specified time.
 * --before BEFORE: plot only data before the specified time.
 * --every EVERY: interval in seconds between data points to plot.
+* --level {1-9}: initial detail level; default: 1.
 * --list: list the available metrics and exit
 
-The data to plot is specified by additional agruments of the form what:where, where 
+The data to plot is specified by additional arguments of the form what:where, where 
 * what specifies the metric to be extracted from the file, and
 * where is the file.
 
@@ -40,7 +41,12 @@ When you have collected as much data as desired, terminate the data collection p
 
 Then visualize the results as follows:
 
-    python timeseries.py ss:ss.log iostat:iostat.log >timeseries.html
+    python timeseries.py ss:ss.log iostat:iostat.log mongod:mongod.log >timeseries.html
     open timeseries.html
 
-This will select all metrics whose name begins with "ss" (which stands for serverStatus) from ss.log and all metrics whose name begins with "iostat" from iostat.log; by convention all metrics found in ss.log have names that begin with ss, and all metrics that can be extracted from an iostat-generated log have names that begin with iostat.
+This will select
+* all metrics whose name begins with "ss" (which stands for serverStatus) from ss.log, because by convention all metrics found in a serverStatus log have names that begin with ss; and
+* all metrics whose name begins with "iostat" from iostat.log, and
+* all metrics whose name begins with "mongod" from mongod.log.
+
+The initial view will be restricted to the most important (level 1) statisics; you can interactively request more detailed statistics.
