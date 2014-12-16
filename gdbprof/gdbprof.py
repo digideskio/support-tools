@@ -321,7 +321,8 @@ def graph_child(child):
 def read_series():
     if opt.series:
         opt.merges = True # xxx get from cmd line instead?
-        series = [g[0] for g in timeseries.series_all([], opt.series, opt)]
+        opt.level = 0 # xxx get from cmd line instead?
+        series = [g[0] for g in timeseries.series_all(opt.series, opt)]
         if not opt.tmin:
             opt.tmin = min(min(ts) for _, ts, _ in series)
             opt.tmax = max(max(ts) for _, ts, _ in series)
@@ -335,7 +336,7 @@ def graph_series(series):
                 yavg = sum(s.ys.values()) / len(s.ys.values())
                 put(('%7g'%yavg)[0:7], ' ', ('%7g'%s.ymax)[0:7], ' ')
                 graph(s.ts, s.ys, 0, s.ymax)
-                put(' ', s.description, '\n')
+                put(' ', s.name, '\n')
         put('\n')
 
 #
