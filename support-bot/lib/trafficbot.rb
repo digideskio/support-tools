@@ -119,6 +119,7 @@ if @soundOnlyMode == false
 else
   logOut 'Running in sound only mode'
 end
+@botReboot = false
 jthr = Thread.new { mainJiraThread(client) }
 logThr = Thread.new { loggingThread() }
 xmppThr = Thread.new { recXMPP() }
@@ -143,6 +144,15 @@ while true
   if jthr.status == 'aborting' || jthr.status == nil
     logOut 'JiraThread died, re-forking'
     jthr = Thread.new { mainJiraThread(client) }
+  else
+    if @botReboot
+      Thread.kill(jthr)
+      client.close
+      client = Mongo::MongoClient.from_uri(@dbURI,@dbConnOpts).db('support')
+      jthr = Thread.new { mainJiraThread(client) }
+      @botReboot = false
+      logout "Just rebooted the Jira thread at user request"
+    end
   end
   if logThr.status == 'aborting' || logThr.status == nil
     logOut 'Logger Thread died, re-forking'
