@@ -949,9 +949,13 @@ def main():
     if not graphs:
         msg('no series specified')
         return
-    tmin = min(s.tmin for g in graphs for s in g if s.tmin)
-    tmax = max(s.tmax for g in graphs for s in g if s.tmax)
-    tspan = float((tmax-tmin).total_seconds())
+    try:
+        tmin = min(s.tmin for g in graphs for s in g if s.tmin)
+        tmax = max(s.tmax for g in graphs for s in g if s.tmax)
+        tspan = float((tmax-tmin).total_seconds())
+    except ValueError:
+        msg('no data found')
+        return
 
     # stats
     spec_matches = collections.defaultdict(int)
@@ -1234,7 +1238,7 @@ ss(["mem", "mapped"], scale=MB)
 ss(["mem", "mappedWithJournal"], scale=MB)
 ss(["mem", "resident"], units="MB")
 #["mem", "supported"]
-ss(["mem", "virtual"], scale=MB, level=1)
+ss(["mem", "virtual"], units="MB", level=1)
 ss(["metrics", "commands", "serverStatus", "failed", "floatApprox"], rate=True)
 ss(["metrics", "commands", "serverStatus", "total", "floatApprox"], rate=True)
 ss(["metrics", "commands", "whatsmyuri", "failed", "floatApprox"], rate=True)
@@ -1286,9 +1290,9 @@ ss(["network", "numRequests"], rate=True)
 # iostat -t -x $delay
 #
 
-iostat_time_re = '(?P<time>^../../.... ..:..:.. ..)'
-iostat_cpu_re = '(?:^ *(?P<user>[0-9\.]+) *(?P<nice>[0-9\.]+) *(?P<system>[0-9\.]+) *(?P<iowait>[0-9\.]+) *(?P<steal>[0-9\.]+) *(?P<idle>[0-9\.]+))'
-iostat_disk_re = '(?:^(?P<iostat_disk>[a-z]+) *(?P<rrqms>[0-9\.]+) *(?P<wrqms>[0-9\.]+) *(?P<rs>[0-9\.]+) *(?P<ws>[0-9\.]+) *(?P<rkBs>[0-9\.]+) *(?P<wkBs>[0-9\.]+) *(?P<avgrqsz>[0-9\.]+) *(?P<avgqusz>[0-9\.]+) *(?P<await>[0-9\.]+) *(?P<r_await>[0-9\.]+)? *(?P<w_await>[0-9\.]+)? *(?P<svctime>[0-9\.]+) *(?P<util>[0-9\.]+))'
+iostat_time_re = '(?P<time>^../../..(?:..)? ..:..:..(?: ..)?)'
+iostat_cpu_re = '(?:^ *(?P<user>[0-9\.]+) +(?P<nice>[0-9\.]+) +(?P<system>[0-9\.]+) +(?P<iowait>[0-9\.]+) +(?P<steal>[0-9\.]+) +(?P<idle>[0-9\.]+))'
+iostat_disk_re = '(?:^(?P<iostat_disk>[a-z]+) +(?P<rrqms>[0-9\.]+) +(?P<wrqms>[0-9\.]+) +(?P<rs>[0-9\.]+) +(?P<ws>[0-9\.]+) +(?P<rkBs>[0-9\.]+) +(?P<wkBs>[0-9\.]+) +(?P<avgrqsz>[0-9\.]+) +(?P<avgqusz>[0-9\.]+) +(?P<await>[0-9\.]+) +(?P<r_await>[0-9\.]+)? +(?P<w_await>[0-9\.]+)? +(?P<svctime>[0-9\.]+) +(?P<util>[0-9\.]+))'
 
 def iostat(**kwargs):
     descriptor(
