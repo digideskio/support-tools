@@ -51,7 +51,7 @@ def respondToChat(msg, username = nil, protocol = 'XMPP', room = "nil")
         @chatRequests.push("#{@defaultXMPPRoom} #{protocol} ACTIVE #{array.join(' ').upcase}")
       when '#!REBOOT'
         @botReboot = true
-        logout "reboot called for by user #{username}"
+        logOut "reboot called for by user #{username}"
         response = "Will do, please wait 10 seconds and try a #!LIST"
       when '#!LIST'
         if array.empty?

@@ -150,7 +150,7 @@ while true
       client = Mongo::MongoClient.from_uri(@dbURI,@dbConnOpts).db('support')
       jthr = Thread.new { mainJiraThread(client) }
       @botReboot = false
-      logout "Just rebooted the Jira thread at user request"
+      logOut "Just rebooted the Jira thread at user request"
     end
   end
   if logThr.status == 'aborting' || logThr.status == nil
