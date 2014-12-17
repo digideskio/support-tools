@@ -11,6 +11,7 @@ import os
 import json
 import pytz
 import time
+#import dateutil.parser
 
 
 def dbg(*ss):
@@ -388,6 +389,8 @@ def main():
     opt.before = opt.before.replace('T', ' ')
     opt.after = strptime(opt.after, '%Y-%m-%d %H:%M:%S')
     opt.before = strptime(opt.before, '%Y-%m-%d %H:%M:%S')
+    #opt.after = dateutil.parser.parse(opt.after) # xxx need to apply timezone
+    #opt.before = dateutil.parser.parse(opt.before) # xxx need to apply timezone
 
     opt.max_count = float('-inf')
     opt.min_count = float('inf')
