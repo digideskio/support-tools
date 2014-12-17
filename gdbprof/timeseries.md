@@ -1,7 +1,5 @@
 ## Timeseries Visualization Tool
 
-(blurb goes here)
-
 Here's a simple example to get started. Collect some data as follows:
 
     delay=1 # pick a number in seconds
@@ -47,10 +45,10 @@ The iostat output uses timestamps that don't include a timezone; timeseries.py w
 
 If you are doing the same groupings over and over, e.g. want to script it, it becomes worthwhile to select just the stats you want on the command line. The "ss:", "iostat:", and "mongod:" strings above are actually just abbreviations that will match all metrics beginning with "ss", "iostat", and "mongod". To make a more specific selection you can say for example:
 
-   python timeseries.py "iostat cpu:iostat.log"                        # shows all iostat cpu metrics
-   python timeseries.py "iostat cpu user:iostat.log"                   # shows only user cpu time
-   python timeseries.py "cpu user:iostat.log"                          # same as above - names are matched using a fuzzy algorithm
-   python timeseries.py "cpu user:iostat.log" "cpu system:iostat.log"  # specify same file multiple times to select multiple groups
+    python timeseries.py "iostat cpu:iostat.log"                        # shows all iostat cpu metrics
+    python timeseries.py "iostat cpu user:iostat.log"                   # shows only user cpu time
+    python timeseries.py "cpu user:iostat.log"                          # same as above - names are matched using a fuzzy algorithm
+    python timeseries.py "cpu user:iostat.log" "cpu system:iostat.log"  # specify same file multiple times to select multiple groups
 
 
 ## REFERENCE
