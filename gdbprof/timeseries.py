@@ -797,6 +797,11 @@ _script = '''
         document.getElementById("current_level").innerHTML = c
     }
 
+    function initial_level(c) {
+        if (!document.getElementById("current_level").innerHTML)
+            set_level(c)
+    }
+
     function key() {
         var evt = window.event
         var c = String.fromCharCode(evt.charCode)
@@ -1010,7 +1015,7 @@ def main():
     put(_script)
     end('script')
     end('head')
-    elt('body', {'onkeypress':'key()', 'onload':'set_level(%d)'%opt.level})
+    elt('body', {'onkeypress':'key()', 'onload':'initial_level(%d)'%opt.level})
 
     elt('div', {'onclick':'toggle_help()'})
     put('1-9 to choose detail level; current level: <span id="current_level"></span><br/>')
@@ -1178,24 +1183,44 @@ ss_opcounter('command')
 
 ss(
     json_data = ['globalLock', 'activeClients', 'readers'],
-    name = 'ss global: read queue',
-    merge = '_ss_queue',
+    name = 'ss global: active read queue',
+    merge = '_ss_active_queue',
     level = 1
 )
 
 ss(
     json_data = ['globalLock', 'activeClients', 'writers'],
+    name = 'ss global: active write queue',
+    merge = '_ss_active_queue',
+    level = 1
+)
+
+ss(
+    json_data = ['globalLock', 'currentQueue', 'readers'],
+    name = 'ss global: read queue',
+    merge = '_ss_queue',
+    level = 1
+)
+
+
+ss(
+    json_data = ['globalLock', 'currentQueue', 'writers'],
     name = 'ss global: write queue',
     merge = '_ss_queue',
     level = 1
 )
 
+ss(['globalLock', 'activeClients', 'total'], level=99)
+ss(['globalLock', 'currentQueue', 'total'], level=99)
+ss(['globalLock', 'totalTime', 'floatApprox'], level=99)
+
+
 # TBD
-#["asserts", "msg"]
-#["asserts", "regular"]
-#["asserts", "rollovers"]
-#["asserts", "user"]
-#["asserts", "warning"]
+ss(["asserts", "msg"], rate=True, level=1)
+ss(["asserts", "regular"], rate=True, level=1)
+ss(["asserts", "rollovers"], rate=True, level=1)
+ss(["asserts", "user"], rate=True, level=1)
+ss(["asserts", "warning"], rate=True, level=1)
 #["backgroundFlushing", "average_ms"]
 #["backgroundFlushing", "flushes"]
 #["backgroundFlushing", "last_finished"]
@@ -1221,16 +1246,16 @@ ss(["connections", "current"], level=1)
 #["dur", "timeMs", "writeToDataFiles"]
 #["dur", "timeMs", "writeToJournal"]
 #["dur", "writeToDataFilesMB"]
-ss(["extra_info", "heap_usage_bytes"], scale=MB, wrap=2.0**31)
+ss(["extra_info", "heap_usage_bytes"], scale=MB, wrap=2.0**31, level=99)
 #["extra_info", "note"]
 ss(["extra_info", "page_faults"], rate=True, level=1)
 ###["globalLock", "activeClients", "readers"] # see above
-ss(['globalLock', 'activeClients', 'total'], level=9)
+ss(['globalLock', 'activeClients', 'total'], level=99)
 ####["globalLock", "activeClients", "writers"] # see above
-ss(['globalLock', 'currentQueue', 'readers'], level=9)
-ss(['globalLock', 'currentQueue', 'writers'], level=9)
-ss(['globalLock', 'currentQueue', 'total'], level=9)
-ss(['globalLock', 'totalTime', 'floatApprox'], level=9)
+ss(['globalLock', 'currentQueue', 'readers'], level=99)
+ss(['globalLock', 'currentQueue', 'writers'], level=99)
+ss(['globalLock', 'currentQueue', 'total'], level=99)
+ss(['globalLock', 'totalTime', 'floatApprox'], level=99)
 #["host"]
 #["localTime"]
 #["mem", "bits"]
@@ -1435,12 +1460,12 @@ wt('block-manager', 'bytes read', merge='wt_block-manager_bytes', scale=MB, rate
 wt('block-manager', 'checkpoint size')
 wt('block-manager', 'file allocation unit size')
 wt('block-manager', 'file bytes available for reuse', scale=MB)
-wt('block-manager', 'file magic number', level=9)
-wt('block-manager', 'file major version number', level=9)
+wt('block-manager', 'file magic number', level=99)
+wt('block-manager', 'file major version number', level=99)
 wt('block-manager', 'file size in bytes', scale=MB)
 wt('block-manager', 'mapped blocks read', rate=True)
 wt('block-manager', 'mapped bytes read', rate=True, scale=MB)
-wt('block-manager', 'minor version number', level=9)
+wt('block-manager', 'minor version number', level=99)
 wt('btree', 'column-store fixed-size leaf pages')
 wt('btree', 'column-store internal pages')
 wt('btree', 'column-store variable-size deleted values')
