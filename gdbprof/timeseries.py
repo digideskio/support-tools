@@ -242,22 +242,21 @@ class Series:
             else:
                 new.descriptor['field'] = split_key # xxx - ?
             new.split_field = None
+            new.split_all = None
             self.split_series[split_key] = new
         return self.split_series[split_key]
 
     def get_graphs(self, graphs, ygroups, opt):
-        #if not self.split_field and not self.split_all: xxxxxxxxxxx
-        if not self.split_series:
-            # do self.graph and .name late so they can use split key
+        #if not self.split_field and not self.split_all:
+        if not self.split_field and not self.split_all:
             if opt.merges:
                 merge = self.get('merge', None)
                 if merge: self.graph = merge
             self.name = self.get('name')
             graphs[self.graph].append(self)
             ygroups[self.ygroup].append(self)
-        else:
-            for s in self.split_series.values():
-                s.get_graphs(graphs, ygroups, opt)
+        for s in self.split_series.values():
+            s.get_graphs(graphs, ygroups, opt)
 
     def _data_point(self, t, d):
         d = float(d)
