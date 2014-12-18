@@ -152,9 +152,12 @@ class Series:
         self.spec = spec
         self.descriptor = dict(descriptor)
         self.descriptor.update(params)
-        self.fn = fn
         self.spec_ord = spec_ord
         self.key = (descriptor['_ord'], spec_ord)
+
+        # make fn avaialbe for formatting
+        self.fn = fn
+        self.descriptor['fn'], _ = os.path.splitext(os.path.basename(fn))
 
         # compute rate (/s) 
         self.rate = self.get('rate', False)
@@ -182,11 +185,14 @@ class Series:
         self.ts = []
         self.ys = collections.defaultdict(int)
     
-        # re, json, ...
-        self.type = self.get('type', 'text')
+        # text, json, ...: used to select from multiple possible descriptors
+        self.file_type = self.get('file_type')
+
+        # re, json, ...: used to route to proper parse routine
+        self.parse_type = self.get('parse_type')
 
         # info for re-format files
-        if self.type=='text':
+        if self.parse_type=='re':
             self.re = self.get('re', None)
             if self.re and re.compile(self.re).groups==0:
                 raise Exception('re ' + self.re + ' does not have any groups')
@@ -194,7 +200,7 @@ class Series:
             self.re_data = self.get('re_data', 1)
 
         # info for json-format files
-        if self.type=='json':
+        if self.parse_type=='json':
             self.json_time = self.get('json_time', None)
             self.json_data = self.get('json_data', None)
 
@@ -213,6 +219,7 @@ class Series:
 
         # split into multiple series based on a data value
         self.split_field = self.get('split', None)
+        self.split_all = self.get('split_all', False)
         self.split_series = {}
 
         # hack to account for wrapping data
@@ -229,14 +236,18 @@ class Series:
     def get_split(self, split_key):
         if split_key not in self.split_series:
             new = Series(self.spec, self.descriptor, {}, self.fn, self.spec_ord)
-            new.descriptor[self.split_field] = split_key # make split key available for formatting
+            if self.split_field:
+                new.descriptor[self.split_field] = split_key
+                new.key = (split_ords[self.split_field], split_key, new.key)
+            else:
+                new.descriptor['field'] = split_key # xxx - ?
             new.split_field = None
-            new.key = (split_ords[self.split_field], split_key, new.key)
             self.split_series[split_key] = new
         return self.split_series[split_key]
 
     def get_graphs(self, graphs, ygroups, opt):
-        if not self.split_field:
+        #if not self.split_field and not self.split_all: xxxxxxxxxxx
+        if not self.split_series:
             # do self.graph and .name late so they can use split key
             if opt.merges:
                 merge = self.get('merge', None)
@@ -282,7 +293,12 @@ class Series:
             self.ys[t] = d
 
     def data_point(self, t, d, field):
-        s = self.get_split(field(self.split_field)) if self.split_field else self
+        if self.split_field:
+            s = self.get_split(field(self.split_field))
+        elif self.split_all:
+            s = self.get_split(field)
+        else:
+            s = self
         s._data_point(t, d)
 
 
@@ -371,7 +387,7 @@ def get_series(spec, spec_ord, opt):
     scored = collections.defaultdict(list)
     spec_name_words = words(spec_name)
     for desc in descriptors:
-        if get(desc,'type','text') != file_type:
+        if get(desc,'file_type') != file_type:
             continue
         desc_name_words = words(desc['name'])
         last_i = -1
@@ -517,6 +533,29 @@ def series_read_re(fn, series, opt):
                                 s.data_point(t, d, field)
                             last_time = t
 
+
+def series_read_csv(fn, series, opt):
+
+    def split(line):
+        return [s.strip() for s in line.split(',')]
+
+    field_names = None
+
+    for line in open(fn):
+        if not field_names:
+            field_names = split(line)
+            time_field = field_names.index('time')
+        else:
+            for s in series:
+                field_values = split(line)
+                t = get_time(field_values[time_field], opt, s)
+                if not t:
+                    break
+                for n, v in zip(field_names, split(line)):
+                    if n!='time':
+                        s.data_point(t, v, n)
+                                
+
 descriptors = []     # descriptors loaded from various def files
 split_ords = {}      # sort order for each split_key - first occurrence of split_key in def file
 descriptor_ord = 0
@@ -541,19 +580,19 @@ def get_graphs(specs, opt):
     if type(opt.after)==str: opt.after = dateutil.parser.parse(opt.after) # xxx local tz by default
     if type(opt.before)==str: opt.before = dateutil.parser.parse(opt.before) # xxx local tz
 
-    # parse specs, group them by file
+    # parse specs, group them by file and parse type
     series = [] # all
     fns = collections.defaultdict(list) # grouped by fn
     for spec_ord, spec in enumerate(specs):
         for s in get_series(spec, spec_ord, opt):
-            fns[(s.fn,s.type)].append(s) # xxx canonicalize filename
+            fns[(s.fn,s.parse_type)].append(s) # xxx canonicalize filename
             series.append(s)
 
-    # process by file according to file type
-    for fn, filetype in sorted(fns):
+    # process by file according to parse_type
+    for fn, parse_type in sorted(fns):
         opt.last_time = pytz.utc.localize(datetime.min)
-        if filetype=='text': series_read_re(fn, fns[(fn,filetype)], opt)
-        elif filetype=='json': series_read_json(fn, fns[(fn,filetype)], opt)
+        read_func = globals()['series_read_' + parse_type]
+        read_func(fn, fns[(fn,parse_type)], opt)
         
     # finish each series
     for s in series:
@@ -564,6 +603,7 @@ def get_graphs(specs, opt):
     ygroups = collections.defaultdict(list)
     for s in series:
         s.get_graphs(graphs, ygroups, opt)
+    dbg('zzz graphs', graphs)
 
     # compute display_ymax taking into account spec_ymax and ygroup
     for g in graphs.values():
@@ -1130,6 +1170,20 @@ def main():
 descriptor(
     name = 'grep {pat}',
     re = '^.*(....-..-..T..:..:..(?:\....)?Z?|(?:... )?... .. .... ..:..:..).*{pat}',
+    file_type = 'text',
+    parse_type = 're'
+)
+
+
+#
+# generic csv
+#
+
+descriptor(
+    name = 'csv {fn}: {field}',
+    parse_type = 'csv',
+    file_type = 'text',
+    split_all = True
 )
 
 
@@ -1154,7 +1208,8 @@ def ss(json_data, name=None, scale=1, rate=False, units=None, level=3, **kwargs)
     if units: units = ' (' + units + ')'
     name = name + units
     descriptor(
-        type = 'json',
+        file_type = 'json',
+        parse_type = 'json',
         name = name,
         json_data = json_data,
         json_time = ['localTime'],        
@@ -1321,7 +1376,8 @@ iostat_disk_re = '(?:^(?P<iostat_disk>[a-z]+) +(?P<rrqms>[0-9\.]+) +(?P<wrqms>[0
 
 def iostat(**kwargs):
     descriptor(
-        type = 'text',
+        file_type = 'text',
+        parse_type = 're',
         re = '|'.join([iostat_time_re, iostat_cpu_re, iostat_disk_re]),
         re_time = 'time',
         **kwargs
@@ -1369,6 +1425,8 @@ iostat_disk('util',    'average utilization (%)', ymax=100, level=1)
 
 def mongod(**kwargs):
     kwargs['re'] = '^(....-..-..T..:..:..\....[+-]....)' + kwargs['re']
+    kwargs['file_type'] = 'text'
+    kwargs['parse_type'] = 're'
     descriptor(**kwargs)
 
 mongod(
@@ -1421,7 +1479,8 @@ def wt(wt_cat, wt_name, rate=False, scale=1.0, level=3, **kwargs):
 
     # for parsing wt data in json format ss files
     descriptor(
-        type = 'json',
+        file_type = 'json',
+        parse_type = 'json',
         json_time = ['localTime'],
         json_data = ['wiredTiger', wt_cat, wt_name],
         name = 'ss ' + name,
@@ -1430,7 +1489,8 @@ def wt(wt_cat, wt_name, rate=False, scale=1.0, level=3, **kwargs):
 
     # for parsing wt data in json re format wtstats files
     descriptor(
-        type = 'text',
+        file_type = 'text',
+        parse_type = 're',
         re = '^(... .. ..:..:..) ([0-9]+) .* {}: {}'.format(wt_cat, wt_name),
         name = name,
         **kwargs
