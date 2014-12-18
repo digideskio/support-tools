@@ -8,6 +8,10 @@ param(
 
 $diagfile = Join-Path @([Environment]::GetFolderPath('Personal')) $("mdiag-" + $(hostname) + ".txt")
 
+# check for ConvertTo-JSON
+$json_available = Get-Command "ConvertTo-Json" -errorAction SilentlyContinue -CommandType Cmdlet;
+
+
 ##################
 # Public API
 #
@@ -23,7 +27,7 @@ Function fingerprint {
 			os = "Windows";
 			shell = "powershell";
 			script = "mdiag";
-			version = "1.3";
+			version = "1.4";
 			revdate = "2014-11-27";
 		}
 	}
@@ -36,19 +40,19 @@ Function probe( $doc ) {
 		throw "assert: malformed section descriptor document, must have 'name' and 'cmd' members at least";
 	}
 
-	echo "Gathering section [$($doc.name)]"
+	Write-Host "Gathering section [$($doc.name)]"
 
 	$startts = _jsondate # { $date: ISO-8601 }
 	$cmdobj = _docmd $doc.cmd
 
 	if( !( $cmdobj.ok ) -and ( $null -ne $doc.alt ) ) {
 		# preferred cmd failed and we have a fallback, so try that
-		echo " | Preference attempt failed, but have a fallback to try..."
+		Write-Host " | Preference attempt failed, but have a fallback to try..."
 
 		$fbcobj = _docmd $doc.alt
 
 		if( $fbcobj.ok ) {
-			echo " | ... which succeeded, bananarama!"
+			Write-Host " | ... which succeeded, bananarama!"
 		}
 
 		$fbcobj.fallback_from = @{
@@ -60,7 +64,7 @@ Function probe( $doc ) {
 
 	_emitdocument $doc.name $startts $cmdobj
 
-	echo "Finished with section [$($doc.name)]. Closing`n"
+	Write-Host "Finished with section [$($doc.name)]. Closing`n"
 }
 
 ###############
@@ -68,6 +72,44 @@ Function probe( $doc ) {
 #
 # Please don't call these in the script portion of the code. The API here will never freeze.
 
+Function _jsonsimple( $indent, $obj ) {
+	if( $obj -eq $null ) {
+		"null";
+	}
+	elseif( $indent.Length -gt 4 ) {
+		"`"{0}`"" -f $obj.ToString();
+	}
+	elseif( $obj.GetType().Name -eq "String" ) {
+		"`"{0}`"" -f $obj
+	}
+	elseif( $obj.GetType().IsClass ) {
+		if( $obj.GetType().Name -eq "Hashtable" ) {
+			$ret = $( $obj.GetEnumerator() | ForEach-Object { "{0}`"{1}`": {2}," -f $indent, $_.Key, $(_jsonsimple $( $indent + "`t" ) $_.Value) } | Out-String )
+			"{{`n{0}`n{1}}}" -f $ret.Trim("`r`n,"), $indent
+		}
+		elseif( $obj.GetType().Name -eq "Object[]" ) {
+			$ret = $( $obj | ForEach-Object { "{0}{1}," -f $indent, $(_jsonsimple $( $indent + "`t" ) $_) } | Out-String )
+			"[`n{0}`n{1}]" -f $ret.Trim("`r`n,"), $indent
+		}
+		else {
+			$ret = $( $obj.psobject.properties.GetEnumerator() | ForEach-Object { "{0}`"{1}`": {2}," -f $indent, $_.Name, $(_jsonsimple $( $indent + "`t" ) $_.Value) } | Out-String )
+			"{{`n{0}`n{1}}}" -f $ret.Trim("`r`n,"), $indent
+		}
+	}
+	else {
+		# dunno, just represent as simple as possible
+		$obj.ToString()
+	}
+}
+
+Function _tojson( $obj ) {
+	if( $json_available ) {
+		return ConvertTo-Json $obj;
+	}
+	else {
+		return _jsonsimple "`t" $obj;
+	}
+}
 
 Function _emitdocument( $section, $startts, $cmdobj ) {
 
@@ -85,9 +127,9 @@ Function _emitdocument( $section, $startts, $cmdobj ) {
 	}
 
 	$script:isfirstdocument = $False
-	
+
 	try {
-		Add-Content $diagfile $(ConvertTo-Json $cmdobj)
+		Add-Content $diagfile $(_tojson $cmdobj)
 	}
 	catch {
 		$cmdobj.output = ""
@@ -95,7 +137,7 @@ Function _emitdocument( $section, $startts, $cmdobj ) {
 		$cmdobj.ok = $False
 
 		# give it another shot without the output, just let it die if it still has an issue
-		Add-Content $diagfile $(ConvertTo-Json $cmdobj)
+		Add-Content $diagfile $(_tojson $cmdobj)
 	}
 }
 
@@ -116,7 +158,7 @@ Function _docmd {
 	$ok = $True;
 
 	Try {
-		#echo "Trying to run command [$args]`n"
+		#Write-Host "Trying to run command [$args]`n"
 		# -ErrorVariable has no effect on Invoke-Expression, errors always pipe to STDERR
 		# $LASTEXITCODE is always zero (success!)
 		# $? is always True (success!)
@@ -175,10 +217,22 @@ $error.Clear();
 # 
 ##>
 
+$focsv = [string]::Empty;
+if( $json_available ) {
+	$focsv = " /FO CSV | ConvertFrom-CSV";
+}
+
+if( -not $json_available ) {
+	Write-Host -ForegroundColor Red -BackgroundColor Yellow " !!! ";
+	Write-Host -ForegroundColor Red -BackgroundColor Yellow " ConvertTo-Json cmdlet is not available ";
+	Write-Host -ForegroundColor Red -BackgroundColor Yellow " using internal converter instead ";
+	Write-Host -ForegroundColor Red -BackgroundColor Yellow " !!! ";
+}
+
 fingerprint
 
 probe @{ name = "sysinfo";
-	cmd = "systeminfo /FO CSV | ConvertFrom-Csv";
+	cmd = $( "systeminfo{0}" -f $focsv );
 }
 
 probe @{ name = "is_admin";
@@ -187,7 +241,7 @@ probe @{ name = "is_admin";
 
 probe @{ name = "tasklist";
 	cmd = "Get-Process | Select Name,Handles,VM,WS,PM,NPM,Path,Company,CPU,FileVersion,ProductVersion,Description,Product,Id,PriorityClass,TotalProcessorTime,BasePriority,PeakWorkingSet64,PeakVirtualMemorySize64,StartTime,@{Name='Threads';Expression={`$_.Threads.Count}}";
-	alt = "tasklist /FO CSV | ConvertFrom-Csv"
+	alt = $( "tasklist{0}" -f $focsv );
 }
 
 probe @{ name = "network-adapter";
@@ -250,7 +304,7 @@ probe @{ name = "time-change";
 #
 Add-Content $diagfile "]`n"
 
-echo "Finished. Please attach '$diagfile' to the support case $jira_ticket_number."
+Write-Host "Finished. Please attach '$diagfile' to the support case $jira_ticket_number."
 
-echo "Press any key to continue ..."
+Write-Host "Press any key to continue ..."
 $x = $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
