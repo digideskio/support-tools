@@ -7,7 +7,11 @@
                 <span class="icon-bar"></span>
                 <span class="icon-bar"></span>
             </button>
+            % if renderpage == "workflows" or renderpage == "tasks":
+            <a style="font-family:'ninjanaruto';text-decoration:none;font-size: 2.0em; padding: 5px 5px;" class="navbar-brand" href="/"><img style="width:40px;height:40px;" src="/img/logo.png"/>&nbsp;<span style="color:#CCCCB2;">karakuri</span></a>
+            % else:
             <a style="font-family:'Trebuchet';text-decoration:none;font-size: 2.0em; padding: 5px 5px;" class="navbar-brand" href="/"><img style="width:40px;height:40px;" src="/img/logo.png"/>&nbsp;<span style="color:#522900;">proactive</span><span style="color:#CCCCB2">DB</span></a>
+            % end
         </div>
         <div class="collapse navbar-collapse">
             <ul class="nav navbar-nav">
@@ -30,7 +34,7 @@
                         </div>
                     </form>
                 </li>
-                <li><a href="#"><span class="glyphicon glyphicon-user"></span></a></li>
+                <li><a href="#" id="nav_a_login"><span class="glyphicon glyphicon-user"></span></a></li>
             </ul>
         </div>
     </div>

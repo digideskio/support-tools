@@ -1,0 +1,7 @@
+log             euphonia.log
+log-level       INFO
+pid             /tmp/euphonia.pid
+karakuri-host   localhost
+karakuri-port   8080
+euphonia-host   localhost
+euphonia-port   8070

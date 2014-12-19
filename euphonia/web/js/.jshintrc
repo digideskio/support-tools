@@ -1,11 +1,12 @@
 {
-  // ENVIRONMENTS
   "browser": true,
   "node": true,
   "globals": {
     "$":false,
     "jquery":false,
     "angular":false,
-    "prettyprint":false
+    "prettyprint":false,
+    "Handlebars":false,
+    "Bloodhound":false
   }
 }

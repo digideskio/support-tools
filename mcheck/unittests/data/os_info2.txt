@@ -1,0 +1,8 @@
+=========== start section distro ===========
+
+-rw-r--r-- 1 root root 54 Nov 13  2012 /etc/redhat-release
+--> start /etc/redhat-release <--
+Red Hat Enterprise Linux Server release 5.9 (Tikanga)
+--> end /etc/redhat-release <--
+============ end section distro ============
+

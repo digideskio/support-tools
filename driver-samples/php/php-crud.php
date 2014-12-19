@@ -23,9 +23,19 @@ test.items dropped
 
 echo "php mongodb driver version " . phpversion("mongo") . "\n";
 
+date_default_timezone_set("Europe/Dublin");
+
+// function logCallBack($module, $level, $message, $save = false) {
+//   printf("%s %s\n", date('Y-m-d H:i:s', time()). substr((string)microtime(), 1, 4), $message);
+// }
+
+// MongoLog::setModule( MongoLog::ALL );
+// MongoLog::setLevel( MongoLog::INFO );
+// MongoLog::setCallback( 'logCallBack' );
+
 try {
   // open connection to MongoDB server
-  $conn = new Mongo('localhost');
+  $conn = new MongoClient('localhost');
 
   // access database
   $db = $conn->test;

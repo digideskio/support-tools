@@ -1,0 +1,11 @@
+[
+	{
+		"id": "os-0011",
+		"desc": "Soft limit for number of processes",
+		"log": "mdiag",
+		"section": "proc",
+		"example": "Max processes             200000               200000               processes ",
+		"match": "Max processes\\s+(\\d+)",
+		"check": { "$1": { "$gte": 64000 } }
+	}
+]

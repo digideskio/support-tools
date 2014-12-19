@@ -1,0 +1,18 @@
+[
+	{
+		"id": "disk-0001",
+		"desc": "Presence of swap partition in fstab",
+		"log": "mdiag",
+		"section": "etc/fstab",
+		"match": "\\sswap\\s",
+		"occurrence": "always"
+	},
+	{
+		"id": "disk-0002",
+		"desc": "Presence of swap partition in /proc/swaps",
+		"log": "mdiag",
+		"section": "proc/swaps",
+		"match": "/dev",
+		"occurrence": "always"
+	}
+]

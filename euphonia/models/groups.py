@@ -28,7 +28,7 @@ class Groups:
         :param skip: integer defining the number of results to skip
         :param limit: integer defining the number of results to return
         :param query: query document to filter the results
-        :return: a dictionary containing the set of result documents
+        :return: a dictionary containing the set of result group summary docs
         """
         fquery = {}
         if query is not None:
@@ -46,29 +46,29 @@ class Groups:
         return {"groups": groups, "count": group_count}
 
     def ignore_test(self, gid, test):
-        """
-        :param gid:
-        :param test:
-        :return:
+        """ Sets a flag in the Group summary doc to ignore a test failure
+        :param gid: Group ID
+        :param test: string name of the test to ignore
+        :return: None
         """
         match = {"GroupId": gid, "failedTests.test": test}
         update = {"$set": {"failedTests.$.ignore": 1}}
         self.collection.update(match, update)
 
     def include_test(self, gid, test):
-        """
-        :param gid:
-        :param test:
-        :return:
+        """ Sets a flag in the Group summary doc to include a test failure
+        :param gid: Group ID
+        :param test: string name of the test to include
+        :return: None
         """
         match = {"GroupId": gid, "failedTests.test": test}
         update = {"$set": {"failedTests.$.ignore": 0}}
         self.collection.update(match, update)
 
     def search(self, query):
-        """
-        :param query:
-        :return:
+        """ Performs an auto-complete lookup on Group Names for the search box
+        :param query: Partial group name to match
+        :return: Array of group summary docs
         """
         qregex = "^%s" % query
         query = {"GroupName": {"$regex": qregex, "$options": "i"}}

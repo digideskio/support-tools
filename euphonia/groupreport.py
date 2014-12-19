@@ -66,4 +66,6 @@ class GroupReport:
               'LastName', 'IsCsCustomer', 'NumHostWithMoreThanOneVote',
               'IsBackupSetupStarted', 'NumEvenNumberReplicaSet',
               'NumActiveHostWithRlimitsStartupWarning',
-              'NumActiveHostWithNumaStartupWarning']
+              'NumActiveHostWithNumaStartupWarning',
+              'MonitoringAgentVersion',
+              'BackupAgentVersion']
