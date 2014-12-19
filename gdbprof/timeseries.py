@@ -176,7 +176,8 @@ class Series:
             self.queue_min_ms = float(self.get('queue_min_ms', 0))
     
         # scale the data (divide by this)
-        self.scale = self.get('scale', 1)
+        self.scale = self.get('scale', 1) # scale by this constant
+        self.scale_field = self.get('scale_field', None) # scale by value of this field
     
         # requested ymax
         self.spec_ymax = float(self.get('ymax', '-inf'))
@@ -203,6 +204,10 @@ class Series:
         if self.parse_type=='json':
             self.json_time = self.get('json_time', None)
             self.json_data = self.get('json_data', None)
+
+        # info for csv-format files
+        if self.parse_type=='csv':
+            self.csv_field = self.get('csv_field', None)
 
         # timezone offset
         tz = self.get('tz', None)
@@ -247,7 +252,6 @@ class Series:
         return self.split_series[split_key]
 
     def get_graphs(self, graphs, ygroups, opt):
-        #if not self.split_field and not self.split_all:
         if not self.split_field and not self.split_all:
             if opt.merges:
                 merge = self.get('merge', None)
@@ -258,7 +262,7 @@ class Series:
         for s in self.split_series.values():
             s.get_graphs(graphs, ygroups, opt)
 
-    def _data_point(self, t, d):
+    def _data_point(self, t, d, field):
         d = float(d)
         if self.wrap:
             if self.last_d > self.wrap/2 and d < -self.wrap/2:
@@ -270,6 +274,7 @@ class Series:
             self.last_d = d
             d += self.wrap_offset
         d /= self.scale
+        if self.scale_field: d /= float(field(self.scale_field))
         if self.rate:
             if self.last_t and self.last_t!=t:
                 self.ts.append(t)
@@ -298,7 +303,7 @@ class Series:
             s = self.get_split(field)
         else:
             s = self
-        s._data_point(t, d)
+        s._data_point(t, d, field)
 
 
     def finish(self):
@@ -550,9 +555,14 @@ def series_read_csv(fn, series, opt):
                 t = get_time(field_values[time_field], opt, s)
                 if not t:
                     break
-                for n, v in zip(field_names, split(line)):
+                nvs = zip(field_names, split(line))
+                field = lambda name: next(v for n,v in nvs if n==name)
+                for n, v in nvs:
                     if n!='time':
-                        s.data_point(t, v, n)
+                        if s.split_all:
+                            s.data_point(t, v, n)
+                        elif s.csv_field==n:
+                            s.data_point(t, v, field)
                                 
 
 descriptors = []     # descriptors loaded from various def files
@@ -1185,6 +1195,51 @@ descriptor(
     split_all = True
 )
 
+
+#
+# sysmon.py
+#
+
+def stat_cpu(which):
+    descriptor(
+        name = 'sysmon cpu: %s (%%)' % which,
+        parse_type = 'csv',
+        file_type = 'text',
+        csv_field = 'stat_cpu_%s' % which,
+        scale_field = 'stat_cpu_cpus',
+        ymax = 100,
+        rate = True
+    )
+    
+stat_cpu('user')
+stat_cpu('nice')
+stat_cpu('system')
+stat_cpu('idle')
+stat_cpu('iowait')
+stat_cpu('irq')
+stat_cpu('softirq')
+stat_cpu('steal')
+stat_cpu('guest')
+stat_cpu('guest_nice')
+
+# xxx use catch-all w/ split instead of listing explicitly?
+# xxx or at least csv should produce message on unrecognized field?
+
+def stat(which, name=None, **kwargs):
+    name = 'sysmon: %s' % (name if name else which)
+    descriptor(
+        name = name,
+        parse_type = 'csv',
+        file_type = 'text',
+        csv_field = 'stat_%s' % which,
+        **kwargs
+    )
+
+stat('ctxt', name='context switches (/s)', rate=True)
+#stat('btime')
+stat('processes')
+stat('running')
+stat('procs_blocked')
 
 #
 # serverStatus json output, for example:
