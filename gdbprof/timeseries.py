@@ -1200,7 +1200,7 @@ descriptor(
 # sysmon.py
 #
 
-def stat_cpu(which):
+def stat_cpu(which, **kwargs):
     descriptor(
         name = 'sysmon cpu: %s (%%)' % which,
         parse_type = 'csv',
@@ -1208,19 +1208,21 @@ def stat_cpu(which):
         csv_field = 'stat_cpu_%s' % which,
         scale_field = 'stat_cpu_cpus',
         ymax = 100,
-        rate = True
+        rate = True,
+        **kwargs
     )
     
-stat_cpu('user')
-stat_cpu('nice')
-stat_cpu('system')
-stat_cpu('idle')
-stat_cpu('iowait')
-stat_cpu('irq')
-stat_cpu('softirq')
-stat_cpu('steal')
-stat_cpu('guest')
-stat_cpu('guest_nice')
+stat_cpu('user', merge = 'sysmon_cpu')
+stat_cpu('system', merge = 'sysmon_cpu')
+stat_cpu('iowait', merge = 'sysmon_cpu')
+stat_cpu('nice', merge = 'sysmon_cpu')
+stat_cpu('steal', merge = 'sysmon_cpu')
+
+stat_cpu('idle', level = 3)
+stat_cpu('irq', level = 3)
+stat_cpu('softirq', level = 3)
+stat_cpu('guest', level = 3)
+stat_cpu('guest_nice', level = 3)
 
 # xxx use catch-all w/ split instead of listing explicitly?
 # xxx or at least csv should produce message on unrecognized field?
