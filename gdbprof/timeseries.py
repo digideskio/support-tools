@@ -1,6 +1,7 @@
 import argparse
 import collections
 import dateutil.parser
+import dateutil.tz
 from datetime import datetime, timedelta
 import importlib
 import itertools
@@ -177,7 +178,7 @@ class Series:
     
         # scale the data (divide by this)
         self.scale = self.get('scale', 1) # scale by this constant
-        self.scale_field = self.get('scale_field', None) # scale by value of this field
+        self.scale_field = self.descriptor['scale_field'] if 'scale_field' in self.descriptor else None
     
         # requested ymax
         self.spec_ymax = float(self.get('ymax', '-inf'))
@@ -223,8 +224,7 @@ class Series:
         self.graph = id(self) # will update with desc['merge'] later so can use split key
 
         # split into multiple series based on a data value
-        self.split_field = self.get('split', None)
-        self.split_all = self.get('split_all', False)
+        self.split_field = self.get('split_field', None)
         self.split_series = {}
 
         # hack to account for wrapping data
@@ -252,7 +252,7 @@ class Series:
         return self.split_series[split_key]
 
     def get_graphs(self, graphs, ygroups, opt):
-        if not self.split_field and not self.split_all:
+        if not self.split_field: # xxxxxxxxxx and not self.split_all:
             if opt.merges:
                 merge = self.get('merge', None)
                 if merge: self.graph = merge
@@ -262,7 +262,7 @@ class Series:
         for s in self.split_series.values():
             s.get_graphs(graphs, ygroups, opt)
 
-    def _data_point(self, t, d, field):
+    def _data_point(self, t, d, get_field):
         d = float(d)
         if self.wrap:
             if self.last_d > self.wrap/2 and d < -self.wrap/2:
@@ -273,16 +273,25 @@ class Series:
                 dbg('wrap', d, self.last_d, self.wrap_offset)
             self.last_d = d
             d += self.wrap_offset
-        d /= self.scale
-        if self.scale_field: d /= float(field(self.scale_field))
         if self.rate:
-            if self.last_t and self.last_t!=t:
-                self.ts.append(t)
-                self.ys[t] = (d-self.last_d) / (t-self.last_t).total_seconds()
-            if not self.last_t or self.last_t!=t:
+            if self.last_t==t:
+                return
+            if self.last_t:
+                dd = (d-self.last_d) / (t-self.last_t).total_seconds()
                 self.last_t = t
                 self.last_d = d
-        elif self.buckets:
+                d = dd
+            else:
+                self.last_t = t
+                self.last_d = d
+                return
+        if self.scale_field:
+            scale_field = self.scale_field.format(**self.descriptor)
+            div = float(get_field(scale_field))
+            if div:
+                d /= div
+        d /= self.scale
+        if self.buckets:
             s0 = (t - t0).total_seconds()
             s1 = s0 // self.buckets * self.buckets
             t = t + timedelta(0, s1-s0)
@@ -295,15 +304,14 @@ class Series:
         else:
             self.ts.append(t)
             self.ys[t] = d
+        return d
 
-    def data_point(self, t, d, field):
+    def data_point(self, t, d, get_field):
         if self.split_field:
-            s = self.get_split(field(self.split_field))
-        elif self.split_all:
-            s = self.get_split(field)
+            s = self.get_split(get_field(self.split_field))
         else:
             s = self
-        s._data_point(t, d, field)
+        return s._data_point(t, d, get_field)
 
 
     def finish(self):
@@ -380,7 +388,8 @@ def get_series(spec, spec_ord, opt):
                 try:
                     json.loads(f.next())
                     return 'json'
-                except:
+                except Exception as e:
+                    dbg(e)
                     pass
         return 'text'
 
@@ -431,6 +440,19 @@ def get_time(time, opt, s):
             opt.last_time = time
     return time
 
+
+def fixup(j):
+    for k, v in j.items():
+        if type(v)==dict:
+            if len(v)==1:
+                if '$date' in v:
+                    j[k] = v['$date']
+                elif '$numberLong' in v:
+                    j[k] = int(v['$numberLong'])
+                elif 'floatApprox' in v:
+                    j[k] = v['floatApprox']
+            fixup(v)
+
 def series_read_json(fn, series, opt):
 
     # add a path to the path tree
@@ -472,6 +494,7 @@ def series_read_json(fn, series, opt):
         time = None
         if line.startswith('{'):
             j = json.loads(line)
+            fixup(j)
             for s, v in match(root, j):
                 if s=='time':
                     time = v
@@ -520,11 +543,11 @@ def series_read_re(fn, series, opt):
             if m:
                 #dbg(m.groups())
                 for chunk_group, s_re in zip(chunk_groups, chunk):
-                    def field(g):
+                    def get_field(g):
                         try: return m.group(chunk_group+g+1) if type(g)==int else m.group(g)
                         except Exception as e: raise Exception(g + ': ' + e.message)
                     for s in series_by_re[s_re]:
-                        t = field(s.re_time)
+                        t = get_field(s.re_time)
                         if t:
                             t = get_time(t, opt, s)
                             if not t:
@@ -532,37 +555,36 @@ def series_read_re(fn, series, opt):
                         else:
                             t = last_time                            
                         if t:
-                            d = field(s.re_data)
+                            d = get_field(s.re_data)
                             if d != None:
-                                s.data_point(t, d, field)
+                                s.data_point(t, d, get_field)
                             last_time = t
 
 
 def series_read_csv(fn, series, opt):
 
-    def split(line):
-        return [s.strip() for s in line.split(',')]
-
     field_names = None
 
     for line in open(fn):
+        line = [s.strip() for s in line.split(',')]
         if not field_names:
-            field_names = split(line)
+            field_names = line
             time_field = field_names.index('time')
-        else:
+        elif len(line)==len(field_names):
+            field_values = line
+            field_dict = dict(zip(field_names, field_values))
             for s in series:
-                field_values = split(line)
                 t = get_time(field_values[time_field], opt, s)
                 if not t:
                     break
-                nvs = zip(field_names, split(line))
-                field = lambda name: next(v for n,v in nvs if n==name)
-                for n, v in nvs:
-                    if n!='time':
-                        if s.split_all:
-                            s.data_point(t, v, n)
-                        elif s.csv_field==n:
-                            s.data_point(t, v, field)
+                for field_name, field_value in zip(field_names, field_values):
+                    if field_name != 'time':
+                        #dbg('xxx', s.descriptor['name'])
+                        m = re.match(s.csv_field, field_name)
+                        if m:
+                            field_dict.update(m.groupdict())
+                            field_value = s.data_point(t, field_value, field_dict.__getitem__)
+                            field_dict[field_name] = field_value
                                 
 
 descriptors = []     # descriptors loaded from various def files
@@ -572,12 +594,19 @@ descriptor_ord = 0
 def descriptor(**desc):
     global descriptor_ord
     desc['_ord'] = descriptor_ord
-    if 'split' in desc:
-        split_field = desc['split']
+    if 'split_field' in desc:
+        split_field = desc['split_field']
         if not split_field in split_ords:
             split_ords[split_field] = desc['_ord']
     descriptors.append(desc)
     descriptor_ord += 1
+
+
+def datetime_parse(t):
+    t = dateutil.parser.parse(t)
+    if not t.tzinfo:
+        t = t.replace(tzinfo=dateutil.tz.tzlocal())
+    return t
 
 
 def get_graphs(specs, opt):
@@ -586,8 +615,8 @@ def get_graphs(specs, opt):
     if not hasattr(opt, 'before') or not opt.before: opt.before = pytz.utc.localize(datetime.max)
     if not hasattr(opt, 'every'): opt.every = None
     if type(opt.every)==float: opt.every = timedelta(seconds=opt.every)
-    if type(opt.after)==str: opt.after = dateutil.parser.parse(opt.after) # xxx local tz by default
-    if type(opt.before)==str: opt.before = dateutil.parser.parse(opt.before) # xxx local tz
+    if type(opt.after)==str: opt.after = datetime_parse(opt.after)
+    if type(opt.before)==str: opt.before = datetime_parse(opt.before)
 
     # parse specs, group them by file and parse type
     series = [] # all
@@ -612,7 +641,6 @@ def get_graphs(specs, opt):
     ygroups = collections.defaultdict(list)
     for s in series:
         s.get_graphs(graphs, ygroups, opt)
-    dbg('zzz graphs', graphs)
 
     # compute display_ymax taking into account spec_ymax and ygroup
     for g in graphs.values():
@@ -985,7 +1013,7 @@ def main():
     p.add_argument('--before')
     p.add_argument('--every', type=float)
     p.add_argument('--list', action='store_true')
-    p.add_argument('--level', type=int, choices=range(1,10), default=1)
+    p.add_argument('--level', type=int, default=1)
 
     global opt
     opt = p.parse_args()
@@ -1189,10 +1217,11 @@ descriptor(
 #
 
 descriptor(
-    name = 'csv {fn}: {field}',
+    name = 'csv {fn}: {csv_field}',
     parse_type = 'csv',
     file_type = 'text',
-    split_all = True
+    csv_field = '(?P<csv_field>.*)',
+    split_field = 'csv_field'
 )
 
 
@@ -1200,29 +1229,29 @@ descriptor(
 # sysmon.py
 #
 
-def stat_cpu(which, **kwargs):
+def sysmon_cpu(which, **kwargs):
     descriptor(
         name = 'sysmon cpu: %s (%%)' % which,
         parse_type = 'csv',
         file_type = 'text',
-        csv_field = 'stat_cpu_%s' % which,
-        scale_field = 'stat_cpu_cpus',
+        csv_field = 'cpu_%s' % which,
+        scale_field = 'cpus',
         ymax = 100,
         rate = True,
         **kwargs
     )
     
-stat_cpu('user', merge = 'sysmon_cpu')
-stat_cpu('system', merge = 'sysmon_cpu')
-stat_cpu('iowait', merge = 'sysmon_cpu')
-stat_cpu('nice', merge = 'sysmon_cpu')
-stat_cpu('steal', merge = 'sysmon_cpu')
+sysmon_cpu('user', merge = 'sysmon_cpu')
+sysmon_cpu('system', merge = 'sysmon_cpu')
+sysmon_cpu('iowait', merge = 'sysmon_cpu')
+sysmon_cpu('nice', merge = 'sysmon_cpu')
+sysmon_cpu('steal', merge = 'sysmon_cpu')
 
-stat_cpu('idle', level = 3)
-stat_cpu('irq', level = 3)
-stat_cpu('softirq', level = 3)
-stat_cpu('guest', level = 3)
-stat_cpu('guest_nice', level = 3)
+sysmon_cpu('idle', level = 3)
+sysmon_cpu('irq', level = 3)
+sysmon_cpu('softirq', level = 3)
+sysmon_cpu('guest', level = 3)
+sysmon_cpu('guest_nice', level = 3)
 
 # xxx use catch-all w/ split instead of listing explicitly?
 # xxx or at least csv should produce message on unrecognized field?
@@ -1233,7 +1262,7 @@ def stat(which, name=None, **kwargs):
         name = name,
         parse_type = 'csv',
         file_type = 'text',
-        csv_field = 'stat_%s' % which,
+        csv_field = '%s' % which,
         **kwargs
     )
 
@@ -1242,6 +1271,43 @@ stat('ctxt', name='context switches (/s)', rate=True)
 stat('processes')
 stat('running')
 stat('procs_blocked')
+
+def sysmon_disk(which, desc, **kwargs):
+    if not 'rate' in kwargs: kwargs['rate'] = True
+    descriptor(
+        name = 'sysmon disk: {disk} %s' % desc,
+        parse_type = 'csv',
+        file_type = 'text',
+        csv_field = '(?P<disk>.*)\.%s' % which,
+        split_field = 'disk',
+        **kwargs
+    )
+    
+#iostat_disk('wrqms',   'write requests merged (/s)', merge='iostat_disk_req_merged {iostat_disk}',  ygroup='iostat_disk_req')
+#iostat_disk('rrqms',   'read requests merged (/s)',  merge='iostat_disk_req_merged {iostat_disk}',  ygroup='iostat_disk_req')
+#iostat_disk('ws',      'write requests issued (/s)', merge='iostat_disk_req_issued {iostat_disk}',  ygroup='iostat_disk_req')
+#iostat_disk('rs',      'read requests issued (/s)',  merge='iostat_disk_req_issued {iostat_disk}',  ygroup='iostat_disk_req')
+#iostat_disk('wkBs',    'bytes written (MB/s)',       merge='iostat_disk_MBs {iostat_disk}',         scale=1024, level=1)
+#iostat_disk('rkBs',    'bytes read (MB/s)',          merge='iostat_disk_MBs {iostat_disk}',         scale=1024, level=1)
+#iostat_disk('avgrqsz', 'average request size (sectors)')
+#iostat_disk('avgqusz', 'average queue length')
+#iostat_disk('await',   'average wait time (ms)')
+#iostat_disk('util',    'average utilization (%)', ymax=100, level=1)
+
+
+sysmon_disk('writes_merged',  'write requests merged (/s)', merge='sysmon_disk_req_merged {disk}', ygroup='sysmon_disk_req')
+sysmon_disk('reads_merged',   'read requests merged (/s)',  merge='sysmon_disk_req_merged {disk}', ygroup='sysmon_disk_req')
+sysmon_disk('writes',         'write requests issued (/s)', merge='sysmon_disk_req_issued {disk}', ygroup='sysmon_disk_req')
+sysmon_disk('reads',          'read requests issued (/s)',  merge='sysmon_disk_req_issued {disk}', ygroup='sysmon_disk_req')
+sysmon_disk('write_sectors',  'bytes written (MB/s)',       merge='sysmon_disk_MBs {disk}',        scale=1024*1024/512)
+sysmon_disk('read_sectors',   'bytes read (MB/s)',          merge='sysmon_disk_MBs {disk}',        scale=1024*1024/512)
+sysmon_disk('write_time_ms',  'busy writing (%)',           merge='sysmon_busy',                   scale=10, ymax=100)
+sysmon_disk('read_time_ms',   'busy reading (%)',           merge='sysmon_busy',                   scale=10, ymax=100)
+sysmon_disk('io_in_progress', 'in progress', rate=False)
+sysmon_disk('io_time_ms',     'io_time_ms')
+sysmon_disk('io_queued_ms',   'io_queued_ms')
+sysmon_disk('io_queued_ms',   'qms/tms', scale_field='{disk}.io_time_ms')
+
 
 #
 # serverStatus json output, for example:
@@ -1327,6 +1393,7 @@ ss(['globalLock', 'totalTime', 'floatApprox'], level=99)
 
 
 # TBD
+ss(["uptime"], level=3)
 ss(["asserts", "msg"], rate=True, level=1)
 ss(["asserts", "regular"], rate=True, level=1)
 ss(["asserts", "rollovers"], rate=True, level=1)
@@ -1339,7 +1406,7 @@ ss(["asserts", "warning"], rate=True, level=1)
 #["backgroundFlushing", "total_ms"]
 #["connections", "available"]
 ss(["connections", "current"], level=1)
-#["connections", "totalCreated", "floatApprox"]
+#["connections", "totalCreated"]
 #["cursors", "clientCursors_size"]
 #["cursors", "note"]
 #["cursors", "pinned"]
@@ -1357,16 +1424,9 @@ ss(["connections", "current"], level=1)
 #["dur", "timeMs", "writeToDataFiles"]
 #["dur", "timeMs", "writeToJournal"]
 #["dur", "writeToDataFilesMB"]
-ss(["extra_info", "heap_usage_bytes"], scale=MB, wrap=2.0**31, level=99)
+ss(["extra_info", "heap_usage_bytes"], scale=MB, wrap=2.0**31, level=9)
 #["extra_info", "note"]
 ss(["extra_info", "page_faults"], rate=True, level=1)
-###["globalLock", "activeClients", "readers"] # see above
-ss(['globalLock', 'activeClients', 'total'], level=99)
-####["globalLock", "activeClients", "writers"] # see above
-ss(['globalLock', 'currentQueue', 'readers'], level=99)
-ss(['globalLock', 'currentQueue', 'writers'], level=99)
-ss(['globalLock', 'currentQueue', 'total'], level=99)
-ss(['globalLock', 'totalTime', 'floatApprox'], level=99)
 #["host"]
 #["localTime"]
 #["mem", "bits"]
@@ -1375,47 +1435,48 @@ ss(["mem", "mappedWithJournal"], scale=MB)
 ss(["mem", "resident"], units="MB")
 #["mem", "supported"]
 ss(["mem", "virtual"], units="MB", level=1)
-ss(["metrics", "commands", "serverStatus", "failed", "floatApprox"], rate=True)
-ss(["metrics", "commands", "serverStatus", "total", "floatApprox"], rate=True)
-ss(["metrics", "commands", "whatsmyuri", "failed", "floatApprox"], rate=True)
-ss(["metrics", "commands", "whatsmyuri", "total", "floatApprox"], rate=True)
-ss(["metrics", "cursor", "open", "noTimeout", "floatApprox"])
-ss(["metrics", "cursor", "open", "pinned", "floatApprox"])
-ss(["metrics", "cursor", "open", "total", "floatApprox"])
-ss(["metrics", "cursor", "timedOut", "floatApprox"], rate=True)
-ss(["metrics", "document", "deleted", "floatApprox"], rate=True)
-ss(["metrics", "document", "inserted", "floatApprox"], rate=True)
-ss(["metrics", "document", "returned", "floatApprox"], rate=True)
-ss(["metrics", "document", "updated", "floatApprox"], rate=True)
+ss(["metrics", "commands", "serverStatus", "failed"], rate=True)
+ss(["metrics", "commands", "serverStatus", "total"], rate=True)
+ss(["metrics", "commands", "whatsmyuri", "failed"], rate=True)
+ss(["metrics", "commands", "whatsmyuri", "total"], rate=True)
+ss(["metrics", "cursor", "open", "noTimeout"])
+ss(["metrics", "cursor", "open", "pinned"])
+ss(["metrics", "cursor", "open", "total"])
+ss(["metrics", "cursor", "timedOut"], rate=True)
+ss(["metrics", "document", "deleted"], rate=True)
+ss(["metrics", "document", "inserted"], rate=True)
+ss(["metrics", "document", "returned"], rate=True)
+ss(["metrics", "document", "updated"], rate=True)
 ss(["metrics", "getLastError", "wtime", "num"], rate=True)
 ss(["metrics", "getLastError", "wtime", "totalMillis"], rate=True)
-ss(["metrics", "getLastError", "wtimeouts", "floatApprox"], rate=True)
-ss(["metrics", "operation", "fastmod", "floatApprox"], rate=True)
-ss(["metrics", "operation", "idhack", "floatApprox"], rate=True)
-ss(["metrics", "operation", "scanAndOrder", "floatApprox"], rate=True)
-ss(["metrics", "queryExecutor", "scanned", "floatApprox"], rate=True)
-ss(["metrics", "queryExecutor", "scannedObjects", "floatApprox"], rate=True)
-ss(["metrics", "record", "moves", "floatApprox"], rate=True)
+ss(["metrics", "getLastError", "wtimeouts"], rate=True)
+ss(["metrics", "operation", "fastmod"], rate=True)
+ss(["metrics", "operation", "idhack"], rate=True)
+ss(["metrics", "operation", "scanAndOrder"], rate=True)
+ss(["metrics", "queryExecutor", "scanned"], rate=True)
+ss(["metrics", "queryExecutor", "scannedObjects"], rate=True)
+ss(["metrics", "record", "moves"], rate=True)
 ss(["metrics", "repl", "apply", "batches", "num"], rate=True)
 ss(["metrics", "repl", "apply", "batches", "totalMillis"], rate=True)
-ss(["metrics", "repl", "apply", "ops", "floatApprox"], rate=True)
-ss(["metrics", "repl", "buffer", "count", "floatApprox"], rate=True)
+ss(["metrics", "repl", "apply", "ops"], rate=True)
+ss(["metrics", "repl", "buffer", "count"], rate=True)
 ss(["metrics", "repl", "buffer", "maxSizeBytes"], rate=True)
-ss(["metrics", "repl", "buffer", "sizeBytes", "floatApprox"], rate=True)
-ss(["metrics", "repl", "network", "bytes", "floatApprox"], rate=True)
+ss(["metrics", "repl", "buffer", "sizeBytes"], rate=True)
+ss(["metrics", "repl", "network", "bytes"], rate=True)
 ss(["metrics", "repl", "network", "getmores", "num"], rate=True)
 ss(["metrics", "repl", "network", "getmores", "totalMillis"], rate=True)
-ss(["metrics", "repl", "network", "ops", "floatApprox"], rate=True)
-ss(["metrics", "repl", "network", "readersCreated", "floatApprox"], rate=True)
+ss(["metrics", "repl", "network", "ops"], rate=True)
+ss(["metrics", "repl", "network", "readersCreated"], rate=True)
 ss(["metrics", "repl", "preload", "docs", "num"], rate=True)
 ss(["metrics", "repl", "preload", "docs", "totalMillis"], rate=True)
 ss(["metrics", "repl", "preload", "indexes", "num"], rate=True)
 ss(["metrics", "repl", "preload", "indexes", "totalMillis"], rate=True)
-ss(["metrics", "storage", "freelist", "search", "bucketExhausted", "floatApprox"], rate=True)
-ss(["metrics", "storage", "freelist", "search", "requests", "floatApprox"], rate=True)
-ss(["metrics", "storage", "freelist", "search", "scanned", "floatApprox"], rate=True)
-ss(["metrics", "ttl", "deletedDocuments", "floatApprox"], rate=True)
-ss(["metrics", "ttl", "passes", "floatApprox"], rate=True)
+ss(["metrics", "storage", "freelist", "search", "bucketExhausted"], rate=True)
+ss(["metrics", "storage", "freelist", "search", "requests"], rate=True)
+ss(["metrics", "storage", "freelist", "search", "scanned"], rate=True)
+ss(["metrics", "ttl", "deletedDocuments"], rate=True)
+ss(["metrics", "ttl", "deletedDocuments"])
+ss(["metrics", "ttl", "passes"], rate=True)
 ss(["network", "bytesIn"], rate=True, scale=MB, merge='network bytes', level=1)
 ss(["network", "bytesOut"], rate=True, scale=MB, merge='network bytes', level=1)
 ss(["network", "numRequests"], rate=True)
@@ -1457,7 +1518,7 @@ iostat_cpu('idle', level = 3)
 def iostat_disk(re_data, name, level=3, **kwargs):
     iostat(
         re_data = re_data,
-        split = 'iostat_disk',
+        split_field = 'iostat_disk',
         name = 'iostat disk: {iostat_disk} ' + name,
         level = level,
         **kwargs
