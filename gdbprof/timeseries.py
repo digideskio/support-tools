@@ -1400,6 +1400,138 @@ ss(["network", "numRequests"], rate=True)
 
 
 #
+#
+#
+
+
+def cs(json_data, name=None, scale=1, rate=False, units=None, level=3, **kwargs):
+    if not name:
+        if json_data[0]=='wiredTiger':
+            name = 'cs wt: ' + ' '.join(json_data[1:])
+        else:
+            name = 'cs: ' + ' '.join(json_data)
+    if not units: units = desc_units(scale, rate)
+    if units: units = ' (' + units + ')'
+    name = name + units
+    descriptor(
+        file_type = 'json',
+        parse_type = 'json',
+        name = name,
+        json_data = json_data,
+        json_time = ['time'],        
+        scale = scale,
+        rate = rate,
+        level = level,
+        **kwargs
+    )
+
+#cs(["capped"])
+cs(["count"], level=1)
+#cs(["max"])
+#cs(["maxSize"])
+#cs(["nindexes"])
+#cs(["ns"])
+cs(["size"], scale=MB, level=1)
+cs(["storageSize"], scale=MB, level=1)
+cs(["totalIndexSize"], scale=MB, level=1)
+cs(["avgObjSize"], level=1)
+#cs(["wiredTiger", "LSM", "bloom filter false positives"])
+#cs(["wiredTiger", "LSM", "bloom filter hits"])
+#cs(["wiredTiger", "LSM", "bloom filter misses"])
+#cs(["wiredTiger", "LSM", "bloom filter pages evicted from cache"])
+#cs(["wiredTiger", "LSM", "bloom filter pages read into cache"])
+#cs(["wiredTiger", "LSM", "bloom filters in the LSM tree"])
+#cs(["wiredTiger", "LSM", "chunks in the LSM tree"])
+#cs(["wiredTiger", "LSM", "highest merge generation in the LSM tree"])
+#cs(["wiredTiger", "LSM", "queries that could have benefited from a Bloom filter that did not exist"])
+#cs(["wiredTiger", "LSM", "sleep for LSM checkpoint throttle"])
+#cs(["wiredTiger", "LSM", "sleep for LSM merge throttle"])
+#cs(["wiredTiger", "LSM", "total size of bloom filters"])
+cs(["wiredTiger", "block-manager", "allocations requiring file extension"], rate=True)
+cs(["wiredTiger", "block-manager", "blocks allocated"], rate=True)
+cs(["wiredTiger", "block-manager", "blocks freed"], rate=True)
+cs(["wiredTiger", "block-manager", "checkpoint size"], scale=MB)
+#cs(["wiredTiger", "block-manager", "file allocation unit size"])
+cs(["wiredTiger", "block-manager", "file bytes available for reuse"], scale=MB)
+#cs(["wiredTiger", "block-manager", "file magic number"])
+#cs(["wiredTiger", "block-manager", "file major version number"])
+cs(["wiredTiger", "block-manager", "file size in bytes"], scale=MB)
+#cs(["wiredTiger", "block-manager", "minor version number"])
+#cs(["wiredTiger", "btree", "column-store fixed-size leaf pages"])
+#cs(["wiredTiger", "btree", "column-store internal pages"])
+#cs(["wiredTiger", "btree", "column-store variable-size deleted values"])
+#cs(["wiredTiger", "btree", "column-store variable-size leaf pages"])
+cs(["wiredTiger", "btree", "fixed-record size"])
+cs(["wiredTiger", "btree", "maximum internal page key size"])
+cs(["wiredTiger", "btree", "maximum internal page size"])
+cs(["wiredTiger", "btree", "maximum leaf page key size"])
+cs(["wiredTiger", "btree", "maximum leaf page size"])
+cs(["wiredTiger", "btree", "maximum leaf page value size"])
+cs(["wiredTiger", "btree", "maximum tree depth"])
+cs(["wiredTiger", "btree", "number of key/value pairs"])
+cs(["wiredTiger", "btree", "overflow pages"])
+cs(["wiredTiger", "btree", "pages rewritten by compaction"], rate=True)
+cs(["wiredTiger", "btree", "row-store internal pages"])
+cs(["wiredTiger", "btree", "row-store leaf pages"])
+cs(["wiredTiger", "cache", "bytes read into cache"], rate=True, scale=MB)
+cs(["wiredTiger", "cache", "bytes written from cache"], rate=True, scale=MB)
+cs(["wiredTiger", "cache", "checkpoint blocked page eviction"])
+cs(["wiredTiger", "cache", "data source pages selected for eviction unable to be evicted"], rate=True)
+cs(["wiredTiger", "cache", "hazard pointer blocked page eviction"], rate=True)
+cs(["wiredTiger", "cache", "in-memory page splits"], rate=True)
+cs(["wiredTiger", "cache", "internal pages evicted"], rate=True)
+cs(["wiredTiger", "cache", "modified pages evicted"], rate=True)
+cs(["wiredTiger", "cache", "overflow pages read into cache"], rate=True)
+cs(["wiredTiger", "cache", "overflow values cached in memory"])
+cs(["wiredTiger", "cache", "pages read into cache"], rate=True)
+cs(["wiredTiger", "cache", "pages written from cache"], rate=True)
+cs(["wiredTiger", "cache", "unmodified pages evicted"], rate=True)
+cs(["wiredTiger", "compression", "compressed pages read"], rate=True)
+cs(["wiredTiger", "compression", "compressed pages written"], rate=True)
+cs(["wiredTiger", "compression", "page written failed to compress"], rate=True)
+cs(["wiredTiger", "compression", "page written was too small to compress"], rate=True)
+cs(["wiredTiger", "compression", "raw compression call failed, additional data available"], rate=True)
+cs(["wiredTiger", "compression", "raw compression call failed, no additional data available"], rate=True)
+cs(["wiredTiger", "compression", "raw compression call succeeded"], rate=True)
+#cs(["wiredTiger", "creationString"])
+cs(["wiredTiger", "cursor", "bulk-loaded cursor-insert calls"], rate=True)
+cs(["wiredTiger", "cursor", "create calls"], rate=True)
+cs(["wiredTiger", "cursor", "cursor-insert key and value bytes inserted"], rate=True)
+cs(["wiredTiger", "cursor", "cursor-remove key bytes removed"], rate=True)
+cs(["wiredTiger", "cursor", "cursor-update value bytes updated"], rate=True)
+cs(["wiredTiger", "cursor", "insert calls"], rate=True)
+cs(["wiredTiger", "cursor", "next calls"], rate=True)
+cs(["wiredTiger", "cursor", "prev calls"], rate=True)
+cs(["wiredTiger", "cursor", "remove calls"], rate=True)
+cs(["wiredTiger", "cursor", "reset calls"], rate=True)
+cs(["wiredTiger", "cursor", "search calls"], rate=True)
+cs(["wiredTiger", "cursor", "search near calls"], rate=True)
+cs(["wiredTiger", "cursor", "update calls"], rate=True)
+#cs(["wiredTiger", "metadata", "formatVersion"])
+#cs(["wiredTiger", "metadata", "oplogKeyExtractionVersion"])
+cs(["wiredTiger", "reconciliation", "dictionary matches"], rate=True)
+cs(["wiredTiger", "reconciliation", "internal page key bytes discarded using suffix compression"], rate=True)
+cs(["wiredTiger", "reconciliation", "internal page multi-block writes"], rate=True)
+cs(["wiredTiger", "reconciliation", "internal-page overflow keys"])
+cs(["wiredTiger", "reconciliation", "leaf page key bytes discarded using prefix compression"], rate=True)
+cs(["wiredTiger", "reconciliation", "leaf page multi-block writes"], rate=True)
+cs(["wiredTiger", "reconciliation", "leaf-page overflow keys"])
+cs(["wiredTiger", "reconciliation", "maximum blocks required for a page"])
+cs(["wiredTiger", "reconciliation", "overflow values written"], rate=True)
+cs(["wiredTiger", "reconciliation", "page checksum matches"], rate=True)
+cs(["wiredTiger", "reconciliation", "page reconciliation calls"], rate=True)
+cs(["wiredTiger", "reconciliation", "page reconciliation calls for eviction"], rate=True)
+cs(["wiredTiger", "reconciliation", "pages deleted"], rate=True)
+cs(["wiredTiger", "session", "object compaction"])
+cs(["wiredTiger", "session", "open cursor count"])
+cs(["wiredTiger", "transaction", "update conflicts"], rate=True)
+#cs(["wiredTiger", "type"])
+#cs(["wiredTiger", "uri"])
+
+
+
+
+#
 # sysmon.py
 #
 
