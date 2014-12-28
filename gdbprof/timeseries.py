@@ -320,7 +320,7 @@ class Series:
             if self.ys.keys():
                 tmin = min(self.ys.keys())
                 tmax = max(self.ys.keys())
-                n = int((tmax-tmin).total_seconds() / self.buckets)
+                n = int(math.ceil(float((tmax-tmin).total_seconds()) / self.buckets))
                 dt = timedelta(0, self.buckets)
                 self.ts = [tmin + dt*i for i in range(n+1)]
             else:
@@ -1225,89 +1225,6 @@ descriptor(
 )
 
 
-#
-# sysmon.py
-#
-
-def sysmon_cpu(which, **kwargs):
-    descriptor(
-        name = 'sysmon cpu: %s (%%)' % which,
-        parse_type = 'csv',
-        file_type = 'text',
-        csv_field = 'cpu_%s' % which,
-        scale_field = 'cpus',
-        ymax = 100,
-        rate = True,
-        **kwargs
-    )
-    
-sysmon_cpu('user', merge = 'sysmon_cpu')
-sysmon_cpu('system', merge = 'sysmon_cpu')
-sysmon_cpu('iowait', merge = 'sysmon_cpu')
-sysmon_cpu('nice', merge = 'sysmon_cpu')
-sysmon_cpu('steal', merge = 'sysmon_cpu')
-
-sysmon_cpu('idle', level = 3)
-sysmon_cpu('irq', level = 3)
-sysmon_cpu('softirq', level = 3)
-sysmon_cpu('guest', level = 3)
-sysmon_cpu('guest_nice', level = 3)
-
-# xxx use catch-all w/ split instead of listing explicitly?
-# xxx or at least csv should produce message on unrecognized field?
-
-def stat(which, name=None, **kwargs):
-    name = 'sysmon: %s' % (name if name else which)
-    descriptor(
-        name = name,
-        parse_type = 'csv',
-        file_type = 'text',
-        csv_field = '%s' % which,
-        **kwargs
-    )
-
-stat('ctxt', name='context switches (/s)', rate=True)
-#stat('btime')
-stat('processes')
-stat('running')
-stat('procs_blocked')
-
-def sysmon_disk(which, desc, **kwargs):
-    if not 'rate' in kwargs: kwargs['rate'] = True
-    descriptor(
-        name = 'sysmon disk: {disk} %s' % desc,
-        parse_type = 'csv',
-        file_type = 'text',
-        csv_field = '(?P<disk>.*)\.%s' % which,
-        split_field = 'disk',
-        **kwargs
-    )
-    
-#iostat_disk('wrqms',   'write requests merged (/s)', merge='iostat_disk_req_merged {iostat_disk}',  ygroup='iostat_disk_req')
-#iostat_disk('rrqms',   'read requests merged (/s)',  merge='iostat_disk_req_merged {iostat_disk}',  ygroup='iostat_disk_req')
-#iostat_disk('ws',      'write requests issued (/s)', merge='iostat_disk_req_issued {iostat_disk}',  ygroup='iostat_disk_req')
-#iostat_disk('rs',      'read requests issued (/s)',  merge='iostat_disk_req_issued {iostat_disk}',  ygroup='iostat_disk_req')
-#iostat_disk('wkBs',    'bytes written (MB/s)',       merge='iostat_disk_MBs {iostat_disk}',         scale=1024, level=1)
-#iostat_disk('rkBs',    'bytes read (MB/s)',          merge='iostat_disk_MBs {iostat_disk}',         scale=1024, level=1)
-#iostat_disk('avgrqsz', 'average request size (sectors)')
-#iostat_disk('avgqusz', 'average queue length')
-#iostat_disk('await',   'average wait time (ms)')
-#iostat_disk('util',    'average utilization (%)', ymax=100, level=1)
-
-
-sysmon_disk('writes_merged',  'write requests merged (/s)', merge='sysmon_disk_req_merged {disk}', ygroup='sysmon_disk_req')
-sysmon_disk('reads_merged',   'read requests merged (/s)',  merge='sysmon_disk_req_merged {disk}', ygroup='sysmon_disk_req')
-sysmon_disk('writes',         'write requests issued (/s)', merge='sysmon_disk_req_issued {disk}', ygroup='sysmon_disk_req')
-sysmon_disk('reads',          'read requests issued (/s)',  merge='sysmon_disk_req_issued {disk}', ygroup='sysmon_disk_req')
-sysmon_disk('write_sectors',  'bytes written (MB/s)',       merge='sysmon_disk_MBs {disk}',        scale=1024*1024/512)
-sysmon_disk('read_sectors',   'bytes read (MB/s)',          merge='sysmon_disk_MBs {disk}',        scale=1024*1024/512)
-sysmon_disk('write_time_ms',  'busy writing (%)',           merge='sysmon_busy',                   scale=10, ymax=100)
-sysmon_disk('read_time_ms',   'busy reading (%)',           merge='sysmon_busy',                   scale=10, ymax=100)
-sysmon_disk('io_in_progress', 'in progress', rate=False)
-sysmon_disk('io_time_ms',     'io_time_ms')
-sysmon_disk('io_queued_ms',   'io_queued_ms')
-sysmon_disk('io_queued_ms',   'qms/tms', scale_field='{disk}.io_time_ms')
-
 
 #
 # serverStatus json output, for example:
@@ -1481,6 +1398,77 @@ ss(["network", "bytesIn"], rate=True, scale=MB, merge='network bytes', level=1)
 ss(["network", "bytesOut"], rate=True, scale=MB, merge='network bytes', level=1)
 ss(["network", "numRequests"], rate=True)
 
+
+#
+# sysmon.py
+#
+
+def sysmon_cpu(which, **kwargs):
+    descriptor(
+        name = 'sysmon cpu: %s (%%)' % which,
+        parse_type = 'csv',
+        file_type = 'text',
+        csv_field = 'cpu_%s' % which,
+        scale_field = 'cpus',
+        ymax = 100,
+        rate = True,
+        **kwargs
+    )
+    
+sysmon_cpu('user', merge = 'sysmon_cpu')
+sysmon_cpu('system', merge = 'sysmon_cpu')
+sysmon_cpu('iowait', merge = 'sysmon_cpu')
+sysmon_cpu('nice', merge = 'sysmon_cpu')
+sysmon_cpu('steal', merge = 'sysmon_cpu')
+
+sysmon_cpu('idle', level = 3)
+sysmon_cpu('irq', level = 3)
+sysmon_cpu('softirq', level = 3)
+sysmon_cpu('guest', level = 3)
+sysmon_cpu('guest_nice', level = 3)
+
+# xxx use catch-all w/ split instead of listing explicitly?
+# xxx or at least csv should produce message on unrecognized field?
+
+def stat(which, name=None, **kwargs):
+    name = 'sysmon: %s' % (name if name else which)
+    descriptor(
+        name = name,
+        parse_type = 'csv',
+        file_type = 'text',
+        csv_field = '%s' % which,
+        **kwargs
+    )
+
+stat('ctxt', name='context switches (/s)', rate=True)
+#stat('btime')
+stat('processes')
+stat('running')
+stat('procs_blocked')
+
+def sysmon_disk(which, desc, **kwargs):
+    if not 'rate' in kwargs: kwargs['rate'] = True
+    descriptor(
+        name = 'sysmon disk: {disk} %s' % desc,
+        parse_type = 'csv',
+        file_type = 'text',
+        csv_field = '(?P<disk>.*)\.%s' % which,
+        split_field = 'disk',
+        **kwargs
+    )
+    
+sysmon_disk('writes_merged',  'write requests merged (/s)', merge='sysmon_disk_req_merged {disk}', ygroup='sysmon_disk_req')
+sysmon_disk('reads_merged',   'read requests merged (/s)',  merge='sysmon_disk_req_merged {disk}', ygroup='sysmon_disk_req')
+sysmon_disk('writes',         'write requests issued (/s)', merge='sysmon_disk_req_issued {disk}', ygroup='sysmon_disk_req')
+sysmon_disk('reads',          'read requests issued (/s)',  merge='sysmon_disk_req_issued {disk}', ygroup='sysmon_disk_req')
+sysmon_disk('write_sectors',  'bytes written (MB/s)',       merge='sysmon_disk_MBs {disk}',        scale=1024*1024/512)
+sysmon_disk('read_sectors',   'bytes read (MB/s)',          merge='sysmon_disk_MBs {disk}',        scale=1024*1024/512)
+sysmon_disk('write_time_ms',  'busy writing (%)',           merge='sysmon_busy',                   scale=10, ymax=100)
+sysmon_disk('read_time_ms',   'busy reading (%)',           merge='sysmon_busy',                   scale=10, ymax=100)
+sysmon_disk('io_in_progress', 'in progress', rate=False)
+sysmon_disk('io_time_ms',     'io_time_ms')
+sysmon_disk('io_queued_ms',   'io_queued_ms')
+sysmon_disk('io_queued_ms',   'qms/tms', scale_field='{disk}.io_time_ms')
 
 #
 # iostat output, e.g.
