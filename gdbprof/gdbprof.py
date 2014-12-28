@@ -265,6 +265,15 @@ def read_profile(filters):
     root.filters = filters
     stack = []
     t = None
+
+    plevel = '^#([0-9]+) +'
+    paddr = '(?:0x[0-9a-f]+ in )?'
+    pfunc = '((?:[^)]|\)[^ ])*)'
+    pargs = '((?: ?\(.*\) ?)+ *)'
+    pfile = '(?:from (.*)|at (.*):([0-9]+))?\n$'
+    pat = plevel + paddr + pfunc + pargs + pfile
+    pat = re.compile(pat)
+
     for line in sys.stdin:
         if line.startswith('==='):
             stack = root.add_stack(stack, t)
@@ -276,14 +285,11 @@ def read_profile(filters):
                 opt.tmin = min(t, opt.tmin) if opt.tmin else t
                 opt.tmax = max(t, opt.tmax) if opt.tmax else t
             dbg('after', opt.after, 't', t, 'before', opt.before)
-        elif line.startswith('#') and t>=opt.after and t<opt.before:
-            plevel = '^#([0-9]+) +'
-            paddr = '(?:0x[0-9a-f]+ in )?'
-            pfunc = '((?:[^)]|\)[^ ])*)'
-            pargs = '((?: ?\(.*\) ?)+ *)'
-            pfile = '(?:from (.*)|at (.*):([0-9]+))?\n$'
-            pat = plevel + paddr + pfunc + pargs + pfile
-            m = re.match(pat, line)
+        elif line.startswith('Thread'):
+            m = re.search('LWP ([0-9]+)', line)
+            lwp = m.group(1)
+        elif line.startswith('#') and t>=opt.after and t<opt.before and (not opt.threads or lwp in opt.threads):
+            m = pat.match(line)
             if not m:
                 print 'not matched:', repr(line)
             else:
@@ -370,6 +376,7 @@ def main():
                    help='produce interactive html output; save to file and open in browser')
     p.add_argument('--series', nargs='*', default=[])
     p.add_argument('--tz', type=float, nargs=1, default=None)
+    p.add_argument('--threads', type=str, nargs='+', default=None)
     global opt
     opt = p.parse_args()
 
@@ -391,6 +398,9 @@ def main():
     opt.before = strptime(opt.before, '%Y-%m-%d %H:%M:%S')
     #opt.after = dateutil.parser.parse(opt.after) # xxx need to apply timezone
     #opt.before = dateutil.parser.parse(opt.before) # xxx need to apply timezone
+
+    if opt.threads:
+        opt.threads = set(opt.threads)
 
     opt.max_count = float('-inf')
     opt.min_count = float('inf')
