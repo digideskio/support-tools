@@ -168,8 +168,13 @@ class Series:
         # request to bucketize the data
         self.buckets = float(self.get('bucket_size', 0))
         if self.buckets:
-            self.op = op_for(self.descriptor, self.get('bucket_op', 'max'))
-    
+            op = self.get('bucket_op', 'max')
+            if op=='max':
+                self.op = lambda ys, t, d: max(ys[t], d)
+            elif op=='count':
+                self.op = lambda ys, t, d: ys[t]+1 if d>=self.count_min else ys[t]
+        self.count_min = float(self.get('count_min', 0))
+
         # compute queued ops from op execution time
         self.queue = self.get('queue', False)
         if self.queue:
@@ -203,8 +208,7 @@ class Series:
 
         # info for json-format files
         if self.parse_type=='json':
-            self.json_time = self.get('json_time', None)
-            self.json_data = self.get('json_data', None)
+            self.json_fields = self.get('json_fields', None)
 
         # info for csv-format files
         if self.parse_type=='csv':
@@ -238,19 +242,6 @@ class Series:
     def get(self, *args):
         return get(self.descriptor, *args)
 
-    def get_split(self, split_key):
-        if split_key not in self.split_series:
-            new = Series(self.spec, self.descriptor, {}, self.fn, self.spec_ord)
-            if self.split_field:
-                new.descriptor[self.split_field] = split_key
-                new.key = (split_ords[self.split_field], split_key, new.key)
-            else:
-                new.descriptor['field'] = split_key # xxx - ?
-            new.split_field = None
-            new.split_all = None
-            self.split_series[split_key] = new
-        return self.split_series[split_key]
-
     def get_graphs(self, graphs, ygroups, opt):
         if not self.split_field: # xxxxxxxxxx and not self.split_all:
             if opt.merges:
@@ -263,7 +254,14 @@ class Series:
             s.get_graphs(graphs, ygroups, opt)
 
     def _data_point(self, t, d, get_field):
-        d = float(d)
+
+        # may not have data in case of a count, so just use 0
+        try:
+            d = float(d)
+        except:
+            d = 0
+
+        # wrapping 32-bit counter hack
         if self.wrap:
             if self.last_d > self.wrap/2 and d < -self.wrap/2:
                 self.wrap_offset += 2 * self.wrap
@@ -273,6 +271,8 @@ class Series:
                 dbg('wrap', d, self.last_d, self.wrap_offset)
             self.last_d = d
             d += self.wrap_offset
+
+        # compute a rate
         if self.rate:
             if self.last_t==t:
                 return
@@ -285,12 +285,16 @@ class Series:
                 self.last_t = t
                 self.last_d = d
                 return
+
+        # scale - xxx need general computation mechanism here instead
         if self.scale_field:
             scale_field = self.scale_field.format(**self.descriptor)
             div = float(get_field(scale_field))
             if div:
                 d /= div
         d /= self.scale
+
+        # record the data
         if self.buckets:
             s0 = (t - t0).total_seconds()
             s1 = s0 // self.buckets * self.buckets
@@ -304,11 +308,35 @@ class Series:
         else:
             self.ts.append(t)
             self.ys[t] = d
+
+        # tell our caller what we recorded
         return d
+
+    def get_split(self, split_key):
+        if split_key not in self.split_series:
+            new = Series(self.spec, self.descriptor, {}, self.fn, self.spec_ord)
+            if self.split_field: # this is getting a little creaky - generalize? move up into data_point?
+                if type(self.split_field)==str:
+                    new.descriptor[self.split_field] = split_key
+                else:
+                    for name, value in zip(self.split_field, split_key):
+                        new.descriptor[name] = value
+                new.key = (split_ords[self.split_field], split_key, new.key)
+            else:
+                new.descriptor['field'] = split_key # xxx - ?
+            new.split_field = None
+            new.split_all = None
+            self.split_series[split_key] = new
+        return self.split_series[split_key]
+
 
     def data_point(self, t, d, get_field):
         if self.split_field:
-            s = self.get_split(get_field(self.split_field))
+            if type(self.split_field)==str:
+                split_key = get_field(self.split_field)
+            else:
+                split_key = tuple(get_field(s) for s in self.split_field)
+            s = self.get_split(split_key)
         else:
             s = self
         return s._data_point(t, d, get_field)
@@ -340,13 +368,6 @@ class Series:
     
         for s in self.split_series.values():
             s.finish()
-
-def op_for(desc, s):
-    if s=='max': return lambda ys, t, d: max(ys[t], d)
-    if s=='count':
-        count_min_ms = float(desc.get("count_min_ms", 0))
-        return lambda ys, t, d: ys[t]+1 if d>=count_min_ms else ys[t]
-
 
 def get_series(spec, spec_ord, opt):
 
@@ -428,9 +449,21 @@ def get_series(spec, spec_ord, opt):
     return series
 
 def get_time(time, opt, s):
-    time = dateutil.parser.parse(time)
+
+    # dateutil first, then unix timestamp
+    try:
+        time = dateutil.parser.parse(time)
+    except:
+        time = datetime.fromtimestamp(int(time), pytz.utc)
+
+    # supply tz if missing
     if not time.tzinfo:
-        time = pytz.utc.localize(time-s.tz)
+        if s:
+            time = pytz.utc.localize(time-s.tz)
+        else:
+            raise Exception('require non-naive timestamps')
+
+    # subset or range of times
     if time < opt.after or time >= opt.before:
         return None
     elif opt.every:
@@ -438,9 +471,11 @@ def get_time(time, opt, s):
             return None
         else:
             opt.last_time = time
+
     return time
 
 
+# handle special names inserted by javascript JSON.stringify()
 def fixup(j):
     for k, v in j.items():
         if type(v)==dict:
@@ -453,58 +488,68 @@ def fixup(j):
                     j[k] = v['floatApprox']
             fixup(v)
 
+
 def series_read_json(fn, series, opt):
 
+    # interior nodes
+    interior = dict
+
+    # leaf nodes - map each field name to list of series that specifies
+    # the path terminating at that node by that field name
+    class leaf(collections.defaultdict):
+        def __init__(self):
+            collections.defaultdict.__init__(self, list)
+
     # add a path to the path tree
-    def add_path(node, path, leaf):
+    def add_path(pnode, path, fname, s):
         head = str(path[0])
         if len(path)==1:
-            node[head] = leaf
+            if not head in pnode:
+                pnode[head] = leaf()
+            pnode[head][fname].append(s)
         else:
-            if not head in node:
-                node[head] = interior()
-            add_path(node[head], path[1:], leaf)
-        return node
+            if not head in pnode:
+                pnode[head] = interior()
+            add_path(pnode[head], path[1:], fname, s)
 
-    # construct combined path tree for all series
-    # assumes 1) each path is specified only for one series and 2) all series specify same time path
-    interior = collections.OrderedDict
-    root = interior()
+    # construct combined path tree for all paths in all series
+    ptree = interior()
     for s in series:
-        if not s.json_data: raise Exception(s.descriptor['name'] + ' does not specify json_data')
-        if not s.json_time: raise Exception(s.descriptor['name'] + ' does not specify json_time')
-        add_path(root, s.json_time, 'time') # must go first so we get a t first
-        add_path(root, s.json_data, s)
+        for fname, path in s.json_fields.items():
+            add_path(ptree, path, fname, s)
 
     # match a path tree with a json doc
-    # xxx use set intersection, should be faster, now that we don't have to preserve order
-    def match(node, jline):
-        for name in node:
-            if name in jline:
-                node_child = node[name]
-                jline_child = jline[name]
-                if type(node_child)==interior and type(jline_child)==dict:
-                    for n, j in match(node_child, jline_child):
-                        yield n, j
-                elif type(node_child)!=interior and type(jline_child)!=dict:
-                    yield node_child, jline_child
+    def match(pnode, jnode, result):
+        if type(pnode)==interior:
+            for jname in pnode:
+                try:
+                    jnode_child = jnode[jname]
+                    pnode_child = pnode[jname]
+                    match(pnode_child, jnode_child, result)
+                except KeyError, TypeError:
+                    pass
+        else:
+            for fname in pnode:
+                # convert time here so we don't do it multiple times for each series that uses it
+                value = get_time(jnode, opt, None) if fname=='time' else jnode
+                if value is not None:
+                    for s in pnode[fname]:
+                        result[s][fname] = value
 
     # process lines
     for line in open(fn):
         time = None
         if line.startswith('{'):
-            j = json.loads(line)
-            fixup(j)
-            for s, v in match(root, j):
-                if s=='time':
-                    time = v
-                    time = get_time(time, opt, s)
-                    if not time:
-                        break
-                else:
-                    if not time:
-                        raise Exception('time not found in ' + line)
-                    s.data_point(time, v, None) # xxx splits?
+            jnode = json.loads(line)
+            fixup(jnode)
+            result = collections.defaultdict(dict)
+            match(ptree, jnode, result)
+            for s in result:
+                fields = result[s]
+                try:
+                    s.data_point(fields['time'], fields['data'], fields.__getitem__)
+                except KeyError:
+                    pass
 
 
 def series_read_re(fn, series, opt):
@@ -1224,7 +1269,29 @@ descriptor(
     split_field = 'csv_field'
 )
 
+#
+# json test
+#
 
+descriptor(
+    file_type = 'json',
+    parse_type = 'json',
+    name = 'test1',
+    json_fields = {
+        'data': ['foo', 'bar1'],
+        'time': ['jtime'],
+    },
+)
+
+descriptor(
+    file_type = 'json',
+    parse_type = 'json',
+    name = 'test2',
+    json_fields = {
+        'data': ['foo', 'bar2'],
+        'time': ['jtime'],
+    },
+)
 
 #
 # serverStatus json output, for example:
@@ -1250,8 +1317,10 @@ def ss(json_data, name=None, scale=1, rate=False, units=None, level=3, **kwargs)
         file_type = 'json',
         parse_type = 'json',
         name = name,
-        json_data = json_data,
-        json_time = ['localTime'],        
+        json_fields = {
+            'data': json_data,
+            'time': ['localTime'],
+        },
         scale = scale,
         rate = rate,
         level = level,
@@ -1306,7 +1375,7 @@ ss(
 
 ss(['globalLock', 'activeClients', 'total'], level=99)
 ss(['globalLock', 'currentQueue', 'total'], level=99)
-ss(['globalLock', 'totalTime', 'floatApprox'], level=99)
+ss(['globalLock', 'totalTime'], level=99)
 
 
 # TBD
@@ -1417,8 +1486,10 @@ def cs(json_data, name=None, scale=1, rate=False, units=None, level=3, **kwargs)
         file_type = 'json',
         parse_type = 'json',
         name = name,
-        json_data = json_data,
-        json_time = ['time'],        
+        json_fields = {
+            'data': json_data,
+            'time': ['time'],
+        },
         scale = scale,
         rate = rate,
         level = level,
@@ -1675,11 +1746,11 @@ mongod(
 )
 
 mongod(
-    name = 'mongod logged queries longer than {count_min_ms}ms per {bucket_size}s',
+    name = 'mongod logged queries longer than {count_min}ms per {bucket_size}s',
     re = '.* query: .* ([0-9]+)ms$',
     bucket_op = 'count',
-    bucket_size = 1,       # size of buckets in seconds
-    count_min_ms = 0,      # minimum query duration to count',
+    bucket_size = 1,    # size of buckets in seconds
+    count_min = 0,      # minimum query duration to count',
     level = 1
 )
 
@@ -1701,6 +1772,28 @@ mongod(
 )
 
 #
+# oplog, e.g.
+# mongo --eval 'db.oplog.rs.find({...}, {ts:1, op:1, ns:1}).forEach(function(d) {print(JSON.stringify(d))})
+#
+
+descriptor(
+    name = 'oplog: {op} {ns}',
+    file_type = 'json',
+    parse_type = 'json',
+    json_fields = {
+        'time': ['ts', 't'],
+        'data': ['op'],
+        'op': ['op'],
+        'ns': ['ns'],
+    },
+    bucket_op = 'count',
+    bucket_size = 1,
+    split_field = ('op', 'ns'),
+    level = 1
+)
+
+
+#
 # wt
 #
 
@@ -1718,8 +1811,10 @@ def wt(wt_cat, wt_name, rate=False, scale=1.0, level=3, **kwargs):
     descriptor(
         file_type = 'json',
         parse_type = 'json',
-        json_time = ['localTime'],
-        json_data = ['wiredTiger', wt_cat, wt_name],
+        json_fields = {
+            'time': ['localTime'],
+            'data': ['wiredTiger', wt_cat, wt_name],
+        },
         name = 'ss ' + name,
         **kwargs
     )
