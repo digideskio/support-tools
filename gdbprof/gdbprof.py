@@ -11,7 +11,7 @@ import os
 import json
 import pytz
 import time
-#import dateutil.parser
+import dateutil.parser
 
 
 def dbg(*ss):
@@ -257,7 +257,7 @@ def hide_filter(arg):
 def strptime(t, fmt):
     t = datetime.strptime(t, fmt)
     if not t.tzinfo:
-        t = pytz.utc.localize(t-opt.tz)
+        t = pytz.utc.localize(t+opt.tz)
     return t
 
 def read_profile(filters):
@@ -389,15 +389,18 @@ def main():
     elif opt.tree=='none': opt.tree_line, opt.tree_mid, opt.tree_last = ' ', ' ', ' '
 
     if opt.tz==None:
-        opt.tz = datetime(*time.gmtime()[:6]) - datetime(*time.localtime()[:6])        
+        opt.tz = datetime(*time.localtime()[:6]) - datetime(*time.gmtime()[:6])
     else:
         opt.tz = timedelta(hours=opt.tz[0])
-    opt.after = opt.after.replace('T', ' ')
-    opt.before = opt.before.replace('T', ' ')
-    opt.after = strptime(opt.after, '%Y-%m-%d %H:%M:%S')
-    opt.before = strptime(opt.before, '%Y-%m-%d %H:%M:%S')
-    #opt.after = dateutil.parser.parse(opt.after) # xxx need to apply timezone
-    #opt.before = dateutil.parser.parse(opt.before) # xxx need to apply timezone
+
+    def datetime_parse(t):
+        t = dateutil.parser.parse(t)
+        if not t.tzinfo:
+            t = pytz.utc.localize(t+opt.tz)
+        return t
+    
+    opt.after = datetime_parse(opt.after)
+    opt.before = datetime_parse(opt.before)
 
     if opt.threads:
         opt.threads = set(opt.threads)
@@ -429,5 +432,7 @@ def main():
     put('call tree\n')
     root.prt()
     html_foot()
+
+    #msg(opt.tmin, opt.tmax)
 
 main()
