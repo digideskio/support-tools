@@ -221,6 +221,10 @@ class Series:
         else:
             self.tz = timedelta(hours=float(tz))
 
+        # default datetime instance for incomplete timestamps
+        default_date = self.get('default_date', None)
+        self.default_date = dateutil.parser.parse(default_date) if default_date else None
+
         # all graphs in a ygroup will be plotted with a common display_ymax
         self.ygroup = self.get('ygroup', id(self))
 
@@ -452,8 +456,12 @@ def get_time(time, opt, s):
 
     # dateutil first, then unix timestamp
     try:
-        time = dateutil.parser.parse(time)
-    except:
+        if s and s.default_date:
+            time = dateutil.parser.parse(time, default=s.default_date)
+        else:
+            time = dateutil.parser.parse(time)
+    except Exception as e:
+        dbg(e)
         time = datetime.fromtimestamp(int(time), pytz.utc)
 
     # supply tz if missing
