@@ -39,8 +39,8 @@ The exercises assume the following:
 * On your local workstation (where you run your browser) obtain and
   setup pre-requisites for viz tooling:
 
-    git clone http://github.com/10gen/support-tools
-    sudo pip install -f support-tools/timeseries/requirements.txt
+        git clone http://github.com/10gen/support-tools
+        sudo pip install -f support-tools/timeseries/requirements.txt
 
 * Chrome is preferred browser for vis tools: https://www.google.com/chrome/browser/desktop/index.html
 
