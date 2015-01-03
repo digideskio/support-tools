@@ -11,7 +11,7 @@ from the opcounters in serverStatus (first row), long queries logged
 by mongod (second row), CPU utilization information (third and fourth
 rows), and WT checkpoint information (last row):
 
-![ex-gdbprof](ex-gdbprof.png)
+![ex-ex-timeseries](ex-ex-timeseries.png)
 
 From this we conclude that the performance problem involving "pauses",
 for example at times A and B, is associated with high system CPU and
