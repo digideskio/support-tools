@@ -47,10 +47,10 @@ The exercises assume the following:
 
 Each exercise directory has the following structure:
 
-* README.md describes the exercise, including steps to do the repro
+* *README.md* describes the exercise, including steps to do the repro
   and collect the data to look at.
 
-* run.sh is a script that you can use to run the entire repro if you
+* *run.sh* is a script that you can use to run the entire repro if you
   want, starting on your local workstation. It copies the needed stuff
   to the target machine, runs the repro, copies the output files back,
   and visualizes them. Configure for your directory structure at the
@@ -58,10 +58,10 @@ Each exercise directory has the following structure:
   to serve as a guide if you get stuck. Feel free to use as much or as
   little of this as you want.
 
-* repro.sh is the part of the repro that runs on the target machine.
+* *repro.sh* is the part of the repro that runs on the target machine.
 
-* result is what I got when I ran the repro on my setup. Refer to this
-  for comparison, or if all else fails and you can't get the repro to
-  work just look at this data.
+* *result/* directory is what I got when I ran the repro on my
+  setup. Refer to this for comparison, or if all else fails and you
+  can't get the repro to work just look at this data.
 
 
