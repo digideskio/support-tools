@@ -452,6 +452,11 @@ def get_series(spec, spec_ord, opt):
 
     return series
 
+
+#
+# flexible date parser
+#
+
 def get_time(time, opt, s):
 
     # dateutil first, then unix timestamp
@@ -483,7 +488,45 @@ def get_time(time, opt, s):
     return time
 
 
+#
+# read lines from file, printing progress messages
+#
+
+def progress(fn, every=10000):
+
+    # start time
+    t = time.time()
+
+    # enumerate lines
+    with open(fn) as f:
+
+        # file size for % msgs
+        try:
+            f.seek(0, 2)
+            size = f.tell()
+            f.seek(0)
+        except Exception as e:
+            dbg('no size:', e)
+            size = None
+
+        # enumerate lines
+        for n, line in enumerate(f):
+            yield line
+            if n>0 and n%every==0:
+                s = '%s: processed %d lines' % (fn, n)
+                if size:
+                    s += ' (%d%%)' % (100*f.tell()/size)
+                msg(s)
+
+    # final stats
+    t = time.time() - t
+    dbg('%s: %d lines, %.3f s, %d lines/s' % (fn, n, t, n/t))
+
+
+#
 # handle special names inserted by javascript JSON.stringify()
+#
+
 def fixup(j):
     for k, v in j.items():
         if type(v)==dict:
@@ -496,6 +539,10 @@ def fixup(j):
                     j[k] = v['floatApprox']
             fixup(v)
 
+
+#
+# process json file
+# 
 
 def series_read_json(fn, series, opt):
 
@@ -545,10 +592,13 @@ def series_read_json(fn, series, opt):
                         result[s][fname] = value
 
     # process lines
-    for line in open(fn):
+    for line in progress(fn):
         time = None
         if line.startswith('{'):
-            jnode = json.loads(line)
+            try:
+                jnode = json.loads(line)
+            except Exception as e:
+                msg('ignoring bad line', e)
             fixup(jnode)
             result = collections.defaultdict(dict)
             match(ptree, jnode, result)
@@ -589,7 +639,7 @@ def series_read_re(fn, series, opt):
 
     # process the file
     last_time = None
-    for line in open(fn):
+    for line in progress(fn):
         line = line.strip()
         for chunk_re, chunk, chunk_groups in chunks:
             m = chunk_re.match(line)
@@ -618,7 +668,7 @@ def series_read_csv(fn, series, opt):
 
     field_names = None
 
-    for line in open(fn):
+    for line in progress(fn):
         line = [s.strip() for s in line.split(',')]
         if not field_names:
             field_names = line
@@ -913,6 +963,7 @@ _script = '''
     }
 
     function set_level(c) {
+        _desel()
         c = String(c)
         row = document.getElementById("table").firstChild.firstChild    
         while (row) {
@@ -925,11 +976,25 @@ _script = '''
             row = row.nextSibling
         }
         document.getElementById("current_level").innerHTML = c
+        selected = next_visible(selected)
+        
     }
 
     function initial_level(c) {
         if (!document.getElementById("current_level").innerHTML)
             set_level(c)
+    }
+
+    function next_visible(row) {
+        while (row && row.style.display=='none')
+            row = row.nextSibling
+        return row            
+    }
+
+    function prev_visible(row) {
+        while (row!=first_row && row.style.display=='none')
+            row = row.previousSibling
+        return row            
     }
 
     function key() {
@@ -938,6 +1003,7 @@ _script = '''
         first_row = document.getElementById("table").firstChild.firstChild
         while (first_row && !first_row.classList.contains('row'))
             first_row = first_row.nextSibling
+        first_row = next_visible(first_row)
         if (!last_selected) {
             for (var r = first_row; r && !selected; r = r.nextSibling) {
                 if (r.classList.contains('selected'))
@@ -957,20 +1023,23 @@ _script = '''
         } else if (c=='') {
             if (!selected)
                 selected = last_selected
-            else if (selected.nextSibling) {
-                _desel()
-                selected = selected.nextSibling
+            else {
+                var s = next_visible(selected.nextSibling)
+                if (s) {
+                    _desel()
+                    selected = s
+                }
             }
         } else if (c=='') {
             if (!selected)
                 selected = last_selected
             else if (selected != first_row) {
                 selected.classList.remove('selected')
-                selected = selected.previousSibling
+                selected = prev_visible(selected.previousSibling)
             }
         } else if (c=='n') {
             if (selected) {
-                next = selected.nextSibling
+                next = next_visible(selected.nextSibling)
                 if (next) {
                     parent = selected.parentNode
                     parent.removeChild(selected)
@@ -981,7 +1050,7 @@ _script = '''
         } else if (c=='p') {
             if (selected) {
                 if (selected!=first_row) {
-                    prev = selected.previousSibling
+                    prev = prev_visible(selected.previousSibling)
                     parent = selected.parentNode
                     parent.removeChild(selected)
                     parent.insertBefore(selected, prev)
@@ -990,7 +1059,7 @@ _script = '''
             }
         } else if (c=='N') {
             if (selected) {
-                s = selected.nextSibling
+                s = next_visible(selected.nextSibling)
                 if (s) {
                     parent = selected.parentNode
                     parent.removeChild(selected)
@@ -1001,7 +1070,7 @@ _script = '''
             }
         } else if (c=='P') {
             if (selected && selected != first_row) {
-                s = selected.previousSibling
+                s = prev_visible(selected.previousSibling)
                 parent = selected.parentNode
                 parent.removeChild(selected)
                 parent.insertBefore(selected, first_row)
