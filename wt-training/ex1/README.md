@@ -14,13 +14,13 @@ WT cache filled up.
   cache. Ticket says 1 GB, I used 500 MB. You'll have you'll have to
   use an older command-line interface for this since we're using rc2:
 
-    mongod --storageEngine wiredTiger --wiredTigerEngineConfig=cache_size=500MB ...
+        mongod --storageEngine wiredTiger --wiredTigerEngineConfig=cache_size=500MB ...
 
 * Start system stats monitoring. For this exercise we'll need generic
   server stats, and the WT engine global stats. You can otain both of
   those with this command, which does a serverStatus every 0.5 seconds:
 
-    mongo --eval "while(true) {print(JSON.stringify(db.serverStatus())); sleep(0.5*1000)}" >ss.log &
+        mongo --eval "while(true) {print(JSON.stringify(db.serverStatus())); sleep(0.5*1000)}" >ss.log &
 
 * Start 10 threads of a heavy insert workload based on the [mongo
   shell
@@ -28,31 +28,31 @@ WT cache filled up.
   found by Darren Wood. Here's my adaptation of his repro (following
   is one thread, you'll need 10):
 
-    function repro(thread) {
-    
-        var seed = thread + 1;
-        function randomString(len) {
-            var rv = '';
-            while (len > 0) {
-                var x = Math.sin(seed++) * 10000;
-                rv += (x - Math.floor(x));
-                len -= 20;
-            }
-            return rv;
-        }
+        function repro(thread) {
         
-        count = 500000
-        every = 10000
-        for (var i=0; i<count; ) {
-            var bulk = db.c.initializeUnorderedBulkOp();
-            for (var j=0; j<every; j++, i++)
-                bulk.insert({'_id': randomString(100), 'payload': randomString(1000)});
-            try {
-                bulk.execute();
-                print(i)
-            } catch (e) {}
+            var seed = thread + 1;
+            function randomString(len) {
+                var rv = '';
+                while (len > 0) {
+                    var x = Math.sin(seed++) * 10000;
+                    rv += (x - Math.floor(x));
+                    len -= 20;
+                }
+                return rv;
+            }
+            
+            count = 500000
+            every = 10000
+            for (var i=0; i<count; ) {
+                var bulk = db.c.initializeUnorderedBulkOp();
+                for (var j=0; j<every; j++, i++)
+                    bulk.insert({'_id': randomString(100), 'payload': randomString(1000)});
+                try {
+                    bulk.execute();
+                    print(i)
+                } catch (e) {}
+            }
         }
-    }
 
 * When it finishes, terminate the stats collection.
 
