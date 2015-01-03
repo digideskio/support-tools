@@ -59,8 +59,8 @@ WT cache filled up.
 * Copy the stats you collected, ss.log, back to your workstation, and
   visualize them as follows:
 
-    python timeseries.py 'ss:ss.log' >repro.html
-    open -a 'Google Chrome' repro.html
+        python timeseries.py 'ss:ss.log' >repro.html
+        open -a 'Google Chrome' repro.html
 
 * Have you reproduced the issue? How can you tell? What stats are relevant here?
 
