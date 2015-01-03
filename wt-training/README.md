@@ -24,7 +24,7 @@
 
 ### Exercises
 
-Series of hands on exercises based on SERVER tickets that I worked on over recent weeks:
+Series of hands-on exercises based on SERVER tickets that I worked on over recent weeks:
 * [ex1](ex1)
 * [ex2](ex2)
 * [ex3](ex3)
@@ -34,10 +34,11 @@ The exercises assume the following:
 
 * Linux machine (I'll call it "target machine"), preferably Ubuntu, to
   run the repros on - I mostly use Ubuntu on a VMware VM on my local
-  workstation. Should also work with an AWS instance.
+  workstation. Should also work with an AWS instance. My VMware
+  instance has 6 cores, 8 GB memory, 50 GB disk.
 
 * On your local workstation (where you run your browser) obtain and
-  setup pre-requisites for viz tooling:
+  set up pre-requisites for viz tooling:
 
         git clone http://github.com/10gen/support-tools
         sudo pip install -f support-tools/timeseries/requirements.txt
@@ -50,9 +51,9 @@ Each exercise directory has the following structure:
   and collect the data to look at.
 
 * run.sh is a script that you can use to run the entire repro if you
-  want, starging on your local workstation. It copies the needed stuff
+  want, starting on your local workstation. It copies the needed stuff
   to the target machine, runs the repro, copies the output files back,
-  and visualizes them. Configure for your directory structure a the
+  and visualizes them. Configure for your directory structure at the
   top of the script. I wrote these scripts to test the scenarios, and
   to serve as a guide if you get stuck. Feel free to use as much or as
   little of this as you want.
