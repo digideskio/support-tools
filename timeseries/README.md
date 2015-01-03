@@ -6,6 +6,18 @@ different metrics from all layers of the system using "sparkline"
 graphs in a way that allows easy and accurate correlation of behaviors
 at all layers of the system.
 
+For example, in the following visualization we combine information
+from the opcounters in serverStatus (first row), long queries logged
+by mongod (second row), CPU utilization information (third and fourth
+rows), and WT checkpoint information (last row):
+
+![ex-gdbprof](ex-gdbprof.png)
+
+From this we conclude that the performance problem involving "pauses",
+for example at times A and B, is associated with high system CPU and
+context switch rates, and seems more likely to occur following a WT
+checkpoint.
+
 In addition a couple of tools are provided for collecting timeseries
 data that supplement the wide range of tools already available for
 that purpose.
@@ -245,7 +257,7 @@ correlation in time between the two call sites highlighted by the
 notes (added using Preview), giving us a clue as to the source of the
 bottleneck.
 
-![Example](example.png)
+![ex-gdbprof](ex-gdbprof.png)
 
 
 
