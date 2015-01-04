@@ -12,14 +12,14 @@ replica set.
 
 * Start system stats monitoring. For this exercise we'll need generic
   server stats, and the WT engine global stats. You can otain both of
-  those with this command, which does a serverStatus every 0.1 seconds:
+  those with this command, which does a serverStatus every 0.5 seconds:
 
-        mongo --eval "while(true) {print(JSON.stringify(db.serverStatus())); sleep(0.1*1000)}" >ss.log &
+        mongo --eval "while(true) {print(JSON.stringify(db.serverStatus())); sleep(0.5*1000)}" >ss.log &
 
 * For the "advanced" part of this exercise we'll look at gdb stack
-  trace samples, collected at 1-second intervals.
+  trace samples, collected at 2-second intervals.
 
-      sudo python gdbmon.py $(pidof mongod) 1 >gdbmon.log &
+      sudo python gdbmon.py $(pidof mongod) 2 >gdbmon.log &
 
 * Start a workload that creates ttl collection and inserts documents
   into it for two minutes.
