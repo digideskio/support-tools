@@ -7,6 +7,9 @@ WT cache filled up.
 
 ### Reproducing the problem
 
+Reminder: the following steps are scripted for reference or for direct
+use in [run.sh], which calls [repro.sh].
+
 * Download 2.8.0-rc2
 
 * Start up a standalone instance using the WT storage engine. We'll
