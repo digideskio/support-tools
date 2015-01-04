@@ -20,9 +20,9 @@ EOF
 #
 # fetch results, visualize them
 #
-scp $repro_host:repro/ss.log /tmp
-python $tools_dir/timeseries/timeseries.py ss:/tmp/ss.log >/tmp/repro.html
-open -a 'Google Chrome' /tmp/repro.html
+scp $repro_host:repro/ss.log .
+python $tools_dir/timeseries/timeseries.py ss:ss.log >repro.html
+open -a 'Google Chrome' repro.html
 
 
 
