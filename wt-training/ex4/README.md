@@ -82,10 +82,10 @@ replica set.
 ### Advanced: gdb stack trace samples
 
 * Visualize the gdb stack trace samples collected above, together with
-  the update stats:
+  the insert stats:
 
         python $tools_dir/timeseries/gdbprof.py -g 10 --graph-scale log --html \
-            --series 'ss opcounters update:ss.log' <gdbmon.log >gdbmon.html
+            --series 'ss opcounters insert:ss.log' <gdbmon.log >gdbmon.html
         open -a 'Google Chrome' gdbmon.html
 
   You may wish to use the --after flag if there is signficant "dead"
