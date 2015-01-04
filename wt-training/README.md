@@ -37,11 +37,23 @@ The exercises assume the following:
   workstation. Should also work with an AWS instance. My VMware
   instance has 6 cores, 8 GB memory, 50 GB disk.
 
+* On the target machine we'll do some "advanced" exercises involving
+  collecting and visualizing gdb stack traces samples. Note that this
+  is useful for in-house repros, and possibly for some customers on
+  test systems, but is *not* suitable for use on customer production
+  system! Set up (on Ubuntu) is as follows:
+
+        sudo apt-get install gdb
+        echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope # allows gdb to attach
+
 * On your local workstation (where you run your browser) obtain and
   set up pre-requisites for viz tooling:
 
         git clone http://github.com/10gen/support-tools
         sudo pip install -f support-tools/timeseries/requirements.txt
+
+  If you had already downloaded the support-tools repo in the past,
+  please be sure to update now to pick up some recent tooling fixes.
 
 * Chrome is preferred browser for vis tools: https://www.google.com/chrome/browser/desktop/index.html
 
