@@ -62,6 +62,16 @@ WT cache filled up.
         python timeseries.py 'ss:ss.log' >repro.html
         open -a 'Google Chrome' repro.html
 
+  Note that if a significant time elapsed between when you started
+  collecting the stats and when you started the workload you may want
+  to use the --after flag to timeseries.py to focus on the relevant
+  part of the timeline, for example
+
+        python timeseries.py --after 10:00 ...
+
+  If the local machine and target machine timezone differ you'll need
+  to specify that in the time (e.g. "Z" for UTC, -0500 for EST)
+
 * Have you reproduced the issue? How can you tell? What stats are relevant here?
 
 
