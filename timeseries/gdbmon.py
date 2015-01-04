@@ -10,6 +10,7 @@ import time
 import argparse
 import select
 
+
 print ' '.join(sys.argv)
 sys.stdout.flush()
 
@@ -51,6 +52,8 @@ def get(response, show=False, timeout=None):
             if show:
                 line = line[1:].strip('"').replace('\\n', '\n')
                 print line,
+        elif not line: # EOF - gdb terminated
+            sys.exit(0)
         else:
             dbg('GOT unexpected', line)
             pass
@@ -67,7 +70,7 @@ for i in itertools.count():
         if get('*stopped', timeout=1):
             break
     t1 = time.time()
-    sys.stdout.write(datetime.datetime.now().strftime('\n=== %FT%T.%f \n'))
+    sys.stdout.write(datetime.datetime.utcnow().strftime('\n=== %FT%T.%f+0000 \n'))
     put('thread apply all bt')
     get('^done', True)
     t2 = time.time()
