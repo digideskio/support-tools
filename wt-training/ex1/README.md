@@ -8,7 +8,7 @@ WT cache filled up.
 ### Reproducing the problem
 
 Reminder: the following steps are scripted for reference or for direct
-use in [run.sh], which calls [repro.sh].
+use in [run.sh](run.sh), which calls [repro.sh](repro.sh).
 
 * Download 2.8.0-rc2
 
