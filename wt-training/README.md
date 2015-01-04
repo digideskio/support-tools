@@ -164,3 +164,9 @@ Each exercise directory has the following structure:
   [SERVER-16662](https://jira.mongodb.org/browse/SERVER-16662) (and
   several other related tickets) where we observed occasional extended
   pauses with 0 throughput under heavy load.
+
+
+* [ex4](ex4) - based on
+  [SERVER-16651](https://jira.mongodb.org/browse/SERVER-SERVER-16651)
+  where we observed a performance problem related to TTL collections
+  under WiredTiger.

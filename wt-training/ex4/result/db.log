@@ -1,0 +1,50 @@
+2015-01-04T15:13:34.423-0500 I CONTROL  [initandlisten] MongoDB starting : pid=32243 port=27017 dbpath=/home/bdlucas/repro/db 64-bit host=ubuntu
+2015-01-04T15:13:34.424-0500 I CONTROL  [initandlisten] db version v2.8.0-rc4
+2015-01-04T15:13:34.424-0500 I CONTROL  [initandlisten] git version: 3ad571742911f04b307f0071979425511c4f2570
+2015-01-04T15:13:34.424-0500 I CONTROL  [initandlisten] build info: Linux build11.nj1.10gen.cc 2.6.32-431.3.1.el6.x86_64 #1 SMP Fri Jan 3 21:39:27 UTC 2014 x86_64 BOOST_LIB_VERSION=1_49
+2015-01-04T15:13:34.424-0500 I CONTROL  [initandlisten] allocator: tcmalloc
+2015-01-04T15:13:34.424-0500 I CONTROL  [initandlisten] options: { processManagement: { fork: true }, replication: { replSet: "rs" }, storage: { dbPath: "db", engine: "wiredTiger" }, systemLog: { destination: "file", path: "db.log" } }
+2015-01-04T15:13:34.424-0500 I STORAGE  [initandlisten] wiredtiger_open config: create,cache_size=3G,session_max=20000,extensions=[local=(entry=index_collator_extension)],statistics=(fast),log=(enabled=true,archive=true,path=journal,compressor=snappy),checkpoint=(wait=60,log_size=2GB),statistics_log=(wait=0),
+2015-01-04T15:13:34.446-0500 I REPL     [initandlisten] Did not find local replica set configuration document at startup;  NoMatchingDocument Did not find replica set configuration document in local.system.replset
+2015-01-04T15:13:34.449-0500 I NETWORK  [initandlisten] waiting for connections on port 27017
+2015-01-04T15:13:34.486-0500 I NETWORK  [initandlisten] connection accepted from 127.0.0.1:49587 #1 (1 connection now open)
+2015-01-04T15:13:34.488-0500 I COMMAND  [conn1] replSet info initiate : no configuration specified.  Using a default configuration for the set
+2015-01-04T15:13:34.488-0500 I COMMAND  [conn1] replSet created this configuration for initiation : { _id: "rs", version: 1, members: [ { _id: 0, host: "ubuntu:27017" } ] }
+2015-01-04T15:13:34.488-0500 I REPL     [conn1] replSetInitiate admin command received from client
+2015-01-04T15:13:34.493-0500 I NETWORK  [initandlisten] connection accepted from 127.0.0.1:50460 #2 (2 connections now open)
+2015-01-04T15:13:34.493-0500 I REPL     [conn1] replSet replSetInitiate config object with 1 members parses ok
+2015-01-04T15:13:34.493-0500 I NETWORK  [conn2] end connection 127.0.0.1:50460 (1 connection now open)
+2015-01-04T15:13:34.496-0500 I REPL     [ReplicationExecutor] new replica set config in use: { _id: "rs", version: 1, members: [ { _id: 0, host: "ubuntu:27017", arbiterOnly: false, buildIndexes: true, hidden: false, priority: 1.0, tags: {}, slaveDelay: 0, votes: 1 } ], settings: { chainingAllowed: true, heartbeatTimeoutSecs: 10, getLastErrorModes: {}, getLastErrorDefaults: { w: 1, wtimeout: 0 } } }
+2015-01-04T15:13:34.496-0500 I REPL     [ReplicationExecutor] transition to STARTUP2
+2015-01-04T15:13:34.496-0500 I REPL     [conn1] ******
+2015-01-04T15:13:34.496-0500 I REPL     [conn1] creating replication oplog of size: 1008MB...
+2015-01-04T15:13:34.513-0500 I REPL     [conn1] ******
+2015-01-04T15:13:34.514-0500 I REPL     [conn1] Starting replication applier threads
+2015-01-04T15:13:34.514-0500 I REPL     [ReplicationExecutor] transition to RECOVERING
+2015-01-04T15:13:34.520-0500 I REPL     [ReplicationExecutor] transition to PRIMARY
+2015-01-04T15:13:34.520-0500 I REPL     [rsSync] transition to primary complete; database writes are now permitted
+2015-01-04T15:13:35.518-0500 I NETWORK  [conn1] end connection 127.0.0.1:49587 (0 connections now open)
+2015-01-04T15:13:35.572-0500 I NETWORK  [initandlisten] connection accepted from 127.0.0.1:49589 #3 (1 connection now open)
+2015-01-04T15:13:35.573-0500 I NETWORK  [initandlisten] connection accepted from 127.0.0.1:49590 #4 (2 connections now open)
+2015-01-04T15:13:35.575-0500 I COMMAND  [conn4] CMD: drop test.c
+2015-01-04T15:13:35.587-0500 I INDEX    [conn4] build index on: test.c properties: { v: 1, key: { ttl: 1.0 }, name: "ttl_1", ns: "test.c", expireAfterSeconds: 30.0 }
+2015-01-04T15:13:35.587-0500 I INDEX    [conn4] 	 building index using bulk method
+2015-01-04T15:13:35.590-0500 I INDEX    [conn4] build index done.  scanned 0 total records. 0 secs
+2015-01-04T15:14:38.470-0500 I WRITE    [conn4] insert test.c query: { _id: ObjectId('54a99f2b2f35c8d636d086c3'), ttl: new Date(1420402475022) } ninserted:1 keyUpdates:0  3346ms
+2015-01-04T15:14:38.503-0500 I QUERY    [conn4] command test.$cmd command: insert { insert: "c", documents: 1000, ordered: false } keyUpdates:0  reslen:80 3380ms
+2015-01-04T15:14:42.471-0500 I WRITE    [conn4] insert test.c query: { _id: ObjectId('54a99f2e2f35c8d636d08aab'), ttl: new Date(1420402475028) } ninserted:1 keyUpdates:0  3963ms
+2015-01-04T15:14:42.509-0500 I QUERY    [conn4] command test.$cmd command: insert { insert: "c", documents: 1000, ordered: false } keyUpdates:0  reslen:80 4002ms
+2015-01-04T15:14:46.471-0500 I WRITE    [conn4] insert test.c query: { _id: ObjectId('54a99f322f35c8d636d08e93'), ttl: new Date(1420402475035) } ninserted:1 keyUpdates:0  3957ms
+2015-01-04T15:14:46.508-0500 I QUERY    [conn4] command test.$cmd command: insert { insert: "c", documents: 1000, ordered: false } keyUpdates:0  reslen:80 3994ms
+2015-01-04T15:14:50.472-0500 I WRITE    [conn4] insert test.c query: { _id: ObjectId('54a99f362f35c8d636d0927b'), ttl: new Date(1420402475042) } ninserted:1 keyUpdates:0  3959ms
+2015-01-04T15:14:50.520-0500 I QUERY    [conn4] command test.$cmd command: insert { insert: "c", documents: 1000, ordered: false } keyUpdates:0  reslen:80 4007ms
+2015-01-04T15:14:54.472-0500 I WRITE    [conn4] insert test.c query: { _id: ObjectId('54a99f3a2f35c8d636d09663'), ttl: new Date(1420402475048) } ninserted:1 keyUpdates:0  3942ms
+2015-01-04T15:14:54.516-0500 I QUERY    [conn4] command test.$cmd command: insert { insert: "c", documents: 1000, ordered: false } keyUpdates:0  reslen:80 3986ms
+2015-01-04T15:14:58.473-0500 I WRITE    [conn4] insert test.c query: { _id: ObjectId('54a99f3e2f35c8d636d09a4b'), ttl: new Date(1420402475055) } ninserted:1 keyUpdates:0  3952ms
+2015-01-04T15:14:58.511-0500 I QUERY    [conn4] command test.$cmd command: insert { insert: "c", documents: 1000, ordered: false } keyUpdates:0  reslen:80 3991ms
+2015-01-04T15:15:02.473-0500 I WRITE    [conn4] insert test.c query: { _id: ObjectId('54a99f422f35c8d636d09e33'), ttl: new Date(1420402475062) } ninserted:1 keyUpdates:0  3957ms
+2015-01-04T15:15:02.525-0500 I QUERY    [conn4] command test.$cmd command: insert { insert: "c", documents: 1000, ordered: false } keyUpdates:0  reslen:80 4010ms
+2015-01-04T15:15:05.735-0500 I WRITE    [conn4] insert test.c query: { _id: ObjectId('54a99f462f35c8d636d0a21b'), ttl: new Date(1420402475068) } ninserted:1 keyUpdates:0  3203ms
+2015-01-04T15:15:05.767-0500 I QUERY    [conn4] command test.$cmd command: insert { insert: "c", documents: 1000, ordered: false } keyUpdates:0  reslen:80 3235ms
+2015-01-04T15:15:35.916-0500 I NETWORK  [conn4] end connection 127.0.0.1:49590 (1 connection now open)
+2015-01-04T15:15:35.935-0500 I NETWORK  [conn3] end connection 127.0.0.1:49589 (0 connections now open)
