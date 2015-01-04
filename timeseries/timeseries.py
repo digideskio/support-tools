@@ -1831,14 +1831,14 @@ mongod(
     level = 1
 )
 
-mongod(
-    name = 'mongod queued queries longer than {queue_min_ms}ms',
-    re = '.* query: .* ([0-9]+)ms$',
-    queue = True,
-    queue_min_ms = 0,  # minimum op duration to count for queue',
-    level = 3
-)
-
+# not working right it seems?
+#mongod(
+#    name = 'mongod queued queries longer than {queue_min_ms}ms',
+#    re = '.* query: .* ([0-9]+)ms$',
+#    queue = True,
+#    queue_min_ms = 0,  # minimum op duration to count for queue',
+#    level = 3
+#)
 
 mongod(
     name = 'mongod: waiting to acquire lock per {bucket_size}s',
