@@ -11,7 +11,7 @@ standalone (no oplog), no-journal case.
 ### Reproducing the problem
 
 * Build the [workload
-  generator|https://jira.mongodb.org/browse/SERVER-16269?focusedCommentId=788373&page=com.atlassian.jira.plugin.system.issuetabpanels:comment-tabpanel#comment-788373]
+  generator](https://jira.mongodb.org/browse/SERVER-16269?focusedCommentId=788373&page=com.atlassian.jira.plugin.system.issuetabpanels:comment-tabpanel#comment-788373)
   due to John Page. Instructions for Ubuntu:
 
         sudo apt-get install -y gcc libtool autoconf
