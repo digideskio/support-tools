@@ -254,8 +254,8 @@ def hide_filter(arg):
         stack[:] = s.split(stack_sep)
     return f
 
-def strptime(t, fmt):
-    t = datetime.strptime(t, fmt)
+def get_time(t):
+    t = dateutil.parser.parse(t)
     if not t.tzinfo:
         t = pytz.utc.localize(t+opt.tz)
     return t
@@ -278,7 +278,7 @@ def read_profile(filters):
         if line.startswith('==='):
             stack = root.add_stack(stack, t)
             t = line.split()[1]
-            t = strptime(t, '%Y-%m-%dT%H:%M:%S.%f')
+            t = get_time(t)
             if t>=opt.after and t<opt.before:
                 opt.times.append(t)
                 opt.samples += 1
