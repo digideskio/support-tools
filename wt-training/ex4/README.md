@@ -6,6 +6,9 @@ replica set.
 
 ### Reproducing the problem
 
+Reminder: the following steps are scripted for reference or for direct
+use in [run.sh](run.sh), which calls [repro.sh](repro.sh).
+
 * Download 2.8.0-rc4.
 
 * Start up a 1-node replica set.

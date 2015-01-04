@@ -8,6 +8,9 @@ of the repro by determining that
 
 ### Reproducing the problem
 
+Reminder: the following steps are scripted for reference or for direct
+use in [run.sh](run.sh), which calls [repro.sh](repro.sh).
+
 * Download 2.8.0-rc1. (NOTE: the ticket was originally reported for
   rc0, but the problem still existed in rc1, and for this exercise
   it's important to use rc1 in order to get the required metrics.)

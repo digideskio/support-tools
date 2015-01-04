@@ -10,6 +10,9 @@ standalone (no oplog), no-journal case.
 
 ### Reproducing the problem
 
+Reminder: the following steps are scripted for reference or for direct
+use in [run.sh](run.sh), which calls [repro.sh](repro.sh).
+
 * Build the [workload
   generator](https://jira.mongodb.org/browse/SERVER-16269?focusedCommentId=788373&page=com.atlassian.jira.plugin.system.issuetabpanels:comment-tabpanel#comment-788373)
   due to John Page. Instructions for Ubuntu:
