@@ -19,7 +19,7 @@ replica set.
 * For the "advanced" part of this exercise we'll look at gdb stack
   trace samples, collected at 2-second intervals.
 
-      sudo python gdbmon.py $(pidof mongod) 2 >gdbmon.log &
+        sudo python gdbmon.py $(pidof mongod) 2 >gdbmon.log &
 
 * Start a workload that creates ttl collection and inserts documents
   into it for two minutes.
