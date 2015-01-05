@@ -6,6 +6,7 @@ from datetime import datetime, date
 from groupreport import GroupReport
 from pprint import pprint
 
+
 def usage():
     print("usage: "+sys.argv[0]+" mms_group_report.csv [TAG]")
     sys.exit(1)

@@ -8,6 +8,7 @@
 <script src="/js/ladda.min.js"></script>
 <script src="/js/ladda.jquery.min.js"></script>
 <script src="/js/form2js.js"></script>
+<script src="/js/dropzone.js"></script>
 <script src="/js/app.js"></script>
 <%
 if defined('renderpage'):
