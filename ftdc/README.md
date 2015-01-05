@@ -173,7 +173,7 @@ using a custom fixed(?) symbol dictionary and either
 * Arithmetic coding - can achieve coded rates of <1 bit per
   symbol. Given the high degree of coherency between samples (that is,
   lots of deltas with a value of 0) it is possible entropy will be <1
-  bit per sample, so this option could be explored.
+  bit per symbol, so this option could be explored.
 
 CPU efficiency of this compared to standard compression TBD, but I
 suspect it could compare favorably.
