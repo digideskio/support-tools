@@ -101,9 +101,9 @@ that?
   currently running" at or near each transition in order to precisely
   record the checkpoints.
 
-Some of this might be achieved "for free" by using standard
-compression techniques - if not much is changing, things will compress
-well.
+Some of this might be achieved "for free" by using fixed-rate sampling
+along with compression (using standard or customer compression
+techniques) - if not much is changing, things will compress well.
 
 
 #### Raw bson
