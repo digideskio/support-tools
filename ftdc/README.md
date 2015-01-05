@@ -160,7 +160,7 @@ Might benefit from custom compression, particularly with delta coding,
 using a custom fixed(?) symbol dictionary and either
 
 * Huffman coding - fairly simple, works well down to 1-2 bits per
-  sample. 
+  symbol.
 
 * Dead simple variant of Huffman coding in conjunction with delta coding:
 
