@@ -38,7 +38,7 @@ real-time data on airplanes for later analysis.
   analysis and visualization tooling, with mongod collecting only raw
   data. Third-party libraries for collecting this?
 
-# Stack trace samples. Can be very useful for diagnosing issues,
+* Stack trace samples. Can be very useful for diagnosing issues,
   particularly mongod bugs. Potentially high volume of data, but see
   section below on minimizing storage.
 
