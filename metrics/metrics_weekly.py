@@ -6,6 +6,12 @@ import pymongo
 import re
 import pytz
 from datetime import datetime, timedelta
+import os
+from ConfigParser import RawConfigParser
+
+config = RawConfigParser()
+config_paths = ['jira.cfg', '../jira.cfg']
+config.read([os.path.join(os.getcwd(), path) for path in config_paths])
 
 WEEKS_BACK = 13
 LIST_ROWS = 20
@@ -760,7 +766,7 @@ class HTMLReport(object):
     def GetNovelCustomers(self):
         weekback = Date().weekago
                 
-        conn = pymongo.MongoClient('localhost:27017')
+        conn = pymongo.MongoClient(config.get('Mongo', 'uri'))
         jira = conn.jira
        
         agg = jira.issues.aggregate([
@@ -901,7 +907,7 @@ table.data, table.map {
 
     
 def ScanRecentTickets():
-    conn = pymongo.MongoClient('localhost:27017')
+    conn = pymongo.MongoClient(config.get('Mongo', 'uri'))
     jira = conn.jira
 
     cursor = jira.issues.find(
