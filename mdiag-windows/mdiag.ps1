@@ -8,6 +8,10 @@ param(
 
 $diagfile = Join-Path @([Environment]::GetFolderPath('Personal')) $("mdiag-" + $(hostname) + ".txt")
 
+# check for ConvertTo-JSON
+$json_available = Get-Command "ConvertTo-Json" -errorAction SilentlyContinue -CommandType Cmdlet;
+
+
 ##################
 # Public API
 #
@@ -23,8 +27,8 @@ Function fingerprint {
 			os = "Windows";
 			shell = "powershell";
 			script = "mdiag";
-			version = "1.3";
-			revdate = "2014-11-27";
+			version = "1.4.1";
+			revdate = "2015-01-06";
 		}
 	}
 }
@@ -36,19 +40,19 @@ Function probe( $doc ) {
 		throw "assert: malformed section descriptor document, must have 'name' and 'cmd' members at least";
 	}
 
-	echo "Gathering section [$($doc.name)]"
+	Write-Host "Gathering section [$($doc.name)]"
 
 	$startts = _jsondate # { $date: ISO-8601 }
 	$cmdobj = _docmd $doc.cmd
 
 	if( !( $cmdobj.ok ) -and ( $null -ne $doc.alt ) ) {
 		# preferred cmd failed and we have a fallback, so try that
-		echo " | Preference attempt failed, but have a fallback to try..."
+		Write-Host " | Preference attempt failed, but have a fallback to try..."
 
 		$fbcobj = _docmd $doc.alt
 
 		if( $fbcobj.ok ) {
-			echo " | ... which succeeded, bananarama!"
+			Write-Host " | ... which succeeded!"
 		}
 
 		$fbcobj.fallback_from = @{
@@ -60,7 +64,7 @@ Function probe( $doc ) {
 
 	_emitdocument $doc.name $startts $cmdobj
 
-	echo "Finished with section [$($doc.name)]. Closing`n"
+	Write-Host "Finished with section [$($doc.name)]. Closing`n"
 }
 
 ###############
@@ -68,6 +72,65 @@ Function probe( $doc ) {
 #
 # Please don't call these in the script portion of the code. The API here will never freeze.
 
+Function _tojson_string( $v ) {
+	# @todo: any other escapes?
+	$v = $v.Replace("`"","\`"");
+	$v = $v.Replace("\","\\");
+	"`"{0}`"" -f $v
+}
+
+# following is used to JSON encode object outputs when ConvertTo-JSON (cmdlet) is not available
+Function _tojson_value( $indent, $obj ) {
+	if( $obj -eq $null ) {
+		"null";
+	}
+	elseif( $indent.Length -gt 4 ) {
+		# aborting recursion due to object depth; summarize the current object
+		_tojson_string $obj.ToString()
+	}
+	else {
+		switch ( $obj.GetType().Name ) {
+			"Hashtable" {
+				$ret = $( $obj.GetEnumerator() | ForEach-Object { "{0}`"{1}`": {2}," -f $indent, $_.Key, $( _tojson_value $( $indent + "`t" ) $_.Value ) } | Out-String )
+				"{{`n{0}`n{1}}}" -f $ret.Trim("`r`n,"), $indent
+				break
+			}
+			"Object[]" {
+				$ret = $( $obj | ForEach-Object { "{0}{1}," -f $indent, $( _tojson_value $( $indent + "`t" ) $_ ) } | Out-String )
+				"[`n{0}`n{1}]" -f $ret.Trim("`r`n,"), $indent
+				break
+			}
+			"String" {
+				_tojson_string $obj
+				break
+			}
+			{ "Int32","UInt32","Int64","UInt64","Boolean"  -contains $_ } {
+				# symbolic or integrals, write plainly
+				$obj.ToString()
+				break
+			}
+			default {
+				if( $obj.GetType().IsClass ) {
+					$ret = $( $obj.psobject.properties.GetEnumerator() | ForEach-Object { "{0}`"{1}`": {2}," -f $indent, $_.Name, $( _tojson_value $( $indent + "`t" ) $_.Value ) } | Out-String )
+					"{{`n{0}`n{1}}}" -f $ret.Trim("`r`n,"), $indent
+				}
+				else {
+					# dunno, just represent as simple as possible
+					_tojson_string $obj.ToString()
+				}
+			}
+		}
+	}
+}
+
+Function _tojson( $obj ) {
+	if( $json_available ) {
+		return ConvertTo-Json $obj;
+	}
+	else {
+		return _tojson_value "`t" $obj;
+	}
+}
 
 Function _emitdocument( $section, $startts, $cmdobj ) {
 
@@ -85,9 +148,9 @@ Function _emitdocument( $section, $startts, $cmdobj ) {
 	}
 
 	$script:isfirstdocument = $False
-	
+
 	try {
-		Add-Content $diagfile $(ConvertTo-Json $cmdobj)
+		Add-Content $diagfile $(_tojson $cmdobj)
 	}
 	catch {
 		$cmdobj.output = ""
@@ -95,7 +158,7 @@ Function _emitdocument( $section, $startts, $cmdobj ) {
 		$cmdobj.ok = $False
 
 		# give it another shot without the output, just let it die if it still has an issue
-		Add-Content $diagfile $(ConvertTo-Json $cmdobj)
+		Add-Content $diagfile $(_tojson $cmdobj)
 	}
 }
 
@@ -116,7 +179,7 @@ Function _docmd {
 	$ok = $True;
 
 	Try {
-		#echo "Trying to run command [$args]`n"
+		#Write-Host "Trying to run command [$args]`n"
 		# -ErrorVariable has no effect on Invoke-Expression, errors always pipe to STDERR
 		# $LASTEXITCODE is always zero (success!)
 		# $? is always True (success!)
@@ -175,10 +238,22 @@ $error.Clear();
 # 
 ##>
 
+$focsv = [string]::Empty;
+if( $json_available ) {
+	$focsv = " /FO CSV | ConvertFrom-CSV";
+}
+
+if( -not $json_available ) {
+	Write-Host -ForegroundColor Red -BackgroundColor Yellow " !!! ";
+	Write-Host -ForegroundColor Red -BackgroundColor Yellow " ConvertTo-Json cmdlet is not available ";
+	Write-Host -ForegroundColor Red -BackgroundColor Yellow " using internal converter instead ";
+	Write-Host -ForegroundColor Red -BackgroundColor Yellow " !!! ";
+}
+
 fingerprint
 
 probe @{ name = "sysinfo";
-	cmd = "systeminfo /FO CSV | ConvertFrom-Csv";
+	cmd = $( "systeminfo{0}" -f $focsv );
 }
 
 probe @{ name = "is_admin";
@@ -186,8 +261,8 @@ probe @{ name = "is_admin";
 }
 
 probe @{ name = "tasklist";
-	cmd = "Get-Process | Select Name,Handles,VM,WS,PM,NPM,Path,Company,CPU,FileVersion,ProductVersion,Description,Product,Id,PriorityClass,TotalProcessorTime,BasePriority,PeakWorkingSet64,PeakVirtualMemorySize64,StartTime,@{Name='Threads';Expression={`$_.Threads.Count}}";
-	alt = "tasklist /FO CSV | ConvertFrom-Csv"
+	cmd = "Get-Process | Select Name,Handles,VirtualMemorySize64,WorkingSet64,PagedMemorySize64,NonpagedSystemMemorySize64,PagedSystemMemorySize64,PrivateMemorySize64,Path,Company,CPU,FileVersion,ProductVersion,Description,Product,Id,PriorityClass,TotalProcessorTime,BasePriority,PeakWorkingSet64,PeakVirtualMemorySize64,StartTime,@{Name='Threads';Expression={`$_.Threads.Count}}";
+	alt = $( "tasklist{0}" -f $focsv );
 }
 
 probe @{ name = "network-adapter";
@@ -250,7 +325,7 @@ probe @{ name = "time-change";
 #
 Add-Content $diagfile "]`n"
 
-echo "Finished. Please attach '$diagfile' to the support case $jira_ticket_number."
+Write-Host "Finished. Please attach '$diagfile' to the support case $jira_ticket_number."
 
-echo "Press any key to continue ..."
+Write-Host "Press any key to continue ..."
 $x = $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")

@@ -34,7 +34,7 @@ The easiest way to run the script is from the Run dialog (Win+R) type the follow
 powershell -ExecutionPolicy Unrestricted -File "<full-path-to-mdiag.ps1>" CS-XXXX
 ```
 
-The `Ctrl`+`Shift`+`Enter` combination causes the command to be run with elevated privileges. This will trigger a UAC dialog to which the user will need to click Yes.
+The `Ctrl`+`Shift`+`Enter` combination causes the command to be run with elevated privileges. This may trigger a UAC dialog to which the user will need to click Yes.
 
 As the script progresses it will fill a text file in the Documents folder of the current user. The file is named "mdiag-\<hostname\>.txt"
 
@@ -92,8 +92,9 @@ The following fields always appear in each probe document.
 member | description
 ------ | -----------
 `ref` | The argument passed to the script from the command-line. It is suggested to be the case number for identification purposes, however, it may take any string value.
+`section` | Descriptive name of the system probe being run, should be unique within any single file. See below for a list of all values that appear in this field, and a definition of the system probe that each represents.
 `ts` | Contains the starting and ending timestamps that bound the command being performed. In this revision these are only 1 second accurate.
-`run` | The system timestamp at the beginning of the script. This remains constant for the duration of the run and can be used (in conjunction with 'ref') as a (probably) unique identifier given a larger set of probe documents.
+`run` | The system timestamp at the beginning of the script. This remains constant for the duration of the run and can be used (in conjunction with 'ref') as a (probably) unique identifier given a larger set of probe documents. The combination of 'section' and 'run' should be unique per host (across time).
 `ok` | Boolean indicating if the script believes the system probe completed without error.
 `command` | A short-form of the system probe that was attempted. May be the actual command-line that was run or a short version of it. The "fingerprint" document is unique in that it sets this value to false.
 `output` | Free format value chosen by the command being run.
@@ -109,6 +110,8 @@ member | description
 
 
 ### Section documents in the output
+
+The following section names appear in a given output.
 
 section | content type | description
 ------- | ------------ | -----------
