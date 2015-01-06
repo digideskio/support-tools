@@ -92,7 +92,7 @@ The following fields always appear in each probe document.
 member | description
 ------ | -----------
 `ref` | The argument passed to the script from the command-line. It is suggested to be the case number for identification purposes, however, it may take any string value.
-`section` | Descriptive name of the system probe being run, should be unique within any single file.
+`section` | Descriptive name of the system probe being run, should be unique within any single file. See below for a list of all values that appear in this field, and a definition of the system probe that each represents.
 `ts` | Contains the starting and ending timestamps that bound the command being performed. In this revision these are only 1 second accurate.
 `run` | The system timestamp at the beginning of the script. This remains constant for the duration of the run and can be used (in conjunction with 'ref') as a (probably) unique identifier given a larger set of probe documents. The combination of 'section' and 'run' should be unique per host (across time).
 `ok` | Boolean indicating if the script believes the system probe completed without error.
