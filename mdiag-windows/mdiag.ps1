@@ -27,8 +27,8 @@ Function fingerprint {
 			os = "Windows";
 			shell = "powershell";
 			script = "mdiag";
-			version = "1.4";
-			revdate = "2014-11-27";
+			version = "1.4.1";
+			revdate = "2015-01-06";
 		}
 	}
 }
@@ -52,7 +52,7 @@ Function probe( $doc ) {
 		$fbcobj = _docmd $doc.alt
 
 		if( $fbcobj.ok ) {
-			Write-Host " | ... which succeeded, bananarama!"
+			Write-Host " | ... which succeeded!"
 		}
 
 		$fbcobj.fallback_from = @{
@@ -72,33 +72,54 @@ Function probe( $doc ) {
 #
 # Please don't call these in the script portion of the code. The API here will never freeze.
 
-Function _jsonsimple( $indent, $obj ) {
+Function _tojson_string( $v ) {
+	# @todo: any other escapes?
+	$v = $v.Replace("`"","\`"");
+	$v = $v.Replace("\","\\");
+	"`"{0}`"" -f $v
+}
+
+# following is used to JSON encode object outputs when ConvertTo-JSON (cmdlet) is not available
+Function _tojson_value( $indent, $obj ) {
 	if( $obj -eq $null ) {
 		"null";
 	}
 	elseif( $indent.Length -gt 4 ) {
-		"`"{0}`"" -f $obj.ToString();
-	}
-	elseif( $obj.GetType().Name -eq "String" ) {
-		"`"{0}`"" -f $obj
-	}
-	elseif( $obj.GetType().IsClass ) {
-		if( $obj.GetType().Name -eq "Hashtable" ) {
-			$ret = $( $obj.GetEnumerator() | ForEach-Object { "{0}`"{1}`": {2}," -f $indent, $_.Key, $(_jsonsimple $( $indent + "`t" ) $_.Value) } | Out-String )
-			"{{`n{0}`n{1}}}" -f $ret.Trim("`r`n,"), $indent
-		}
-		elseif( $obj.GetType().Name -eq "Object[]" ) {
-			$ret = $( $obj | ForEach-Object { "{0}{1}," -f $indent, $(_jsonsimple $( $indent + "`t" ) $_) } | Out-String )
-			"[`n{0}`n{1}]" -f $ret.Trim("`r`n,"), $indent
-		}
-		else {
-			$ret = $( $obj.psobject.properties.GetEnumerator() | ForEach-Object { "{0}`"{1}`": {2}," -f $indent, $_.Name, $(_jsonsimple $( $indent + "`t" ) $_.Value) } | Out-String )
-			"{{`n{0}`n{1}}}" -f $ret.Trim("`r`n,"), $indent
-		}
+		# aborting recursion due to object depth; summarize the current object
+		_tojson_string $obj.ToString()
 	}
 	else {
-		# dunno, just represent as simple as possible
-		$obj.ToString()
+		switch ( $obj.GetType().Name ) {
+			"Hashtable" {
+				$ret = $( $obj.GetEnumerator() | ForEach-Object { "{0}`"{1}`": {2}," -f $indent, $_.Key, $( _tojson_value $( $indent + "`t" ) $_.Value ) } | Out-String )
+				"{{`n{0}`n{1}}}" -f $ret.Trim("`r`n,"), $indent
+				break
+			}
+			"Object[]" {
+				$ret = $( $obj | ForEach-Object { "{0}{1}," -f $indent, $( _tojson_value $( $indent + "`t" ) $_ ) } | Out-String )
+				"[`n{0}`n{1}]" -f $ret.Trim("`r`n,"), $indent
+				break
+			}
+			"String" {
+				_tojson_string $obj
+				break
+			}
+			{ "Int32","UInt32","Int64","UInt64","Boolean"  -contains $_ } {
+				# symbolic or integrals, write plainly
+				$obj.ToString()
+				break
+			}
+			default {
+				if( $obj.GetType().IsClass ) {
+					$ret = $( $obj.psobject.properties.GetEnumerator() | ForEach-Object { "{0}`"{1}`": {2}," -f $indent, $_.Name, $( _tojson_value $( $indent + "`t" ) $_.Value ) } | Out-String )
+					"{{`n{0}`n{1}}}" -f $ret.Trim("`r`n,"), $indent
+				}
+				else {
+					# dunno, just represent as simple as possible
+					_tojson_string $obj.ToString()
+				}
+			}
+		}
 	}
 }
 
@@ -107,7 +128,7 @@ Function _tojson( $obj ) {
 		return ConvertTo-Json $obj;
 	}
 	else {
-		return _jsonsimple "`t" $obj;
+		return _tojson_value "`t" $obj;
 	}
 }
 
@@ -240,7 +261,7 @@ probe @{ name = "is_admin";
 }
 
 probe @{ name = "tasklist";
-	cmd = "Get-Process | Select Name,Handles,VM,WS,PM,NPM,Path,Company,CPU,FileVersion,ProductVersion,Description,Product,Id,PriorityClass,TotalProcessorTime,BasePriority,PeakWorkingSet64,PeakVirtualMemorySize64,StartTime,@{Name='Threads';Expression={`$_.Threads.Count}}";
+	cmd = "Get-Process | Select Name,Handles,VirtualMemorySize64,WorkingSet64,PagedMemorySize64,NonpagedSystemMemorySize64,PagedSystemMemorySize64,PrivateMemorySize64,Path,Company,CPU,FileVersion,ProductVersion,Description,Product,Id,PriorityClass,TotalProcessorTime,BasePriority,PeakWorkingSet64,PeakVirtualMemorySize64,StartTime,@{Name='Threads';Expression={`$_.Threads.Count}}";
 	alt = $( "tasklist{0}" -f $focsv );
 }
 
