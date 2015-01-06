@@ -3,14 +3,14 @@
 ### Resources
 
 [WT Getting Started]
-(https://docs.google.com/a/10gen.com/document/d/1aZmrpAFfeKiUGmn8evM-423mzK65caHyCYok9a7HnB8/edit)
+(https://docs.google.com/a/10gen.com/document/d/1aZmrpAFfeKiUGmn8evM-423mzK65caHyCYok9a7HnB8)
 
 [WT Presentation Part 1]
-(https://docs.google.com/a/10gen.com/presentation/d/1D0XdrMxp2pbqgQfPcJdWSf9TZY99Hki2iGLUvDFiTDo/edit#slide=id.g420ab9fea_0183)
+(https://docs.google.com/a/10gen.com/presentation/d/1D0XdrMxp2pbqgQfPcJdWSf9TZY99Hki2iGLUvDFiTDo)
 
 
 [WT Presesentation Part 3]
-(https://docs.google.com/a/10gen.com/presentation/d/118RC5EMUHzYl5i0YOnt89QuJBL1uY1Fi4uIOosmDaIU/edit#slide=id.p)
+(https://docs.google.com/a/10gen.com/presentation/d/118RC5EMUHzYl5i0YOnt89QuJBL1uY1Fi4uIOosmDaIU)
 
 [WT File Format Tour](../mdb-wt/tour.md).
 
