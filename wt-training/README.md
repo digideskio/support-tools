@@ -9,7 +9,7 @@
 (https://docs.google.com/a/10gen.com/presentation/d/1D0XdrMxp2pbqgQfPcJdWSf9TZY99Hki2iGLUvDFiTDo)
 
 
-[WT Presesentation Part 3]
+[WT Presesentation Part 2]
 (https://docs.google.com/a/10gen.com/presentation/d/118RC5EMUHzYl5i0YOnt89QuJBL1uY1Fi4uIOosmDaIU)
 
 [WT File Format Tour](../mdb-wt/tour.md).
