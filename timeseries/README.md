@@ -96,17 +96,18 @@ The initial view will be restricted to the most important (level 1) statisics; y
 
 ### Recommended data collection for mongod performance issues
 
-* Collect mongod logs as usual, and then visualize log file db.log by
+* **MongoDB logs.** Collect mongod logs as usual, and then visualize log file db.log by
   adding the following timeseries.py command line argument:
 
         mongod:db.log
 
-This will enable all metrics whose names start with "mongod" from the
-db.log file, including for example information about long queries.
+  This will enable all metrics whose names start with "mongod" from
+  the db.log file, including for example information about long
+  queries.
 
-* While running the workload, collect a db.serverStatus() timeseries
-  as follows, substituting an appropriate value for sampling interval
-  $delay (in floating point seconds):
+* **Server stats.** While running the workload, collect a
+  db.serverStatus() timeseries as follows, substituting an appropriate
+  value for sampling interval $delay (in floating point seconds):
 
         mongo --eval "while(true) {print(JSON.stringify(db.serverStatus())); sleep($delay*1000)}" >ss.log &
 
@@ -119,10 +120,11 @@ db.log file, including for example information about long queries.
   ss.log. This includes information about operation rates, locking,
   queues, network utilization, storage entine internals, and so on.
 
-* If your investigation focuses around a particular collection, you
-  can collect timeseries data for that collection as follows,
-  substituting appropriate values for db $db, collection $c, and
-  sampling interval $delay (in floating point seconds):
+* **Collection stats.** If your investigation focuses around a
+  particular collection, you can collect timeseries data for that
+  collection as follows, substituting appropriate values for db $db,
+  collection $c, and sampling interval $delay (in floating point
+  seconds):
 
         mongo $db --eval "
             while(true) {
@@ -142,10 +144,10 @@ db.log file, including for example information about long queries.
   file cs.log, which includes information such as size and operations
   related to the associated collection.
 
-* For most performance investigations CPU and disk statistics are
-  useful. You can use the sysmon.py tool from this project as follows,
-  substituting an appropriate value for sampling interval $delay (in
-  floating point seconds):
+* **System stats.** For most performance investigations CPU and disk
+  statistics are useful. You can use the sysmon.py tool from this
+  project as follows, substituting an appropriate value for sampling
+  interval $delay (in floating point seconds):
 
         python sysmon.py $delay >sysmon.log &
 
@@ -158,14 +160,14 @@ db.log file, including for example information about long queries.
   the file sysmon.log, which includes information such as size and
   operations related to the associated collection.
 
-* For some deeper investigations tack trace sample can be useful for
-  "advanced" analysis on in-house repros, and possibly for some
-  customers on test systems, but is *not* suitable for use on customer
-  production system because of the potential performance and
-  functional impact on monogd. Stack trace samples can be collected
-  using gdbmon.py in this project as follows, substituting an
-  appropriate value for sampling interval $delay (in floating point
-  seconds):
+* **Stack trace samples.** For some deeper investigations tack trace
+  sample can be useful for "advanced" analysis on in-house repros, and
+  possibly for some customers on test systems, but is *not* suitable
+  for use on customer production system because of the potential
+  performance and functional impact on monogd. Stack trace samples can
+  be collected using gdbmon.py in this project as follows,
+  substituting an appropriate value for sampling interval $delay (in
+  floating point seconds):
 
         python gdbmon.py $(pidof mongod) $delay >gdbmon.log &
 
