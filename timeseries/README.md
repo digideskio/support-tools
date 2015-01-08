@@ -94,24 +94,131 @@ This will select
 
 The initial view will be restricted to the most important (level 1) statisics; you can interactively request more detailed metrics, as described in the help text included with the graphs.
 
+### Recommended data collection for mongod performance issues
+
+* Collect mongod logs as usual, and then visualize log file db.log by
+  adding the following timeseries.py command line argument:
+
+        mongod:db.log
+
+This will enable all metrics whose names start with "mongod" from the
+db.log file, including for example information about long queries.
+
+* While running the workload, collect a db.serverStatus() timeseries
+  as follows, substituting an appropriate value for sampling interval
+  $delay (in floating point seconds):
+
+        mongo --eval "while(true) {print(JSON.stringify(db.serverStatus())); sleep($delay*1000)}" >ss.log &
+
+  Then visualize the output ss.log as by adding the following
+  timeseries.py command line argument:
+
+        ss:ss.log
+
+  This will enable all metrics whose names start with "ss" from the file
+  ss.log. This includes information about operation rates, locking,
+  queues, network utilization, storage entine internals, and so on.
+
+* If your investigation focuses around a particular collection, you
+  can collect timeseries data for that collection as follows,
+  substituting appropriate values for db $db, collection $c, and
+  sampling interval $delay (in floating point seconds):
+
+        mongo $db --eval "
+            while(true) {
+                s = db.$c.stats();
+                s.time = new Date();
+                print(JSON.stringify(s));
+                sleep($delay*1000)
+            }
+        " >cs.log &
+
+  Then visualize the output cs.log as by adding the following
+  timeseries.py command line argument:
+
+        cs:cs.log
+
+  This will enable all metrics whose names start with "cs" from the
+  file cs.log, which includes information such as size and operations
+  related to the associated collection.
+
+* For most performance investigations CPU and disk statistics are
+  useful. You can use the sysmon.py tool from this project as follows,
+  substituting an appropriate value for sampling interval $delay (in
+  floating point seconds):
+
+        python sysmon.py $delay >sysmon.log &
+
+  Then visualize the output sysmon.log as by adding the following
+  timeseries.py command line argument:
+
+        sysmon:sysmon.log
+
+  This will enable all metrics whose names start with "sysmon" from
+  the file sysmon.log, which includes information such as size and
+  operations related to the associated collection.
+
+* For some deeper investigations tack trace sample can be useful for
+  "advanced" analysis on in-house repros, and possibly for some
+  customers on test systems, but is *not* suitable for use on customer
+  production system because of the potential performance and
+  functional impact on monogd. Stack trace samples can be collected
+  using gdbmon.py in this project as follows, substituting an
+  appropriate value for sampling interval $delay (in floating point
+  seconds):
+
+        python gdbmon.py $(pidof mongod) $delay >gdbmon.log &
+
+  Then visualize the results using a separate tool found in this
+  project; for example:
+
+        python gdbprof.py -g 10 --graph-scale log --html <gdbmon.log >gdbprof.html
+        open -a 'Google Chrome' gdbprof.html
+
+  See [gdbmon](gdbmon.md) and [gdbprof](gdbprof.md) documentation for
+  more information.
+
+
 ### About the browser
 
-I use mostly Chrome, and have seen some issues on Safari. For now please use Chrome to view the .html file if possible.
+I use mostly Chrome, and have seen some issues on Safari. For now
+please use Chrome to view the .html file if possible.
 
 ### Performance of the tool
 
-Large data sets will 1) take a long time to process and 2) generate html files that may overwhelm the browser. Working on improvements, but for now to avoid this issue try specifying (for example) --every 300 on the command line to only look at log entries every 5 minutes, to get an overview; and then select a region to view in more detail and use --after and --before. NOTE: when you specify --every it will simply ignore some of the input. For cumulative counters that is ok because it in effect gives you an averaged view, but for events (e.g. long queries in mongod, or checkpoints running in ss) it may simply miss some events, so be careful when interpreting graphs generated using --every.
+Large data sets will 1) take a long time to process and 2) generate
+html files that may overwhelm the browser. Working on improvements,
+but for now to avoid this issue try specifying (for example) --every
+300 on the command line to only look at log entries every 5 minutes,
+to get an overview; and then select a region to view in more detail
+and use --after and --before. NOTE: when you specify --every it will
+simply ignore some of the input. For cumulative counters that is ok
+because it in effect gives you an averaged view, but for events
+(e.g. long queries in mongod, or checkpoints running in ss) it may
+simply miss some events, so be careful when interpreting graphs
+generated using --every.
 
 ### Timezones
 
-The iostat output uses timestamps that don't include a timezone; timeseries.py will assume the local timezone of the machine where timeseries.py is installed. If this is different from the timezone of the machine where iostats.log was collected, you will see that the iostats don't line up with the other logs, so you will need to specify the timezone in effect on the machine where iostats.log was collected. For example, if that machine is on PST, specify:
+The iostat output uses timestamps that don't include a timezone;
+timeseries.py will assume the local timezone of the machine where
+timeseries.py is installed. If this is different from the timezone of
+the machine where iostats.log was collected, you will see that the
+iostats don't line up with the other logs, so you will need to specify
+the timezone in effect on the machine where iostats.log was
+collected. For example, if that machine is on PST, specify:
 
     python timeseries.py "ss:ss.log" "iostat(tz=-8):iostat.log" "mongod:mongod.log" >timeseries.html
     open timeseries.html
 
 ### Selecting metrics from the command line
 
-If you are doing the same groupings over and over, e.g. want to script it, it becomes worthwhile to select just the stats you want on the command line. The "ss:", "iostat:", and "mongod:" strings above are actually just abbreviations that will match all metrics beginning with "ss", "iostat", and "mongod". To make a more specific selection you can say for example:
+If you are doing the same groupings over and over, e.g. want to script
+it, it becomes worthwhile to select just the stats you want on the
+command line. The "ss:", "iostat:", and "mongod:" strings above are
+actually just abbreviations that will match all metrics beginning with
+"ss", "iostat", and "mongod". To make a more specific selection you
+can say for example:
 
     python timeseries.py "iostat cpu:iostat.log"                        # shows all iostat cpu metrics
     python timeseries.py "iostat cpu user:iostat.log"                   # shows only user cpu time
