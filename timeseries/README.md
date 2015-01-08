@@ -157,8 +157,9 @@ The initial view will be restricted to the most important (level 1) statisics; y
         sysmon:sysmon.log
 
   This will enable all metrics whose names start with "sysmon" from
-  the file sysmon.log, which includes information such as size and
-  operations related to the associated collection.
+  the file sysmon.log, which includes information such as CPU and disk
+  utilization statistics.
+
 
 * **Stack trace samples.** For some deeper investigations tack trace
   sample can be useful for "advanced" analysis on in-house repros, and
