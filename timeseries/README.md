@@ -179,7 +179,10 @@ The initial view will be restricted to the most important (level 1) statisics; y
         open -a 'Google Chrome' gdbprof.html
 
   See [gdbmon](gdbmon.md) and [gdbprof](gdbprof.md) documentation for
-  more information.
+  more information. *Important:* when using gdb profiling you should
+  use a stripped binary because gdb stops the process for several
+  seconds on each sample to obtain line numbers if the binary is not
+  stripped.
 
 
 ### About the browser
