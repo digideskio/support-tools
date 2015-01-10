@@ -573,16 +573,19 @@ def series_read_json(fn, series, opt):
         for fname, path in s.json_fields.items():
             add_path(ptree, path, fname, s)
 
+    unmatched = set()
+
     # match a path tree with a json doc
-    def match(pnode, jnode, result):
+    def match(pnode, jnode, result, path=()):
         if type(pnode)==interior:
-            for jname in pnode:
+            for jname in jnode:
+                pp = path + (jname,)
                 try:
-                    jnode_child = jnode[jname]
                     pnode_child = pnode[jname]
-                    match(pnode_child, jnode_child, result)
+                    jnode_child = jnode[jname]
+                    match(pnode_child, jnode_child, result, pp)
                 except KeyError, TypeError:
-                    pass
+                    unmatched.add(pp)
         else:
             for fname in pnode:
                 # convert time here so we don't do it multiple times for each series that uses it
@@ -608,6 +611,11 @@ def series_read_json(fn, series, opt):
                     s.data_point(fields['time'], fields['data'], fields.__getitem__)
                 except KeyError:
                     pass
+
+    if unmatched:
+        msg('unmatched in', fn)
+        for t in sorted(unmatched):
+            msg('  ', [str(tt) for tt in t])
 
 
 def series_read_re(fn, series, opt):
@@ -742,7 +750,7 @@ def get_graphs(specs, opt):
     # get graphs taking into account splits and merges
     graphs = collections.defaultdict(list)
     ygroups = collections.defaultdict(list)
-    for s in series:
+    for s in sorted(series, key=lambda s: s.key):
         s.get_graphs(graphs, ygroups, opt)
 
     # compute display_ymax taking into account spec_ymax and ygroup
@@ -1413,6 +1421,14 @@ def ss_opcounter(opcounter, **kwargs):
         rate = True,
         **kwargs
     )
+    ss(
+        json_data = ['opcountersRepl', opcounter],
+        merge = 'ss_opcounters_repl',
+        name = 'ss opcounters repl: ' + opcounter,
+        level = 1,
+        rate = True,
+        **kwargs
+    )
 
 ss_opcounter('insert')
 ss_opcounter('update')
@@ -1456,26 +1472,6 @@ ss(['globalLock', 'totalTime'], level=99)
 
 
 # TBD
-ss(["uptime"], level=3)
-ss(["asserts", "msg"], rate=True, level=1)
-ss(["asserts", "regular"], rate=True, level=1)
-ss(["asserts", "rollovers"], rate=True, level=1)
-ss(["asserts", "user"], rate=True, level=1)
-ss(["asserts", "warning"], rate=True, level=1)
-#["backgroundFlushing", "average_ms"]
-#["backgroundFlushing", "flushes"]
-#["backgroundFlushing", "last_finished"]
-#["backgroundFlushing", "last_ms"]
-#["backgroundFlushing", "total_ms"]
-#["connections", "available"]
-ss(["connections", "current"], level=1)
-#["connections", "totalCreated"]
-#["cursors", "clientCursors_size"]
-#["cursors", "note"]
-#["cursors", "pinned"]
-#["cursors", "timedOut"]
-#["cursors", "totalNoTimeout"]
-#["cursors", "totalOpen"]
 #["dur", "commits"]
 #["dur", "commitsInWriteLock"]
 #["dur", "compression"]
@@ -1487,17 +1483,43 @@ ss(["connections", "current"], level=1)
 #["dur", "timeMs", "writeToDataFiles"]
 #["dur", "timeMs", "writeToJournal"]
 #["dur", "writeToDataFilesMB"]
-ss(["extra_info", "heap_usage_bytes"], scale=MB, wrap=2.0**31, level=9)
-#["extra_info", "note"]
-ss(["extra_info", "page_faults"], rate=True, level=1)
-#["host"]
 #["localTime"]
-#["mem", "bits"]
+
+ss(["asserts", "msg"], rate=True, level=1)
+ss(["asserts", "regular"], rate=True, level=1)
+ss(["asserts", "rollovers"], rate=True, level=1)
+ss(["asserts", "user"], rate=True, level=1)
+ss(["asserts", "warning"], rate=True, level=1)
+ss(["backgroundFlushing", "average_ms"], level=9)
+ss(["backgroundFlushing", "flushes"], level=9)
+ss(["backgroundFlushing", "last_finished"], level=9)
+ss(["backgroundFlushing", "last_ms"], level=9)
+ss(["backgroundFlushing", "total_ms"], level=9)
+ss(["connections", "available"], level=9)
+ss(["connections", "current"], level=1)
+ss(["connections", "totalCreated"], level=9)
+ss(["cursors", "clientCursors_size"], level=9)
+ss(["cursors", "note"], level=99)
+ss(["cursors", "pinned"], level=9)
+ss(["cursors", "timedOut"], level=9)
+ss(["cursors", "totalNoTimeout"], level=9)
+ss(["cursors", "totalOpen"], level=9)
+ss(["extra_info", "heap_usage_bytes"], scale=MB, wrap=2.0**31, level=9)
+ss(["extra_info", "note"], level=99)
+ss(["extra_info", "page_faults"], rate=True, level=1)
+ss(["host"], level=99)
+ss(["mem", "bits"], level=99)
 ss(["mem", "mapped"], scale=MB)
 ss(["mem", "mappedWithJournal"], scale=MB)
 ss(["mem", "resident"], units="MB")
-#["mem", "supported"]
+ss(["mem", "supported"], level=99)
 ss(["mem", "virtual"], units="MB", level=1)
+ss(["metrics", "commands", "collStats"], rate=True) # CHECK
+ss(["metrics", "commands", "drop"], rate=True) # CHECK
+ss(["metrics", "commands", "getnonce"], rate=True) # CHECK
+ss(["metrics", "commands", "insert"], rate=True) # CHECK
+ss(["metrics", "commands", "isMaster"], rate=True) # CHECK
+ss(["metrics", "commands", "ping"], rate=True) # CHECK
 ss(["metrics", "commands", "serverStatus", "failed"], rate=True)
 ss(["metrics", "commands", "serverStatus", "total"], rate=True)
 ss(["metrics", "commands", "whatsmyuri", "failed"], rate=True)
@@ -1516,6 +1538,7 @@ ss(["metrics", "getLastError", "wtimeouts"], rate=True)
 ss(["metrics", "operation", "fastmod"], rate=True)
 ss(["metrics", "operation", "idhack"], rate=True)
 ss(["metrics", "operation", "scanAndOrder"], rate=True)
+ss(["metrics", "operation", "writeConflicts"], rate=True) # CHECK
 ss(["metrics", "queryExecutor", "scanned"], rate=True)
 ss(["metrics", "queryExecutor", "scannedObjects"], rate=True)
 ss(["metrics", "record", "moves"], rate=True)
@@ -1537,12 +1560,22 @@ ss(["metrics", "repl", "preload", "indexes", "totalMillis"], rate=True)
 ss(["metrics", "storage", "freelist", "search", "bucketExhausted"], rate=True)
 ss(["metrics", "storage", "freelist", "search", "requests"], rate=True)
 ss(["metrics", "storage", "freelist", "search", "scanned"], rate=True)
-ss(["metrics", "ttl", "deletedDocuments"], rate=True)
 ss(["metrics", "ttl", "deletedDocuments"])
+ss(["metrics", "ttl", "deletedDocuments"], rate=True)
 ss(["metrics", "ttl", "passes"], rate=True)
 ss(["network", "bytesIn"], rate=True, scale=MB, merge='network bytes', level=1)
 ss(["network", "bytesOut"], rate=True, scale=MB, merge='network bytes', level=1)
 ss(["network", "numRequests"], rate=True)
+ss(["ok"], level=99) # CHECK
+ss(["pid"], level=99) # CHECK
+ss(["process"], level=99) # CHECK
+ss(["storageEngine"], level=99) # CHECK
+ss(["uptime"], level=3)
+ss(["uptimeEstimate"], level=99) # CHECK
+ss(["uptimeMillis"], level=99) # CHECK
+ss(["version"], level=99) # CHECK
+ss(["writeBacksQueued"], level=9) # CHECK
+
 
 
 #
@@ -1573,42 +1606,41 @@ def cs(json_data, name=None, scale=1, rate=False, units=None, level=3, **kwargs)
         **kwargs
     )
 
-#cs(["capped"])
+cs(["capped"], level=99)
 cs(["count"], level=1)
-#cs(["max"])
-#cs(["maxSize"])
-#cs(["nindexes"])
-#cs(["ns"])
+cs(["nindexes"], level=9)
+cs(["ns"], level=99)
+cs(["ok"], level=99)
 cs(["size"], scale=MB, level=1)
 cs(["storageSize"], scale=MB, level=1)
 cs(["totalIndexSize"], scale=MB, level=1)
 cs(["avgObjSize"], level=1)
-#cs(["wiredTiger", "LSM", "bloom filter false positives"])
-#cs(["wiredTiger", "LSM", "bloom filter hits"])
-#cs(["wiredTiger", "LSM", "bloom filter misses"])
-#cs(["wiredTiger", "LSM", "bloom filter pages evicted from cache"])
-#cs(["wiredTiger", "LSM", "bloom filter pages read into cache"])
-#cs(["wiredTiger", "LSM", "bloom filters in the LSM tree"])
-#cs(["wiredTiger", "LSM", "chunks in the LSM tree"])
-#cs(["wiredTiger", "LSM", "highest merge generation in the LSM tree"])
-#cs(["wiredTiger", "LSM", "queries that could have benefited from a Bloom filter that did not exist"])
-#cs(["wiredTiger", "LSM", "sleep for LSM checkpoint throttle"])
-#cs(["wiredTiger", "LSM", "sleep for LSM merge throttle"])
-#cs(["wiredTiger", "LSM", "total size of bloom filters"])
+cs(["wiredTiger", "LSM", "bloom filter false positives"], level=99)
+cs(["wiredTiger", "LSM", "bloom filter hits"], level=99)
+cs(["wiredTiger", "LSM", "bloom filter misses"], level=99)
+cs(["wiredTiger", "LSM", "bloom filter pages evicted from cache"], level=99)
+cs(["wiredTiger", "LSM", "bloom filter pages read into cache"], level=99)
+cs(["wiredTiger", "LSM", "bloom filters in the LSM tree"], level=99)
+cs(["wiredTiger", "LSM", "chunks in the LSM tree"], level=99)
+cs(["wiredTiger", "LSM", "highest merge generation in the LSM tree"], level=99)
+cs(["wiredTiger", "LSM", "queries that could have benefited from a Bloom filter that did not exist"], level=99)
+cs(["wiredTiger", "LSM", "sleep for LSM checkpoint throttle"], level=99)
+cs(["wiredTiger", "LSM", "sleep for LSM merge throttle"], level=99)
+cs(["wiredTiger", "LSM", "total size of bloom filters"], level=99)
 cs(["wiredTiger", "block-manager", "allocations requiring file extension"], rate=True)
 cs(["wiredTiger", "block-manager", "blocks allocated"], rate=True)
 cs(["wiredTiger", "block-manager", "blocks freed"], rate=True)
 cs(["wiredTiger", "block-manager", "checkpoint size"], scale=MB)
-#cs(["wiredTiger", "block-manager", "file allocation unit size"])
+cs(["wiredTiger", "block-manager", "file allocation unit size"], level=99)
 cs(["wiredTiger", "block-manager", "file bytes available for reuse"], scale=MB)
-#cs(["wiredTiger", "block-manager", "file magic number"])
-#cs(["wiredTiger", "block-manager", "file major version number"])
+cs(["wiredTiger", "block-manager", "file magic number"], level=99)
+cs(["wiredTiger", "block-manager", "file major version number"], level=99)
 cs(["wiredTiger", "block-manager", "file size in bytes"], scale=MB)
-#cs(["wiredTiger", "block-manager", "minor version number"])
-#cs(["wiredTiger", "btree", "column-store fixed-size leaf pages"])
-#cs(["wiredTiger", "btree", "column-store internal pages"])
-#cs(["wiredTiger", "btree", "column-store variable-size deleted values"])
-#cs(["wiredTiger", "btree", "column-store variable-size leaf pages"])
+cs(["wiredTiger", "block-manager", "minor version number"], level=99)
+cs(["wiredTiger", "btree", "column-store fixed-size leaf pages"], level=99)
+cs(["wiredTiger", "btree", "column-store internal pages"], level=99)
+cs(["wiredTiger", "btree", "column-store variable-size deleted values"], level=99)
+cs(["wiredTiger", "btree", "column-store variable-size leaf pages"], level=99)
 cs(["wiredTiger", "btree", "fixed-record size"])
 cs(["wiredTiger", "btree", "maximum internal page key size"])
 cs(["wiredTiger", "btree", "maximum internal page size"])
@@ -1641,7 +1673,7 @@ cs(["wiredTiger", "compression", "page written was too small to compress"], rate
 cs(["wiredTiger", "compression", "raw compression call failed, additional data available"], rate=True)
 cs(["wiredTiger", "compression", "raw compression call failed, no additional data available"], rate=True)
 cs(["wiredTiger", "compression", "raw compression call succeeded"], rate=True)
-#cs(["wiredTiger", "creationString"])
+cs(["wiredTiger", "creationString"], level=99)
 cs(["wiredTiger", "cursor", "bulk-loaded cursor-insert calls"], rate=True)
 cs(["wiredTiger", "cursor", "create calls"], rate=True)
 cs(["wiredTiger", "cursor", "cursor-insert key and value bytes inserted"], rate=True)
@@ -1655,8 +1687,8 @@ cs(["wiredTiger", "cursor", "reset calls"], rate=True)
 cs(["wiredTiger", "cursor", "search calls"], rate=True)
 cs(["wiredTiger", "cursor", "search near calls"], rate=True)
 cs(["wiredTiger", "cursor", "update calls"], rate=True)
-#cs(["wiredTiger", "metadata", "formatVersion"])
-#cs(["wiredTiger", "metadata", "oplogKeyExtractionVersion"])
+cs(["wiredTiger", "metadata", "formatVersion"], level=99)
+cs(["wiredTiger", "metadata", "oplogKeyExtractionVersion"], level=99)
 cs(["wiredTiger", "reconciliation", "dictionary matches"], rate=True)
 cs(["wiredTiger", "reconciliation", "internal page key bytes discarded using suffix compression"], rate=True)
 cs(["wiredTiger", "reconciliation", "internal page multi-block writes"], rate=True)
@@ -1673,9 +1705,9 @@ cs(["wiredTiger", "reconciliation", "pages deleted"], rate=True)
 cs(["wiredTiger", "session", "object compaction"])
 cs(["wiredTiger", "session", "open cursor count"])
 cs(["wiredTiger", "transaction", "update conflicts"], rate=True)
-#cs(["wiredTiger", "type"])
-#cs(["wiredTiger", "uri"])
-
+cs(["wiredTiger", "type"], level=99)
+cs(["wiredTiger", "uri"], level=99)
+cs(["errmsg"], level=99)
 
 
 
@@ -1737,14 +1769,14 @@ def sysmon_disk(which, desc, **kwargs):
         **kwargs
     )
     
-sysmon_disk('writes_merged',  'write requests merged (/s)', merge='sysmon_disk_req_merged {disk}', ygroup='sysmon_disk_req')
 sysmon_disk('reads_merged',   'read requests merged (/s)',  merge='sysmon_disk_req_merged {disk}', ygroup='sysmon_disk_req')
-sysmon_disk('writes',         'write requests issued (/s)', merge='sysmon_disk_req_issued {disk}', ygroup='sysmon_disk_req')
+sysmon_disk('writes_merged',  'write requests merged (/s)', merge='sysmon_disk_req_merged {disk}', ygroup='sysmon_disk_req')
 sysmon_disk('reads',          'read requests issued (/s)',  merge='sysmon_disk_req_issued {disk}', ygroup='sysmon_disk_req')
-sysmon_disk('write_sectors',  'bytes written (MB/s)',       merge='sysmon_disk_MBs {disk}',        scale=1024*1024/512)
+sysmon_disk('writes',         'write requests issued (/s)', merge='sysmon_disk_req_issued {disk}', ygroup='sysmon_disk_req')
 sysmon_disk('read_sectors',   'bytes read (MB/s)',          merge='sysmon_disk_MBs {disk}',        scale=1024*1024/512)
-sysmon_disk('write_time_ms',  'busy writing (%)',           merge='sysmon_busy',                   scale=10, ymax=100)
+sysmon_disk('write_sectors',  'bytes written (MB/s)',       merge='sysmon_disk_MBs {disk}',        scale=1024*1024/512)
 sysmon_disk('read_time_ms',   'busy reading (%)',           merge='sysmon_busy',                   scale=10, ymax=100)
+sysmon_disk('write_time_ms',  'busy writing (%)',           merge='sysmon_busy',                   scale=10, ymax=100)
 sysmon_disk('io_in_progress', 'in progress', rate=False)
 sysmon_disk('io_time_ms',     'io_time_ms')
 sysmon_disk('io_queued_ms',   'io_queued_ms')
@@ -1792,12 +1824,12 @@ def iostat_disk(re_data, name, level=3, **kwargs):
         **kwargs
     )
 
-iostat_disk('wrqms',   'write requests merged (/s)', merge='iostat_disk_req_merged {iostat_disk}',  ygroup='iostat_disk_req')
 iostat_disk('rrqms',   'read requests merged (/s)',  merge='iostat_disk_req_merged {iostat_disk}',  ygroup='iostat_disk_req')
-iostat_disk('ws',      'write requests issued (/s)', merge='iostat_disk_req_issued {iostat_disk}',  ygroup='iostat_disk_req')
+iostat_disk('wrqms',   'write requests merged (/s)', merge='iostat_disk_req_merged {iostat_disk}',  ygroup='iostat_disk_req')
 iostat_disk('rs',      'read requests issued (/s)',  merge='iostat_disk_req_issued {iostat_disk}',  ygroup='iostat_disk_req')
-iostat_disk('wkBs',    'bytes written (MB/s)',       merge='iostat_disk_MBs {iostat_disk}',         scale=1024, level=1)
+iostat_disk('ws',      'write requests issued (/s)', merge='iostat_disk_req_issued {iostat_disk}',  ygroup='iostat_disk_req')
 iostat_disk('rkBs',    'bytes read (MB/s)',          merge='iostat_disk_MBs {iostat_disk}',         scale=1024, level=1)
+iostat_disk('wkBs',    'bytes written (MB/s)',       merge='iostat_disk_MBs {iostat_disk}',         scale=1024, level=1)
 iostat_disk('avgrqsz', 'average request size (sectors)')
 iostat_disk('avgqusz', 'average queue length')
 iostat_disk('await',   'average wait time (ms)')
@@ -1905,8 +1937,8 @@ def wt(wt_cat, wt_name, rate=False, scale=1.0, level=3, **kwargs):
         **kwargs
     )
 
-wt('async', 'maximum work queue length')
 wt('async', 'current work queue length', level=2)
+wt('async', 'maximum work queue length')
 wt('async', 'number of allocation state races', rate=True)
 wt('async', 'number of flush calls', rate=True)
 wt('async', 'number of operation slots viewed for allocation', rate=True)
@@ -1922,10 +1954,10 @@ wt('block-manager', 'allocations requiring file extension', rate=True)
 wt('block-manager', 'blocks allocated', rate=True)
 wt('block-manager', 'blocks freed', rate=True)
 wt('block-manager', 'blocks pre-loaded', rate=True)
-wt('block-manager', 'blocks written', merge='wt_block-manager_blocks', rate=True)
 wt('block-manager', 'blocks read', merge='wt_block-manager_blocks', rate=True)
-wt('block-manager', 'bytes written', merge='wt_block-manager_bytes', scale=MB, rate=True, level=2)
+wt('block-manager', 'blocks written', merge='wt_block-manager_blocks', rate=True)
 wt('block-manager', 'bytes read', merge='wt_block-manager_bytes', scale=MB, rate=True, level=2)
+wt('block-manager', 'bytes written', merge='wt_block-manager_bytes', scale=MB, rate=True, level=2)
 wt('block-manager', 'checkpoint size')
 wt('block-manager', 'file allocation unit size')
 wt('block-manager', 'file bytes available for reuse', scale=MB)
@@ -1960,17 +1992,18 @@ wt('btree', 'pages rewritten by compaction', rate=True)
 wt('btree', 'row-store internal pages')
 wt('btree', 'row-store leaf pages')
 wt('cache', 'bytes currently in the cache', scale=MB, level=2)
-wt('cache', 'bytes written from cache', merge='wt_cache_bytes_cache', scale=MB, rate=True, level=2)
 wt('cache', 'bytes read into cache', merge='wt_cache_bytes_cache', scale=MB, rate=True, level=2)
+wt('cache', 'bytes written from cache', merge='wt_cache_bytes_cache', scale=MB, rate=True, level=2)
 wt('cache', 'checkpoint blocked page eviction', rate=True)
 wt('cache', 'data source pages selected for eviction unable to be evicted')
 wt('cache', 'eviction server candidate queue empty when topping up', rate=True)
 wt('cache', 'eviction server candidate queue not empty when topping up', rate=True)
 wt('cache', 'eviction server evicting pages', rate=True, level=2)
-wt('cache', 'eviction server populating queue, but not evicting pages')
+wt('cache', 'eviction server populating queue, but not evicting pages', rate=True)
 wt('cache', 'eviction server unable to reach eviction goal')
 wt('cache', 'failed eviction of pages that exceeded the in-memory maximum', rate=True)
 wt('cache', 'hazard pointer blocked page eviction', rate=True)
+wt('cache', 'in-memory page splits', rate=True) # CHECK
 wt('cache', 'internal pages evicted', rate=True)
 wt('cache', 'maximum bytes configured', scale=MB)
 wt('cache', 'modified pages evicted', rate=True)
@@ -1979,6 +2012,7 @@ wt('cache', 'overflow values cached in memory')
 wt('cache', 'page split during eviction deepened the tree', rate=True)
 wt('cache', 'pages currently held in the cache')
 wt('cache', 'pages evicted because they exceeded the in-memory maximum', rate=True)
+wt('cache', 'pages evicted by application threads', rate=True) # CHECK
 wt('cache', 'pages read into cache', merge = 'wt_cache_pages_cache', rate=True)
 wt('cache', 'pages selected for eviction unable to be evicted', rate=True)
 wt('cache', 'pages split during eviction', rate=True)
@@ -1987,8 +2021,8 @@ wt('cache', 'pages written from cache', merge = 'wt_cache_pages_cache', rate=Tru
 wt('cache', 'tracked dirty bytes in the cache', scale=MB)
 wt('cache', 'tracked dirty pages in the cache')
 wt('cache', 'unmodified pages evicted', rate=True)
-wt('compression', 'compressed pages written', merge = 'wt_compression_compressed_pages', rate=True)
 wt('compression', 'compressed pages read', merge = 'wt_compression_compressed_pages', rate=True)
+wt('compression', 'compressed pages written', merge = 'wt_compression_compressed_pages', rate=True)
 wt('compression', 'page written failed to compress', rate=True)
 wt('compression', 'page written was too small to compress', rate=True)
 wt('compression', 'raw compression call failed, additional data available', rate=True)
@@ -2001,8 +2035,8 @@ wt('connection', 'memory re-allocations', rate=True)
 wt('connection', 'pthread mutex condition wait calls', rate=True)
 wt('connection', 'pthread mutex shared lock read-lock calls', rate=True)
 wt('connection', 'pthread mutex shared lock write-lock calls', rate=True)
-wt('connection', 'total write I/Os', merge = 'wt_connection_total_I/Os', rate=True)
 wt('connection', 'total read I/Os', merge = 'wt_connection_total_I/Os', rate=True)
+wt('connection', 'total write I/Os', merge = 'wt_connection_total_I/Os', rate=True)
 wt('cursor', 'bulk-loaded cursor-insert calls', rate=True)
 wt('cursor', 'create calls', rate=True, level=2)
 wt('cursor', 'cursor create calls', rate=True, level=2)
@@ -2025,6 +2059,10 @@ wt('cursor', 'reset calls', rate=True)
 wt('cursor', 'search calls', rate=True, level=2)
 wt('cursor', 'search near calls', rate=True, level=3)
 wt('cursor', 'update calls', rate=True, level=2)
+wt('data-handle', 'connection candidate referenced', rate=True) # CHECK
+wt('data-handle', 'connection dhandles swept', rate=True) # CHECK
+wt('data-handle', 'connection sweeps', rate=True) # CHECK
+wt('data-handle', 'connection time-of-death sets', rate=True) # CHECK
 wt('data-handle', 'session dhandles swept', rate=True)
 wt('data-handle', 'session sweep attempts', rate=True)
 wt('log', 'consolidated slot closures', rate=True)
@@ -2036,16 +2074,24 @@ wt('log', 'log buffer size increases', rate=True)
 wt('log', 'log bytes of payload data', scale=MB, rate=True)
 wt('log', 'log bytes written', scale=MB, rate=True, level=2)
 wt('log', 'log read operations', rate=True)
+wt('log', 'log records compressed', rate=True) # CHECK
+wt('log', 'log records not compressed', rate=True) # CHECK
+wt('log', 'log records too small to compress', rate=True) # CHECK
 wt('log', 'log scan operations', rate=True)
 wt('log', 'log scan records requiring two reads', rate=True)
 wt('log', 'log sync operations', rate=True)
 wt('log', 'log write operations', rate=True)
 wt('log', 'logging bytes consolidated', scale=MB)
 wt('log', 'maximum log file size', scale=MB)
+wt('log', 'number of pre-allocated log files to create') # CHECK
+wt('log', 'pre-allocated log files prepared', rate=True) # CHECK
+wt('log', 'pre-allocated log files used', rate=True) # CHECK
 wt('log', 'record size exceeded maximum', rate=True)
 wt('log', 'records processed by log scan', rate=True)
 wt('log', 'slots selected for switching that were unavailable', rate=True)
+wt('log', 'total in-memory size of compressed records', scale=MB) # CHECK
 wt('log', 'total log buffer size', scale=MB)
+wt('log', 'total size of compressed records', scale=MB) # CHECK
 wt('log', 'yields waiting for previous log file close', rate=True)
 wt('reconciliation', 'dictionary matches', rate=True)
 wt('reconciliation', 'internal page key bytes discarded using suffix compression', scale=MB)
@@ -2065,12 +2111,17 @@ wt('reconciliation', 'split objects currently awaiting free')
 wt('session', 'object compaction')
 wt('session', 'open cursor count')
 wt('session', 'open session count')
+wt('thread-yield', 'page acquire busy blocked', rate=True) # CHECK
+wt('thread-yield', 'page acquire eviction blocked', rate=True) # CHECK
+wt('thread-yield', 'page acquire locked blocked', rate=True) # CHECK
+wt('thread-yield', 'page acquire read blocked', rate=True) # CHECK
+wt('thread-yield', 'page acquire time sleeping (usecs)', rate=True) # CHECK
 wt('transaction', 'transaction begins', rate=True, level=3)
 wt('transaction', 'transaction checkpoint currently running', level=2)
-wt('transaction', 'transaction checkpoint max time .msecs.')
-wt('transaction', 'transaction checkpoint min time .msecs.')
-wt('transaction', 'transaction checkpoint most recent time .msecs.')
-wt('transaction', 'transaction checkpoint total time .msecs.')
+wt('transaction', 'transaction checkpoint max time (msecs)') # CHECK
+wt('transaction', 'transaction checkpoint min time (msecs)') # CHECK
+wt('transaction', 'transaction checkpoint most recent time (msecs)') # CHECK
+wt('transaction', 'transaction checkpoint total time (msecs)') # CHECK
 wt('transaction', 'transaction checkpoints', rate=True)
 wt('transaction', 'transaction failures due to cache overflow', rate=True)
 wt('transaction', 'transaction range of IDs currently pinned')
@@ -2098,6 +2149,7 @@ wt('LSM', 'tree maintenance operations executed', rate=True)
 wt('LSM', 'tree maintenance operations scheduled', rate=True)
 wt('LSM', 'tree queue hit maximum')
 
+ss(['wiredTiger', 'uri'], level=99)
 
 
 
