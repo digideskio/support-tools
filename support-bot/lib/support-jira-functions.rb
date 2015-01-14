@@ -18,7 +18,7 @@ def lookerChange(key, who, db, onoff)
   obj = db.collection("reviews").find_one({:key=> key})
   msg = ""
   if obj != nil
-    msg = "Issue #{key} being by looked at by #{who}"
+    msg = "Issue #{key} #{(onoff ? "":"not ")}being looked at by #{who}"
     #Broadcast to IRC as well as XMPP
     @ipcqueue.push({'msg'=>msg, 'dst' => @ircRoomName}) if msg != nil
     db.collection("reviews").update({:key=> key},{ (onoff ? "$push" : "$pull") => { :lookers => who}})
@@ -510,17 +510,17 @@ def doQueueRead(db)
               end
               if key["reviewers"] != nil
                 if key["reviewers"].size > 0
-                  msg += "  Requested: #{key["reviewers"].join(',')}"
+                  msg += "    Requested: #{key["reviewers"].join(',')}"
                 end
               end
               if key["lookers"]
                 if key["lookers"].size > 0
-                  msg += "  Looking: #{key["lookers"].join(',')}"
+                  msg += "    Looking: #{key["lookers"].join(',')}"
                 end
               end
               if key["lgtms"] != nil
                 if key["lgtms"].size > 0
-                  msg += "  LGTMs: #{key["lgtms"].join(',')}"
+                  msg += "    LGTMs: #{key["lgtms"].join(',')}"
                 end
               end
             end
