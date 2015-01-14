@@ -14,6 +14,18 @@ def escapeXML(msg)
   #msg = msg.gsub("'","&apos;")
 end
 
+def lookerChange(key, who, db, onoff)
+  obj = db.collection("reviews").find_one({:key=> key})
+  msg = ""
+  if obj != nil
+    msg = "Issue #{key} being by looked at by #{who}"
+    #Broadcast to IRC as well as XMPP
+    @ipcqueue.push({'msg'=>msg, 'dst' => @ircRoomName}) if msg != nil
+    db.collection("reviews").update({:key=> key},{ (onoff ? "$push" : "$pull") => { :lookers => who}})
+  end
+  return msg
+end
+
 #Function saveState
 #Writes the current state (active and review issues) to the stateFile
 def saveState
@@ -411,7 +423,7 @@ def doQueueRead(db)
             end
           end
           #Push into DB
-          db.collection("reviews").update({:key=> key},{:key=> key, :done => false, :requested_by =>who, :reviewers=>reviewers},{:upsert => true} )
+          db.collection("reviews").update({:key=> key},{:key=> key, :done => false, :requested_by =>who, :reviewers=>reviewers, :time_requested => Time.now},{:upsert => true} )
           msg = "#{who} requested review of #{key}"
           unless reviewers.empty?
             msg += " from #{reviewers.join(', ')}"
@@ -442,7 +454,7 @@ def doQueueRead(db)
             msg = "Review of #{key} set to 'needs work' by #{who}"
             #Broadcast to IRC as well as XMPP
             @ipcqueue.push({'msg'=>msg, 'dst' => @ircRoomName}) if msg != nil
-            db.collection("reviews").update({:key=> key},{"$set"=>{"done" => "needs work", :marked_by => who}})
+            db.collection("reviews").update({:key=> key},{"$set"=>{"done" => "needs work", :marked_by => who}, "$pull" => { :lookers => who}})
           end
         when 'LGTM'
           key = array.shift
@@ -455,8 +467,22 @@ def doQueueRead(db)
             msg = "Issue #{key} LGTM'd by #{who}"
             #Broadcast to IRC as well as XMPP
             @ipcqueue.push({'msg'=>msg, 'dst' => @ircRoomName}) if msg != nil
-            db.collection("reviews").update({:key=> key},{"$push" => { :lgtms => who}})
+            db.collection("reviews").update({:key=> key},{"$push" => { :lgtms => who}, "$pull" => { :lookers => who}})
           end
+        when 'LOOKING'
+          key = array.shift
+          who = array.shift
+          if key.include? "HTTP"
+            key = key.split("/")[-1]
+          end
+          msg = lookerChange(key, who, db, true)
+        when 'NOTLOOKING'
+          key = array.shift
+          who = array.shift
+          if key.include? "HTTP"
+            key = key.split("/")[-1]
+          end
+          msg = lookerChange(key, who, db, false)
         when 'LIST'
           project = nil
           if !array.empty?
@@ -478,14 +504,23 @@ def doQueueRead(db)
                 msg += "*"
               end
               msg += "#{escapeKey(key["key"])}"
+              msg += " from #{key["requested_by"]}"
+              if key["time_requested"] != nil
+                msg += " #{key["time_requested"].ago.to_words}"
+              end
               if key["reviewers"] != nil
                 if key["reviewers"].size > 0
-                  msg += " (by #{key["reviewers"].join(',')})"
+                  msg += "  Requested: #{key["reviewers"].join(',')}"
+                end
+              end
+              if key["lookers"]
+                if key["lookers"].size > 0
+                  msg += "  Looking: #{key["lookers"].join(',')}"
                 end
               end
               if key["lgtms"] != nil
                 if key["lgtms"].size > 0
-                  msg += " LGTMs: #{key["lgtms"].join(',')}"
+                  msg += "  LGTMs: #{key["lgtms"].join(',')}"
                 end
               end
             end
