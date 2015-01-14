@@ -423,7 +423,7 @@ def doQueueRead(db)
             end
           end
           #Push into DB
-          db.collection("reviews").update({:key=> key},{:key=> key, :done => false, :requested_by =>who, :reviewers=>reviewers, :time_requested => Time.now},{:upsert => true} )
+          db.collection("reviews").update({:key=> key},{:key=> key, :done => false, :requested_by =>who, :reviewers=>reviewers, :requested_at => Time.now},{:upsert => true} )
           msg = "#{who} requested review of #{key}"
           unless reviewers.empty?
             msg += " from #{reviewers.join(', ')}"
@@ -455,6 +455,19 @@ def doQueueRead(db)
             #Broadcast to IRC as well as XMPP
             @ipcqueue.push({'msg'=>msg, 'dst' => @ircRoomName}) if msg != nil
             db.collection("reviews").update({:key=> key},{"$set"=>{"done" => "needs work", :marked_by => who}, "$pull" => { :lookers => who}})
+          end
+        when 'REFRESH'
+          key = array.shift
+          who = array.shift
+          if key.include? "HTTP"
+            key = key.split("/")[-1]
+          end
+          obj = db.collection("reviews").find_one({:key=> key})
+          if obj != nil
+            msg = "Issue #{key} Refreshed by #{who}"
+            #Broadcast to IRC as well as XMPP
+            @ipcqueue.push({'msg'=>msg, 'dst' => @ircRoomName}) if msg != nil
+            db.collection("reviews").update({:key=> key},{"$set" =>{ :lgtms => [], :lookers => [], :done => false, :requested_at => Time.now, :requested_by => who}})
           end
         when 'LGTM'
           key = array.shift
@@ -505,8 +518,8 @@ def doQueueRead(db)
               end
               msg += "#{escapeKey(key["key"])}"
               msg += " from #{key["requested_by"]}"
-              if key["time_requested"] != nil
-                msg += " #{key["time_requested"].ago.to_words}"
+              if key["requested_at"] != nil
+                msg += " #{key["requested_at"].ago.to_words}"
               end
               if key["reviewers"] != nil
                 if key["reviewers"].size > 0
