@@ -15,6 +15,9 @@ DESCRIPTION
     p Print the pages of the spedified file if no offset is
       specified. If an offset is specified print only that page.
 
+    f When used with the p flag, the content of avaiable (freed) pages
+      is also printed.
+
     e When used with the p flag, page entries are printed.
 
     b When used with the e flag, BSON values (for collection files)
