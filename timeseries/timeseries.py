@@ -577,14 +577,14 @@ def series_read_json(fn, series, opt):
 
     # match a path tree with a json doc
     def match(pnode, jnode, result, path=()):
-        if type(pnode)==interior:
+        if type(pnode)==interior or type(jnode)==dict:
             for jname in jnode:
                 pp = path + (jname,)
                 try:
                     pnode_child = pnode[jname]
                     jnode_child = jnode[jname]
                     match(pnode_child, jnode_child, result, pp)
-                except KeyError, TypeError:
+                except (KeyError, TypeError):
                     unmatched.add(pp)
         else:
             for fname in pnode:
@@ -1470,21 +1470,6 @@ ss(['globalLock', 'activeClients', 'total'], level=99)
 ss(['globalLock', 'currentQueue', 'total'], level=99)
 ss(['globalLock', 'totalTime'], level=99)
 
-
-# TBD
-#["dur", "commits"]
-#["dur", "commitsInWriteLock"]
-#["dur", "compression"]
-#["dur", "earlyCommits"]
-#["dur", "journaledMB"]
-#["dur", "timeMs", "dt"]
-#["dur", "timeMs", "prepLogBuffer"]
-#["dur", "timeMs", "remapPrivateView"]
-#["dur", "timeMs", "writeToDataFiles"]
-#["dur", "timeMs", "writeToJournal"]
-#["dur", "writeToDataFilesMB"]
-#["localTime"]
-
 ss(["asserts", "msg"], rate=True, level=1)
 ss(["asserts", "regular"], rate=True, level=1)
 ss(["asserts", "rollovers"], rate=True, level=1)
@@ -1504,10 +1489,46 @@ ss(["cursors", "pinned"], level=9)
 ss(["cursors", "timedOut"], level=9)
 ss(["cursors", "totalNoTimeout"], level=9)
 ss(["cursors", "totalOpen"], level=9)
+ss(["dur", "commits"], rate=True) # CHECK rc5
+ss(["dur", "commitsInWriteLock"], rate=True) # CHECK rc5
+ss(["dur", "compression"]) # CHECK rc5
+ss(["dur", "earlyCommits"], rate=True) # CHECK rc5
+ss(["dur", "journaledMB"], rate=True) # CHECK rc5
+ss(["dur", "timeMs", "commitsInWriteLockMicros"], rate=True) # CHECK rc5
+ss(["dur", "timeMs", "dt"]) # CHECK rc5
+ss(["dur", "timeMs", "prepLogBuffer"]) # CHECK rc5
+ss(["dur", "timeMs", "remapPrivateView"]) # CHECK rc5
+ss(["dur", "timeMs", "writeToDataFiles"]) # CHECK rc5
+ss(["dur", "timeMs", "writeToJournal"]) # CHECK rc5
+ss(["dur", "writeToDataFilesMB"], rate=True) # CHECK rc5
 ss(["extra_info", "heap_usage_bytes"], scale=MB, wrap=2.0**31, level=9)
 ss(["extra_info", "note"], level=99)
 ss(["extra_info", "page_faults"], rate=True, level=1)
 ss(["host"], level=99)
+ss(["locks", "Collection", "acquireCount"], rate=True) # CHECK rc5
+ss(["locks", "Collection", "acquireWaitCount"], rate=True) # CHECK rc5
+ss(["locks", "Collection", "deadlockCount"], rate=True) # CHECK rc5
+ss(["locks", "Collection", "timeAcquiringMicros"], rate=True) # CHECK rc5
+ss(["locks", "Database", "acquireCount"], rate=True) # CHECK rc5
+ss(["locks", "Database", "acquireWaitCount"], rate=True) # CHECK rc5
+ss(["locks", "Database", "deadlockCount"], rate=True) # CHECK rc5
+ss(["locks", "Database", "timeAcquiringMicros"], rate=True) # CHECK rc5
+ss(["locks", "Global", "acquireCount"], rate=True) # CHECK rc5
+ss(["locks", "Global", "acquireWaitCount"], rate=True) # CHECK rc5
+ss(["locks", "Global", "deadlockCount"], rate=True) # CHECK rc5
+ss(["locks", "Global", "timeAcquiringMicros"], rate=True) # CHECK rc5
+ss(["locks", "MMAPV1Journal", "acquireCount"], rate=True) # CHECK rc5
+ss(["locks", "MMAPV1Journal", "acquireWaitCount"], rate=True) # CHECK rc5
+ss(["locks", "MMAPV1Journal", "deadlockCount"], rate=True) # CHECK rc5
+ss(["locks", "MMAPV1Journal", "timeAcquiringMicros"], rate=True) # CHECK rc5
+ss(["locks", "Metadata", "acquireCount"], rate=True) # CHECK rc5
+ss(["locks", "Metadata", "acquireWaitCount"], rate=True) # CHECK rc5
+ss(["locks", "Metadata", "deadlockCount"], rate=True) # CHECK rc5
+ss(["locks", "Metadata", "timeAcquiringMicros"], rate=True) # CHECK rc5
+ss(["locks", "oplog", "acquireCount"], rate=True) # CHECK rc5
+ss(["locks", "oplog", "acquireWaitCount"], rate=True) # CHECK rc5
+ss(["locks", "oplog", "deadlockCount"], rate=True) # CHECK rc5
+ss(["locks", "oplog", "timeAcquiringMicros"], rate=True) # CHECK rc5
 ss(["mem", "bits"], level=99)
 ss(["mem", "mapped"], scale=MB)
 ss(["mem", "mappedWithJournal"], scale=MB)
@@ -1515,6 +1536,8 @@ ss(["mem", "resident"], units="MB")
 ss(["mem", "supported"], level=99)
 ss(["mem", "virtual"], units="MB", level=1)
 ss(["metrics", "commands", "collStats"], rate=True) # CHECK
+ss(["metrics", "commands", "count"], rate=True) # CHECK rc5
+ss(["metrics", "commands", "createIndexes"], rate=True) # CHECK rc5
 ss(["metrics", "commands", "drop"], rate=True) # CHECK
 ss(["metrics", "commands", "getnonce"], rate=True) # CHECK
 ss(["metrics", "commands", "insert"], rate=True) # CHECK
@@ -1522,6 +1545,7 @@ ss(["metrics", "commands", "isMaster"], rate=True) # CHECK
 ss(["metrics", "commands", "ping"], rate=True) # CHECK
 ss(["metrics", "commands", "serverStatus", "failed"], rate=True)
 ss(["metrics", "commands", "serverStatus", "total"], rate=True)
+ss(["metrics", "commands", "update"], rate=True) # CHECK rc5
 ss(["metrics", "commands", "whatsmyuri", "failed"], rate=True)
 ss(["metrics", "commands", "whatsmyuri", "total"], rate=True)
 ss(["metrics", "cursor", "open", "noTimeout"])
@@ -1937,6 +1961,31 @@ def wt(wt_cat, wt_name, rate=False, scale=1.0, level=3, **kwargs):
         **kwargs
     )
 
+
+
+
+
+
+wt('LSM', 'application work units currently queued')
+wt('LSM', 'bloom filter false positives', rate=True)
+wt('LSM', 'bloom filter hits', rate=True)
+wt('LSM', 'bloom filter misses', rate=True)
+wt('LSM', 'bloom filter pages evicted from cache', rate=True)
+wt('LSM', 'bloom filter pages read into cache', rate=True)
+wt('LSM', 'bloom filters in the LSM tree')
+wt('LSM', 'chunks in the LSM tree')
+wt('LSM', 'highest merge generation in the LSM tree')
+wt('LSM', 'merge work units currently queued')
+wt('LSM', 'queries that could have benefited from a Bloom filter that did not ex', rate=True)
+wt('LSM', 'rows merged in an LSM tree', rate=True)
+wt('LSM', 'sleep for LSM checkpoint throttle', rate=True)
+wt('LSM', 'sleep for LSM merge throttle', rate=True)
+wt('LSM', 'switch work units currently queued')
+wt('LSM', 'total size of bloom filters')
+wt('LSM', 'tree maintenance operations discarded', rate=True)
+wt('LSM', 'tree maintenance operations executed', rate=True)
+wt('LSM', 'tree maintenance operations scheduled', rate=True)
+wt('LSM', 'tree queue hit maximum')
 wt('async', 'current work queue length', level=2)
 wt('async', 'maximum work queue length')
 wt('async', 'number of allocation state races', rate=True)
@@ -2006,12 +2055,14 @@ wt('cache', 'hazard pointer blocked page eviction', rate=True)
 wt('cache', 'in-memory page splits', rate=True) # CHECK
 wt('cache', 'internal pages evicted', rate=True)
 wt('cache', 'maximum bytes configured', scale=MB)
+wt('cache', 'maximum page size at eviction', scale=MB) # CHECK rc5
 wt('cache', 'modified pages evicted', rate=True)
 wt('cache', 'overflow pages read into cache', rate=True)
 wt('cache', 'overflow values cached in memory')
 wt('cache', 'page split during eviction deepened the tree', rate=True)
 wt('cache', 'pages currently held in the cache')
 wt('cache', 'pages evicted because they exceeded the in-memory maximum', rate=True)
+wt('cache', 'pages evicted because they had chains of deleted items', rate=True) # CHECK rc5
 wt('cache', 'pages evicted by application threads', rate=True) # CHECK
 wt('cache', 'pages read into cache', merge = 'wt_cache_pages_cache', rate=True)
 wt('cache', 'pages selected for eviction unable to be evicted', rate=True)
@@ -2128,26 +2179,6 @@ wt('transaction', 'transaction range of IDs currently pinned')
 wt('transaction', 'transactions committed', rate=True, level=2)
 wt('transaction', 'transactions rolled back', rate=True, level=2)
 wt('transaction', 'update conflicts', rate=True, level=2)
-wt('LSM', 'application work units currently queued')
-wt('LSM', 'bloom filter false positives', rate=True)
-wt('LSM', 'bloom filter hits', rate=True)
-wt('LSM', 'bloom filter misses', rate=True)
-wt('LSM', 'bloom filter pages evicted from cache', rate=True)
-wt('LSM', 'bloom filter pages read into cache', rate=True)
-wt('LSM', 'bloom filters in the LSM tree')
-wt('LSM', 'chunks in the LSM tree')
-wt('LSM', 'highest merge generation in the LSM tree')
-wt('LSM', 'merge work units currently queued')
-wt('LSM', 'queries that could have benefited from a Bloom filter that did not ex', rate=True)
-wt('LSM', 'rows merged in an LSM tree', rate=True)
-wt('LSM', 'sleep for LSM checkpoint throttle', rate=True)
-wt('LSM', 'sleep for LSM merge throttle', rate=True)
-wt('LSM', 'switch work units currently queued')
-wt('LSM', 'total size of bloom filters')
-wt('LSM', 'tree maintenance operations discarded', rate=True)
-wt('LSM', 'tree maintenance operations executed', rate=True)
-wt('LSM', 'tree maintenance operations scheduled', rate=True)
-wt('LSM', 'tree queue hit maximum')
 
 ss(['wiredTiger', 'uri'], level=99)
 
