@@ -444,6 +444,7 @@ def get_series(spec, spec_ord, opt):
         scored[score].append(desc)
     best_score = sorted(scored.keys())[-1]
     best_descs = scored[best_score] if best_score != (0,0,0,0) else []
+    dbg(best_score)
     series = [Series(spec, desc, params, fn, spec_ord) for desc in best_descs]
 
     # no match?
@@ -1505,30 +1506,19 @@ ss(["extra_info", "heap_usage_bytes"], scale=MB, wrap=2.0**31, level=9)
 ss(["extra_info", "note"], level=99)
 ss(["extra_info", "page_faults"], rate=True, level=1)
 ss(["host"], level=99)
-ss(["locks", "Collection", "acquireCount"], rate=True) # CHECK rc5
-ss(["locks", "Collection", "acquireWaitCount"], rate=True) # CHECK rc5
-ss(["locks", "Collection", "deadlockCount"], rate=True) # CHECK rc5
-ss(["locks", "Collection", "timeAcquiringMicros"], rate=True) # CHECK rc5
-ss(["locks", "Database", "acquireCount"], rate=True) # CHECK rc5
-ss(["locks", "Database", "acquireWaitCount"], rate=True) # CHECK rc5
-ss(["locks", "Database", "deadlockCount"], rate=True) # CHECK rc5
-ss(["locks", "Database", "timeAcquiringMicros"], rate=True) # CHECK rc5
-ss(["locks", "Global", "acquireCount"], rate=True) # CHECK rc5
-ss(["locks", "Global", "acquireWaitCount"], rate=True) # CHECK rc5
-ss(["locks", "Global", "deadlockCount"], rate=True) # CHECK rc5
-ss(["locks", "Global", "timeAcquiringMicros"], rate=True) # CHECK rc5
-ss(["locks", "MMAPV1Journal", "acquireCount"], rate=True) # CHECK rc5
-ss(["locks", "MMAPV1Journal", "acquireWaitCount"], rate=True) # CHECK rc5
-ss(["locks", "MMAPV1Journal", "deadlockCount"], rate=True) # CHECK rc5
-ss(["locks", "MMAPV1Journal", "timeAcquiringMicros"], rate=True) # CHECK rc5
-ss(["locks", "Metadata", "acquireCount"], rate=True) # CHECK rc5
-ss(["locks", "Metadata", "acquireWaitCount"], rate=True) # CHECK rc5
-ss(["locks", "Metadata", "deadlockCount"], rate=True) # CHECK rc5
-ss(["locks", "Metadata", "timeAcquiringMicros"], rate=True) # CHECK rc5
-ss(["locks", "oplog", "acquireCount"], rate=True) # CHECK rc5
-ss(["locks", "oplog", "acquireWaitCount"], rate=True) # CHECK rc5
-ss(["locks", "oplog", "deadlockCount"], rate=True) # CHECK rc5
-ss(["locks", "oplog", "timeAcquiringMicros"], rate=True) # CHECK rc5
+
+def ss_lock(name):
+    for a in ["acquireCount", "acquireWaitCount", "deadlockCount", "timeAcquiringMicros"]:
+        for b in ["r", "w", "R", "W"]:
+            ss(["locks", name, a, b], rate=True)
+
+ss_lock("Collection") # CHECK rc5
+ss_lock("Database") # CHECK rc5
+ss_lock("Global") # CHECK rc5
+ss_lock("MMAPV1Journal") # CHECK rc5
+ss_lock("Metadata") # CHECK rc5
+ss_lock("oplog") # CHECK rc5
+
 ss(["mem", "bits"], level=99)
 ss(["mem", "mapped"], scale=MB)
 ss(["mem", "mappedWithJournal"], scale=MB)
