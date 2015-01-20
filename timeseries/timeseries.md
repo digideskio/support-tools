@@ -2,7 +2,7 @@
 * gdbprof - generic timeseries visualization tool
 
 ## SYNOPSIS
-* python timeseries.py [--width WIDTH] [--height HEIGHT] [--show-empty] [--show-zero] [--no-merges] [--number-rows] [--duration DURATION] [--after AFTER] [--before BEFORE] [--every EVERY] [--level {1,2,3,4,5,6,7,8,9}] [--list] what:where [what:where ...]
+* python timeseries.py [--width WIDTH] [--height HEIGHT] [--show-empty] [--show-zero] [--no-merges] [--number-rows] [--duration DURATION] [--after AFTER] [--before BEFORE] [--every EVERY] [--relative] [--level {1,2,3,4,5,6,7,8,9}] [--list] what:where [what:where ...]
 
 ## DESCRIPTION
 
@@ -16,6 +16,7 @@
 * --after AFTER: plot only data after the specified time.
 * --before BEFORE: plot only data before the specified time.
 * --every EVERY: interval in seconds between data points to plot.
+* --relative: show timestamps relative to start of timeline
 * --level {1-9}: initial detail level; default: 1.
 * --list: list the available metrics and exit
 

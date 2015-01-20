@@ -243,6 +243,9 @@ class Series:
         # level
         self.level = self.get('level', 0)
 
+        # reference point for computing relative times
+        self.t0 = None
+
     def get(self, *args):
         return get(self.descriptor, *args)
 
@@ -334,7 +337,11 @@ class Series:
         return self.split_series[split_key]
 
 
-    def data_point(self, t, d, get_field):
+    def data_point(self, t, d, get_field, opt):
+        if opt.relative:
+            if self.t0 is None:
+                self.t0 = t
+            t = t0 + (t - self.t0)
         if self.split_field:
             if type(self.split_field)==str:
                 split_key = get_field(self.split_field)
@@ -444,7 +451,6 @@ def get_series(spec, spec_ord, opt):
         scored[score].append(desc)
     best_score = sorted(scored.keys())[-1]
     best_descs = scored[best_score] if best_score != (0,0,0,0) else []
-    dbg(best_score)
     series = [Series(spec, desc, params, fn, spec_ord) for desc in best_descs]
 
     # no match?
@@ -609,7 +615,7 @@ def series_read_json(fn, series, opt):
             for s in result:
                 fields = result[s]
                 try:
-                    s.data_point(fields['time'], fields['data'], fields.__getitem__)
+                    s.data_point(fields['time'], fields['data'], fields.__getitem__, opt)
                 except KeyError:
                     pass
 
@@ -669,7 +675,7 @@ def series_read_re(fn, series, opt):
                         if t:
                             d = get_field(s.re_data)
                             if d != None:
-                                s.data_point(t, d, get_field)
+                                s.data_point(t, d, get_field, opt)
                             last_time = t
 
 
@@ -695,7 +701,7 @@ def series_read_csv(fn, series, opt):
                         m = re.match(s.csv_field, field_name)
                         if m:
                             field_dict.update(m.groupdict())
-                            field_value = s.data_point(t, field_value, field_dict.__getitem__)
+                            field_value = s.data_point(t, field_value, field_dict.__getitem__, opt)
                             field_dict[field_name] = field_value
                                 
 
@@ -1143,6 +1149,7 @@ def main():
     p.add_argument('--after')
     p.add_argument('--before')
     p.add_argument('--every', type=float)
+    p.add_argument('--relative', action='store_true')
     p.add_argument('--list', action='store_true')
     p.add_argument('--level', type=int, default=1)
 
