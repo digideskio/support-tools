@@ -207,6 +207,19 @@ class node:
             child = self.children[func]
             child.min_count = 0
             child.max_count = max(child.counts.values())
+            if opt.buckets:
+                t0 = dateutil.parser.parse('2000-01-01T00:00:00Z') # base for computing time deltas
+                bcounts = collections.defaultdict(int)
+                ns = collections.defaultdict(int)
+                for t in opt.times:
+                    s0 = (t - t0).total_seconds()
+                    s1 = s0 // opt.buckets * opt.buckets
+                    bt = t + timedelta(0, s1-s0)
+                    bcounts[bt] += child.counts[t]
+                    ns[bt] += 1
+                for bt in bcounts:
+                    bcounts[bt] = float(bcounts[bt]) / ns[bt] if ns[bt] else 0
+                child.counts = bcounts
             for t in child.counts:
                 if opt.graph_scale=='log':
                     c = child.counts[t]
@@ -320,9 +333,10 @@ def graph(ts=None, ys=None, ymin=None, ymax=None):
 
 def graph_child(child):
     if opt.graph:
+        times = opt.times if not opt.buckets else sorted(child.counts.keys())
         ymin = child.min_count if opt.graph_scale=='separate' else opt.min_count
         ymax = child.max_count if opt.graph_scale=='separate' else opt.max_count
-        graph(opt.times, child.counts, ymin, ymax)
+        graph(times, child.counts, ymin, ymax)
 
 # read times series files
 def read_series():
@@ -369,8 +383,10 @@ def main():
                    help='include only samples at or after this time, in yyyy-mm-ddThh:mm:ss format')
     p.add_argument('--before', '-b', default='9999-01-01T00:00:00',
                    help='include only samples before this time, in yyyy-mm-ddThh:mm:ss format')
+    p.add_argument('--buckets', type=float, default=0, help=
+                   'group counts into buckets of the specified length, in floating point seconds')
     p.add_argument('--graph', '-g', type=int, default=0, nargs='?', const=20,
-                   help='produce a graph with the specified number of buckets')
+                   help='produce a graph with the specified width, in ems')
     p.add_argument('--graph-scale', choices=['common', 'separate', 'log'], default='common')
     p.add_argument('--graph-ticks', type=int, default=5)
     p.add_argument('--html', action='store_true',
