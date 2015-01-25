@@ -148,13 +148,14 @@ def get(descriptor, n, default=REQUIRED):
 
 class Series:
 
-    def __init__(self, spec, descriptor, params, fn, spec_ord):
+    def __init__(self, spec, descriptor, params, fn, spec_ord, tag):
 
         self.spec = spec
         self.descriptor = dict(descriptor)
         self.descriptor.update(params)
         self.spec_ord = spec_ord
-        self.key = (descriptor['_ord'], spec_ord)
+        self.tag = tag
+        self.key = (tag, descriptor['_ord'], spec_ord)
 
         # make fn avaialbe for formatting
         self.fn = fn
@@ -255,6 +256,7 @@ class Series:
                 merge = self.get('merge', None)
                 if merge: self.graph = merge
             self.name = self.get('name')
+            if self.tag: self.name = self.tag + ': ' + self.name
             graphs[self.graph].append(self)
             ygroups[self.ygroup].append(self)
         for s in self.split_series.values():
@@ -321,14 +323,14 @@ class Series:
 
     def get_split(self, split_key):
         if split_key not in self.split_series:
-            new = Series(self.spec, self.descriptor, {}, self.fn, self.spec_ord)
+            new = Series(self.spec, self.descriptor, {}, self.fn, self.spec_ord, self.tag)
             if self.split_field: # this is getting a little creaky - generalize? move up into data_point?
                 if type(self.split_field)==str:
                     new.descriptor[self.split_field] = split_key
                 else:
                     for name, value in zip(self.split_field, split_key):
                         new.descriptor[name] = value
-                new.key = (split_ords[self.split_field], split_key, new.key)
+                new.key = (self.tag, split_ords[self.split_field], split_key, new.key)
             else:
                 new.descriptor['field'] = split_key # xxx - ?
             new.split_field = None
@@ -392,7 +394,13 @@ def get_series(spec, spec_ord, opt):
         return s1, d, s2
 
     # parse the spec
-    spec_name, d, s = split(spec, '(:', ')=', spec)
+    left, d, s = split(spec, '(:=', ')', spec)
+    if d=='=': # has tag
+        tag = left
+        spec_name, d, s = split(s, '(:', ')=', spec)        
+    else: # no tag
+        tag = None
+        spec_name = left
     params = {}
     if d == '(': # has args
         while d != ')': # consume args
@@ -451,7 +459,7 @@ def get_series(spec, spec_ord, opt):
         scored[score].append(desc)
     best_score = sorted(scored.keys())[-1]
     best_descs = scored[best_score] if best_score != (0,0,0,0) else []
-    series = [Series(spec, desc, params, fn, spec_ord) for desc in best_descs]
+    series = [Series(spec, desc, params, fn, spec_ord, tag) for desc in best_descs]
 
     # no match?
     if not series:
@@ -593,6 +601,8 @@ def series_read_json(fn, series, opt):
                     match(pnode_child, jnode_child, result, pp)
                 except (KeyError, TypeError):
                     unmatched.add(pp)
+        elif type(pnode)==list:
+            unmatched.add(path)
         else:
             for fname in pnode:
                 # convert time here so we don't do it multiple times for each series that uses it
@@ -1490,7 +1500,7 @@ ss(["backgroundFlushing", "last_ms"], level=9)
 ss(["backgroundFlushing", "total_ms"], level=9)
 ss(["connections", "available"], level=9)
 ss(["connections", "current"], level=1)
-ss(["connections", "totalCreated"], level=9)
+ss(["connections", "totalCreated"], name="ss connections: created", level=3, rate=True)
 ss(["cursors", "clientCursors_size"], level=9)
 ss(["cursors", "note"], level=99)
 ss(["cursors", "pinned"], level=9)
@@ -1517,7 +1527,7 @@ ss(["host"], level=99)
 def ss_lock(name):
     for a in ["acquireCount", "acquireWaitCount", "deadlockCount", "timeAcquiringMicros"]:
         for b in ["r", "w", "R", "W"]:
-            ss(["locks", name, a, b], rate=True)
+            ss(["locks", name, a, b], rate=True, level=9)
 
 ss_lock("Collection") # CHECK rc5
 ss_lock("Database") # CHECK rc5
@@ -1532,19 +1542,159 @@ ss(["mem", "mappedWithJournal"], scale=MB)
 ss(["mem", "resident"], units="MB")
 ss(["mem", "supported"], level=99)
 ss(["mem", "virtual"], units="MB", level=1)
-ss(["metrics", "commands", "collStats"], rate=True) # CHECK
-ss(["metrics", "commands", "count"], rate=True) # CHECK rc5
-ss(["metrics", "commands", "createIndexes"], rate=True) # CHECK rc5
-ss(["metrics", "commands", "drop"], rate=True) # CHECK
-ss(["metrics", "commands", "getnonce"], rate=True) # CHECK
-ss(["metrics", "commands", "insert"], rate=True) # CHECK
-ss(["metrics", "commands", "isMaster"], rate=True) # CHECK
-ss(["metrics", "commands", "ping"], rate=True) # CHECK
-ss(["metrics", "commands", "serverStatus", "failed"], rate=True)
-ss(["metrics", "commands", "serverStatus", "total"], rate=True)
-ss(["metrics", "commands", "update"], rate=True) # CHECK rc5
-ss(["metrics", "commands", "whatsmyuri", "failed"], rate=True)
-ss(["metrics", "commands", "whatsmyuri", "total"], rate=True)
+
+# XXX make these auto-split instead of listing explicitly
+def ss_command(command, level=4):
+    ss(["metrics", "commands", command, "total"], rate=True, level=level)
+    ss(["metrics", "commands", command, "failed"], rate=True, level=level)
+
+ss_command("collStats")
+ss_command("count")
+ss_command("createIndexes")
+ss_command("drop")
+ss_command("getnonce")
+ss_command("insert")
+ss_command("isMaster")
+ss_command("ping")
+ss_command("serverStatus")
+ss_command("update")
+ss_command("whatsmyuri")
+ss_command('<UNKNOWN>')
+ss_command('_getUserCacheGeneration')
+ss_command('_isSelf')
+ss_command('_mergeAuthzCollections')
+ss_command('_migrateClone')
+ss_command('_recvChunkAbort')
+ss_command('_recvChunkCommit')
+ss_command('_recvChunkStart')
+ss_command('_recvChunkStatus')
+ss_command('_transferMods')
+ss_command('aggregate')
+ss_command('appendOplogNote')
+ss_command('applyOps')
+ss_command('authSchemaUpgrade')
+ss_command('authenticate')
+ss_command('availableQueryOptions')
+ss_command('buildInfo')
+ss_command('checkShardingIndex')
+ss_command('cleanupOrphaned')
+ss_command('clone')
+ss_command('cloneCollection')
+ss_command('cloneCollectionAsCapped')
+ss_command('collMod')
+ss_command('compact')
+ss_command('connPoolStats')
+ss_command('connPoolSync')
+ss_command('connectionStatus')
+ss_command('convertToCapped')
+ss_command('copydb')
+ss_command('copydbgetnonce')
+ss_command('copydbsaslstart')
+ss_command('create')
+ss_command('createRole')
+ss_command('createUser')
+ss_command('currentOpCtx')
+ss_command('cursorInfo')
+ss_command('dataSize')
+ss_command('dbHash')
+ss_command('dbStats')
+ss_command('delete')
+ss_command('diagLogging')
+ss_command('distinct')
+ss_command('driverOIDTest')
+ss_command('dropAllRolesFromDatabase')
+ss_command('dropAllUsersFromDatabase')
+ss_command('dropDatabase')
+ss_command('dropIndexes')
+ss_command('dropRole')
+ss_command('dropUser')
+ss_command('eval')
+ss_command('explain')
+ss_command('features')
+ss_command('filemd5')
+ss_command('find')
+ss_command('findAndModify')
+ss_command('forceerror')
+ss_command('fsync')
+ss_command('geoNear')
+ss_command('geoSearch')
+ss_command('getCmdLineOpts')
+ss_command('getLastError')
+ss_command('getLog')
+ss_command('getParameter')
+ss_command('getPrevError')
+ss_command('getShardMap')
+ss_command('getShardVersion')
+ss_command('grantPrivilegesToRole')
+ss_command('grantRolesToRole')
+ss_command('grantRolesToUser')
+ss_command('group')
+ss_command('handshake')
+ss_command('hostInfo')
+ss_command('invalidateUserCache')
+ss_command('listCollections')
+ss_command('listCommands')
+ss_command('listDatabases')
+ss_command('listIndexes')
+ss_command('logRotate')
+ss_command('logout')
+ss_command('mapReduce')
+ss_command('mapreduce')
+ss_command('medianKey')
+ss_command('mergeChunks')
+ss_command('moveChunk')
+ss_command('parallelCollectionScan')
+ss_command('planCacheClear')
+ss_command('planCacheClearFilters')
+ss_command('planCacheListFilters')
+ss_command('planCacheListPlans')
+ss_command('planCacheListQueryShapes')
+ss_command('planCacheSetFilter')
+ss_command('profile')
+ss_command('reIndex')
+ss_command('renameCollection')
+ss_command('repairCursor')
+ss_command('repairDatabase')
+ss_command('replSetElect')
+ss_command('replSetFreeze')
+ss_command('replSetFresh')
+ss_command('replSetGetConfig')
+ss_command('replSetGetRBID')
+ss_command('replSetGetStatus')
+ss_command('replSetHeartbeat')
+ss_command('replSetInitiate')
+ss_command('replSetMaintenance')
+ss_command('replSetReconfig')
+ss_command('replSetStepDown')
+ss_command('replSetSyncFrom')
+ss_command('replSetUpdatePosition')
+ss_command('resetError')
+ss_command('resync')
+ss_command('revokePrivilegesFromRole')
+ss_command('revokeRolesFromRole')
+ss_command('revokeRolesFromUser')
+ss_command('rolesInfo')
+ss_command('saslContinue')
+ss_command('saslStart')
+ss_command('setParameter')
+ss_command('setShardVersion')
+ss_command('shardConnPoolStats')
+ss_command('shardingState')
+ss_command('shutdown')
+ss_command('splitChunk')
+ss_command('splitVector')
+ss_command('stageDebug')
+ss_command('text')
+ss_command('top')
+ss_command('touch')
+ss_command('unsetSharding')
+ss_command('updateRole')
+ss_command('updateUser')
+ss_command('usersInfo')
+ss_command('validate')
+ss_command('writebacklisten')
+
+
 ss(["metrics", "cursor", "open", "noTimeout"])
 ss(["metrics", "cursor", "open", "pinned"])
 ss(["metrics", "cursor", "open", "total"])
@@ -1957,10 +2107,6 @@ def wt(wt_cat, wt_name, rate=False, scale=1.0, level=3, **kwargs):
         name = name,
         **kwargs
     )
-
-
-
-
 
 
 wt('LSM', 'application work units currently queued')
