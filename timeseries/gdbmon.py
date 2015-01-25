@@ -7,25 +7,26 @@ import signal
 import subprocess
 import sys
 import time
-import argparse
+import optparse
 import select
 
 
 print ' '.join(sys.argv)
 sys.stdout.flush()
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--debug', '-d', action='store_true', dest='dbg')
-parser.add_argument('pid', type=int)
-parser.add_argument('delay', type=float, nargs='?')
-parser.add_argument('count', type=int, nargs='?')
-o = parser.parse_args()
+parser = optparse.OptionParser()
+parser.add_option('--debug', '-d', action='store_true', dest='dbg')
+o, args = parser.parse_args()
+o.pid = int(args[0]) if len(args)>0 else None
+o.delay = float(args[1]) if len(args)>1 else None
+o.count = float(args[2]) if len(args)>2 else None
+
+if not o.pid:
+    print 'usage: gdbmon pid [delay [count]]'
+    sys.exit(-1)
 
 if not o.delay:
     o.count = 1
-
-cmd = ['gdb', '-p', str(o.pid), '--interpreter=mi']
-gdb = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
 
 def dbg(*ss):
     if o.dbg:
@@ -57,6 +58,9 @@ def get(response, show=False, timeout=None):
         else:
             dbg('GOT unexpected', line)
             pass
+
+cmd = ['gdb', '-p', str(o.pid), '--interpreter=mi']
+gdb = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
 
 put('cont')
 get('^running')
