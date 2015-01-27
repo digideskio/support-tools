@@ -1,24 +1,144 @@
+import bson
+import pymongo
+from pprint import pprint
 
 class Groups:
     """ This class manages the MMS group content.
     """
 
-    def __init__(self, database):
+    def __init__(self, mongo):
         """ Initializes Groups class with a database object.
         :param database: MongoDB client object
         :return: None
         """
-        self.collection = database.groupsummaries
+        self.mongo = mongo
+        self.db_euphonia = mongo.euphonia
+        self.coll_groups = self.db_euphonia.groups
+        self.coll_failedtests = self.db_euphonia.failedtests
+        self.coll_pings = self.db_euphonia.pings
+        self.coll_mmsgroupreports = self.db_euphonia.mmsgroupreports
 
-    def get_group_summary(self, gid):
-        """ Retrieves the MMS group summary doc for a given Group ID.
+    def getGroupSummary(self, gid):
+        """ Retrieve that needed to render the group page
         :param gid: Group ID
-        :return: Dict containing a single group summary doc
+        :return: Dict containing everything there is to know
         """
-        query = {"GroupId": gid}
-        results = self.collection.find(query)\
-                      .limit(1)
-        group_summary = next(results, None)
+        # high-level information
+        query = {'_id': gid}
+
+        try:
+            res = self.coll_groups.find_one(query)
+        except pymongo.errors.PyMongoError as e:
+            raise e
+
+        if res is not None:
+            group_summary = res
+        else:
+            # TODO raise exception?
+            group_summary = {'gid': gid}
+
+        # failed tests
+        # exid := example id
+        failedTests = group_summary['failedTests']
+
+        #match = {"$match": {'_id': {"$in": [ft['ftid'] for ft in failedTests]}}}
+        #unwind = {"$unwind": '$ids'}
+        #group = {"$group": {'_id': {'src': "$src",
+        #                            'test': "$test",
+        #                            'score': "$score"},
+        #                    'nids': {"$sum": 1},
+        #                    'exid': {"$last": "$ids"}}}
+        #project = {"$project": {'src': "$_id.src",
+        #                        'test': "$_id.test",
+        #                        'nids': "$nids",
+        #                        'exid': "$exid",
+        #                        'score': "$_id.score",
+        #                        '_id': 0}}
+
+        query = {'_id': {"$in": [ft['ftid'] for ft in failedTests]}}
+        proj = {'ids': {"$slice": -1}}
+
+        try:
+            #res = self.coll_failedtests.aggregate([match, unwind, group, project])
+            res = self.coll_failedtests.find(query, proj)
+        except pymongo.errors.PyMongoError as e:
+            raise e
+
+        failedTests = []
+        pings_query_ids = []
+        mmsgroupreports_query_ids = []
+
+        if res is not None:
+            for ft in res:
+                if ft['src'] == "pings":
+                    pings_query_ids.append(ft['ids'][0])
+                elif ft['src'] == "mmsgroupreports":
+                    mmsgroupreports_query_ids.append(ft['ids'][0])
+                failedTests.append(ft)
+        else:
+            # TODO raise exception?
+            pass
+
+        group_summary['failedTests'] = failedTests
+
+        pings_query = {"_id": {"$in": pings_query_ids}}
+        mmsgroupreports_query = {"_id": {"$in": mmsgroupreports_query_ids}}
+
+        try:
+            pings_res = self.coll_pings.find(pings_query)
+        except pymongo.errors.PyMongoError as e:
+            raise e
+
+        try:
+            mmsgroupreports_res = self.coll_mmsgroupreports.find(mmsgroupreports_query)
+        except pymongo.errors.PyMongoError as e:
+            raise e
+
+        ids = {}
+        
+        for r in pings_res:
+            ids[r['_id'].__str__()] = r
+        for r in mmsgroupreports_res:
+            ids[r['_id'].__str__()] = r
+
+        for ft in group_summary['failedTests']:
+            if str(ft['ids'][0]) in ids:
+                ft['ids'] = ids[str(ft['ids'][0])]
+            else:
+                pass
+
+        # Supplement with Clienthub info
+        # TODO move this to a separate library
+        try:
+            curr_companies = self.mongo.support.companies.find(
+                    {"$or":[{'jira_groups': group_summary['name']},
+                            {'mms_groups': group_summary['name']}]})
+        except pymongo.errors.PyMongoError as e:
+            raise e
+
+        if curr_companies.count() == 0:
+            #self.logger.warning("Error: company not found for group %s", group_summary['name'])
+            #self.company = None
+            group_summary['company'] = None
+        elif curr_companies.count() > 1:
+            # More than one company found... Are they the same sans _id?
+            # If so, take it, otherwise complain
+            lastCompany = None
+            for company in curr_companies:
+                del company['_id']
+                if lastCompany is None:
+                    lastCompany = company
+                    continue
+                if company != lastCompany:
+                    lastCompany = None
+                    #self.logger.warning("Error: multiple companies found for group %s", self.groupName())
+                    break
+            #self.company = lastCompany
+            group_summary['company'] = lastCompany
+        else:
+            #self.company = curr_companies.next()
+            group_summary['company'] = curr_companies.next()
+
         return group_summary
 
     def get_failed_tests_summary(self, sort=None,
