@@ -1,78 +1,94 @@
+<%
+def showFailedTests(src=None):
+    for test in group['failedTests']:
+        if src is None or src == test['src']:
+            testName = test['test']
+            testSrc = test['src']
+            testComment = testDescriptionCache[testSrc][testName]['comment']
+            testHeader = testDescriptionCache[testSrc][testName]['header']
+            testId = test['_id']
+            testIgnore = test.get('ignore', None)
+            testNids = test['nids']
+    %>
+<div id="div_failedTests_{{testSrc}}_{{testName}}", class="well well-sm">
+<%
+            if testSrc == 'pings':
+                nfailedSpan = "(%s)" % testNids
+            else:
+                nfailedSpan = ""
+            end
+%>
+    <span class="h4">{{!testName}} {{!nfailedSpan}}</span><span class="pull-right"><a href="#">+</a> <a href="#">x</a></span><br/><br/>
+    <div style="display:none">
+        <div class="header editable">{{!testHeader}}</div>
+        <div class="comment editable">{{!testComment}}</div>
+    </div>
+    <div role="group" aria-label="buttons">
+        <button type="button" class="btn btn-default">Ignore forever</button>
+        <button type="button" class="btn btn-default" onclick="addToTicket(this, '{{!testSrc}}', '{{!testName}}', '{{!testHeader}}', '{{testComment}}')">Add to ticket</button>
+    </div>
+</div>
+    <%
+        end
+    end
+end
+%>
+
 <div class="container-fluid">
     <div class="row">
-        <div class="col col-lg-12">
-            % cType = "Free"
-            % if group['IsCsCustomer'] == True:
-            %   cType = "CS"
-            <h1>{{group['GroupName']}} <small><i>({{cType}})</i></small></h1>
+        <div class="col-lg-12">
+            <h1>{{group['name']}} <small><a href="https://mms.mongodb.com/host/list/{{group['_id']}}">MMS</a></small></h1>
         </div>
     </div>
     <div class="row">
-        <div class="col col-lg-12">
-            % cType = "Free"
-            % if group['IsCsCustomer'] == True:
-            %   cType = "CS"
-            <span><strong>Contact:</strong> <a href="mailto:{{group['UserEmail']}}">{{group['FirstName']}} {{group['LastName']}}</a></span>
+        <div class="col-lg-12">
+            <strong>Sales Rep:</strong> <a href="https://corp.10gen.com/employees/{{group['company']['sales'][0]['jira']}}">{{group['company']['sales'][0]['jira']}}</a>
         </div>
     </div>
+    <hr/>
     <div class="row">
-        <div class="col col-lg-4 col-md-4">
-            <h4>Summary</h4>
-            <pre>
-            %   for key in group:
-{{key}}: {{group[key]}}
-            %   end
-            </pre>
-        </div>
-        <div class="col col-lg-8 col-md-8">
-            <div class="col col-lg-12">
-                <h4>Customer Email</h4>
-                <div class="well">
-                    {{descriptionCache.get('greeting')}} {{group['FirstName']}},<br/>
-                    <br/>
-                    {{descriptionCache.get('opening')}}<br/>
-                    <br/>
-                    <ul>
-                    <%
-                    for test in group['failedTests']:
-                        testName = test.get('test')
-                        testIgnore = test.get('ignore')
-                        testDescription = descriptionCache.get(testName)
-                        if testDescription != None and testIgnore == 0:
-                    %>
-                        <li>{{!testDescription}}</li><br/>
-                    <%
-                        end
-                    end
-                    %>
-                    </ul>
-                    {{!descriptionCache.get('closing')}}
+        <div class="col-lg-6">
+            <h4>Proactive Ticket Draft</h4>
+            <div id="div_ticket" class="well well-sm">
+                <div id="div_ticketSummary">
+                    <h4>Summary:</h4>
+                    <div class="editable">
+                        MongoDB Proactive: Issues identified in MMS
+                    </div>
+                </div>
+                <div id="div_ticketDescription">
+                    <h4>Description:</h4>
+                    <div class="editable">
+                        {{testDescriptionCache.get('greeting')}},
+                    </div><br/>
+                    <div class="editable">
+                        {{testDescriptionCache.get('opening')}}
+                    </div><br/>
+                    <div id="div_ticketDescription_mainBody"></div>
+                    <div class="editable">
+                        {{!testDescriptionCache.get('closing')}}
+                    </div><br/>
+                    <div class="editable">
+                        {{!testDescriptionCache.get('signoff')}}
+                    </div>
                 </div>
             </div>
-            % for test in group['failedTests']:
-            %   testName = test.get('test')
-            %   testIgnore = test.get('ignore')
-            %   testDescription = descriptionCache.get(testName)
-            %   if testDescription != None:
-                 <div class="col col-lg-12">
-                    <h4>{{testName}}</h4>
-                    <div class="well">
-                    {{descriptionCache.get('greeting')}} {{group['FirstName']}},<br/>
-                    <br/>
-                    {{!testDescription}}
-                    </div>
-                    <div class="pull-right btn-group">
-                        <a class="btn btn-danger {{"disabled" if testIgnore == 1 else ""}}" href="/group/{{group['GroupId']}}/ignore/{{testName}}">Ignore Issue</a>
-                        <a class="btn btn-success {{"disabled" if testIgnore == 0 else ""}}" href="/group/{{group['GroupId']}}/include/{{testName}}">Include Issue</a>
-                    </div>
-                 </div>
-            %   end
-            % end
-            <div class="col col-lg-12 col-md-12">
-                <br/>
-                <br/>
-                <div class="pull-right">
-                    <a class="btn btn-primary" href="#">Send Email</a>
+            <div class="pull-right">
+                <a class="btn btn-primary" href="#">Create Ticket</a>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <span class="h4 pull-right">Failed Tests</span>
+            <ul id="myTab" class="nav nav-tabs" role="tablist">
+                <li role="presentation"><a href="#mmsgroupreports" id="mmsgroupreports-tab" role="tab" data-toggle="tab" aria-controls="mmsgroupreports" aria-expanded="true">MMS Group Reports ({{len(testDescriptionCache['mmsgroupreports'])}})</a></li>
+                <li role="presentation" class="active"><a href="#pings" id="pings-tab" role="tab" data-toggle="tab" aria-controls="pings" aria-expanded="true">Pings ({{len(testDescriptionCache['pings'])}})</a></li>
+            </ul><br/>
+            <div class="tab-content">
+                <div role="tabpanel" class="tab-pane" id="mmsgroupreports" aria-labelledBy="mmsgroupreports-tab">
+%                   showFailedTests('mmsgroupreports')
+                </div>
+                <div role="tabpanel" class="tab-pane active" id="pings" aria-labelledBy="pings-tab">
+%                   showFailedTests('pings')
                 </div>
             </div>
         </div>
