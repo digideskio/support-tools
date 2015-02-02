@@ -1,12 +1,27 @@
+import logging
+
 class Ping:
     """ A host's last ping document """
     def __init__(self, doc):
         self.doc = doc
 
-    def getPingSubdoc(self, subdocName):
-        if self.doc['ping'] is not None and subdocName in self.doc['ping']:
-            return self.doc['ping'][subdocName]
-        return None
+
+    def getPingSubDoc(self, projection):
+        # get the subdocuments based on the projection
+        # similar to how projection works in the find command
+        
+        subdoc = self.doc
+        subdocTree = projection.split(".")
+        subdocTree.insert(0, "doc")
+        try:
+            # iterate through the subdocuments
+            for key in subdocTree:
+                subdoc = subdoc[key]
+        except Exception:
+            logging.getLogger("logger") \
+                .warning("document does not have the field " + projection)
+            return None
+        return subdoc
 
     def getBuildInfo(self):
         return self.getPingSubdoc('buildInfo')
@@ -91,6 +106,9 @@ class Ping:
 
     def getStartupWarnings(self):
         return self.getPingSubdoc('startupWarnings')
+    
+    def getArgv(self):
+        return self.getPingSubDoc('cmdLineOpts.argv') 
 
     def isPrimary(self):
         doc = self.getIsMaster()

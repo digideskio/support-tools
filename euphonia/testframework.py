@@ -23,8 +23,7 @@ class TestFramework:
         self.logger = logging.getLogger('logger')
         self.logger.setLevel(logLevel)
 
-        # TODO initialize mongo from args
-        self.mongo = pymongo.MongoClient()
+        self.mongo = pymongo.MongoClient(host=args["mongo_host"], port=args["mongo_port"])
         self.db = self.mongo.euphonia
         self.coll_failedtests = self.db.failedtests
         self.coll_groups = self.db.groups
@@ -69,8 +68,11 @@ class TestFramework:
             if not g.isCsCustomer():
                 self.logger.warning("Skipping non-CS group %s", g.groupName())
                 continue
-
-            results = g.runAllTests()
+            
+            if self.args["run_tests"]:
+                results = g.runSelectedTests(tests=self.args["run_tests"])
+            else:
+                results = g.runAllTests()
 
             for testName in results:
                 # If a passing test had failed previously (but has not been
@@ -141,18 +143,24 @@ class TestFramework:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="A Euphonia test framework")
+    
     parser.add_argument("--mongo-host", metavar="HOSTNAME",
                         default="localhost",
                         help="specify the MongoDB hostname (default="
                         "localhost)")
+    
     parser.add_argument("--mongo-port", metavar="PORT", default=27017,
                         type=int,
                         help="specify the MongoDB port (default=27017)")
+    
+    parser.add_argument("--run-tests", metavar="TESTS", nargs="*", default=None,
+                      help="run only the selected tests if this argument is present")
+
     parser.add_argument("src", choices=["mdiags", "mmsgroupreports", "pings"],
                         help="<-- the available test frameworks, choose one")
+    
 
     args = parser.parse_args()
-
     t = TestFramework(args)
     t.testAllGroups()
     sys.exit(0)

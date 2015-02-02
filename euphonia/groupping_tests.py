@@ -13,7 +13,8 @@ class GroupPingTests:
         return True
 
     # This is a test for an even number of voting members in a replica set
-    def testEvenVotingNumberReplicaSets(groupPing):
+    @classmethod
+    def testEvenVotingNumberReplicaSets(cls, groupPing):
         def hasOddVotes(host):
             votes = 0
             doc = host.getLocalSystemReplSet()
@@ -27,7 +28,8 @@ class GroupPingTests:
         return groupPing.forEachPrimary(hasOddVotes)
 
     # This is a test for ulimit-related warnings on startup
-    def testLimitsStartupWarning(groupPing):
+    @classmethod
+    def testLimitsStartupWarning(cls, groupPing):
         def hasNoLimitsWarning(host):
             doc = host.getStartupWarnings()
             if doc is not None and 'log' in doc:
@@ -40,7 +42,8 @@ class GroupPingTests:
 
     # This is a test for MongoDB < 2.0.2 which contains a data integrity
     # related bug re open sockets on replSetStepDown: SERVER-4405
-    def testMongo20ReplSetStepDown(groupPing):
+    @classmethod
+    def testMongo20ReplSetStepDown(cls, groupPing):
         # <= 2.0.1
         regex = '^2.0.[01](-|$)'
         return groupPing.forEachHost(GroupPingTests.isNotVersion, regex)
@@ -48,7 +51,8 @@ class GroupPingTests:
     # This is a test for MongoDB 2.2.0 which contains idempotency and
     # replication bugs:
     # https://wiki.mongodb.com/display/cs/Idempotency+and+MongoDB+2.2+replication
-    def testMongo22Idempotency(groupPing):
+    @classmethod
+    def testMongo22Idempotency(cls, groupPing):
         # 2.2.0
         regex = '^2.2.0'
         return groupPing.forEachHost(GroupPingTests.isNotVersion, regex)
@@ -56,14 +60,16 @@ class GroupPingTests:
     # This is a test for MongoDB 2.4.x (x<5) which contains a security related
     # vulnerability wherein authentication takes a database lock it shouldn't:
     # SERVER-9983
-    def testMongo24AuthDbLock(groupPing):
+    @classmethod
+    def testMongo24AuthDbLock(cls, groupPing):
         # <= 2.4.4
         regex = '^2.4.[0-4](-|$)'
         return groupPing.forEachHost(GroupPingTests.isNotVersion, regex)
 
     # This is a test for MongoDB 2.4.x (x<8) which contains a dbhash cache bug
     # https://wiki.mongodb.com/display/cs/2.4.7+-+SERVER-11421+-+Cached+dbhash+for+the+config.chunks+collection+not+updated
-    def testMongo24DbhashCache(groupPing):
+    @classmethod
+    def testMongo24DbhashCache(cls, groupPing):
         # <= 2.4.7
         regex = '^2.4.[0-7](-|$)'
         return groupPing.forEachHost(GroupPingTests.isNotVersion, regex)
@@ -71,35 +77,40 @@ class GroupPingTests:
     # This is a test for MongoDB 2.4.x (x<5) which contains a security related
     # vulnerability that could allow a remotely triggered seg fault in the JS
     # engine: SERVER-9878
-    def testMongo24JSRemoteSegfault(groupPing):
+    @classmethod
+    def testMongo24JSRemoteSegfault(cls, groupPing):
         # <= 2.4.4
         regex = '^2.4.[0-4](-|$)'
         return groupPing.forEachHost(GroupPingTests.isNotVersion, regex)
 
     # This is a test for MongoDB 2.4.0 which contains an initial sync bug
     # SERVER-9087
-    def testMongo24InitialSync(groupPing):
+    @classmethod
+    def testMongo24InitialSync(cls, groupPing):
         # 2.4.0
         regex = '^2.4.0'
         return groupPing.forEachHost(GroupPingTests.isNotVersion, regex)
 
     # This is a test for MongoDB 2.4.0 which contains a data integreity related
     # bug re secondary indexes: SERVER-9087
-    def testMongo24SecondaryIndexes(groupPing):
+    @classmethod
+    def testMongo24SecondaryIndexes(cls, groupPing):
         # 2.4.0
         regex = '^2.4.0'
         return groupPing.forEachHost(GroupPingTests.isNotVersion, regex)
 
     # This is a test for MongoDB 2.6.0 which contains a security related
     # vulnerability re user credentials: SERVER-13644
-    def testMongo26Credentials(groupPing):
+    @classmethod
+    def testMongo26Credentials(cls, groupPing):
         # 2.6.0
         regex = '^2.6.0'
         return groupPing.forEachHost(GroupPingTests.isNotVersion, regex)
 
     # This is a test for MongoDB 2.6.0 and 2.6.1 which contain an x.509
     # security related vulnerability: SERVER-13753
-    def testMongo26X509Auth(groupPing):
+    @classmethod
+    def testMongo26X509Auth(cls, groupPing):
         # <= 2.6.1
         regex = '^2.6.[01](-|$)'
         return groupPing.forEachHost(GroupPingTests.isNotVersion, regex)
@@ -109,14 +120,16 @@ class GroupPingTests:
     # SERVER-9131
     # NOTE SERVER-9131 is in Planning Bucket A, is it even fair to limit to
     # these releases?
-    def testMongoJSShellConflicts(groupPing):
+    @classmethod
+    def testMongoJSShellConflicts(cls, groupPing):
         # <= 2.2.3, <= 2.4.1
         regex = '(^2.2.[0-3](-|$))|(^2.4.[01](-|$))'
         return groupPing.forEachHost(GroupPingTests.isNotVersion, regex)
 
     # This is a test for MongoDB < 2.2.6 and < 2.4.6 which contain a data
     # integrity related bug re large chunk migratoins: SERVER-10478
-    def testMongoLargeChunkMigrations(groupPing):
+    @classmethod
+    def testMongoLargeChunkMigrations(cls, groupPing):
         if groupPing.group['shardCount'] == 0:
             return {'pass': True}
         # <= 2.2.5, <= 2.4.5
@@ -128,7 +141,8 @@ class GroupPingTests:
     # SERVER-4270
     # NOTE These SERVER tickets have different fix versions so we'll take the
     # later one to be more conservative
-    def testMongoSecondaryMissingDocs(groupPing):
+    @classmethod
+    def testMongoSecondaryMissingDocs(cls, groupPing):
         # <= 1.8.4, <= 2.0.1
         regex = '(^1.8.[0-4](-|$))|(^2.0.[01](-|$))'
         return groupPing.forEachHost(GroupPingTests.isNotVersion, regex)
@@ -136,21 +150,24 @@ class GroupPingTests:
     # This is a test for MongoDB <= 2.0.8, 2.2.3, 2.4.1 which contain a
     # security related vulnerability re SpiderMonkey's JS nativeHelper
     # function: SERVER-9124
-    def testMongoSMNativeHelper(groupPing):
+    @classmethod
+    def testMongoSMNativeHelper(cls, groupPing):
         # <= 2.0.8, <= 2.2.3, <= 2.4.1
         regex = '(^2.0.[0-8](-|$))|(^2.2.[0-3](-|$))|(^2.4.[01](-|$))'
         return groupPing.forEachHost(GroupPingTests.isNotVersion, regex)
 
     # This is a test for MongoDB 2.4.[0-10] and 2.6.[0-3] which contain a data
     # integrity related bug re text-indexed fields: SERVER-14738
-    def testMongoTextIndexedFields(groupPing):
+    @classmethod
+    def testMongoTextIndexedFields(cls, groupPing):
         # <= 2.4.10, <= 2.6.3
         regex = '(^2.4.([0-9]|10)(-|$))|(^2.6.[0-3](-|$))'
         return groupPing.forEachHost(GroupPingTests.isNotVersion, regex)
 
     # This is a test for MongoDB < 2.2.7 and < 2.4.9 which contain a data
     # integrity related bug involving mongos: SERVER-12146
-    def testMongoWritebackListener(groupPing):
+    @classmethod
+    def testMongoWritebackListener(cls, groupPing):
         if groupPing.group['shardCount'] == 0:
             return {'pass': True}
         # <= 2.2.6, <= 2.4.8
@@ -158,13 +175,15 @@ class GroupPingTests:
         return groupPing.forEachHost(GroupPingTests.isNotVersion, regex)
 
     # This is a test for a large number of MMS monitoring agents
-    def testNMonitoringAgents(groupPing):
+    @classmethod
+    def testNMonitoringAgents(cls, groupPing):
         if groupPing.group['activeAgentCount'] > 5:
             return {'pass': False}
         return {'pass': True}
 
     # This is a test for NUMA-related warnings on startup
-    def testNumaStartupWarning(groupPing):
+    @classmethod
+    def testNumaStartupWarning(cls, groupPing):
         def hasNoNumaWarning(host):
             doc = host.getStartupWarnings()
             if doc is not None and 'log' in doc:
@@ -177,7 +196,8 @@ class GroupPingTests:
 
     # This is a test for warnings on startup. It is inclusive to the NUMA and
     # Limits tests
-    def testStartupWarning(groupPing):
+    @classmethod
+    def testStartupWarning(cls, groupPing):
         def hasNoStartupWarning(host):
             doc = host.getStartupWarnings()
             if doc is not None and 'log' in doc:
@@ -186,7 +206,8 @@ class GroupPingTests:
             return True
         return groupPing.forEachHost(hasNoStartupWarning)
 
-    def testNumReplicaSetWithMoreThanOneArbiter(groupPing):
+    @classmethod
+    def testNumReplicaSetWithMoreThanOneArbiter(cls, groupPing):
         def hasLTE1Arbiter(host):
             narbiter = 0
             doc = host.getLocalSystemReplSet()
@@ -198,7 +219,8 @@ class GroupPingTests:
             return narbiter <= 1
         return groupPing.forEachPrimary(hasLTE1Arbiter)
 
-    def testNumHostWithVotesMoreThanOne(groupPing):
+    @classmethod
+    def testNumHostWithVotesMoreThanOne(cls, groupPing):
         def hasLTE1Vote(host):
             res = True
             doc = host.getLocalSystemReplSet()
@@ -208,3 +230,14 @@ class GroupPingTests:
                         res = False
             return res
         return groupPing.forEachPrimary(hasLTE1Vote)
+
+    @classmethod
+    def testMongosNoAutoSplit(cls, groupPing):
+        def hasNoAutoSplit(host):
+            argv = host.getArgv()
+            if argv:
+                return "noAutoSplit" in argv
+            return None
+        return groupPing.forEachHost(hasNoAutoSplit)
+            
+
