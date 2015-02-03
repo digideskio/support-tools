@@ -80,20 +80,19 @@ class GroupTestDocument:
     # abstract
     def prev(self):
         pass
-    
-    def runAllTests(self):
-        self.logger.debug("runAllTests")
-        return self.runSelectedTests(self.tests)
 
+    def run_all_tests(self):
+        self.logger.debug("run_all_tests")
+        return self.run_selected_tests(self.tests)
 
-    def runSelectedTests(self, tests):
+    def run_selected_tests(self, tests):
         res = {}
         for test in tests:
-            res[test] = self.runTest(test)
+            res[test] = self.run_test(test)
         return res
 
-    def runTest(self, test):
-        self.logger.debug("runTest(%s)", test)
+    def run_test(self, test):
+        self.logger.debug("run_test(%s)", test)
         if test in self.tests:
             fname = "test" + test
             try:

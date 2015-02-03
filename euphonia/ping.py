@@ -1,15 +1,15 @@
 import logging
 
+
 class Ping:
     """ A host's last ping document """
     def __init__(self, doc):
         self.doc = doc
 
-
     def getPingSubDoc(self, projection):
         # get the subdocuments based on the projection
         # similar to how projection works in the find command
-        
+
         subdoc = self.doc
         subdocTree = projection.split(".")
         subdocTree.insert(0, "doc")
@@ -106,9 +106,9 @@ class Ping:
 
     def getStartupWarnings(self):
         return self.getPingSubdoc('startupWarnings')
-    
+
     def getArgv(self):
-        return self.getPingSubDoc('cmdLineOpts.argv') 
+        return self.getPingSubDoc('cmdLineOpts.argv')
 
     def isPrimary(self):
         doc = self.getIsMaster()

@@ -68,11 +68,11 @@ class TestFramework:
             if not g.isCsCustomer():
                 self.logger.warning("Skipping non-CS group %s", g.groupName())
                 continue
-            
+
             if self.args["run_tests"]:
-                results = g.runSelectedTests(tests=self.args["run_tests"])
+                results = g.run_selected_tests(tests=self.args["run_tests"])
             else:
-                results = g.runAllTests()
+                results = g.run_all_tests()
 
             for testName in results:
                 # If a passing test had failed previously (but has not been
@@ -143,22 +143,21 @@ class TestFramework:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="A Euphonia test framework")
-    
+
     parser.add_argument("--mongo-host", metavar="HOSTNAME",
                         default="localhost",
                         help="specify the MongoDB hostname (default="
                         "localhost)")
-    
+
     parser.add_argument("--mongo-port", metavar="PORT", default=27017,
                         type=int,
                         help="specify the MongoDB port (default=27017)")
-    
+
     parser.add_argument("--run-tests", metavar="TESTS", nargs="*", default=None,
-                      help="run only the selected tests if this argument is present")
+                        help="run only the selected tests if this argument is present")
 
     parser.add_argument("src", choices=["mdiags", "mmsgroupreports", "pings"],
                         help="<-- the available test frameworks, choose one")
-    
 
     args = parser.parse_args()
     t = TestFramework(args)
