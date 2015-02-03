@@ -1,7 +1,6 @@
 import logging
 import pymongo
 
-
 class GroupTestDocument:
     def __init__(self, groupId, mongo, src, testsLibrary=None):
         # TODO consolidate src into testsLibrary?
@@ -21,7 +20,7 @@ class GroupTestDocument:
 
         # Supported tests
         match = {'active': True, 'src': self.src}
-
+        
         try:
             curr_tests = self.mongo.euphonia.tests.find(match)
         except pymongo.errors.PyMongoError as e:

@@ -2,7 +2,7 @@ import argparse
 import logging
 import pymongo
 import sys
-
+import yaml
 
 class TestFramework:
     """ Maybe if we make this comment long enough Jake won't obsess about the
@@ -141,6 +141,16 @@ class TestFramework:
                 except pymongo.errors.PyMongoError as e:
                     raise e
 
+def populateTestDb():
+    mongo = pymongo.MongoClient()
+    
+    with open('tests.yml') as f:
+        all_tests = yaml.safe_load(f)
+        for test in all_tests:
+            result = mongo.euphonia.tests.update({"name":test["name"]}, test, upsert=True)
+            print result, test["name"]
+    
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="A Euphonia test framework")
 
@@ -156,10 +166,18 @@ if __name__ == "__main__":
     parser.add_argument("--run-tests", metavar="TESTS", nargs="*", default=None,
                         help="run only the selected tests if this argument is present")
 
-    parser.add_argument("src", choices=["mdiags", "mmsgroupreports", "pings"],
+    parser.add_argument("--populateTestDb", action='store_true',
+                        help="run a script to populate the list of tests in the DB with \
+                              the contents of tests.yml")
+
+    parser.add_argument("src", choices=["mdiags", "mmsgroupreports", "pings"], nargs="?",
                         help="<-- the available test frameworks, choose one")
 
     args = parser.parse_args()
+
+    if args.populateTestDb:
+        populateTestDb()
+        sys.exit(0)
     t = TestFramework(args)
     t.testAllGroups()
     sys.exit(0)

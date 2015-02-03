@@ -109,6 +109,18 @@ class Ping:
 
     def getArgv(self):
         return self.getPingSubDoc('cmdLineOpts.argv')
+    
+    def getCurrentConnections(self):
+        return self.getPingSubDoc('serverStatus.connections.current')
+
+    def getMappedMemory(self):
+        return self.getPingSubDoc('serverStatus.mem.mapped')
+
+    def getMappedWithJournalMemory(self):
+        return self.getPingSubDoc('serverStatus.mem.mappedWithJournal')
+
+    def getVirtualMemory(self):
+        return self.getPingSubDoc('serverStatus.mem.virtual')
 
     def getHostId(self):
         return self.doc['hid']

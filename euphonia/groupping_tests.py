@@ -296,3 +296,20 @@ class GroupPingTests:
                     ids.append(olderVersionVDoc['pingId'])
 
         return {'pass':  res, 'ids': list(set(ids))}
+            
+    @classmethod
+    def testLargeNonMappedMemory(cls, groupPing):
+        def hasSmallNonMappedMemory(host):
+            mappedMem = host.getMappedWithJournalMemory()
+            # journaling not enabled 
+            if not mappedMem:
+                mappedMem = host.getMappedMemory()
+            virtualMem = host.getVirtualMemory()
+            openConnections = host.getCurrentConnections()
+
+            if mappedMem and virtualMem and openConnections:
+                # each open connection is allowed 1 MB
+                # there may be a problem if non-mapped memory is larger than 2GB
+                return virtualMem - mappedMem - openConnections > 2048
+            return True
+        return groupPing.forEachHost(hasSmallNonMappedMemory)
