@@ -2,6 +2,7 @@ import argparse
 import logging
 import pymongo
 import sys
+import yaml
 
 
 class TestFramework:
@@ -23,7 +24,11 @@ class TestFramework:
         self.logger = logging.getLogger('logger')
         self.logger.setLevel(logLevel)
 
-        self.mongo = pymongo.MongoClient(host=args["mongo_host"], port=args["mongo_port"])
+        self.mongo = pymongo.MongoClient(
+            host=args["mongo_host"],
+            port=args["mongo_port"]
+        )
+
         self.db = self.mongo.euphonia
         self.coll_failedtests = self.db.failedtests
         self.coll_groups = self.db.groups
@@ -141,6 +146,19 @@ class TestFramework:
                 except pymongo.errors.PyMongoError as e:
                     raise e
 
+
+def populateTestDb(args):
+    mongo = pymongo.MongoClient(port=args.mongo_port, host=args.mongo_host)
+
+    with open('tests.yml') as f:
+        all_tests = yaml.safe_load(f)
+        for test in all_tests:
+            try:
+                query = {"name": test["name"]}
+                mongo.euphonia.tests.update(query, test, upsert=True)
+            except pymongo.errors.PyMongoError as e:
+                raise e
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="A Euphonia test framework")
 
@@ -153,13 +171,30 @@ if __name__ == "__main__":
                         type=int,
                         help="specify the MongoDB port (default=27017)")
 
-    parser.add_argument("--run-tests", metavar="TESTS", nargs="*", default=None,
-                        help="run only the selected tests if this argument is present")
+    parser.add_argument(
+        "--run-tests",
+        metavar="TESTS",
+        nargs="*",
+        default=None,
+        help="run only the selected tests if this argument is \
+            present, regardless of whether the test is active")
 
-    parser.add_argument("src", choices=["mdiags", "mmsgroupreports", "pings"],
-                        help="<-- the available test frameworks, choose one")
+    parser.add_argument("--populateTestDb", action='store_true',
+                        help="run a script to populate the list of tests in \
+                        the DB with the contents of tests.yml, to be used by \
+                        the test runners")
+
+    parser.add_argument(
+        "src",
+        choices=["mdiags", "mmsgroupreports", "pings"],
+        nargs="?",
+        help="<-- the available test frameworks, choose one")
 
     args = parser.parse_args()
+
+    if args.populateTestDb:
+        populateTestDb(args)
+        sys.exit(0)
     t = TestFramework(args)
     t.testAllGroups()
     sys.exit(0)
