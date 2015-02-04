@@ -1,4 +1,5 @@
 import grouptestdocument
+import logging
 import ping
 import pymongo
 
@@ -6,6 +7,7 @@ import pymongo
 class GroupPing(grouptestdocument.GroupTestDocument):
     def __init__(self, groupId, tag=None, *args, **kwargs):
         self.tag = tag
+
         from groupping_tests import GroupPingTests
         grouptestdocument.GroupTestDocument.__init__(
             self, groupId=groupId,
@@ -46,7 +48,11 @@ class GroupPing(grouptestdocument.GroupTestDocument):
         res = True
         ids = []
         for pid in self.pings:
-            if not test(self.pings[pid], *args, **kwargs):
+            testRes = test(self.pings[pid], *args, **kwargs)
+            if testRes is None:
+                res = True
+                self.logger.warning('Test returned bad document format')
+            elif not testRes:
                 res = False
                 ids.append(pid)
         return {'pass': res, 'ids': ids}

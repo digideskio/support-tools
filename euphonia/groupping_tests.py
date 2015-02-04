@@ -242,6 +242,84 @@ class GroupPingTests:
         return groupPing.forEachHost(hasNoAutoSplit)
 
     @classmethod
+    def testBackgroundFlushAverage(cls, groupPing):
+        maxAcceptableBackgroundFlush = 30 * 1000 # in ms
+
+        def checkBackgroundFlushAverage(host):
+            serverStatus = host.getServerStatus()
+            if serverStatus is None:
+                return None
+            if 'backgroundFlushing' not in serverStatus:
+                return None
+
+            if (serverStatus['backgroundFlushing']['average_ms']
+                    > maxAcceptableBackgroundFlush):
+                return False
+            else:
+                return True
+        return groupPing.forEachHost(checkBackgroundFlushAverage)
+
+    @classmethod
+    def testRecentBackgroundFlushAverage(cls, groupPing):
+        maxAcceptableBackgroundFlush = 30 * 1000 # in ms
+        bFlushDocs = {}
+        res = True
+        ids = []
+
+        def buildBackgroundFlushAverages(host):
+            serverStatus = host.getServerStatus()
+            if serverStatus is None:
+                return None
+            if 'backgroundFlushing' not in serverStatus:
+                return None
+            backgroundFlushing = serverStatus['backgroundFlushing']
+
+            hid = host.getHostId()
+            if hid not in bFlushDocs:
+                bFlushDocs[hid] = {
+                    'pingId': host.doc['_id'],
+                    'count': 0,
+                    'total': 0
+                }
+            bFlushDocs[hid]['count'] += 1
+            bFlushDocs[hid]['total'] += float(backgroundFlushing['last_ms'])
+            return True
+
+        startDateTime = None
+        while groupPing:
+            groupPing.forEachHost(buildBackgroundFlushAverages)
+
+            # Find a time for the current group ping if one exists
+            index = 0
+            keys = groupPing.pings.keys()
+            currentPing = groupPing.pings[keys[index]]
+            serverStatus = currentPing.getServerStatus()
+            while index < len(groupPing.pings) and not serverStatus:
+                index += 1
+                currentPing = groupPing.pings[keys[index]]
+                serverStatus = currentPing.getServerStatus()
+
+            if serverStatus:
+                # Store the current groupPing as the start
+                # if we don't have a newest
+                if not startDateTime:
+                    startDateTime = serverStatus['localTime']
+
+                # Stop traversing backward if the ping group is more
+                # than an hour older than start
+                if (currentPing.getServerStatus()['localTime']
+                        < startDateTime - datetime.timedelta(hours=1)):
+                    break
+            groupPing = groupPing.prev()
+
+        for bFlushDoc in bFlushDocs.values():
+            if (bFlushDoc['total'] / bFlushDoc['count']
+                    > maxAcceptableBackgroundFlush):
+                res = False
+                ids.append(bFlushDoc['pingId'])
+        return {'pass': res, 'ids': ids}
+
+    @classmethod
     def testVersionDifference(cls, groupPing):
         # Hash of version documents by hid
         vDocs = {}
