@@ -64,25 +64,30 @@ class GroupPing(grouptestdocument.GroupTestDocument):
     def next(self):
         """ Return the GroupPing after this one """
         try:
-            match = {'gid': self._groupId, 'tag': {"$gt": self.tag}}
+            match = {'gid': self.groupId(), 'tag': {"$gt": self.tag}}
             proj = {'tag': 1, '_id': 0}
             curr_pings = self.mongo.euphonia.pings.find(match, proj).\
                 sort("tag", -1).limit(1)
         except pymongo.errors.PyMongoError as e:
             raise e
 
-        tag = curr_pings[0]['tag']
-        return GroupPing(self._groupId, tag)
+        if curr_pings.count():
+            tag = curr_pings[0]['tag']
+            return GroupPing(self.groupId(), tag, mongo=self.mongo, src=self.src)
+        else:
+            return None
 
     def prev(self):
         """ Return the GroupPing before this one """
         try:
-            match = {'gid': self._groupId, 'tag': {"$lt": self.tag}}
+            match = {'gid': self.groupId(), 'tag': {"$lt": self.tag}}
             proj = {'tag': 1, '_id': 0}
             curr_pings = self.mongo.euphonia.pings.find(match, proj).\
                 sort("tag", 1).limit(1)
         except pymongo.errors.PyMongoError as e:
             raise e
-
-        tag = curr_pings[0]['tag']
-        return GroupPing(self._groupId, tag)
+        if curr_pings.count():
+            tag = curr_pings[0]['tag']
+            return GroupPing(self.groupId(), tag, mongo=self.mongo, src=self.src)
+        else:
+            return None

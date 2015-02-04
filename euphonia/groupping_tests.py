@@ -1,4 +1,5 @@
 import re
+import datetime
 
 
 class GroupPingTests:
@@ -239,5 +240,59 @@ class GroupPingTests:
                 return "noAutoSplit" in argv
             return None
         return groupPing.forEachHost(hasNoAutoSplit)
-            
 
+    @classmethod
+    def testVersionDifference(cls, groupPing):
+        # Hash of version documents by hid
+        vDocs = {}
+
+        # Max acceptable difference in version array 2.6.8 = [2, 6, 8, 0]
+        # Ex: 2.6.8 - 2.6.4 = [0, 0, 2, 0] which is less than [0, 0, 3, 3]
+        maxAcceptableDifference = [0, 0, 3, 3]
+
+        def buildCurrentState(host):
+            serverStatus = host.getServerStatus()
+            if serverStatus is None:
+                return None
+
+            buildInfo = host.getBuildInfo()
+            if buildInfo is None:
+                return None
+
+            hid = host.getHostId()
+            if hid not in vDocs:
+                vDocs[hid] = {}
+            # We're traversing backwards for each host looking for the
+            # earliest occurrence of the current version on the node
+            if 'version' not in vDocs[hid]:
+                vDocs[hid]['version'] = buildInfo['versionArray']
+            if vDocs[hid]['version'] == buildInfo['versionArray']:
+                vDocs[hid]['since'] = serverStatus['localTime']
+                vDocs[hid]['pingId'] = host.doc['_id']
+            return True
+
+        while groupPing:
+            groupPing.forEachHost(buildCurrentState)
+            groupPing = groupPing.prev()
+
+        currentState = vDocs.values()
+        currentState.sort(key=lambda vDoc: vDoc['version'], reverse=True)
+
+        res = True
+        ids = []
+
+        for i, newVersionVDoc in enumerate(currentState):
+            newVersion = newVersionVDoc['version']
+            for olderVersionVDoc in currentState[i+1:len(currentState)]:
+                olderVersion = olderVersionVDoc['version']
+                versionDifference = [a - b for a, b in
+                                     zip(newVersion, olderVersion)]
+                timeDifference = (newVersionVDoc['since'] -
+                                  olderVersionVDoc['since'])
+                if (versionDifference > maxAcceptableDifference
+                        and timeDifference > datetime.timedelta(days=1)):
+                    res = False
+                    ids.append(newVersionVDoc['pingId'])
+                    ids.append(olderVersionVDoc['pingId'])
+
+        return {'pass':  res, 'ids': list(set(ids))}
