@@ -317,6 +317,7 @@ class GroupPingTests:
         return groupPing.forEachHost(hasSmallNonMappedMemory)
 
     @classmethod
+<<<<<<< HEAD
     def testNumMongos(cls, groupPing):
         ids = []
         for ping in groupPing.pings:
@@ -356,3 +357,23 @@ class GroupPingTests:
                     return False
             return True
         return groupPing.forEachHost(hasDiagLogGreaterThanZero)
+=======
+    def testTimedoutCursors(cls, groupPing):
+
+        def smallNumberofTimedoutCursors(host):
+
+            numTimedout = host.getTimedoutCursorCount()
+            # http://docs.mongodb.org/manual/core/cursors/
+            # seems like cursors map to "query" operations, so this should
+            # be a good estimate of the total number of cursors
+            numTotal = host.getQueryOpCount()
+
+            if numTimedout is None or numTotal is None:
+                return None
+
+            if float(numTimedout) / numTotal > 0.005:
+                return False
+
+            return True
+        return groupPing.forEachHost(smallNumberofTimedoutCursors)
+>>>>>>> TSPROJ-152 test for a large number of timedout cursors

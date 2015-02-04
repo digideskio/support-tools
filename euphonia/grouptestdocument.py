@@ -3,7 +3,7 @@ import pymongo
 
 
 class GroupTestDocument:
-    def __init__(self, groupId, mongo, src, testsLibrary=None):
+    def __init__(self, groupId, mongo, src, testsLibrary=None, debug=False):
         # TODO consolidate src into testsLibrary?
         # TODO remove mongo and testsLibrary from __init__?
         self.mongo = mongo
@@ -28,8 +28,11 @@ class GroupTestDocument:
         except pymongo.errors.PyMongoError as e:
             raise e
 
-        # Supported tests
-        match = {'active': True, 'src': self.src}
+        if debug:
+            # Supported tests
+            match = {'active': True, 'src': self.src}
+        else:
+            match = {'src': self.src}
 
         try:
             curr_tests = self.mongo.euphonia.tests.find(match)
