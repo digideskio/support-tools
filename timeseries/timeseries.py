@@ -75,18 +75,28 @@ graph_style = '''
 x_pad = 1.5
 y_pad = 0.1
 
+def xxx(*ss):
+    sys.stderr.write('xxx ' + ' '.join(str(s) for s in ss) + '\n')
+
 def html_graph(
     data=[],
     tmin=None, tmax=None, width=None,
     ymin=None, ymax=None, height=None,
-    ticks=None, line_width=0.1, shaded=True
+    ticks=None, line_width=0.1, shaded=True,
+    bins=0
 ):
+
     elt('svg', {
         'width':'%gem' % width,
         'height':'%gem' % height,
         'viewBox':'%g %g %g %g' % (0, 0, width, height)
     })
+
     for ts, ys, color in data:
+
+        if not ts:
+            continue
+
         tspan = float((tmax-tmin).total_seconds())
         yspan = float(ymax - ymin)
         if yspan==0:
@@ -95,21 +105,61 @@ def html_graph(
             else:
                 ymin -= 1
                 yspan = 1
-        gx = lambda t: (t-tmin).total_seconds() / tspan * (width-2*x_pad) + x_pad
+
+        dt = lambda t: (t-tmin).total_seconds()  # dt relative to global tmin
+        gx = lambda dt: dt / tspan * (width-2*x_pad) + x_pad # gx for a given dt
         gy = lambda y: ((1 - (y-ymin) / yspan) * (1-2*y_pad) + y_pad) * height
-        line = ' '.join('%g,%g' % (gx(t), gy(ys[t])) for t in ts)
-        if shaded:
-            left = '%g,%g' % (gx(ts[0]), gy(0))
-            right = '%g,%g' % (gx(ts[-1]), gy(0))
-            points = left + ' ' + line + ' ' + right
-            eltend('polygon', {'points':points, 'class':'shade'})
-        eltend('polyline', {'points':line, 'class':'curve', 'style':'stroke:%s'%color})
+
+        dt0 = dt(ts[0])             # first time relative to global tmin
+        dt1 = dt(ts[-1])            # last time relative to global tmin
+        x0 = gx(dt0)                # leftmost x
+        x1 = gx(dt1)                # rightmost x
+
+        nbins = int(bins * (x1-x0)) if bins else float('inf') # max graph complexity
+
+        if len(ts) < nbins:
+
+            # draw individual points
+            line = ' '.join('%g,%g' % (gx(dt(t)), gy(ys[t])) for t in ts)
+            if shaded:
+                left = '%g,%g' % (x0, gy(0))
+                right = '%g,%g' % (x1, gy(0))
+                points = left + ' ' + line + ' ' + right
+                eltend('polygon', {'points':points, 'class':'shade'})
+            eltend('polyline', {'points':line, 'class':'curve', 'style':'stroke:%s'%color})
+
+        else:
+
+            msg(len(ts), 'samples;', nbins, 'bins') # xxxx
+
+            # bin the data for graphing to bound graph complexity
+            tbin = (dt1-dt0+1e-9) / nbins              # time per bin
+            ymins = [float('inf')] * nbins    # upper y for each bin
+            ymaxs = [-float('inf')] * nbins   # lower y for each bin
+            for t in ts:
+                bin = int((dt(t) - dt0) / tbin)
+                ymins[bin] = min(ymins[bin], ys[t])
+                ymaxs[bin] = max(ymaxs[bin], ys[t])
+            line = ' '.join('%g,%g' % (gx(dt0+i*tbin), gy(ymins[i])) for i in range(nbins))
+#            if shaded:
+#                left = '%g,%g' % (x0, gy(0))
+#                right = '%g,%g' % (x1, gy(0))
+#                points = left + ' ' + line + ' ' + right
+#                xxx(points)
+#                eltend('polygon', {'points':points, 'class':'shade'})
+            line = ''
+            line += ' ' + \
+                ' '.join('%g,%g' % (gx(dt0+i*tbin), gy(ymaxs[i])) for i in reversed(range(nbins)))
+            style = 'stroke:%s; fill:%s' % (color, color)
+            eltend('polyline', {'points':line, 'class':'curve', 'style':style})
+
     if data and ticks:
         if type(ticks)==int:
             ticks = [tmin + (tmax-tmin)*i/ticks for i in range(ticks+1)]
         for t in ticks:
-            x = gx(t)
+            x = gx(dt(t))
             eltend('line', {'x1':x, 'x2':x, 'y1':0, 'y2':height, 'class':'tick'})
+
     end('svg')
 
 def labels(tmin, tmax, width, ts, labels):
@@ -750,9 +800,12 @@ def get_graphs(specs, opt):
     series = [] # all
     fns = collections.defaultdict(list) # grouped by fn
     for spec_ord, spec in enumerate(specs):
-        for s in get_series(spec, spec_ord, opt):
-            fns[(s.fn,s.parse_type)].append(s) # xxx canonicalize filename
-            series.append(s)
+        try:
+            for s in get_series(spec, spec_ord, opt):
+                fns[(s.fn,s.parse_type)].append(s) # xxx canonicalize filename
+                series.append(s)
+        except Exception as e:
+            msg(e)
 
     # process by file according to parse_type
     for fn, parse_type in sorted(fns):
@@ -1162,9 +1215,13 @@ def main():
     p.add_argument('--relative', action='store_true')
     p.add_argument('--list', action='store_true')
     p.add_argument('--level', type=int, default=1)
+    # p.add_argument('--bins', type=int, default=20) # xxx not ready yet
 
     global opt
     opt = p.parse_args()
+
+    # xxx not ready yet
+    opt.bins = 0
 
     # just list?
     if opt.list:
@@ -1225,7 +1282,7 @@ def main():
               tmin=tmin, tmax=tmax, width=opt.width,
               ymin=0, ymax=ymax, height=opt.height,
               #ticks=ticks, shaded=not opt.no_shade and len(data)==1)
-              ticks=ticks, shaded=len(data)==1)
+              ticks=ticks, shaded=len(data)==1, bins=opt.bins)
 
     elt('html')
     elt('head')
@@ -2275,7 +2332,7 @@ wt('log', 'log scan operations', rate=True)
 wt('log', 'log scan records requiring two reads', rate=True)
 wt('log', 'log sync operations', rate=True)
 wt('log', 'log write operations', rate=True)
-wt('log', 'logging bytes consolidated', scale=MB)
+wt('log', 'logging bytes consolidated', scale=MB, rate=True)
 wt('log', 'maximum log file size', scale=MB)
 wt('log', 'number of pre-allocated log files to create') # CHECK
 wt('log', 'pre-allocated log files prepared', rate=True) # CHECK
