@@ -6,7 +6,7 @@ class Ping:
     def __init__(self, doc):
         self.doc = doc
 
-    def getPingSubDoc(self, projection):
+    def getPingSubdoc(self, projection):
         # get the subdocuments based on the projection
         # similar to how projection works in the find command
 
@@ -109,6 +109,9 @@ class Ping:
 
     def getArgv(self):
         return self.getPingSubDoc('cmdLineOpts.argv')
+
+    def getHostId(self):
+        return self.doc['hid']
 
     def isPrimary(self):
         doc = self.getIsMaster()
