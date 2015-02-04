@@ -20,7 +20,7 @@
                        %    end
                        %    failedTestsContent = failedTestsContent + testText
                        % end
-                       % failedTestsContent = failedTestsContent + "</table>>"
+                       % failedTestsContent = failedTestsContent + "</table>"
                        <td><span class="failedtests" data-toggle="popover" data-trigger="hover" data-placement="right" data-html="true" title="<b>Failed Tests</b>" data-content="{{failedTestsContent}}">{{len(group['failedTests'])}}</span></td>
                        <td>{{group['score']}}</td>
                    </tr>
