@@ -122,6 +122,12 @@ class Ping:
     def getVirtualMemory(self):
         return self.getPingSubdoc('serverStatus.mem.virtual')
 
+    def getTimedoutCursorCount(self):
+        return self.getPingSubdoc('serverStatus.cursors.timedOut')
+
+    def getQueryOpCount(self):
+        return self.getPingSubdoc('serverStatus.opcounters.query')
+
     def getHostId(self):
         return self.doc['hid']
 

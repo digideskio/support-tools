@@ -63,7 +63,10 @@ class TestFramework:
 
         self.logger.info("%i groups", len(groupIds))
         for groupId in groupIds:
-            g = self.testDocumentClass(groupId, mongo=self.mongo, src=self.src)
+            g = self.testDocumentClass(groupId,
+                                       mongo=self.mongo,
+                                       src=self.src,
+                                       debug=self.args["run_tests"])
 
             # CS customers only for now. I can imagine using Proactive Support
             # to sell subscriptions in the first place. If that ever happens
@@ -174,8 +177,9 @@ if __name__ == "__main__":
         metavar="TESTS",
         nargs="*",
         default=None,
-        help="run only the selected tests if this argument is \
-            present, regardless of whether the test is active")
+        help="locally run the tests for debugging, run only the selected \
+            tests if this argument is present, regardless of whether they \
+            are active or not")
 
     parser.add_argument("--populateTestDb", action='store_true',
                         help="run a script to populate the list of tests in \
