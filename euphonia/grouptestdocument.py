@@ -99,12 +99,13 @@ class GroupTestDocument:
     def run_selected_tests(self, tests):
         res = {}
         for test in tests:
-            res[test] = self.run_test(test)
+            res[test] = self.run_test(test, debug=True)
         return res
 
-    def run_test(self, test):
+    # debug=True forces the test to run even if it's not in self.tests
+    def run_test(self, test, debug=False):
         self.logger.debug("run_test(%s)", test)
-        if test in self.tests:
+        if debug or test in self.tests:
             fname = "test" + test
             try:
                 f = getattr(self.testsLibrary, fname)
