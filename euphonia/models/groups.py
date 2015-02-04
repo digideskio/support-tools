@@ -39,7 +39,7 @@ class Groups:
 
         # failed tests
         # exid := example id
-        failedTests = group_summary['failedTests']
+        failedTests = group_summary.get('failedTests', [])
 
         #match = {"$match": {'_id': {"$in": [ft['ftid'] for ft in failedTests]}}}
         #unwind = {"$unwind": '$ids'}
@@ -56,11 +56,9 @@ class Groups:
         #                        '_id': 0}}
 
         query = {'_id': {"$in": [ft['ftid'] for ft in failedTests]}}
-        proj = {'ids': {"$slice": -1}}
 
         try:
-            #res = self.coll_failedtests.aggregate([match, unwind, group, project])
-            res = self.coll_failedtests.find(query, proj)
+            res = self.coll_failedtests.find(query)
         except pymongo.errors.PyMongoError as e:
             raise e
 
@@ -71,9 +69,9 @@ class Groups:
         if res is not None:
             for ft in res:
                 if ft['src'] == "pings":
-                    pings_query_ids.append(ft['ids'][0])
+                    pings_query_ids.extend(ft['ids'])
                 elif ft['src'] == "mmsgroupreports":
-                    mmsgroupreports_query_ids.append(ft['ids'][0])
+                    mmsgroupreports_query_ids.extend(ft['ids'])
                 failedTests.append(ft)
         else:
             # TODO raise exception?
@@ -101,43 +99,41 @@ class Groups:
         for r in mmsgroupreports_res:
             ids[r['_id'].__str__()] = r
 
-        for ft in group_summary['failedTests']:
-            if str(ft['ids'][0]) in ids:
-                ft['ids'] = ids[str(ft['ids'][0])]
-            else:
-                pass
+        group_summary['ids'] = ids
 
         # Supplement with Clienthub info
         # TODO move this to a separate library
-        try:
-            curr_companies = self.mongo.support.companies.find(
-                    {"$or":[{'jira_groups': group_summary['name']},
-                            {'mms_groups': group_summary['name']}]})
-        except pymongo.errors.PyMongoError as e:
-            raise e
 
-        if curr_companies.count() == 0:
-            #self.logger.warning("Error: company not found for group %s", group_summary['name'])
-            #self.company = None
-            group_summary['company'] = None
-        elif curr_companies.count() > 1:
-            # More than one company found... Are they the same sans _id?
-            # If so, take it, otherwise complain
-            lastCompany = None
-            for company in curr_companies:
-                del company['_id']
-                if lastCompany is None:
-                    lastCompany = company
-                    continue
-                if company != lastCompany:
-                    lastCompany = None
-                    #self.logger.warning("Error: multiple companies found for group %s", self.groupName())
-                    break
-            #self.company = lastCompany
-            group_summary['company'] = lastCompany
-        else:
-            #self.company = curr_companies.next()
-            group_summary['company'] = curr_companies.next()
+        if 'name' in group_summary:
+            try:
+                curr_companies = self.mongo.support.companies.find(
+                        {"$or":[{'jira_groups': group_summary['name']},
+                                {'mms_groups': group_summary['name']}]})
+            except pymongo.errors.PyMongoError as e:
+                raise e
+
+            if curr_companies.count() == 0:
+                #self.logger.warning("Error: company not found for group %s", group_summary['name'])
+                #self.company = None
+                group_summary['company'] = None
+            elif curr_companies.count() > 1:
+                # More than one company found... Are they the same sans _id?
+                # If so, take it, otherwise complain
+                lastCompany = None
+                for company in curr_companies:
+                    del company['_id']
+                    if lastCompany is None:
+                        lastCompany = company
+                        continue
+                    if company != lastCompany:
+                        lastCompany = None
+                        #self.logger.warning("Error: multiple companies found for group %s", self.groupName())
+                        break
+                #self.company = lastCompany
+                group_summary['company'] = lastCompany
+            else:
+                #self.company = curr_companies.next()
+                group_summary['company'] = curr_companies.next()
 
         return group_summary
 

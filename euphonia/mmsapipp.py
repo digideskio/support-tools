@@ -2,6 +2,7 @@ import bson
 import bson.json_util
 import pymongo
 import urllib2
+import httplib
 import time
 
 try:
@@ -32,7 +33,9 @@ def queryMMSAPI(uri):
 
     try:
         f = opener.open(url)
-    except urllib2.HTTPError as e:
+    except (urllib2.HTTPError, urllib2.URLError) as e:
+        return {'ok': False, 'payload': bson.json_util.loads(e.read())}
+    except httplib.BadStatusLine as e:
         return {'ok': False, 'payload': e}
 
     s = f.read()
@@ -107,8 +110,14 @@ def convertFieldIllegals(doc):
 
 
 def saveGroup(groupId):
-    saveGroupHighLevel(groupId)
-    saveGroupLastPings(groupId)
+    res = saveGroupHighLevel(groupId)
+    if not res['ok']:
+        print(res['payload'])
+        return None
+    doc = res['payload']
+    groupName = doc['name']
+    # pings don't include group name but we want to propagate them :(
+    saveGroupLastPings(groupId, groupName)
 
 
 def saveGroupHighLevel(groupId):
@@ -122,12 +131,16 @@ def saveGroupHighLevel(groupId):
         del(doc['links'])
 
     try:
-        db_euphonia.groups.update({'_id': _id}, {"$set": doc}, upsert=True)
+        doc = db_euphonia.groups.find_and_modify(query={'_id': _id},
+                                                 update={"$set": doc},
+                                                 upsert=True,
+                                                 new=True)
     except pymongo.errors.PyMongoError as e:
         raise e
+    return {'ok': True, 'payload': doc}
 
 
-def saveGroupLastPings(groupId):
+def saveGroupLastPings(groupId, groupName):
     res = getGroupHosts(groupId)
     if not res['ok']:
         return res
@@ -147,7 +160,8 @@ def saveGroupLastPings(groupId):
         if ping is not None:
             ping = convertFieldIllegals(ping)
 
-        doc = {'gid': groupId, 'hid': host['id'], 'tag': tag, 'ping': ping}
+        doc = {'gid': groupId, 'name': groupName, 'hid': host['id'],
+               'tag': tag, 'doc': ping}
         saveLastPing(doc)
 
 

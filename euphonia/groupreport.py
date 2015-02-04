@@ -2,15 +2,10 @@ import grouptestdocument
 import pymongo
 
 
-class MmsGroupReport(grouptestdocument.GroupTestDocument):
+class GroupReport(grouptestdocument.GroupTestDocument):
     def __init__(self, groupId, tag=None, *args, **kwargs):
         self.tag = tag
-        from mmsgroupreport_tests import MmsGroupReportTests
-        grouptestdocument.GroupTestDocument.__init__(
-            self, groupId=groupId,
-            mongo=kwargs['mongo'],
-            src='mmsgroupreports',
-            testsLibrary=MmsGroupReportTests)
+        self.mongo = kwargs['mongo']
 
         match = {'GroupId': groupId}
         # If tag not specified get the latest entry by _id
@@ -22,6 +17,16 @@ class MmsGroupReport(grouptestdocument.GroupTestDocument):
                             sort('_id', -1).limit(1), None)
         except pymongo.errors.PyMongoError as e:
             raise e
+
+        from groupreport_tests import GroupReportTests
+        grouptestdocument.GroupTestDocument.__init__(
+            self, groupId=groupId,
+            mongo=self.mongo,
+            src='mmsgroupreports',
+            testsLibrary=GroupReportTests)
+
+    def groupName(self):
+        return self.doc['GroupName']
 
     def isCsCustomer(self):
         return self.doc['IsCsCustomer']
