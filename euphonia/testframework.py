@@ -5,16 +5,14 @@ import sys
 
 
 class TestFramework:
-    """ Maybe if we make this comment long enough Jake won't obsess about the
-    formatting of that which follows... it worked! """
+    """ I dare say this class needs a better description than this! """
     def __init__(self, args):
         if not isinstance(args, dict):
             args = vars(args)
         self.args = args
         self.src = self.args['src']
         # this is where we save failed test names and the corresponding failed
-        # test document _id in euphonia.groups documents
-        # self.failedTestsPath = 'failedTests.%s' % self.src
+        # test document _ids in euphonia.groups documents
         self.failedTestsPath = 'failedTests'
 
         # logLevel = self.args['log_level']
@@ -34,7 +32,7 @@ class TestFramework:
             # self.coll_src = self.db.mdiags
         elif self.src == 'mmsgroupreports':
             self.logger.info("Testing mmsgroupreports...")
-            from mmsgroupreport import MmsGroupReport as TestDocumentClass
+            from groupreport import GroupReport as TestDocumentClass
             self.coll_src = self.db.mmsgroupreports
             self.groupIdKey = 'GroupId'
             self.groupIdQuery = {}
@@ -80,31 +78,32 @@ class TestFramework:
                 # it from the list of failures as we'll no longer need to
                 # address it ;)
                 if results[testName]['pass'] is True:
-                    if 'failedTests' in g.group and self.src in\
-                            g.group['failedTests']:
-                        failedTests = g.group['failedTests'][self.src]
-                        if testName in [name for name in failedTests]:
-                            self.logger.info("Fail -> Pass! Removing %s from "
-                                             "failedTests", testName)
-                            try:
-                                match = {'_id': g.groupId()}
-                                updoc = {"$pull": {self.failedTestsPath:
-                                                   {"$elemMatch":
-                                                    {'src': self.src,
-                                                     'test': testName}}},
-                                         "$inc": {'score': -1*g.
-                                                  testPriorityScores[g.tests[
-                                                      testName]['priority']]}}
-                                self.coll_groups.update(match, updoc)
-                            except pymongo.errors.PyMongoError as e:
-                                raise e
+                    if 'failedTests' in g.group:
+                        for ft in g.group['failedTests']:
+                            if ft['src'] == self.src and\
+                                    ft['test'] == testName:
+                                self.logger.info("Fail -> Pass! Removing %s "
+                                                 "from failedTests", testName)
+                                try:
+                                    match = {'_id': g.groupId()}
+                                    updoc = {"$pull": {self.failedTestsPath:
+                                                       {"$elemMatch":
+                                                        {'src': self.src,
+                                                         'test': testName}}},
+                                             "$inc": {'score': -1*g.
+                                                      testPriorityScores[
+                                                          g.tests[testName][
+                                                              'priority']]}}
+                                    self.coll_groups.update(match, updoc)
+                                except pymongo.errors.PyMongoError as e:
+                                    raise e
                     continue
 
                 # Persist failures
                 doc = {'gid': g.groupId(), 'name': g.groupName(),
                        'src': self.src, 'test': testName,
-                       'ids': results[testName]['ids'],
-                       'nids': len(results[testName]['ids']),
+                       'ids': results[testName].get('ids', []),
+                       'nids': len(results[testName].get('ids', [])),
                        'score': g.testPriorityScores[g.tests[testName][
                            'priority']]}
 
@@ -123,18 +122,17 @@ class TestFramework:
                          "$inc": {'score': g.testPriorityScores[g.tests[
                              testName]['priority']]}}
 
-                if 'failedTests' in g.group and self.src in g.group[
-                        'failedTests']:
-                    failedTests = g.group['failedTests'][self.src]
-                    if testName in [name for name in failedTests]:
-                        # it's already recorded, update with the latest
-                        # failedtests _id
-                        match = {'_id': g.groupId(), self.failedTestsPath:
-                                 {"$elemMatch":
-                                  {'src': self.src,
-                                   'test': testName}}}
-                        ftidPath = '%s.$.ftid' % self.failedTestsPath
-                        updoc = {"$set": {ftidPath: ftid}}
+                if 'failedTests' in g.group:
+                    for ft in g.group['failedTests']:
+                        if ft['src'] == self.src and ft['test'] == testName:
+                            # it's already recorded, update with the latest
+                            # failedtests _id
+                            match = {'_id': g.groupId(), self.failedTestsPath:
+                                     {"$elemMatch":
+                                      {'src': self.src,
+                                       'test': testName}}}
+                            ftidPath = '%s.$.ftid' % self.failedTestsPath
+                            updoc = {"$set": {ftidPath: ftid}}
 
                 try:
                     self.coll_groups.update(match, updoc)

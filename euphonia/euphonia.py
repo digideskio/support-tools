@@ -41,15 +41,7 @@ class Euphonia(karakuricommon.karakuriclient):
         """ Return a value for the given template variable. A finite number of
         such template variables are supported and defined below """
         self.logger.debug("_getTemplateValue(%s,%s)", groupSummary)
-        if var == "HOSTNAME":
-            if 'ping' in testDoc['ids']:
-                ping = testDoc['ids']['ping']
-                if 'host' in ping:
-                    url = 'https://mms.mongodb.com/host/detail/%s/%s' %\
-                        (testDoc['ids']['gid'], testDoc['ids']['hid'])
-                    return {'ok': True, 'payload': '<a href="%s">%s:%s</a>' %
-                            (url, ping['host'], ping['port'])}
-        elif var == "MMS_GROUP_NAME":
+        if var == "MMS_GROUP_NAME":
             if 'name' in groupSummary:
                 return {'ok': True, 'payload': groupSummary['name']}
         elif var == "MMS_GROUP_ID":
@@ -61,8 +53,16 @@ class Euphonia(karakuricommon.karakuriclient):
                 url = 'https://mms.mongodb.com/host/list/%s' % gid
                 return {'ok': True, 'payload': '<a href="%s">%s</a>' %
                         (url, groupSummary['name'])}
-        elif var == "NUMBER_AFFECTED_HOSTS":
-            # TODO THIS DOES NOT WORK FOR OBVIOUS REASONS!
+        elif var == "LIST_AFFECTED_HOSTS":
+            if 'ids' in testDoc:
+                res = ""
+                for _id in testDoc['ids']:
+                    ping = groupSummary['ids'][_id.__str__()]
+                    doc = ping['doc']
+                    res += '# [https://mms.mongodb.com/host/detail/%s/%s|%s:%s]>\n' %\
+                            (ping['gid'], ping['hid'], doc['host'], doc['port'])
+                return {'ok': True, 'payload': res}
+        elif var == "N_AFFECTED_HOSTS":
             if 'nids' in testDoc:
                 return {'ok': True, 'payload': testDoc['nids']}
         elif var == "REPORTER_NAME":

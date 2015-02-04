@@ -1,7 +1,7 @@
 import pymongo
 import inspect
 
-from mmsgroupreport_tests import MmsGroupReportTests
+from groupreport_tests import GroupReportTests
 from groupping_tests import GroupPingTests
 
 
@@ -58,7 +58,7 @@ class Tests:
         :return: Dictionary containing the source of the defined tests
         """
         tests = {}
-        module = MmsGroupReportTests()
+        module = GroupReportTests()
         functions = inspect.getmembers(module)
         for key, value in functions:
             if key.startswith("test"):

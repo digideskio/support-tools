@@ -9,13 +9,22 @@ class GroupTestDocument:
         self.mongo = mongo
         self.src = src
         self.testsLibrary = testsLibrary
+        self.company = None
 
         # Use existing logger if it exists
         self.logger = logging.getLogger('logger')
 
-        # Get group 'status' doc
+        # Get group 'status' doc if it exists, otherwise create it
         try:
-            self.group = self.mongo.euphonia.groups.find_one({'_id': groupId})
+            query = {'_id': groupId}
+            if self.groupName() is not None:
+                query['name'] = self.groupName()
+            updoc = {'$set': query}
+            self.group = self.mongo.euphonia.groups.find_and_modify(
+                query=query,
+                update=updoc,
+                upsert=True,
+                new=True)
         except pymongo.errors.PyMongoError as e:
             raise e
 
@@ -31,43 +40,45 @@ class GroupTestDocument:
         # TODO move out of base class
         self.testPriorityScores = {'low': 2, 'medium': 4, 'high': 8}
 
-        # Supplement with company information
-        # TODO move this to a separate clienthub/sfdc library
-        try:
-            curr_companies = self.mongo.support.companies.find(
-                {"$or": [{'jira_groups': self.groupName()},
-                         {'mms_groups': self.groupName()}]})
-        except pymongo.errors.PyMongoError as e:
-            raise e
+        # Supplement with company information if it's available
+        # TODO move to a separate clienthub/sfdc library
+        if self.groupName() is not None:
+            try:
+                curr_companies = self.mongo.support.companies.find(
+                    {"$or": [{'jira_groups': self.groupName()},
+                             {'mms_groups': self.groupName()}]})
+            except pymongo.errors.PyMongoError as e:
+                raise e
 
-        if curr_companies.count() == 0:
-            self.logger.warning("Company not found for group %s",
-                                self.groupName())
-            self.company = None
-        elif curr_companies.count() > 1:
-            # More than one company found... Are they the same sans _id?
-            # If so, take it, otherwise complain
-            # TODO replace this hack with real code
-            lastCompany = None
-            for company in curr_companies:
-                del company['_id']
-                if lastCompany is None:
-                    lastCompany = company
-                    continue
-                if company != lastCompany:
-                    lastCompany = None
-                    self.logger.warning("Multiple companies found for group "
-                                        " %s", self.groupName())
-                    break
-            self.company = lastCompany
-        else:
-            self.company = curr_companies.next()
+            if curr_companies.count() == 0:
+                self.logger.warning("Company not found for group %s",
+                                    self.groupName())
+                self.company = None
+            elif curr_companies.count() > 1:
+                # More than one company found... Are they the same sans _id?
+                # If so, take it, otherwise complain
+                # TODO replace this hack with real code
+                lastCompany = None
+                for company in curr_companies:
+                    del company['_id']
+                    if lastCompany is None:
+                        lastCompany = company
+                        continue
+                    if company != lastCompany:
+                        lastCompany = None
+                        self.logger.warning("Multiple companies found for "
+                                            "group %s", self.groupName())
+                        break
+                self.company = lastCompany
+            else:
+                self.company = curr_companies.next()
 
     def groupId(self):
         return self.group['_id']
 
+    # abstract
     def groupName(self):
-        return self.group['name']
+        pass
 
     # abstract
     def isCsCustomer(self):
@@ -100,12 +111,13 @@ class GroupTestDocument:
                 self.logger.debug("Testing " + test + "...")
                 r = f(self)
                 if r['pass'] is True:
-                    self.logger.debug("Passed!")
+                    self.logger.info("Passed!")
                 else:
-                    self.logger.debug("Failed!")
+                    self.logger.info("Failed!")
                 return r
             except AttributeError as e:
                 print e
                 raise Exception(fname + " not defined")
         else:
+            self.logger.exception(test + " not defined")
             raise Exception(test + " not defined")
