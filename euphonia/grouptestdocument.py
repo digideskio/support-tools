@@ -81,19 +81,22 @@ class GroupTestDocument:
     def prev(self):
         pass
 
-    def runAllTests(self):
-        self.logger.debug("runAllTests")
+    def run_all_tests(self):
+        self.logger.debug("run_all_tests")
+        return self.run_selected_tests(self.tests)
+
+    def run_selected_tests(self, tests):
         res = {}
-        for test in self.tests:
-            res[test] = self.runTest(test)
+        for test in tests:
+            res[test] = self.run_test(test)
         return res
 
-    def runTest(self, test):
-        self.logger.debug("runTest(%s)", test)
+    def run_test(self, test):
+        self.logger.debug("run_test(%s)", test)
         if test in self.tests:
             fname = "test" + test
-            if fname in dir(self.testsLibrary):
-                f = self.testsLibrary.__dict__[fname]
+            try:
+                f = getattr(self.testsLibrary, fname)
                 self.logger.debug("Testing " + test + "...")
                 r = f(self)
                 if r['pass'] is True:
@@ -101,7 +104,8 @@ class GroupTestDocument:
                 else:
                     self.logger.debug("Failed!")
                 return r
-            else:
+            except AttributeError as e:
+                print e
                 raise Exception(fname + " not defined")
         else:
             raise Exception(test + " not defined")
