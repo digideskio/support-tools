@@ -1,6 +1,7 @@
 import logging
 import pymongo
 
+
 class GroupTestDocument:
     def __init__(self, groupId, mongo, src, testsLibrary=None):
         # TODO consolidate src into testsLibrary?
@@ -20,7 +21,7 @@ class GroupTestDocument:
 
         # Supported tests
         match = {'active': True, 'src': self.src}
-        
+
         try:
             curr_tests = self.mongo.euphonia.tests.find(match)
         except pymongo.errors.PyMongoError as e:
@@ -87,12 +88,13 @@ class GroupTestDocument:
     def run_selected_tests(self, tests):
         res = {}
         for test in tests:
-            res[test] = self.run_test(test)
+            res[test] = self.run_test(test, debug=True)
         return res
 
-    def run_test(self, test):
+    # debug=True forces the test to run even if it's not in self.tests
+    def run_test(self, test, debug=False):
         self.logger.debug("run_test(%s)", test)
-        if test in self.tests:
+        if debug or test in self.tests:
             fname = "test" + test
             try:
                 f = getattr(self.testsLibrary, fname)
