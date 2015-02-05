@@ -153,11 +153,13 @@ class node:
         child.counts[t] += 1
         return child
 
-    def add_stack(self, stack, t, extra=None):
+    def add_stack(self, stack, t, extra=None, state=None):
         if stack:
             if extra:
                 stack.append(extra)
             stack.reverse()
+            if state:
+                stack.append(state)
             for f in self.filters:
                 f(stack)
             n = self # root
@@ -189,7 +191,7 @@ class node:
 
             # print the info
             put('%7.2f %7.2f ' % (avg_thr, max_thr))
-            graph_child(child)
+            graph_child(func, child)
             put(pfx+p)
             elt('span', {'id':'t%d' % opt.html_id, 'onClick':'hide(%d)'% opt.html_id})
             html(html_down)
@@ -288,10 +290,12 @@ def read_gdb(filters, type_info):
     pfile = '(?:from (.*)|at (.*):([0-9]+))?\n$'
     pat = plevel + paddr + pfunc + pargs + pfile
     pat = re.compile(pat)
-
+    
     for line in sys.stdin:
         if line.startswith('==='):
-            stack = root.add_stack(stack, t)
+            if stack:
+                stack = root.add_stack(stack, t, state=states[lwp])
+            states = collections.defaultdict(lambda: None)
             t = line.split()[1]
             t = get_time(t)
             if t>=opt.after and t<opt.before:
@@ -300,10 +304,17 @@ def read_gdb(filters, type_info):
                 opt.tmin = min(t, opt.tmin) if opt.tmin else t
                 opt.tmax = max(t, opt.tmax) if opt.tmax else t
             dbg('after', opt.after, 't', t, 'before', opt.before)
+        elif line.startswith('state:'):
+            for f in line.split()[1:]:
+                l, s = f.split('=')
+                states[l] = '+' + s
         elif line.startswith('Thread'):
+            if stack:
+                stack = root.add_stack(stack, t, state=states[lwp])
             m = re.search('LWP ([0-9]+)', line)
             lwp = m.group(1)
-        elif line.startswith('#') and t>=opt.after and t<opt.before and (not opt.threads or lwp in opt.threads):
+        elif line.startswith('#') and t>=opt.after and t<opt.before \
+             and (not opt.threads or lwp in opt.threads):
             m = pat.match(line)
             if not m:
                 print 'not matched:', repr(line)
@@ -312,15 +323,13 @@ def read_gdb(filters, type_info):
                     msg(line.strip())
                     msg(m.groups())
                 level, func, args, from_file, at_file, at_ln = m.groups()
-                if level=='0':
-                    stack = root.add_stack(stack, t)
                 func = func.strip()
                 if not opt.templates: func = simplify(func)
                 if at_ln and not opt.no_line_numbers: func += ':' + at_ln
                 stack.append(func)
 
     # last one
-    root.add_stack(stack, t)
+    root.add_stack(stack, t, state=states[lwp])
 
     # bucketed times
     if opt.buckets:
@@ -386,19 +395,23 @@ def read_perf(filters, type_info):
 # time series graphs
 #
 
-def graph(ts=None, ys=None, ymin=None, ymax=None):
+def graph(ts=None, ys=None, ymin=None, ymax=None, shaded=True):
     timeseries.html_graph(
         data=[(ts, ys, 'black')] if ts else [],
         tmin=opt.tmin, tmax=opt.tmax, width=opt.graph,
-        ymin=ymin, ymax=ymax, height=1.1, ticks=opt.graph_ticks
+        ymin=ymin, ymax=ymax, height=1.1, ticks=opt.graph_ticks,
+        shaded=shaded
     )
 
-def graph_child(child):
+def graph_child(func, child):
     if opt.graph:
         times = opt.times
         ymin = child.min_count if opt.graph_scale=='separate' else opt.min_count
         ymax = child.max_count if opt.graph_scale=='separate' else opt.max_count
-        graph(times, child.counts, ymin, ymax)
+        if func=='+S': shaded = 'shaded-cold'
+        elif func=='+R': shaded = 'shaded-hot'
+        else: shaded = True
+        graph(times, child.counts, ymin, ymax, shaded=shaded)
 
 # read times series files
 def read_series():

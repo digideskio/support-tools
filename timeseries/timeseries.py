@@ -59,11 +59,19 @@ graph_style = '''
         stroke-width: 1;
         vector-effect: non-scaling-stroke;
     }
-    .shade {
+    .shaded {
         fill: rgb(230,230,230);
         stroke: rgb(230,230,230);
         stroke-width: 1;
         vector-effect: non-scaling-stroke;
+    }
+    .shaded-hot {
+        fill: rgb(250,220,220);
+        stroke: rgb(240,220,220);
+    }
+    .shaded-cold {
+        fill: rgb(200,220,240);
+        stroke: rgb(230,230,230);
     }
     .tick {
         stroke: rgba(0,0,0,0.08);
@@ -125,7 +133,9 @@ def html_graph(
                 left = '%g,%g' % (x0, gy(0))
                 right = '%g,%g' % (x1, gy(0))
                 points = left + ' ' + line + ' ' + right
-                eltend('polygon', {'points':points, 'class':'shade'})
+                cls = 'shaded'
+                if type(shaded)==str: cls += ' ' + shaded
+                eltend('polygon', {'points':points, 'class':cls})
             eltend('polyline', {'points':line, 'class':'curve', 'style':'stroke:%s'%color})
 
         else:
