@@ -1,6 +1,8 @@
 import re
 import datetime
 
+from collections import defaultdict
+
 
 class GroupPingTests:
     # Note the convention: If it passes the test, then it returns True.
@@ -26,7 +28,7 @@ class GroupPingTests:
                     if member["priority"] != 0 and member["hidden"] is False:
                         passed = False
                     elif passed is True:
-                        # data is considered incomplete 
+                        # data is considered incomplete
                         # only if we haven't failed
                         passed = None
             return passed
@@ -260,6 +262,64 @@ class GroupPingTests:
                 return "noAutoSplit" in argv
             return None
         return groupPing.forEachHost(hasNoAutoSplit)
+
+    # tests if the replset version increased by more than maxElectionsPerDay per day
+    @classmethod
+    def testReplSetHighVersionNumber(cls, groupPing):
+        maxElectionsPerDay = 48
+
+        # dictionary of replset versions by hid
+        versionDict = defaultdict(list)
+        # dictionary of query times
+        queryTimestampDict = defaultdict(list)
+        # dictionary of ping IDs
+        idsDict = defaultdict(list)
+
+        def buildCurrentState(host):
+            pingTime = host.getPingTime()
+            replVersion = host.getReplSetVersion()
+            hid = host.getHostId()
+
+            if not (pingTime and replVersion and hid):
+                return None
+
+            versionDict[hid].append(replVersion)
+            queryTimestampDict[hid].append(pingTime)
+            idsDict[hid].append(host.getId())
+
+        while groupPing:
+            groupPing.forEachHost(buildCurrentState)
+            groupPing = groupPing.prev()
+
+        res = True
+        ids = []
+
+        for hid in versionDict.keys():
+            versions = versionDict[hid]
+            ts = queryTimestampDict[hid]
+            pids = idsDict[hid]
+
+            if len(versions) < 1:
+                # not enough datapoints for this node
+                continue
+            elif len(versions) < 2:
+                # only one datapoint
+                if versions[0] > maxElectionsPerDay * 7:
+                    ids.append(pids[0])
+                    res = False
+            else:
+                # at least 2 data points:
+                for i in range(1, len(versions)):
+                    dt = (ts[i-1] - ts[i]).total_seconds() / 86400
+                    dv = (versions[i-1] - versions[i])
+
+                    if dt > dv * maxElectionsPerDay:
+                        ids.append(pids[i-1])
+                        ids.append(pids[i])
+                        res = False
+
+        return {'pass':  res, 'ids': list(set(ids))}
+
 
     @classmethod
     def testVersionDifference(cls, groupPing):
