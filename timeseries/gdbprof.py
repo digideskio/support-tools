@@ -153,8 +153,10 @@ class node:
         child.counts[t] += 1
         return child
 
-    def add_stack(self, stack, t):
+    def add_stack(self, stack, t, extra=None):
         if stack:
+            if extra:
+                stack.append(extra)
             stack.reverse()
             for f in self.filters:
                 f(stack)
@@ -176,7 +178,7 @@ class node:
             child = self.children[func]
 
             # avg number of threads
-            avg_thr = float(child.count) / opt.samples
+            avg_thr = child.avg_count
             max_thr = child.max_count
 
             # tree lines
@@ -205,25 +207,19 @@ class node:
     def pre_graph(self):
         for func in self.children:
             child = self.children[func]
+            if opt.buckets:
+                bcounts = collections.defaultdict(int)
+                for t in child.counts.keys():
+                    bt = bucket_time(t)
+                    bcounts[bt] += float(child.counts[t]) / opt.samples_per_t[bt]
+                child.counts = bcounts
             child.min_count = 0
             child.max_count = max(child.counts.values())
-            if opt.buckets:
-                t0 = dateutil.parser.parse('2000-01-01T00:00:00Z') # base for computing time deltas
-                bcounts = collections.defaultdict(int)
-                ns = collections.defaultdict(int)
-                for t in opt.times:
-                    s0 = (t - t0).total_seconds()
-                    s1 = s0 // opt.buckets * opt.buckets
-                    bt = t + timedelta(0, s1-s0)
-                    bcounts[bt] += child.counts[t]
-                    ns[bt] += 1
-                for bt in bcounts:
-                    bcounts[bt] = float(bcounts[bt]) / ns[bt] if ns[bt] else 0
-                child.counts = bcounts
+            child.avg_count = float(sum(child.counts[t] for t in opt.times)) / len(opt.times)
             for t in child.counts:
                 if opt.graph_scale=='log':
                     c = child.counts[t]
-                    c = math.log(c)+2 if c else -10
+                    c = math.log(c)+2 if c else 0
                     child.counts[t] = c
                     opt.min_count = 0
                     opt.max_count = max(opt.max_count, c)
@@ -231,6 +227,11 @@ class node:
                     opt.min_count = 0
                     opt.max_count = max(opt.max_count, child.counts[t])
             child.pre_graph()
+
+def bucket_time(t):
+    s0 = (t - opt.t0).total_seconds()
+    s1 = s0 // opt.buckets * opt.buckets
+    return t + timedelta(0, s1-s0)
 
 def simplify(func):
     func = func.strip()
@@ -273,7 +274,8 @@ def get_time(t):
         t = pytz.utc.localize(t+opt.tz)
     return t
 
-def read_profile(filters):
+def read_gdb(filters, type_info):
+
     root = node()
     root.filters = filters
     stack = []
@@ -316,7 +318,67 @@ def read_profile(filters):
                 if not opt.templates: func = simplify(func)
                 if at_ln and not opt.no_line_numbers: func += ':' + at_ln
                 stack.append(func)
+
+    # last one
     root.add_stack(stack, t)
+
+    # bucketed times
+    if opt.buckets:
+        opt.t0 = min(opt.times)
+        opt.samples_per_t = collections.defaultdict(int)
+        for t in opt.times:
+            opt.samples_per_t[bucket_time(t)] += 1
+
+    return root
+
+
+
+def read_perf(filters, type_info):
+
+    root = node()
+    root.filters = filters
+    stack = []
+    t = None
+    t0 = None
+    proc = None
+
+    # default bucket size is 1 sec
+    if opt.buckets==None:
+        opt.buckets = 1
+
+    for line in sys.stdin:
+        line = line[:-1]
+        start_marker = '# captured on: '
+        if line.startswith(start_marker): # comment with start time
+            captured = get_time(line[len(start_marker):])
+        elif line.startswith('#'): # comment
+            pass
+        elif line.startswith('\t'): # line of a stack trace
+            func = re.split('[ \t(<]+', line)[2]
+            stack.append(func)
+        elif line: # start of stack trace
+            stack = root.add_stack(stack, t, proc)
+            proc = line.split()[0]
+            t = float(line.split()[2][:-1])
+            if not t0:
+                t0 = t
+            t = captured + timedelta(0, t-t0)
+            if t>=opt.after and t<opt.before:
+                opt.times.append(t)
+                opt.samples += 1
+                opt.tmin = min(t, opt.tmin) if opt.tmin else t
+                opt.tmax = max(t, opt.tmax) if opt.tmax else t
+
+    # last one
+    root.add_stack(stack, t, proc)
+
+    # bucketed times
+    if opt.buckets:
+        opt.t0 = min(opt.times)
+        opt.samples_per_t = {}
+        for t in opt.times:
+            opt.samples_per_t[bucket_time(t)] = int(type_info[1]) * opt.buckets
+
     return root
 
 
@@ -333,7 +395,7 @@ def graph(ts=None, ys=None, ymin=None, ymax=None):
 
 def graph_child(child):
     if opt.graph:
-        times = opt.times if not opt.buckets else sorted(child.counts.keys())
+        times = opt.times
         ymin = child.min_count if opt.graph_scale=='separate' else opt.min_count
         ymax = child.max_count if opt.graph_scale=='separate' else opt.max_count
         graph(times, child.counts, ymin, ymax)
@@ -383,7 +445,7 @@ def main():
                    help='include only samples at or after this time, in yyyy-mm-ddThh:mm:ss format')
     p.add_argument('--before', '-b', default='9999-01-01T00:00:00',
                    help='include only samples before this time, in yyyy-mm-ddThh:mm:ss format')
-    p.add_argument('--buckets', type=float, default=0, help=
+    p.add_argument('--buckets', type=float, default=None, help=
                    'group counts into buckets of the specified length, in floating point seconds')
     p.add_argument('--graph', '-g', type=int, default=0, nargs='?', const=20,
                    help='produce a graph with the specified width, in ems')
@@ -394,6 +456,7 @@ def main():
     p.add_argument('--series', nargs='*', default=[])
     p.add_argument('--tz', type=float, nargs=1, default=None)
     p.add_argument('--threads', type=str, nargs='+', default=None)
+    p.add_argument('--type', type=str, default='gdb')
     global opt
     opt = p.parse_args()
 
@@ -435,8 +498,21 @@ def main():
         import timeseries
 
     # read stuff
-    root = read_profile(filters)
+    type_info = opt.type.split(',')
+    root = globals()['read_' + type_info[0]](filters, type_info)
     series = read_series()
+
+    # bucketize times
+    if opt.buckets:
+        i = 0
+        t0 = min(opt.times)
+        t1 = max(opt.times)
+        opt.times = []
+        for i in range(int((t1-t0).total_seconds() / opt.buckets) + 1):
+            opt.times.append(t0 + timedelta(0, i*opt.buckets))
+
+    # canonical times
+    opt.times = sorted(set(opt.times))
 
     # print result
     html_head()

@@ -373,7 +373,3 @@ bottleneck.
 ![ex-gdbprof](ex-gdbprof.png)
 
 
-
-
-
-

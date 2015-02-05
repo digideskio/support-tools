@@ -7,6 +7,7 @@
   [--no-line-numbers] [--just JUST] [--tree {utf-8,ascii,none}]
   [--after AFTER] [--before BEFORE] [--html] [--graph GRAPH]
   [--graph-scale {common,separate,log}] [--graph-ticks GRAPH_TICKS]
+  [--buckets BUCKETS] [--type TYPE]
 
 
 ## DESCRIPTION
@@ -30,6 +31,8 @@ Display a call tree analysis of stack trace samples collected by
     * separate: timeline graphs are on separate linear scales
     * log: timeline graphs are on a common log scale
 * --graph-ticks: number of graph tick marks to show
+* --buckets: smooth the timeline by grouping samples into buckets of the specified length, in floating-point seconds
+* --type: specify type of input: gdb (default) or perf.
 
 ## EXAMPLES
 
