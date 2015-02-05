@@ -13,6 +13,26 @@ class GroupPingTests:
                 return False
         return True
 
+    @classmethod
+    def testVisibleDelayedSecondaries(cls, groupPing):
+        def hiddenAndPriority0(host):
+            members = host.getReplNodeMembers()
+            if not (type(members) is list):
+                return None
+
+            passed = True
+            for member in members:
+                if "priority" in member and "hidden" in member:
+                    if member["priority"] != 0 and member["hidden"] is False:
+                        passed = False
+                    elif passed is True:
+                        # data is considered incomplete 
+                        # only if we haven't failed
+                        passed = None
+            return passed
+
+        return groupPing.forEachPrimary(hiddenAndPriority0)
+
     # This is a test for an even number of voting members in a replica set
     @classmethod
     def testEvenVotingNumberReplicaSets(cls, groupPing):

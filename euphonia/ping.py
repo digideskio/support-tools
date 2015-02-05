@@ -128,6 +128,9 @@ class Ping:
     def getQueryOpCount(self):
         return self.getPingSubdoc('serverStatus.opcounters.query')
 
+    def getReplNodeMembers(self):
+        return self.getPingSubdoc('localSystemReplSet.members')
+
     def getHostId(self):
         return self.doc['hid']
 

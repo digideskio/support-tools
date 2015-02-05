@@ -367,3 +367,10 @@
     name: "TimedoutCursors"
     priority: "medium"
     src: "pings"
+  - 
+    active: false
+    comment: "You have a large proportion of failed queries, more than 0.5%"
+    header: "VisibleDelayedSecondaries"
+    name: "VisibleDelayedSecondaries"
+    priority: "medium"
+    src: "pings"
