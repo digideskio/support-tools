@@ -84,7 +84,7 @@ class TestFramework:
                 # addressed, which is why it's still listed as failed) remove
                 # it from the list of failures as we'll no longer need to
                 # address it ;)
-                if results[testName]['pass'] is True:
+                if results[testName]['payload']['pass'] is True:
                     if 'failedTests' in g.group and self.src in\
                             g.group['failedTests']:
                         failedTests = g.group['failedTests'][self.src]

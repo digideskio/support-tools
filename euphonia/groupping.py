@@ -45,27 +45,33 @@ class GroupPing(grouptestdocument.GroupTestDocument):
         return False
 
     def forEachHost(self, test, *args, **kwargs):
+        ok = True
         res = True
         ids = []
         for pid in self.pings:
             testRes = test(self.pings[pid], *args, **kwargs)
             if testRes is None:
-                res = True
+                ok = False
                 self.logger.warning('Test returned bad document format')
             elif not testRes:
                 res = False
                 ids.append(pid)
-        return {'pass': res, 'ids': ids}
+        return {'ok': ok, 'payload': {'pass': res, 'ids': ids}}
 
     def forEachPrimary(self, test, *args, **kwargs):
+        ok = True
         res = True
         ids = []
         for pid in self.pings:
             if self.pings[pid].isPrimary():
-                if not test(self.pings[pid], *args, **kwargs):
+                testRes = test(self.pings[pid], *args, **kwargs)
+                if testRes is None:
+                    ok = False
+                    self.logger.warning('Test returned bad document format')
+                elif not testRes:
                     res = False
                     ids.append(pid)
-        return {'pass': res, 'ids': ids}
+        return {'ok': ok, 'payload': {'pass': res, 'ids': ids}}
 
     def next(self):
         """ Return the GroupPing after this one """
@@ -79,7 +85,8 @@ class GroupPing(grouptestdocument.GroupTestDocument):
 
         if curr_pings.count():
             tag = curr_pings[0]['tag']
-            return GroupPing(self.groupId(), tag, mongo=self.mongo, src=self.src)
+            return GroupPing(self.groupId(), tag, mongo=self.mongo,
+                             src=self.src)
         else:
             return None
 
@@ -94,6 +101,7 @@ class GroupPing(grouptestdocument.GroupTestDocument):
             raise e
         if curr_pings.count():
             tag = curr_pings[0]['tag']
-            return GroupPing(self.groupId(), tag, mongo=self.mongo, src=self.src)
+            return GroupPing(self.groupId(), tag, mongo=self.mongo,
+                             src=self.src)
         else:
             return None

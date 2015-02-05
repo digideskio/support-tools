@@ -103,10 +103,13 @@ class GroupTestDocument:
                 raise Exception(fname + " not defined")
             self.logger.debug("Testing " + test + "...")
             r = f(self)
-            if r['pass'] is True:
-                self.logger.debug("Passed!")
+            if r['ok'] is True:
+                if r['payload']['pass'] is True:
+                    self.logger.debug("Passed!")
+                else:
+                    self.logger.debug("Failed!")
             else:
-                self.logger.debug("Failed!")
+                self.logger.debug("Test " + test + " failed to execute.")
             return r
         else:
             raise Exception(test + " not defined")

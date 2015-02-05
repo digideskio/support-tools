@@ -132,7 +132,7 @@ class GroupPingTests:
     @classmethod
     def testMongoLargeChunkMigrations(cls, groupPing):
         if groupPing.group['shardCount'] == 0:
-            return {'pass': True}
+            return {'ok': True, 'payload': {'pass': True}}
         # <= 2.2.5, <= 2.4.5
         regex = '(^2.2.[0-5](-|$))|(^2.4.[0-5](-|$))'
         return groupPing.forEachHost(GroupPingTests.isNotVersion, regex)
@@ -170,7 +170,7 @@ class GroupPingTests:
     @classmethod
     def testMongoWritebackListener(cls, groupPing):
         if groupPing.group['shardCount'] == 0:
-            return {'pass': True}
+            return {'ok': True, 'payload': {'pass': True}}
         # <= 2.2.6, <= 2.4.8
         regex = '(^2.2.[0-6](-|$))|(^2.4.[0-8](-|$))'
         return groupPing.forEachHost(GroupPingTests.isNotVersion, regex)
@@ -179,8 +179,8 @@ class GroupPingTests:
     @classmethod
     def testNMonitoringAgents(cls, groupPing):
         if groupPing.group['activeAgentCount'] > 5:
-            return {'pass': False}
-        return {'pass': True}
+            return {'ok': True, 'payload': {'pass': False}}
+        return {'ok': True, 'payload': {'pass': True}}
 
     # This is a test for NUMA-related warnings on startup
     @classmethod
@@ -243,7 +243,7 @@ class GroupPingTests:
 
     @classmethod
     def testBackgroundFlushAverage(cls, groupPing):
-        maxAcceptableBackgroundFlush = 30 * 1000 # in ms
+        maxAcceptableBackgroundFlush = 30 * 1000  # in ms
 
         def checkBackgroundFlushAverage(host):
             serverStatus = host.getServerStatus()
@@ -261,7 +261,7 @@ class GroupPingTests:
 
     @classmethod
     def testRecentBackgroundFlushAverage(cls, groupPing):
-        maxAcceptableBackgroundFlush = 30 * 1000 # in ms
+        maxAcceptableBackgroundFlush = 30 * 1000  # in ms
         bFlushDocs = {}
         res = True
         ids = []
@@ -312,12 +312,13 @@ class GroupPingTests:
                     break
             groupPing = groupPing.prev()
 
+        ok = len(bFlushDocs.values()) >= 2
         for bFlushDoc in bFlushDocs.values():
             if (bFlushDoc['total'] / bFlushDoc['count']
                     > maxAcceptableBackgroundFlush):
                 res = False
                 ids.append(bFlushDoc['pingId'])
-        return {'pass': res, 'ids': ids}
+        return {'ok': ok, 'payload': {'pass': res, 'ids': ids}}
 
     @classmethod
     def testVersionDifference(cls, groupPing):
