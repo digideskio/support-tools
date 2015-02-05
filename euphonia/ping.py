@@ -140,6 +140,16 @@ class Ping:
     def getQueryOpCount(self):
         return self.getPingSubdoc('serverStatus.opcounters.query')
 
+    def getGlobalLockTotalTime(self):
+        return self.getPingSubdoc('serverStatus.globalLock.totalTime')
+
+    def getGlobalLockLockTime(self):
+        return self.getPingSubdoc('serverStatus.globalLock.lockTime')
+
+    def getDbCount(self):
+        # TODO: fill this out once the DB count data becomes available
+        return 1
+
     def getHostId(self):
         return self.doc['hid']
 

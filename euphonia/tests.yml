@@ -369,8 +369,15 @@
     src: "pings"
   - 
     active: false
-    comment: "You have a large proportion of failed queries, more than 0.5%"
+    comment: "You have a delayed secondary and it should be hidden with priority=0"
     header: "VisibleDelayedSecondaries"
     name: "VisibleDelayedSecondaries"
+    priority: "medium"
+    src: "pings"
+  - 
+    active: false
+    comment: "You have a large ratio of global locks"
+    header: "HighGlobalLock"
+    name: "HighGlobalLock"
     priority: "medium"
     src: "pings"

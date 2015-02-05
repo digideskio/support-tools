@@ -320,7 +320,6 @@ class GroupPingTests:
 
         return {'pass':  res, 'ids': list(set(ids))}
 
-
     @classmethod
     def testVersionDifference(cls, groupPing):
         # Hash of version documents by hid
@@ -397,7 +396,7 @@ class GroupPingTests:
         return groupPing.forEachHost(hasSmallNonMappedMemory)
 
     @classmethod
-<<<<<<< HEAD
+
     def testNumMongos(cls, groupPing):
         ids = []
         for ping in groupPing.pings:
@@ -437,7 +436,7 @@ class GroupPingTests:
                     return False
             return True
         return groupPing.forEachHost(hasDiagLogGreaterThanZero)
-=======
+
     def testTimedoutCursors(cls, groupPing):
 
         def smallNumberofTimedoutCursors(host):
@@ -456,4 +455,65 @@ class GroupPingTests:
 
             return True
         return groupPing.forEachHost(smallNumberofTimedoutCursors)
->>>>>>> TSPROJ-152 test for a large number of timedout cursors
+
+    # check for global lock percentage over 80% for over 10min
+    # TODO: need to check that there's more than one DB,
+    # https://jira.mongodb.org/browse/TSPROJ-98
+    @classmethod
+    def testHighGlobalLock(cls, groupPing):
+
+        # dictionary of the query timestamp
+        tsDict = defaultdict(list)
+        # dictionary of global lock ratios
+        lockRatioDict = defaultdict(list)
+        # dictionary of ping IDs
+        idsDict = defaultdict(list)
+
+        def buildCurrentState(host):
+            # not using the "ratio" subdocument since some pings don't have it
+            # computing the ratio manually instead
+            t1 = host.getGlobalLockLockTime()
+            t2 = host.getGlobalLockTotalTime()
+            pingTime = host.getPingTime()
+            hid = host.getHostId()
+
+            if None in [t1, t2, pingTime, hid]:
+                return None
+            
+            ratio = float(t1)/t2
+
+            
+
+            tsDict[hid].append(pingTime)
+            lockRatioDict[hid].append(ratio)
+            idsDict[hid].append(host.getId())
+
+        while groupPing:
+            groupPing.forEachHost(buildCurrentState)
+            groupPing = groupPing.prev()
+
+        res = True
+        ids = []
+
+        pingRatioThreshold = 0.8
+
+        for hid in lockRatioDict.keys():
+            ratios = lockRatioDict[hid]
+            ts = tsDict[hid]
+            pids = idsDict[hid]
+
+            # index of last timestamp of ping higher than the threshold
+            highPingEndIndex = -1
+
+            for i in range(len(ratios)):
+                if ratios[i] > pingRatioThreshold:
+                    highPingEndIndex = i
+                elif highPingEndIndex != -1:
+                    # if sustained for more than 10 min
+                    if ts[highPingEndIndex] - ts[i] > 600:
+                        for j in range(i, highPingEndIndex + 1):
+                            ids.append(pids[j])
+                            res = False
+                    highPingEndIndex = -1
+
+        return {'pass':  res, 'ids': ids}
