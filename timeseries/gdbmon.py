@@ -16,6 +16,7 @@ sys.stdout.flush()
 
 parser = optparse.OptionParser()
 parser.add_option('--debug', '-d', action='store_true', dest='dbg')
+parser.add_option('--state', '-s', action='store_true')
 o, args = parser.parse_args()
 o.pid = int(args[0]) if len(args)>0 else None
 o.delay = float(args[1]) if len(args)>1 else None
@@ -59,6 +60,16 @@ def get(response, show=False, timeout=None):
             dbg('GOT unexpected', line)
             pass
 
+def get_state():
+    states = 'state:'
+    dn = '/proc/' + str(o.pid) + '/task'
+    for tid in os.listdir(dn):
+        for line in open(dn + '/' + tid + '/status'):
+            if line.startswith('State:'):
+                states += ' ' + tid + '=' + line.split()[1]
+                break
+    return states
+
 cmd = ['gdb', '-p', str(o.pid), '--interpreter=mi']
 gdb = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
 
@@ -68,6 +79,8 @@ get('^running')
 for i in itertools.count():
     if o.delay: time.sleep(o.delay)
     t0 = time.time()
+    if o.state:
+        state = get_state()
     while True: # timeout and retry handles race condition btw thread starts and SIGTRAP
         dbg('SIGTRAP')
         os.kill(int(o.pid), signal.SIGTRAP)
@@ -75,6 +88,8 @@ for i in itertools.count():
             break
     t1 = time.time()
     sys.stdout.write(datetime.datetime.utcnow().strftime('\n=== %FT%T.%f+0000 \n'))
+    if o.state:
+        print state
     put('thread apply all bt')
     get('^done', True)
     t2 = time.time()
