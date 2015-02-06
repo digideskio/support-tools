@@ -586,7 +586,7 @@ def doQueueRead(db)
 end
 
 def checkForFinalized(db)
-  db.collection("reviews").find({"done" => { "$ne" => true}}).each do |issue|
+  db.collection("reviews").find({"done" => { "$ne" => true}, "marked_fin" => nil}).each do |issue|
     begin
       unless @autoCompleteFails.include? issue["key"]
         ir = db.collection("issues").find_one('jira.key'=>issue["key"])
@@ -595,6 +595,7 @@ def checkForFinalized(db)
         # Confirm that there is a comment on the issue
         unless lastComment == nil
           if (!lastComment.has_key? "visibility") && (!['1','3'].include? status)
+            db.collection("reviews").update({"key" => issue["key"]}, {"marked_fin" => true})
             @chatRequests.push("#{@defaultXMPPRoom} XMPP FIN #{issue["key"]} Auto:pushed")
             @chatRequests.push("#{@supportIRCChan} IRC FIN #{issue["key"]} Auto:pushed")
           end
@@ -643,7 +644,7 @@ def checkNewProactive(db)
   #Compare the current List of issues to the old, update if needed
   db.collection("issues").find({"jira.fields.issuetype.id" => "23"}).each do |issue|
     begin
-      unless @proactiveAlertsSent.include? issue["key"]
+      unless @proactiveAlertsSent.include? issue["jira"]["key"]
         comments = issue["jira"]["fields"]["comment"]["comments"]
         assignee = issue["jira"]["fields"]["assignee"]
         if assignee == nil
