@@ -117,7 +117,7 @@ class GroupPingTests:
         return groupPing.forEachHost(GroupPingTests.isNotVersion, regex)
 
     # This is a test for MongoDB <= 2.2.3, 2.4.1 which contain a security
-    # related vulnerability re JS function conflics in the mongo shell:
+    # related vulnerability re JS function conflicts in the mongo shell:
     # SERVER-9131
     # NOTE SERVER-9131 is in Planning Bucket A, is it even fair to limit to
     # these releases?
@@ -128,10 +128,10 @@ class GroupPingTests:
         return groupPing.forEachHost(GroupPingTests.isNotVersion, regex)
 
     # This is a test for MongoDB < 2.2.6 and < 2.4.6 which contain a data
-    # integrity related bug re large chunk migratoins: SERVER-10478
+    # integrity related bug re large chunk migrations: SERVER-10478
     @classmethod
     def testMongoLargeChunkMigrations(cls, groupPing):
-        if groupPing.group['shardCount'] == 0:
+        if 'shardCount' in groupPing.group and groupPing.group['shardCount'] == 0:
             return {'pass': True}
         # <= 2.2.5, <= 2.4.5
         regex = '(^2.2.[0-5](-|$))|(^2.4.[0-5](-|$))'
@@ -169,7 +169,7 @@ class GroupPingTests:
     # integrity related bug involving mongos: SERVER-12146
     @classmethod
     def testMongoWritebackListener(cls, groupPing):
-        if groupPing.group['shardCount'] == 0:
+        if 'shardCount' in groupPing.group and groupPing.group['shardCount'] == 0:
             return {'pass': True}
         # <= 2.2.6, <= 2.4.8
         regex = '(^2.2.[0-6](-|$))|(^2.4.[0-8](-|$))'
@@ -178,7 +178,7 @@ class GroupPingTests:
     # This is a test for a large number of MMS monitoring agents
     @classmethod
     def testNMonitoringAgents(cls, groupPing):
-        if groupPing.group['activeAgentCount'] > 5:
+        if 'activeAgentCount' in groupPing.group and groupPing.group['activeAgentCount'] > 5:
             return {'pass': False}
         return {'pass': True}
 
