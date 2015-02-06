@@ -562,13 +562,14 @@ def checkForFinalized(client)
   @issues.each_key do |key|
     if @issues[key][:rv]
       begin
-        if @issues[key][:warned] == nil || @issues[key][:warned] == false
+        if @issues[key][:warned] == nil || @issues[key][:warned] == false || @issues[key][:fin] == false
           ir = client.Issue.find(key)
           status = ir.status.id
           lastComment = ir.comment['comments'][-1]
           if (!lastComment.has_key? "visibility") && (!['1','3'].include? status)
             @chatRequests.push("#{@roomName} FIN #{key} Auto:pushed")
           end
+          @issues[key][:fin] = true
         end
       rescue => e
         logOut "Error in processing autocomplete #{key} - #{e}"
