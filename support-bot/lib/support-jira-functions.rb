@@ -586,7 +586,7 @@ def doQueueRead(db)
 end
 
 def checkForFinalized(db)
-  db.collection("reviews").find({"done" => { "$ne" => true}, "marked_fin" => nil}).each do |issue|
+  db.collection("reviews").find({"done" => { "$ne" => true}, "marked_fin" => { "$ne" => true}}).each do |issue|
     begin
       unless @autoCompleteFails.include? issue["key"]
         ir = db.collection("issues").find_one('jira.key'=>issue["key"])
