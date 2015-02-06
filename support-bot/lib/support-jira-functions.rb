@@ -597,7 +597,7 @@ def checkForFinalized(db)
           if (!lastComment.has_key? "visibility") && (!['1','3'].include? status)
             logOut "auto finalizing #{issue["key"]}", 1
             @chatRequests.push("#{@defaultXMPPRoom} XMPP FIN #{issue["key"]} Auto:pushed")
-            @chatRequests.push("#{@supportIRCChan} IRC FIN #{issue["key"]} Auto:pushed")
+            #@chatRequests.push("#{@supportIRCChan} IRC FIN #{issue["key"]} Auto:pushed")
             db.collection("reviews").update({"key" => issue["key"]}, {"$set" => {"marked_fin" => true}})
           end
         end
