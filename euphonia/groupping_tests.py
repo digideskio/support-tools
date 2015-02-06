@@ -315,3 +315,44 @@ class GroupPingTests:
                 return virtualMem - mappedMem - openConnections > 2048
             return True
         return groupPing.forEachHost(hasSmallNonMappedMemory)
+
+    @classmethod
+    def testNumMongos(cls, groupPing):
+        ids = []
+        for ping in groupPing.pings:
+            if groupPing.pings[ping].isMongos():
+                ids.append(ping)
+                print ping
+        return {'pass': len(ids) < 10, 'ids': ids}
+
+    @classmethod
+    def testSyncDelay(cls, groupPing):
+        def hasDefaultSyncDelay(host):
+            res = True
+            doc = host.getGetParameterAll()
+            if doc is not None and 'syncDelay' in doc:
+                if doc['syncDelay'] != 60:
+                    res = False
+            return res
+        return groupPing.forEachHost(hasDefaultSyncDelay)
+
+    @classmethod
+    def testNotableScan(cls, groupPing):
+        def hasNoNotableScan(host):
+            res = True
+            doc = host.getGetParameterAll()
+            if doc is not None and 'notableScan' in doc:
+                res = not(doc['notableScan'])
+            return res
+        return groupPing.forEachHost(hasNoNotableScan)
+
+    @classmethod
+    def testDiagLogGreaterThanZero(cls, groupPing):
+        def hasDiagLogGreaterThanZero(host):
+            doc = host.getCmdLineOpts()
+            if doc is not None and 'parsed' in doc:
+                parsed = doc['parsed']
+                if 'diaglog' in parsed and parsed['diaglog'] > 0:
+                    return False
+            return True
+        return groupPing.forEachHost(hasDiagLogGreaterThanZero)

@@ -328,7 +328,35 @@
   - 
     active: true
     comment: "You have a large amount of non-mapped memory, which means you are doing a lot of in-memory work"
-    header: "Large Non-Mapped Memory"
+    header: "MongoDB: Large Non-Mapped Memory"
     name: "LargeNonMappedMemory"
+    priority: "medium"
+    src: "pings"
+  -
+    active: true
+    comment: "You have [[N_AFFECTED_HOSTS]] mongoS hosts in the [[MMS_GROUP_ANCHOR]] MMS Group, which is higher than recommended. Too many mongoS hosts can result in a large number of open connections on your mongoD instances, which can have a performance impact. Consider whether you require this many mongoS instances, or if you can reduce the number."
+    header: "MongoDB Best Practices: Number of MongoS Instances"
+    name: "NumMongos"
+    priority: "medium"
+    src: "pings"
+  -
+    active: true
+    comment: "You have [[N_AFFECTED_HOSTS]] host(s) in the [[MMS_GROUP_ANCHOR]] MMS Group reporting a non-default value for syncDelay. Setting a value other than the default (60) is not recommended in production environments."
+    header: "MongoDB: SyncDelay"
+    name: "SyncDelay"
+    priority: "medium"
+    src: "pings"
+  -
+    active: true
+    comment: "You have [[N_AFFECTED_HOSTS]] host(s) in the [[MMS_GROUP_ANCHOR]] MMS Group reporting the execution of queries that resulted in table scans. You should ensure your queries make use of available indexes to avoid these costly operations, or configure new indexes to improve query performance."
+    header: "MongoDB Best Practices: Table Scans"
+    name: "NotableScan"
+    priority: "medium"
+    src: "pings"
+  -
+    active: true
+    comment: "You have [[N_AFFECTED_HOSTS]] host(s) in the [[MMS_GROUP_ANCHOR]] MMS Group reporting a non-zero value for the diaglog commandline option. Enabling diagnostic logging can have a performance, and is not recommended for normal production operation."
+    header: "MongoDB Best Practices: Diagnostic Logging"
+    name: "DiagLogGreaterThanZero"
     priority: "medium"
     src: "pings"
