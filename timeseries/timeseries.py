@@ -2175,6 +2175,12 @@ def wt(wt_cat, wt_name, rate=False, scale=1.0, level=3, **kwargs):
         **kwargs
     )
 
+ss(['wiredTiger', 'concurrentTransactions', 'read', 'available'], level=4)
+ss(['wiredTiger', 'concurrentTransactions', 'read', 'out'], level=2)
+ss(['wiredTiger', 'concurrentTransactions', 'read', 'totalTickets'], level=4)
+ss(['wiredTiger', 'concurrentTransactions', 'write', 'available'], level=4)
+ss(['wiredTiger', 'concurrentTransactions', 'write', 'out'], level=2)
+ss(['wiredTiger', 'concurrentTransactions', 'write', 'totalTickets'], level=4)
 
 wt('LSM', 'application work units currently queued')
 wt('LSM', 'bloom filter false positives', rate=True)
@@ -2260,6 +2266,7 @@ wt('cache', 'eviction server candidate queue not empty when topping up', rate=Tr
 wt('cache', 'eviction server evicting pages', rate=True, level=2)
 wt('cache', 'eviction server populating queue, but not evicting pages', rate=True)
 wt('cache', 'eviction server unable to reach eviction goal')
+wt('cache', 'eviction worker thread evicting pages')
 wt('cache', 'failed eviction of pages that exceeded the in-memory maximum', rate=True)
 wt('cache', 'hazard pointer blocked page eviction', rate=True)
 wt('cache', 'in-memory page splits', rate=True) # CHECK
@@ -2279,6 +2286,7 @@ wt('cache', 'pages selected for eviction unable to be evicted', rate=True)
 wt('cache', 'pages split during eviction', rate=True)
 wt('cache', 'pages walked for eviction', rate=True)
 wt('cache', 'pages written from cache', merge = 'wt_cache_pages_cache', rate=True)
+wt('cache', 'percentage overhead')
 wt('cache', 'tracked dirty bytes in the cache', scale=MB)
 wt('cache', 'tracked dirty pages in the cache')
 wt('cache', 'unmodified pages evicted', rate=True)
