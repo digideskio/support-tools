@@ -363,21 +363,21 @@
   - 
     active: false
     comment: "You have a large proportion of failed queries, more than 0.5%"
-    header: "TimedoutCursors"
+    header: "MongoDB Cursor Timeout"
     name: "TimedoutCursors"
     priority: "medium"
     src: "pings"
   - 
     active: false
     comment: "You have a delayed secondary and it should be hidden with priority=0"
-    header: "VisibleDelayedSecondaries"
+    header: "MongoDB Best Practices: Delayed Secondaries hidden and priority=0"
     name: "VisibleDelayedSecondaries"
     priority: "medium"
     src: "pings"
   - 
     active: false
     comment: "You have a large ratio of global locks"
-    header: "HighGlobalLock"
+    header: "MongoDB High Number of Global Locks"
     name: "HighGlobalLock"
     priority: "medium"
     src: "pings"
