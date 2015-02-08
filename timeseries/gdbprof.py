@@ -369,7 +369,9 @@ def read_perf(filters, type_info):
         elif line: # start of stack trace
             stack = root.add_stack(stack, t, proc)
             proc = line.split()[0]
-            t = float(line.split()[2][:-1])
+            fields = line.split()
+            t = fields[3] if fields[2].startswith('[') else fields[2]
+            t = float(t[:-1])
             if not t0:
                 t0 = t
             t = captured + timedelta(0, t-t0)
