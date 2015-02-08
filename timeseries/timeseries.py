@@ -80,11 +80,8 @@ graph_style = '''
     }
 '''
 
-x_pad = 1.5
-y_pad = 0.1
-
-def xxx(*ss):
-    sys.stderr.write('xxx ' + ' '.join(str(s) for s in ss) + '\n')
+xpad = 1.5
+ypad = 0.1
 
 def html_graph(
     data=[],
@@ -115,23 +112,23 @@ def html_graph(
                 yspan = 1
 
         dt = lambda t: (t-tmin).total_seconds()  # dt relative to global tmin
-        gx = lambda dt: dt / tspan * (width-2*x_pad) + x_pad # gx for a given dt
-        gy = lambda y: ((1 - (y-ymin) / yspan) * (1-2*y_pad) + y_pad) * height
+        gx = lambda dt: dt / tspan * (width-2*xpad) + xpad # gx for a given dt
+        gy = lambda y: ((1 - (y-ymin) / yspan) * (1-2*ypad) + ypad) * height
 
-        dt0 = dt(ts[0])             # first time relative to global tmin
-        dt1 = dt(ts[-1])            # last time relative to global tmin
-        x0 = gx(dt0)                # leftmost x
-        x1 = gx(dt1)                # rightmost x
+        dtmin = dt(ts[0])             # first time relative to global tmin
+        dtmax = dt(ts[-1])            # last time relative to global tmin
+        xmin = gx(dtmin)              # leftmost x
+        xmax = gx(dtmax)              # rightmost x
 
-        nbins = int(bins * (x1-x0)) if bins else float('inf') # max graph complexity
+        nbins = int(bins * math.ceil(xmax-xmin)) if bins else float('inf') # max graph complexity
 
-        if len(ts) < nbins:
+        if len(ts)<nbins or nbins==0:
 
             # draw individual points
             line = ' '.join('%g,%g' % (gx(dt(t)), gy(ys[t])) for t in ts)
             if shaded:
-                left = '%g,%g' % (x0, gy(0))
-                right = '%g,%g' % (x1, gy(0))
+                left = '%g,%g' % (xmin, gy(0))
+                right = '%g,%g' % (xmax, gy(0))
                 points = left + ' ' + line + ' ' + right
                 cls = 'shaded'
                 if type(shaded)==str: cls += ' ' + shaded
@@ -140,28 +137,26 @@ def html_graph(
 
         else:
 
-            msg(len(ts), 'samples;', nbins, 'bins') # xxxx
-
             # bin the data for graphing to bound graph complexity
-            tbin = (dt1-dt0+1e-9) / nbins              # time per bin
+            tbin = (dtmax-dtmin+1e-9) / nbins # time per bin
             ymins = [float('inf')] * nbins    # upper y for each bin
             ymaxs = [-float('inf')] * nbins   # lower y for each bin
             for t in ts:
-                bin = int((dt(t) - dt0) / tbin)
-                ymins[bin] = min(ymins[bin], ys[t])
-                ymaxs[bin] = max(ymaxs[bin], ys[t])
-            line = ' '.join('%g,%g' % (gx(dt0+i*tbin), gy(ymins[i])) for i in range(nbins))
-#            if shaded:
-#                left = '%g,%g' % (x0, gy(0))
-#                right = '%g,%g' % (x1, gy(0))
-#                points = left + ' ' + line + ' ' + right
-#                xxx(points)
-#                eltend('polygon', {'points':points, 'class':'shade'})
-            line = ''
-            line += ' ' + \
-                ' '.join('%g,%g' % (gx(dt0+i*tbin), gy(ymaxs[i])) for i in reversed(range(nbins)))
-            style = 'stroke:%s; fill:%s' % (color, color)
+                bi = int((dt(t) - dtmin) / tbin)
+                ymins[bi] = min(ymins[bi], ys[t])
+                ymaxs[bi] = max(ymaxs[bi], ys[t])
+            bis = [i for i in range(nbins) if ymins[i]!=float('inf')]
+            bt = lambda i: dtmin + (i+0.5)*tbin
+            line = ' '.join(r'%g,%g' % (gx(bt(i)), gy(ymins[i])) for i in reversed(bis))
+            if shaded:
+                left = '%g,%g' % (xmin, gy(0))
+                right = '%g,%g' % (xmax, gy(0))
+                points = right + ' ' + line + ' ' + left
+                eltend('polygon', {'points':points, 'class':'shaded'})
+            line += ' ' + ' '.join(r'%g,%g' % (gx(bt(i)), gy(ymaxs[i])) for i in bis)
+            style = 'stroke:%s; fill:%s; stroke-width:0.7' % (color, color)
             eltend('polyline', {'points':line, 'class':'curve', 'style':style})
+
 
     if data and ticks:
         if type(ticks)==int:
@@ -175,7 +170,7 @@ def html_graph(
 def labels(tmin, tmax, width, ts, labels):
     elt('div', {'style':'height: 1.1em; position:relative; width:%gem' % width})
     tspan = float((tmax-tmin).total_seconds())
-    gx = lambda t: (t-tmin).total_seconds() / tspan * (width-2*x_pad) + x_pad
+    gx = lambda t: (t-tmin).total_seconds() / tspan * (width-2*xpad) + xpad
     for t, label in zip(ts, labels):
         style = 'left:{x}em; position:absolute; width:100em'.format(x=gx(t)-50)
         elt('span', {'align':'center', 'style':style})
@@ -250,7 +245,6 @@ class Series:
         self.spec_ymax = float(self.get('ymax', '-inf'))
 
         # initially empty timeseries data
-        self.ts = []
         self.ys = collections.defaultdict(int)
     
         # text, json, ...: used to select from multiple possible descriptors
@@ -311,7 +305,7 @@ class Series:
         return get(self.descriptor, *args)
 
     def get_graphs(self, graphs, ygroups, opt):
-        if not self.split_field: # xxxxxxxxxx and not self.split_all:
+        if not self.split_field: # xxx and not self.split_all: ?
             if opt.merges:
                 merge = self.get('merge', None)
                 if merge: self.graph = merge
@@ -375,7 +369,6 @@ class Series:
                 self.queue_times.append((t-ms,+1))
                 self.queue_times.append((t,-1))
         else:
-            self.ts.append(t)
             self.ys[t] = d
 
         # tell our caller what we recorded
@@ -432,9 +425,11 @@ class Series:
                 q += d
                 self.ys[t] = q
                 self.ts.append(t)
+        else:
+            self.ts = sorted(self.ys.keys())
     
-        self.tmin = min(self.ts) if self.ts else None
-        self.tmax = max(self.ts) if self.ts else None
+        self.tmin = self.ts[0] if self.ts else None
+        self.tmax = self.ts[-1] if self.ts else None
         self.ymin = min(self.ys.values()) if self.ys else float('inf')
         self.ymax = max(self.ys.values()) if self.ys else float('-inf')
         self.ysum = sum(self.ys.values()) if self.ys else 0
@@ -767,7 +762,6 @@ def series_read_csv(fn, series, opt):
                     break
                 for field_name, field_value in zip(field_names, field_values):
                     if field_name != 'time':
-                        #dbg('xxx', s.descriptor['name'])
                         m = re.match(s.csv_field, field_name)
                         if m:
                             field_dict.update(m.groupdict())
@@ -1225,13 +1219,10 @@ def main():
     p.add_argument('--relative', action='store_true')
     p.add_argument('--list', action='store_true')
     p.add_argument('--level', type=int, default=1)
-    # p.add_argument('--bins', type=int, default=20) # xxx not ready yet
+    p.add_argument('--bins', type=int, default=25)
 
     global opt
     opt = p.parse_args()
-
-    # xxx not ready yet
-    opt.bins = 0
 
     # just list?
     if opt.list:
