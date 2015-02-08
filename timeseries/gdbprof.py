@@ -364,7 +364,8 @@ def read_perf(filters, type_info):
             pass
         elif line.startswith('\t'): # line of a stack trace
             func = re.split('[ \t(<]+', line)[2]
-            stack.append(func)
+            if func != '[unknown]':
+                stack.append(func)
         elif line: # start of stack trace
             stack = root.add_stack(stack, t, proc)
             proc = line.split()[0]
