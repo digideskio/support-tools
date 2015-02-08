@@ -107,3 +107,7 @@
     font-family: ninjanaruto;
     src: url("/css/njnaruto.ttf");
 }
+
+.popover {
+    max-width: 600px;
+}

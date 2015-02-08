@@ -23,17 +23,18 @@ def showFailedTests(src=None):
 <div id="div_failedTests_{{testSrc}}_{{testName}}", class="well well-sm">
 <%
             if testSrc == 'pings':
-                nfailedSpan = "(%s)" % testNids
+                nfailedSpan = "%s" % testNids
             else:
                 nfailedSpan = ""
             end
 %>
-    <span class="h4">{{!testName}} {{!nfailedSpan}}</span><span class="pull-right"><a href="#">+</a> <a href="#">x</a></span><br/><br/>
+    <span class="h4">{{!testName}} <a data-toggle="collapse" href="#collapse{{testSrc}}_{{testName}}" aria-expanded="false" aria-controls="collapse{{testSrc}}_{{testName}}" class="link link-danger"><span class="label label-danger">{{!nfailedSpan}}</span></a></span><span class="pull-right"><a href="#">+</a> <a href="#">x</a></span><br/><br/>
     <div style="display:none">
         <div class="header editable">{{!testHeader}}</div>
         <div class="comment editable">{{!testComment}}</div>
     </div>
-    <div>
+    <div class="collapse" id="collapse{{testSrc}}_{{testName}}">
+        <div class="well">
 <%
             if testSrc == 'pings':
                 ids = test['ids']
@@ -46,6 +47,7 @@ def showFailedTests(src=None):
                 end
             end
 %>
+        </div>
     </div>
     <div role="group" aria-label="buttons">
         <button type="button" class="btn btn-default">Ignore forever</button>

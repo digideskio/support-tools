@@ -12,15 +12,16 @@
                 % for group in groups:
                    <tr>
                        <td><a href="/group/{{group['_id']}}">{{group['name']}}</a></td>
-                       % failedTestsContent = "<table><tr><th>Src</th><th>Test</th><th>Score</th></td>"
-                       % for test in group['failedTests']:
-                       %    testText = ''.join(["<tr><td>",test['src'],"</td><td>",test['test'],"</td><td>",str(test['score']),"</td></tr>"])
-                       %    if test == issue:
-                       %        testText = ''.join(['<li style="color:#ff0000;"><b>',test,'</b></li>'])
-                       %    end
-                       %    failedTestsContent = failedTestsContent + testText
-                       % end
-                       % failedTestsContent = failedTestsContent + "</table>"
+                       <% failedTestsContent = "<div class='col-lg-12'><table class='table'><tr><th>Src</th><th>Test</th><th>Score</th></td>"
+                          for test in group['failedTests']:
+                            testText = ''.join(["<tr><td>",test['src'],"</td><td>",test['test'],"</td><td>",str(test['score']),"</td></tr>"])
+                            if test == issue:
+                                testText = ''.join(['<li style="color:#ff0000;"><b>',test,'</b></li>'])
+                            end
+                            failedTestsContent = failedTestsContent + testText
+                         end
+                         failedTestsContent = failedTestsContent + "</table></div>"
+                       %>
                        <td><span class="failedtests" data-toggle="popover" data-trigger="hover" data-placement="right" data-html="true" title="<b>Failed Tests</b>" data-content="{{failedTestsContent}}">{{len(group['failedTests'])}}</span></td>
                        <td>{{group['score']}}</td>
                    </tr>
