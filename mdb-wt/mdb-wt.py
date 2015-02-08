@@ -328,6 +328,13 @@ def cell_kv(desc, buf, at, short, key, find=None):
         else:
             indent.prt(start, 'val desc=0x%x(%s) sz=0x%x(%d)' % (desc, info, sz, sz))
             embedded_bson(buf, at, end)
+    elif is_wiredtiger:
+        if key:
+            x =repr(content)
+            indent.prt(start, 'key desc=0x%x(%s) sz=0x%x(%d) key=%s'% (desc, info, sz, sz, x))
+        else:
+            x = repr(content) if do_value else ''
+            indent.prt(start, 'val desc=0x%x(%s) sz=0x%x(%d) %s' % (desc, info, sz, sz, x))
     else:
         if key:
             x = hexbytes(content)
@@ -522,10 +529,11 @@ def ckpt_addr_cookie(info):
 
 def print_file(fn, at, meta, find=None):
 
-    global is_collection, is_index, is_sizestorer
+    global is_collection, is_index, is_sizestorer, is_wiredtiger
     is_collection = 'collection' in fn or '_mdb_catalog' in fn
     is_sizestorer = 'sizeStorer' in fn
     is_index = 'index' in fn
+    is_wiredtiger = 'WiredTiger.wt' in fn
 
     # mmap file
     f = open(fn, 'rb')
@@ -536,7 +544,7 @@ def print_file(fn, at, meta, find=None):
     root = None
     avail = {}
     if meta:
-        #try:
+        try:
             r, _, a = ckpt_addr_cookie(meta)
             print '%s: r=%s _=%s a=%s' % (fn, fmt_cookie(r), fmt_cookie(_), fmt_cookie(a))
             if r:
