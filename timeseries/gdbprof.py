@@ -221,7 +221,7 @@ class node:
             for t in child.counts:
                 if opt.graph_scale=='log':
                     c = child.counts[t]
-                    c = math.log(c)+2 if c else 0
+                    c = max(math.log(c)+2,0) if c else 0
                     child.counts[t] = c
                     opt.min_count = 0
                     opt.max_count = max(opt.max_count, c)
