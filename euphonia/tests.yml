@@ -375,7 +375,7 @@
     priority: "medium"
     src: "pings"
   -
-    active: true
+    active: false
     comment: "Your operations per second have recently more than doubled. This could be an indication of an unusually high load on your application or potentially misfiring queries."
     header: "High Operations Per Second"
     name: "HighOpsPerSecond"

@@ -1,5 +1,6 @@
 import re
 import datetime
+from collections import defaultdict
 
 
 class GroupPingTests:
@@ -397,13 +398,11 @@ class GroupPingTests:
 
     @classmethod
     def testHighOpsPerSecond(cls, groupPing):
-        opsByHost = {}
+        opsByHost = defaultdict(list)
 
         # Reorganizes pings to arrays of necessary values in a dict by host
         def buildOpsByHost(host):
             hid = host.getHostId()
-            if hid not in opsByHost:
-                opsByHost[hid] = []
 
             serverStatus = host.getServerStatus()
             if serverStatus is None:
@@ -440,7 +439,7 @@ class GroupPingTests:
 
                     if dTime.total_seconds() == 0:
                         continue
-                    opsPerSecond = dOps / dTime.total_seconds()
+                    opsPerSecond = float(dOps) / dTime.total_seconds()
 
                     if host not in deltaDocsByHost:
                         deltaDocsByHost[host] = []
