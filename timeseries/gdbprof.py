@@ -350,6 +350,8 @@ def read_perf(filters, type_info):
     t = None
     t0 = None
     proc = None
+    freq = None
+    captured = None
 
     # default bucket size is 1 sec
     if opt.buckets==None:
@@ -359,7 +361,12 @@ def read_perf(filters, type_info):
         line = line[:-1]
         start_marker = '# captured on: '
         if line.startswith(start_marker): # comment with start time
-            captured = get_time(line[len(start_marker):])
+            if not captured:
+                captured = get_time(line[len(start_marker):])
+        elif line.startswith('# cmdline'):
+            m = re.search('-F ?([0-9]+)', line)
+            if m:
+                freq = float(m.groups()[0])
         elif line.startswith('#'): # comment
             pass
         elif line.startswith('\t'): # line of a stack trace
@@ -374,8 +381,8 @@ def read_perf(filters, type_info):
             t = float(t[:-1])
             if not t0:
                 t0 = t
-            t = captured + timedelta(0, t-t0)
-            if t>=opt.after and t<opt.before:
+            t = captured + timedelta(0, t-t0) # wrong: captured is end, not beginning...
+            if True: # t>=opt.after and t<opt.before: # doesn't work, timestamps are not correct
                 opt.times.append(t)
                 opt.samples += 1
                 opt.tmin = min(t, opt.tmin) if opt.tmin else t
@@ -384,12 +391,18 @@ def read_perf(filters, type_info):
     # last one
     root.add_stack(stack, t, proc)
 
+    # freq specified in type info (e.g. perf,99)?
+    if len(type_info)>1:
+        freq = float(type_info[1])
+    if freq==None:
+        raise Exception('sampling frequency not known')
+
     # bucketed times
     if opt.buckets:
         opt.t0 = min(opt.times)
         opt.samples_per_t = {}
         for t in opt.times:
-            opt.samples_per_t[bucket_time(t)] = int(type_info[1]) * opt.buckets
+            opt.samples_per_t[bucket_time(t)] = freq * opt.buckets
 
     return root
 
