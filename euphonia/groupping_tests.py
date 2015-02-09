@@ -457,7 +457,7 @@ class GroupPingTests:
                     dTimeInHours = dTime.total_seconds() / 60 / 60
                     if dTimeInHours == 0:
                         continue
-                    dCommitsPerHour = dCommits / dTimeInHours
+                    dCommitsPerHour = float(dCommits) / dTimeInHours
                     if dCommitsPerHour > 0:
                         res = False
                         ids.append(commitDocs[i+1]['pingId'])
