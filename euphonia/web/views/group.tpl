@@ -69,13 +69,20 @@ end
     <div class="row">
         <div class="col-lg-12">
 <%
-if group['company'] is not None and len(group['company']['sales']) > 0:
-    salesrep = group['company']['sales'][0]['jira']
-else:
-    salesrep = None
+if group['company'] is not None:
+    if len(group['company']['sales']) > 0:
+        salesrep = group['company']['sales'][0]['jira']
+    else:
+        salesrep = None
+    end
+
+    sf_account_id = group['company'].get('sf_account_id')
+    sf_project_id = group['company'].get('sf_project_id')
 end
 %>
-            <strong>Sales Rep:</strong> <a href="https://corp.10gen.com/employees/{{salesrep}}">{{salesrep}}</a>
+            <strong>Salesforce:</strong> <a href="https://mongodb.my.salesforce.com/{{sf_account_id}}">Account</a>,
+            <a href="https://mongodb.my.salesforce.com/{{sf_project_id}}">Project</a>
+            &nbsp;<strong>Sales Rep:</strong> <a href="https://corp.10gen.com/employees/{{salesrep}}">{{salesrep}}</a>
         </div>
     </div>
     <hr/>
