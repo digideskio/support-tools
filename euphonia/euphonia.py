@@ -28,8 +28,7 @@ class Euphonia(karakuricommon.karakuriclient):
 
         # Initialize dbs and collections
         try:
-            self.mongo = pymongo.MongoClient(self.args['mongo_host'],
-                                             self.args['mongo_port'])
+            self.mongo = pymongo.MongoClient(self.args['mongo_uri'])
         except pymongo.errors.PyMongoError as e:
             self.logger.exception(e)
             raise e
@@ -599,13 +598,10 @@ if __name__ == "__main__":
     parser.add_config_argument("--euphonia-port", metavar="PORT", type=int,
                                default=8070,
                                help="specify the euphonia port (default=8080)")
-    parser.add_config_argument("--mongo-host", metavar="HOSTNAME",
-                               default="localhost",
-                               help="specify the MongoDB hostname (default="
-                                    "localhost)")
-    parser.add_config_argument("--mongo-port", metavar="PORT", default=27017,
-                               type=int,
-                               help="specify the MongoDB port (default=27017)")
+    parser.add_config_argument("--mongo-uri", metavar="MONGO",
+                               default="mongodb://localhost:27017",
+                               help="specify the MongoDB URI (default="
+                               "mongodb://localhost:27017)")
     parser.add_config_argument("--pid", metavar="FILE",
                                default="/tmp/euphonia.pid",
                                help="specify a PID file "
