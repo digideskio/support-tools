@@ -24,8 +24,13 @@ class GroupPingTests:
 
             passed = True
             for member in members:
-                if "priority" in member and "hidden" in member:
-                    if member["priority"] != 0 and member["hidden"] is False:
+                if "priority" in member \
+                        and "hidden" in member \
+                        and "slaveDelay" in member:
+
+                    if member["slaveDelay"] == 0:
+                        continue
+                    if member["priority"] != 0 or member["hidden"] is False:
                         passed = False
                     elif passed is True:
                         # data is considered incomplete
@@ -367,7 +372,7 @@ class GroupPingTests:
                     dt = (ts[i-1] - ts[i]).total_seconds()
                     dv = (ratios[i-1] - ratios[i])
 
-                    if dt > dv * indexMissIncreaseRatio:
+                    if dv > indexMissIncreaseRatio * dt:
                         ids.append(pids[i-1])
                         ids.append(pids[i])
                         res = False
@@ -531,18 +536,20 @@ class GroupPingTests:
             pingTime = host.getPingTime()
             hid = host.getHostId()
 
-            if None in [t1, t2, pingTime, hid]:
+            if None in [pingTime, hid]:
                 return None
-            
-            ratio = float(t1)/t2
 
-            
+            if not t1 or not t2:
+                return None
+
+            ratio = float(t1)/t2
 
             tsDict[hid].append(pingTime)
             lockRatioDict[hid].append(ratio)
             idsDict[hid].append(host.getId())
 
         while groupPing:
+            #TODO: only need to check the last 10 min worth of pings
             groupPing.forEachHost(buildCurrentState)
             groupPing = groupPing.prev()
 
