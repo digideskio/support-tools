@@ -381,3 +381,12 @@
     name: "HighGlobalLock"
     priority: "medium"
     src: "pings"
+  - 
+    active: false
+    comment: "You have a sharp increase in index misses ratio"
+    header: "MongoDB Index Miss Ratio Sharp Increase"
+    name: "IndexMissIncrease"
+    priority: "medium"
+    src: "pings"
+
+

@@ -320,6 +320,60 @@ class GroupPingTests:
 
         return {'pass':  res, 'ids': list(set(ids))}
 
+    # tests if the index misses increased by indexMissIncreaseRatio in one day
+    @classmethod
+    def testIndexMissIncrease(cls, groupPing):
+        
+        # maximum allowed ratio increase between two datapoints
+        indexMissIncreaseRatio = 10
+        
+        # dictionary of miss ratios by hid 
+        missRatioDict = defaultdict(list)
+        # dictionary of query times
+        queryTimestampDict = defaultdict(list)
+        # dictionary of ping IDs
+        idsDict = defaultdict(list)
+
+        def buildCurrentState(host):
+            missRatio = host.getBtreeIndexMissRatio()
+            pingTime = host.getPingTime()
+            hid = host.getHostId()
+
+            if not (pingTime and missRatio and hid):
+                return None
+
+            missRatioDict[hid].append(missRatio)
+            queryTimestampDict[hid].append(pingTime)
+            idsDict[hid].append(host.getId())
+
+        while groupPing:
+            groupPing.forEachHost(buildCurrentState)
+            groupPing = groupPing.prev()
+
+        res = True
+        ids = []
+
+        for hid in missRatioDict.keys():
+            ratios = missRatioDict[hid]
+            ts = queryTimestampDict[hid]
+            pids = idsDict[hid]
+
+            if len(ratios) < 2:
+                # not enough datapoints for this node
+                continue
+            else:
+                # at least 2 data points:
+                for i in range(1, len(ratios)):
+                    dt = (ts[i-1] - ts[i]).total_seconds()
+                    dv = (ratios[i-1] - ratios[i])
+
+                    if dt > dv * indexMissIncreaseRatio:
+                        ids.append(pids[i-1])
+                        ids.append(pids[i])
+                        res = False
+
+        return {'pass':  res, 'ids': list(set(ids))}
+
     @classmethod
     def testVersionDifference(cls, groupPing):
         # Hash of version documents by hid

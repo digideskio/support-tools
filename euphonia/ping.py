@@ -145,6 +145,9 @@ class Ping:
 
     def getGlobalLockLockTime(self):
         return self.getPingSubdoc('serverStatus.globalLock.lockTime')
+    
+    def getBtreeIndexMissRatio(self):
+        return self.getPingSubdoc('serverStatus.indexCounters.btree.missRatio')
 
     def getDbCount(self):
         # TODO: fill this out once the DB count data becomes available
