@@ -89,7 +89,7 @@ var initFromAuthToken = function(callback) {
     var auth_token = $.cookie('kk_token');
     if (typeof auth_token !== "undefined") {
         var urlString = "/login";
-        var data = {'auth_token': auth_token};
+        var data = {'kk_token': auth_token};
         $.post(urlString, data).always(function() {
             if (typeof callback !== "undefined"){
                 return callback();

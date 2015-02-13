@@ -997,7 +997,7 @@ class karakuri(karakuricommon.karakuribase):
                 for kv in keyValuePairs:
                     if len(kv) == 2:
                         auth_dict = {kv[0]: kv[1]}
-                token = auth_dict.get('auth_token', None)
+                token = auth_dict.get('kk_token', None)
 
                 match = {'token': token,
                          'token_expiry_date': {"$gt": datetime.utcnow()}}
