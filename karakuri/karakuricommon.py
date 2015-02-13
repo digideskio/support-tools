@@ -78,7 +78,7 @@ class karakuriclient(karakuribase):
             token = kwargs['token']
         else:
             token = self.token
-        headers = {'Authorization': "auth_token=%s" % token}
+        headers = {'Authorization': "kk_token=%s" % token}
 
         res = requests.request(method, url, headers=headers, data=data)
         if res is not None:
