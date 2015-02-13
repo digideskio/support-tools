@@ -39,7 +39,7 @@ class Euphonia(karakuricommon.karakuriclient):
     def _getTemplateValue(self, var, groupSummary, testDoc=None):
         """ Return a value for the given template variable. A finite number of
         such template variables are supported and defined below """
-        self.logger.debug("_getTemplateValue(%s,%s)", groupSummary)
+        self.logger.debug("_getTemplateValue(%s,%s)", var, groupSummary)
         if var == "MMS_GROUP_NAME":
             if 'name' in groupSummary:
                 return {'ok': True, 'payload': groupSummary['name']}
@@ -166,13 +166,13 @@ class Euphonia(karakuricommon.karakuriclient):
             """ A decorator for bottle-route callback functions to pass
             auth_token cookies """
             def wrapped(*args, **kwargs):
-                kwargs['token'] = bottle.request.get_cookie("auth_token")
+                kwargs['token'] = bottle.request.get_cookie("kk_token")
                 return func(*args, **kwargs)
             return wrapped
 
         @b.post('/login')
         def login():
-            token = bottle.request.params.get('auth_token')
+            token = bottle.request.params.get('kk_token')
             res = self.postRequest("/login", data={'token': token})
             if res['status'] == 'success':
                 user = res['data']
