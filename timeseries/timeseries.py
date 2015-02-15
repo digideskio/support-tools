@@ -340,7 +340,9 @@ class Series:
             if self.last_t==t:
                 return
             if self.last_t:
-                dd = (d-self.last_d) / (t-self.last_t).total_seconds()
+                dd = d - self.last_d
+                if self.rate != 'delta':
+                    dd /= (t-self.last_t).total_seconds()
                 self.last_t = t
                 self.last_d = d
                 d = dd
@@ -1464,7 +1466,8 @@ MB = 1024*1024
 def desc_units(scale, rate):
     units = ''
     if scale==MB: units = 'MB'
-    if rate: units += '/s'
+    if rate=='delta': units += 'delta'
+    elif rate: units += '/s'
     return units
 
 def ss(json_data, name=None, scale=1, rate=False, units=None, level=3, **kwargs):
@@ -1774,10 +1777,10 @@ ss(["metrics", "record", "moves"], rate=True)
 ss(["metrics", "repl", "apply", "batches", "num"], rate=True)
 ss(["metrics", "repl", "apply", "batches", "totalMillis"], rate=True)
 ss(["metrics", "repl", "apply", "ops"], rate=True)
-ss(["metrics", "repl", "buffer", "count"], rate=True)
-ss(["metrics", "repl", "buffer", "maxSizeBytes"], rate=True)
-ss(["metrics", "repl", "buffer", "sizeBytes"], rate=True)
-ss(["metrics", "repl", "network", "bytes"], rate=True)
+ss(["metrics", "repl", "buffer", "count"])
+ss(["metrics", "repl", "buffer", "maxSizeBytes"], scale=MB, level=4)
+ss(["metrics", "repl", "buffer", "sizeBytes"], scale=MB)
+ss(["metrics", "repl", "network", "bytes"], rate=True, scale=MB)
 ss(["metrics", "repl", "network", "getmores", "num"], rate=True)
 ss(["metrics", "repl", "network", "getmores", "totalMillis"], rate=True)
 ss(["metrics", "repl", "network", "ops"], rate=True)
@@ -2256,8 +2259,8 @@ wt('cache', 'eviction server candidate queue empty when topping up', rate=True)
 wt('cache', 'eviction server candidate queue not empty when topping up', rate=True)
 wt('cache', 'eviction server evicting pages', rate=True, level=2)
 wt('cache', 'eviction server populating queue, but not evicting pages', rate=True)
-wt('cache', 'eviction server unable to reach eviction goal')
-wt('cache', 'eviction worker thread evicting pages')
+wt('cache', 'eviction server unable to reach eviction goal', rate='delta')
+wt('cache', 'eviction worker thread evicting pages', rate=True)
 wt('cache', 'failed eviction of pages that exceeded the in-memory maximum', rate=True)
 wt('cache', 'hazard pointer blocked page eviction', rate=True)
 wt('cache', 'in-memory page splits', rate=True) # CHECK
@@ -2382,7 +2385,7 @@ wt('transaction', 'transaction checkpoint max time (msecs)') # CHECK
 wt('transaction', 'transaction checkpoint min time (msecs)') # CHECK
 wt('transaction', 'transaction checkpoint most recent time (msecs)') # CHECK
 wt('transaction', 'transaction checkpoint total time (msecs)') # CHECK
-wt('transaction', 'transaction checkpoints', rate=True)
+wt('transaction', 'transaction checkpoints', rate='delta')
 wt('transaction', 'transaction failures due to cache overflow', rate=True)
 wt('transaction', 'transaction range of IDs currently pinned')
 wt('transaction', 'transactions committed', rate=True, level=2)
