@@ -239,8 +239,11 @@ class Series:
     
         # scale the data (divide by this)
         self.scale = self.get('scale', 1) # scale by this constant
-        self.scale_field = self.descriptor['scale_field'] if 'scale_field' in self.descriptor else None
+        self.scale_field = self.descriptor['scale_field'] if 'scale_field' in self.descriptor else None # xxx self.get?
     
+        # allows other fields to use this field value
+        self.set_field =  self.get('set_field', None)
+
         # requested ymax
         self.spec_ymax = float(self.get('ymax', '-inf'))
 
@@ -316,7 +319,7 @@ class Series:
         for s in self.split_series.values():
             s.get_graphs(graphs, ygroups, opt)
 
-    def _data_point(self, t, d, get_field):
+    def _data_point(self, t, d, get_field, set_field):
 
         # may not have data in case of a count, so just use 0
         try:
@@ -354,7 +357,10 @@ class Series:
         # scale - xxx need general computation mechanism here instead
         if self.scale_field:
             scale_field = self.scale_field.format(**self.descriptor)
-            div = float(get_field(scale_field))
+            try:
+                div = float(get_field(scale_field))
+            except:
+                return
             if div:
                 d /= div
         d /= self.scale
@@ -372,6 +378,10 @@ class Series:
                 self.queue_times.append((t,-1))
         else:
             self.ys[t] = d
+
+        # make data available for computation
+        if self.set_field and set_field:
+            set_field(self.set_field, d)
 
         # tell our caller what we recorded
         return d
@@ -394,7 +404,7 @@ class Series:
         return self.split_series[split_key]
 
 
-    def data_point(self, t, d, get_field, opt):
+    def data_point(self, t, d, get_field, set_field, opt):
         if opt.relative:
             if self.t0 is None:
                 self.t0 = t
@@ -407,7 +417,7 @@ class Series:
             s = self.get_split(split_key)
         else:
             s = self
-        return s._data_point(t, d, get_field)
+        return s._data_point(t, d, get_field, set_field)
 
 
     def finish(self):
@@ -679,11 +689,13 @@ def series_read_json(fn, series, opt):
             fixup(jnode)
             result = collections.defaultdict(dict)
             match(ptree, jnode, result)
-            for s in result:
+            set_fields = {}
+            for s in sorted(result.keys(), key=lambda s: s.key):
                 fields = result[s]
+                fields.update(set_fields)
                 try:
-                    s.data_point(fields['time'], fields['data'], fields.__getitem__, opt)
-                except KeyError:
+                    s.data_point(fields['time'], fields['data'], fields.__getitem__, set_fields.__setitem__, opt)
+                except KeyError as e:
                     pass
 
     if unmatched:
@@ -742,9 +754,8 @@ def series_read_re(fn, series, opt):
                         if t:
                             d = get_field(s.re_data)
                             if d != None:
-                                s.data_point(t, d, get_field, opt)
+                                s.data_point(t, d, get_field, None, opt)
                             last_time = t
-
 
 def series_read_csv(fn, series, opt):
 
@@ -767,8 +778,8 @@ def series_read_csv(fn, series, opt):
                         m = re.match(s.csv_field, field_name)
                         if m:
                             field_dict.update(m.groupdict())
-                            field_value = s.data_point(t, field_value, field_dict.__getitem__, opt)
-                            field_dict[field_name] = field_value
+                            field_value = s.data_point(t, field_value, field_dict.__getitem__, field_dict.__setitem__, opt)
+                            field_dict[field_name] = field_value # xxx use set_field instead?
                                 
 
 descriptors = []     # descriptors loaded from various def files
@@ -2146,7 +2157,11 @@ def wt(wt_cat, wt_name, rate=False, scale=1.0, level=3, **kwargs):
 
     units = desc_units(scale, rate)
     if units: units = ' (' + units + ')'
-    name = 'wt {}: {}{}'.format(wt_cat, wt_name, units)
+    if 'name' in kwargs:
+        name = 'wt {}: {}'.format(wt_cat, kwargs['name'])
+        del kwargs['name']
+    else:
+        name = 'wt {}: {}{}'.format(wt_cat, wt_name, units)
 
     # for parsing wt data in json format ss files
     descriptor(
@@ -2328,10 +2343,11 @@ wt('data-handle', 'connection sweeps', rate=True) # CHECK
 wt('data-handle', 'connection time-of-death sets', rate=True) # CHECK
 wt('data-handle', 'session dhandles swept', rate=True)
 wt('data-handle', 'session sweep attempts', rate=True)
-wt('log', 'consolidated slot closures', rate=True)
+wt('log', 'consolidated slot closures', rate=True, set_field='slot_closure_rate')
 wt('log', 'consolidated slot join races', rate=True)
 wt('log', 'consolidated slot join transitions', rate=True)
 wt('log', 'consolidated slot joins', rate=True)
+wt('log', 'consolidated slot joins', rate=True, name='joins per closure', scale_field='slot_closure_rate')
 wt('log', 'failed to find a slot large enough for record', rate=True)
 wt('log', 'log buffer size increases', rate=True)
 wt('log', 'log bytes of payload data', scale=MB, rate=True)
