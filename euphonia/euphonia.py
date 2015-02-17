@@ -172,7 +172,7 @@ class Euphonia(karakuricommon.karakuriclient):
 
         @b.post('/login')
         def login():
-            token = bottle.request.params.get('kk_token')
+            token = bottle.request.params.get('auth_token')
             res = self.postRequest("/login", data={'token': token})
             if res['status'] == 'success':
                 user = res['data']

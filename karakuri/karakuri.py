@@ -499,7 +499,9 @@ class karakuri(karakuricommon.karakuribase):
     def getUserByToken(self, token, **kwargs):
         """ Return the associated user document """
         self.logger.debug("getUserByToken(%s)", token)
-        res = self.find_one(self.coll_users, {'token': token})
+        # Currently authenticating against username
+        # TODO: use Crowd REST API to validate token
+        res = self.find_one(self.coll_users, {'user': token})
         if not res['ok']:
             return res
         user = res['payload']
