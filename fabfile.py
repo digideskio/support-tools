@@ -14,7 +14,6 @@ env.hosts    = ['support-tools-1.vpc3.10gen.cc']
 
 app          = 'support-tools'
 repo         = 'git@github.com:10gen/support-tools'
-#repo         = 'git@github.com:redondos/support-tools.git'
 env.environment  = 'prod'
 group        = 'support-tools'
 

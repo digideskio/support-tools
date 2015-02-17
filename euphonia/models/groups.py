@@ -1,6 +1,4 @@
-import bson
 import pymongo
-from pprint import pprint
 
 class Groups:
     """ This class manages the MMS group content.
@@ -11,21 +9,18 @@ class Groups:
         :param database: MongoDB client object
         :return: None
         """
-        self.mongo = mongo
         self.db_euphonia = mongo.euphonia
+        self.db_support = mongo.support
         self.coll_groups = self.db_euphonia.groups
         self.coll_failedtests = self.db_euphonia.failedtests
-        self.coll_pings = self.db_euphonia.pings
-        self.coll_mmsgroupreports = self.db_euphonia.mmsgroupreports
 
     def getGroupSummary(self, gid):
         """ Retrieve that needed to render the group page
         :param gid: Group ID
         :return: Dict containing everything there is to know
         """
-        # high-level information
+        # High-level information
         query = {'_id': gid}
-
         try:
             res = self.coll_groups.find_one(query)
         except pymongo.errors.PyMongoError as e:
@@ -37,67 +32,83 @@ class Groups:
             # TODO raise exception?
             group_summary = {'gid': gid}
 
-        # failed tests
-        # exid := example id
+        # Failed tests
+        # This is the list of currently failed tests
         failedTests = group_summary.get('failedTests', [])
+        failedTestsDict = {ft['ftid']:ft for ft in failedTests}
 
-        #match = {"$match": {'_id': {"$in": [ft['ftid'] for ft in failedTests]}}}
-        #unwind = {"$unwind": '$ids'}
-        #group = {"$group": {'_id': {'src': "$src",
-        #                            'test': "$test",
-        #                            'score': "$score"},
-        #                    'nids': {"$sum": 1},
-        #                    'exid': {"$last": "$ids"}}}
-        #project = {"$project": {'src': "$_id.src",
-        #                        'test': "$_id.test",
-        #                        'nids': "$nids",
-        #                        'exid': "$exid",
-        #                        'score': "$_id.score",
-        #                        '_id': 0}}
+        # Have we created tickets for these failed tests before?
+        # Return the most recent one if so
+        # TODO remove this loop!
+        # TODO consolidate test and src
+        # TODO are we better off just querying all ticketed cases?
+        for i in range(0, len(failedTests)):
+            ft = failedTests[i]
+            query = {'gid': gid,
+                     'test': ft['test'],
+                     'src': ft['src'],
+                     '_id': {"$lt": ft['ftid']},
+                     'ticket': {"$exists": True}}
+            sort = [("_id", -1)]
+            try:
+                res = self.coll_failedtests.find(query).sort(sort).limit(1)
+            except pymongo.errors.PyMongoError as e:
+                raise e
 
+            if res is not None:
+                print("Found a previous ticket for this test!")
+                test = next(res, None)
+                if test is not None:
+                    failedTests[i]['ticket'] = test['ticket']
+
+        # Fetch these failed tests as we'll need their src documents
         query = {'_id': {"$in": [ft['ftid'] for ft in failedTests]}}
-
         try:
             res = self.coll_failedtests.find(query)
         except pymongo.errors.PyMongoError as e:
             raise e
 
         failedTests = []
-        pings_query_ids = []
-        mmsgroupreports_query_ids = []
+        testDocuments = {}
 
         if res is not None:
             for ft in res:
-                if ft['src'] == "pings":
-                    pings_query_ids.extend(ft['ids'])
-                elif ft['src'] == "mmsgroupreports":
-                    mmsgroupreports_query_ids.extend(ft['ids'])
-                failedTests.append(ft)
+                if ft['src'] not in testDocuments:
+                    testDocuments[ft['src']] = []
+                testDocuments[ft['src']].extend(ft['ids'])
+                for key in ft.keys():
+                    failedTestsDict[ft['_id']][key] = ft[key]
+                failedTests.append(failedTestsDict[ft['_id']])
         else:
             # TODO raise exception?
             pass
 
+        # Get all past failed tests that are now resolved
+        query = {'gid': gid, 'resolved': {"$exists": True}}
+        resolvedTests = []
+        try:
+            res = self.coll_failedtests.find(query)
+        except pymongo.errors.PyMongoError as e:
+            raise e
+
+        for ft in res:
+            resolvedTests.append(ft)
+            testDocuments[ft['src']].extend(ft['ids'])
+
         group_summary['failedTests'] = failedTests
+        group_summary['resolvedTests'] = resolvedTests
 
-        pings_query = {"_id": {"$in": pings_query_ids}}
-        mmsgroupreports_query = {"_id": {"$in": mmsgroupreports_query_ids}}
-
-        try:
-            pings_res = self.coll_pings.find(pings_query)
-        except pymongo.errors.PyMongoError as e:
-            raise e
-
-        try:
-            mmsgroupreports_res = self.coll_mmsgroupreports.find(mmsgroupreports_query)
-        except pymongo.errors.PyMongoError as e:
-            raise e
-
+        # Fetch test documents
         ids = {}
-        
-        for r in pings_res:
-            ids[r['_id'].__str__()] = r
-        for r in mmsgroupreports_res:
-            ids[r['_id'].__str__()] = r
+        for key in testDocuments:
+            query = {"_id": {"$in": testDocuments[key]}}
+            try:
+                res = self.db_euphonia[key].find(query)
+            except pymongo.errors.PyMongoError as e:
+                raise e
+
+            for r in res:
+                ids[r['_id'].__str__()] = r
 
         group_summary['ids'] = ids
 
@@ -106,7 +117,7 @@ class Groups:
 
         if 'name' in group_summary:
             try:
-                curr_companies = self.mongo.support.companies.find(
+                curr_companies = self.db_support.companies.find(
                         {"$or":[{'jira_groups': group_summary['name']},
                                 {'mms_groups': group_summary['name']}]})
             except pymongo.errors.PyMongoError as e:

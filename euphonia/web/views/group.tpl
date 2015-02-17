@@ -1,61 +1,144 @@
 <%
-def getNFailedTests(src=None):
+import datetime
+
+def getTimestamp(objectId):
+    tmp = objectId.__str__()
+    tmp = tmp[:8]
+    return int(tmp, 16)
+end
+
+def getDatetime(objectId):
+    n = getTimestamp(objectId)
+    print(dir(datetime))
+    return datetime.datetime.fromtimestamp(n)
+end
+
+def getNTests(type):
     n = 0
-    for test in group['failedTests']:
-        if src is None or src == test['src']:
-            n += 1
+
+    src = None
+    if type == 'failed' or type == 'ticketed':
+        src = group['failedTests']
+    elif type == 'resolved':
+        src = group['resolvedTests']
+        else:
+        return n
+    end
+
+    for test in src:
+        ticketed = test.get('ticket')
+        if type == 'ticketed' and ticketed is None:
+            continue
         end
+        resolved = test.get('resolved')
+        if type == 'resolved' and resolved is None:
+            continue
+        end
+        if type == 'failed' and (ticketed is not None or resolved is not None):
+            continue
+        end
+        n += 1
     end
     return n
 end
 
-def showFailedTests(src=None):
-    for test in group['failedTests']:
-        if src is None or src == test['src']:
-            testName = test['test']
-            testSrc = test['src']
-            testComment = testDescriptionCache[testSrc][testName]['comment']
-            testHeader = testDescriptionCache[testSrc][testName]['header']
-            testId = test['_id']
-            testIgnore = test.get('ignore', None)
-            testNids = test['nids']
+def showTests(type):
+    src = None
+    if type == 'failed' or type == 'ticketed':
+        src = group['failedTests']
+    elif type == 'resolved':
+        src = group['resolvedTests']
+    end
+
+    for test in src:
+        ticketed = test.get('ticket')
+        if type == 'ticketed' and ticketed is None:
+            continue
+        end
+        resolved = test.get('resolved')
+        if type == 'resolved' and resolved is None:
+            continue
+        end
+        if type == 'failed' and (ticketed is not None or resolved is not None):
+            continue
+        end
+
+        testName = test['test']
+        testSrc = test['src']
+        testComment = testDescriptionCache[testSrc][testName]['comment']
+        testHeader = testDescriptionCache[testSrc][testName]['header']
+        testId = test.get('ftid')
+        if testId is None:
+            testId = test.get('_id')
+        end
+        failedTs = getDatetime(testId)
+        testIgnore = test.get('ignore', None)
+        testNids = test['nids']
+
+        # A ticket already exists for this test
+        testClass = ""
+        if ticketed is not None:
+            ticketKey = ticketed.get('key')
+            ticketTs = ticketed.get('ts').replace(microsecond=0)
+            testClass = "alert-warning"
+        end
+        if resolved is not None:
+            testClass = "alert-success"
+        end
 %>
-<div id="div_failedTests_{{testSrc}}_{{testName}}", class="well well-sm">
+<div id="div_failedTests_{{testId}}", class="alert {{testClass}}">
 <%
-            if testSrc == 'pings':
-                nfailedSpan = "%s" % testNids
-            else:
-                nfailedSpan = ""
-            end
+        nfailedSpan = "%s" % testNids
 %>
-    <span class="h4">{{!testName}} <a data-toggle="collapse" href="#collapse{{testSrc}}_{{testName}}" aria-expanded="false" aria-controls="collapse{{testSrc}}_{{testName}}" class="link link-danger"><span class="label label-danger">{{!nfailedSpan}}</span></a></span><span class="pull-right"><a href="#">+</a> <a href="#">x</a></span><br/><br/>
+    <span id="div_failedTests_{{testId}}_title" class="h4">{{!testName}} <a data-toggle="collapse" href="#collapse{{testId}}" aria-expanded="false" aria-controls="collapse{{testId}}" class="link link-danger">
+    <span class="label label-danger">{{!nfailedSpan}}</span></a></span>
+    <span class="pull-right"><a href="#">+</a> <a href="#">x</a></span><br/><br/>
     <div style="display:none">
         <div class="header editable">{{!testHeader}}</div>
         <div class="comment editable">{{!testComment}}</div>
     </div>
-    <div class="collapse" id="collapse{{testSrc}}_{{testName}}">
+    <div class="collapse" id="collapse{{testId}}">
         <div class="well">
 <%
-            if testSrc == 'pings':
-                ids = test['ids']
-                for _id in ids:
-                    ping = group['ids'][_id.__str__()]
-                    doc = ping['doc']
-%>
-            <a href="https://mms.mongodb.com/host/detail/{{ping['gid']}}/{{ping['hid']}}">{{doc['host']}}:{{doc['port']}}</a></br>
-<%
-                end
+        ids = test['ids']
+        for _id in ids:
+            ping = group['ids'][_id.__str__()]
+            gid = ping.get('gid')
+            hid = ping.get('hid')
+            print(ping.keys())
+            doc = ping.get('doc')
+            if doc is not None:
+                host = doc.get('host')
+                port = doc.get('port')
+            else:
+                host = "null"
+                port = "null"
             end
 %>
+            <a href="https://mms.mongodb.com/host/detail/{{gid}}/{{hid}}">{{host}}:{{port}}</a></br>
+%       end
         </div>
     </div>
+        {{failedTs}}: Last noticed<br/>
+%       if ticketed is not None:
+        {{ticketTs}}: Created <a href="https://jira.mongodb.org/browse/{{ticketKey}}">{{ticketKey}}</a><br/>
+%       end
+%       if resolved is not None:
+        {{resolved.replace(microsecond=0)}}: Issue resolved
+%       end
+<%
+        if type == "resolved":
+            pass
+        else:
+%>
+    <br/>
     <div role="group" aria-label="buttons">
         <button type="button" class="btn btn-default">Ignore forever</button>
-        <button type="button" class="btn btn-default" onclick="addToTicket(this, '{{!testSrc}}', '{{!testName}}')">Add to ticket</button>
+        <button type="button" class="btn btn-default" onclick="addToTicket(this, '{{!testId}}')">Add to ticket</button>
     </div>
+%       end
 </div>
     <%
-        end
     end
 end
 %>
@@ -70,7 +153,7 @@ end
         <div class="col-lg-12">
 <%
 if group['company'] is not None:
-    if len(group['company']['sales']) > 0:
+    if 'sales' in group['company'] and len(group['company']['sales']) > 0:
         salesrep = group['company']['sales'][0]['jira']
     else:
         salesrep = None
@@ -118,17 +201,21 @@ end
             </div>
         </div>
         <div class="col-lg-6">
-            <span class="h4 pull-right">Failed Tests ({{getNFailedTests()}})</span>
+            <span class="h4 pull-right">Failed Tests</span>
             <ul id="myTab" class="nav nav-tabs" role="tablist">
-                <li role="presentation"><a href="#mmsgroupreports" id="mmsgroupreports-tab" role="tab" data-toggle="tab" aria-controls="mmsgroupreports" aria-expanded="true">MMS Group Reports ({{getNFailedTests('mmsgroupreports')}})</a></li>
-                <li role="presentation" class="active"><a href="#pings" id="pings-tab" role="tab" data-toggle="tab" aria-controls="pings" aria-expanded="true">Pings ({{getNFailedTests('pings')}})</a></li>
+                <li role="presentation" class="active"><a href="#failed" id="failed-tab" role="tab" data-toggle="tab" aria-controls="failed" aria-expanded="true">Not Ticketed ({{getNTests('failed')}})</a></li>
+                <li role="presentation"><a href="#ticketed" id="ticketed-tab" role="tab" data-toggle="tab" aria-controls="ticketed" aria-expanded="true">Ticketed ({{getNTests('ticketed')}})</a></li>
+                <li role="presentation"><a href="#resolved" id="resolved-tab" role="tab" data-toggle="tab" aria-controls="resolved" aria-expanded="true">Resolved ({{getNTests('resolved')}})</a></li>
             </ul><br/>
             <div class="tab-content">
-                <div role="tabpanel" class="tab-pane" id="mmsgroupreports" aria-labelledBy="mmsgroupreports-tab">
-%                   showFailedTests('mmsgroupreports')
+                <div role="tabpanel" class="tab-pane active" id="failed" aria-labelledBy="failed-tab">
+%                   showTests('failed')
                 </div>
-                <div role="tabpanel" class="tab-pane active" id="pings" aria-labelledBy="pings-tab">
-%                   showFailedTests('pings')
+                <div role="tabpanel" class="tab-pane" id="ticketed" aria-labelledBy="ticketed-tab">
+%                   showTests('ticketed')
+                </div>
+                <div role="tabpanel" class="tab-pane" id="resolved" aria-labelledBy="resolved-tab">
+%                   showTests('resolved')
                 </div>
             </div>
         </div>
