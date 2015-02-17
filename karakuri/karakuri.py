@@ -501,7 +501,7 @@ class karakuri(karakuricommon.karakuribase):
         self.logger.debug("getUserByToken(%s)", token)
         # Currently authenticating against username
         # TODO: use Crowd REST API to validate token
-        res = self.find_one(self.coll_users, {'user': token})
+        res = self.find_one(self.coll_users, {'token': token})
         if not res['ok']:
             return res
         user = res['payload']
@@ -999,7 +999,7 @@ class karakuri(karakuricommon.karakuribase):
                 for kv in keyValuePairs:
                     if len(kv) == 2:
                         auth_dict = {kv[0]: kv[1]}
-                token = auth_dict.get('kk_token', None)
+                token = auth_dict.get('auth_token', None)
 
                 match = {'token': token,
                          'token_expiry_date': {"$gt": datetime.utcnow()}}

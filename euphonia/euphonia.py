@@ -59,7 +59,7 @@ class Euphonia(karakuricommon.karakuriclient):
                     ping = groupSummary['ids'][_id.__str__()]
                     doc = ping['doc']
                     res += '# [https://mms.mongodb.com/host/detail/%s/%s|%s:%s]>\n' %\
-                        (ping['gid'], ping['hid'], doc['host'], doc['port'])
+                            (ping['gid'], ping['hid'], doc['host'], doc['port'])
                 return {'ok': True, 'payload': res}
         elif var == "N_AFFECTED_HOSTS":
             if 'nids' in testDoc:
@@ -166,13 +166,13 @@ class Euphonia(karakuricommon.karakuriclient):
             """ A decorator for bottle-route callback functions to pass
             auth_token cookies """
             def wrapped(*args, **kwargs):
-                kwargs['token'] = bottle.request.get_cookie("auth_user")
+                kwargs['token'] = bottle.request.get_cookie("kk_token")
                 return func(*args, **kwargs)
             return wrapped
 
         @b.post('/login')
         def login():
-            token = bottle.request.params.get('auth_user')
+            token = bottle.request.params.get('kk_token')
             res = self.postRequest("/login", data={'token': token})
             if res['status'] == 'success':
                 user = res['data']
