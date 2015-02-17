@@ -82,6 +82,9 @@ def showTests(type):
             ticketTs = ticketed.get('ts').replace(microsecond=0)
             testClass = "alert-warning"
         end
+        if resolved is not None:
+            testClass = "alert-success"
+        end
 %>
 <div id="div_failedTests_{{testId}}", class="alert {{testClass}}">
 <%
