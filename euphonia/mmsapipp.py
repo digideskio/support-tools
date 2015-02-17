@@ -212,7 +212,7 @@ class mmsapipp:
                 ping = self.convertFieldIllegals(ping)
 
             doc = {'gid': groupId, 'name': groupName, 'hid': host['id'],
-                   'tag': tag, 'doc': ping}
+                   'tag': tag, 'doc': ping, 'hostInfo': host}
             self.saveLastPing(doc)
         return {'ok': True, 'payload': []}
 
