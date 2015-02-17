@@ -166,13 +166,13 @@ class Euphonia(karakuricommon.karakuriclient):
             """ A decorator for bottle-route callback functions to pass
             auth_token cookies """
             def wrapped(*args, **kwargs):
-                kwargs['token'] = bottle.request.get_cookie("kk_token")
+                kwargs['token'] = bottle.request.get_cookie("auth_user")
                 return func(*args, **kwargs)
             return wrapped
 
         @b.post('/login')
         def login():
-            token = bottle.request.params.get('auth_token')
+            token = bottle.request.params.get('auth_user')
             res = self.postRequest("/login", data={'token': token})
             if res['status'] == 'success':
                 user = res['data']

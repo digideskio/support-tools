@@ -19,6 +19,7 @@ $(document).ready(function() {
     userInit();
 
     // Login, i.e. set kk_token
+    /*
     $('#nav_a_login').click(function() {
         var auth_token = prompt("kk_token:");
         deleteCookies();
@@ -26,6 +27,7 @@ $(document).ready(function() {
         var callback = function() {window.location.reload()};
         initFromAuthToken(callback);
     });
+    */
 });
 
 var deleteCookies = function() {
