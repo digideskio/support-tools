@@ -4,17 +4,17 @@ $('#myTab a').click(function (e) {
 })
 
 
-addToTicket = function(button, testSrc, testName) {
+addToTicket = function(button, testId) {
     console.log("addToTicket");
-    header = $("#div_failedTests_"+testSrc+"_"+testName+" div.header").text();
-    comment = $("#div_failedTests_"+testSrc+"_"+testName+" div.comment").text();
+    header = $("#div_failedTests_"+testId+" div.header").text();
+    comment = $("#div_failedTests_"+testId+" div.comment").text();
     console.log(header);
     console.log(comment);
     // new div
     ticketBody = document.getElementById("div_ticketDescription_mainBody");
     console.log(ticketBody);
     div = document.createElement("div");
-    div.id = "div_ticketDescription_"+testSrc+"_"+testName;
+    div.id = "div_ticketDescription_"+testId;
     headerDiv = document.createElement("div");
     $(headerDiv).addClass("header");
     $(headerDiv).addClass("editable");
@@ -30,22 +30,28 @@ addToTicket = function(button, testSrc, testName) {
     ticketBody.appendChild(div);
     $(div).css('padding-bottom', '2em');
 
+    ftdiv = $("#div_failedTests_"+testId);
+    ftdiv.addClass("alert-info");
+
     // change button
     console.log(button);
     button.innerText = "Remove from ticket";
-    button.onclick = function() {removeFromTicket(button, testSrc, testName)};
+    button.onclick = function() {removeFromTicket(button, testId)};
 };
 
-removeFromTicket = function(button, testSrc, testName) {
+removeFromTicket = function(button, testId) {
     console.log("removeFromTicket");
-    console.log(testSrc+"_"+testName);
-    div = document.getElementById("div_ticketDescription_"+testSrc+"_"+testName);
+    console.log(testId);
+    div = document.getElementById("div_ticketDescription_"+testId);
     if (div) {
         div.parentNode.removeChild(div);
         button.innerText = "Add to ticket";
-        button.onclick = function() {addToTicket(button, testSrc, testName)};
+        button.onclick = function() {addToTicket(button, testId)};
+
+        ftdiv = $("#div_failedTests_"+testId);
+        ftdiv.removeClass("alert-info");
     } else {
-        console.log("div_ticketDescription_"+testSrc+"_"+testName+" dne!");
+        console.log("div_ticketDescription_"+testId+" dne!");
     }
 };
 

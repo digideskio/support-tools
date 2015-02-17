@@ -1,4 +1,5 @@
 import argparse
+import datetime
 import logging
 import pymongo
 import sys
@@ -78,10 +79,7 @@ class TestFramework:
                 results = g.run_all_tests()
 
             for testName in results:
-                # If a passing test had failed previously (but has not been
-                # addressed, which is why it's still listed as failed) remove
-                # it from the list of failures as we'll no longer need to
-                # address it ;)
+                # If a passing test had failed previously then it's been fixed!
                 if results[testName]['pass'] is True:
                     if 'failedTests' in g.group:
                         for ft in g.group['failedTests']:
@@ -92,16 +90,25 @@ class TestFramework:
                                 try:
                                     match = {'_id': g.groupId()}
                                     updoc = {"$pull": {self.failedTestsPath:
-                                                       {"$elemMatch":
-                                                        {'src': self.src,
-                                                         'test': testName}}},
+                                                       {'ftid': ft['ftid']}},
                                              "$inc": {'score': -1*g.
                                                       testPriorityScores[
                                                           g.tests[testName][
                                                               'priority']]}}
-                                    self.coll_groups.update(match, updoc)
+                                    doc = self.coll_groups.find_and_modify(
+                                        query=match, update=updoc)
                                 except pymongo.errors.PyMongoError as e:
                                     raise e
+
+                                # mark the ft as resolved
+                                query = {'_id': ft['ftid']}
+                                updoc = {'$set':
+                                         {'resolved': datetime.datetime.now()}}
+                                try:
+                                    self.coll_failedtests.update(query, updoc)
+                                except pymongo.errors.PyMongoError as e:
+                                    raise e
+
                     continue
 
                 # Persist failures

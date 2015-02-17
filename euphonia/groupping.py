@@ -82,7 +82,8 @@ class GroupPing(grouptestdocument.GroupTestDocument):
 
         if curr_pings.count():
             tag = curr_pings[0]['tag']
-            return GroupPing(self.groupId(), tag, mongo=self.mongo, src=self.src)
+            return GroupPing(self.groupId(), tag, mongo=self.mongo,
+                             src=self.src)
         else:
             return None
 
@@ -97,6 +98,7 @@ class GroupPing(grouptestdocument.GroupTestDocument):
             raise e
         if curr_pings.count():
             tag = curr_pings[0]['tag']
-            return GroupPing(self.groupId(), tag, mongo=self.mongo, src=self.src)
+            return GroupPing(self.groupId(), tag, mongo=self.mongo,
+                             src=self.src)
         else:
             return None

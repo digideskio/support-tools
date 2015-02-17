@@ -111,3 +111,8 @@
 .popover {
     max-width: 600px;
 }
+.alert {
+    border-width: 1px;
+    border-style: solid;
+    border-color: #eeeeee;
+}
