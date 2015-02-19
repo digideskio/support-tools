@@ -22,7 +22,7 @@ $(document).ready(function() {
     $('#nav_a_login').click(function() {
         var auth_token = prompt("kk_token:");
         deleteCookies();
-        $.cookie('kk_token', auth_token);
+        $.cookie('kk_token', auth_token, {path: '/'});
         var callback = function() {window.location.reload()};
         initFromAuthToken(callback);
     });

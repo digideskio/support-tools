@@ -28,6 +28,11 @@
                     </div>
                     <div class="panel-body">
                         <div class="form-group">
+                            <label for="workflow.auto_approve" class="col-sm-2 control-label">Auto approve</label>
+                            <div class="col-sm-10">
+                                <input type="hidden" name="workflow.auto_approve" value="false">
+                                <input type="checkbox" class="form-control input-sm" name="workflow.auto_approve" id="workflow.auto_approve" value="true">
+                            </div>
                             <label for="workflow.time_elapsed" class="col-sm-2 control-label">Time Elapsed</label>
                             <div class="col-sm-10">
                                 <input type="number" class="form-control input-sm" name="workflow.time_elapsed" id="workflow.time_elapsed" value="">
