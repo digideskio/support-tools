@@ -61,6 +61,13 @@ function renderWorkflow(wfid) {
     $(":input[id='workflow.time_elapsed']").val(workflow.time_elapsed);
     renderPrereqs(workflow.prereqs);
     $(":input[id='workflow.query_string']").val(workflow.query_string);
+    if (workflow.auto_approve === true) {
+        $(":input[id='workflow.auto_approve']").prop('checked', true);
+        $(":input[id='workflow.auto_approve']").val('true')
+    } else {
+        $(":input[id='workflow.auto_approve']").prop('checked', false);
+        $(":input[id='workflow.auto_approve']").val('true')
+    }
     renderActions(workflow.actions);
 }
 

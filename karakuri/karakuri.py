@@ -756,10 +756,20 @@ class karakuri(karakuricommon.karakuribase):
 
         now = datetime.utcnow()
 
+        # is the workflow auto-approved?
+        res = self.getWorkflow(workflowName)
+        if not res['ok']:
+            return res
+        wf = res['payload']
+        approved = wf['auto_approve']
+
         task = {'_id': tid, 'iid': iid, 'key': key, 'company': company,
-                'workflow': workflowName, 'approved': False, 'done': False,
+                'workflow': workflowName, 'approved': approved, 'done': False,
                 'inProg': False, 't': now, 'start': now, 'active': True,
                 'createdBy': kwargs['userDoc']['user']}
+
+        if approved is True:
+            task['approvedBy'] = 'karakuri'
 
         try:
             self.coll_queue.insert(task)
