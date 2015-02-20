@@ -287,7 +287,7 @@ def read_gdb(filters, type_info):
     paddr = '(?:0x[0-9a-f]+ in )?'
     pfunc = '((?:[^)]|\)[^ ])*)'
     pargs = '((?: ?\(.*\) ?)+ *)'
-    pfile = '(?:from (.*)|at (.*):([0-9]+))?\n$'
+    pfile = '(?:at (.*):([0-9]+))? ?(?:from (.*)|)?\n$'
     pat = plevel + paddr + pfunc + pargs + pfile
     pat = re.compile(pat)
     
@@ -317,12 +317,12 @@ def read_gdb(filters, type_info):
              and (not opt.threads or lwp in opt.threads):
             m = pat.match(line)
             if not m:
-                print 'not matched:', repr(line)
+                msg('not matched:', repr(line))
             else:
                 if opt.dbg:
                     msg(line.strip())
                     msg(m.groups())
-                level, func, args, from_file, at_file, at_ln = m.groups()
+                level, func, args, at_file, at_ln, from_file = m.groups()
                 func = func.strip()
                 if not opt.templates: func = simplify(func)
                 if at_ln and not opt.no_line_numbers: func += ':' + at_ln
