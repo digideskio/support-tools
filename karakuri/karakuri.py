@@ -10,6 +10,8 @@ import pymongo
 import re
 import string
 import sys
+import gzip
+import StringIO
 
 from datetime import datetime, timedelta
 from jirapp import jirapp
@@ -276,8 +278,13 @@ class karakuri(karakuricommon.karakuribase):
         match = res['payload']
 
         # find 'em and get 'er done!
+        projection = {'jira.fields.assignee': 1,
+                      'jira.key': 1,
+                      'jira.fields.status': 1,
+                      'karakuri.workflows_performed': 1
+        }
         try:
-            curs_issues = self.coll_issues.find(match)
+            curs_issues = self.coll_issues.find(match, projection)
         except pymongo.errors.PyMongoError as e:
             self.logger.exception(e)
             return {'ok': False, 'payload': e}
@@ -501,7 +508,7 @@ class karakuri(karakuricommon.karakuribase):
         self.logger.debug("getUserByToken(%s)", token)
         # Currently authenticating against username
         # TODO: use Crowd REST API to validate token
-        res = self.find_one(self.coll_users, {'token': token})
+        res = self.find_one(self.coll_users, {'user': token})
         if not res['ok']:
             return res
         user = res['payload']
@@ -1011,8 +1018,9 @@ class karakuri(karakuricommon.karakuribase):
                         auth_dict = {kv[0]: kv[1]}
                 token = auth_dict.get('kk_token', None)
 
-                match = {'token': token,
-                         'token_expiry_date': {"$gt": datetime.utcnow()}}
+                # match = {'token': token,
+                #         'token_expiry_date': {"$gt": datetime.utcnow()}}
+                match = {'user': token}
                 doc = self.coll_users.find_one(match)
                 if not doc:
                     bottle.abort(401)
@@ -1034,7 +1042,12 @@ class karakuri(karakuricommon.karakuribase):
         def success(data=None):
             ret = {'status': 'success', 'data': data}
             bottle.response.status = 200
-            return bson.json_util.dumps(ret)
+            bottle.response.add_header("Content-Encoding", "gzip")
+            content = bson.json_util.dumps(ret)
+            compressed = StringIO.StringIO()
+            with gzip.GzipFile(fileobj=compressed, mode='w') as f:
+                f.write(content)
+            return compressed.getvalue()
 
         def fail(data=None):
             ret = {'status': 'fail', 'data': data}
@@ -1337,6 +1350,16 @@ class karakuri(karakuricommon.karakuribase):
             res = self.findWorkflowTasks(name, **kwargs)
             if res['ok']:
                 return success({'tasks': res['payload']})
+            return error(res['payload'])
+
+        @b.route('/workflow/<name>/issues')
+        @authenticated
+        def workflow_issues(name, **kwargs):
+            """ Find and queue new tasks for the workflow """
+            res = self.findWorkflowIssues(name, **kwargs)
+            self.logger.debug(res)
+            if res['ok']:
+                return success({'issues': res['payload']})
             return error(res['payload'])
 
         @b.route('/workflow/<name>')

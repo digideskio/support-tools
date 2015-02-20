@@ -20,9 +20,13 @@ $(document).ready(function() {
 
     // Login, i.e. set kk_token
     $('#nav_a_login').click(function() {
-        var auth_token = prompt("kk_token:");
+        var auth_token = prompt("Username:");
         deleteCookies();
+<<<<<<< Updated upstream
         $.cookie('kk_token', auth_token, {path: '/'});
+=======
+        $.cookie('auth_user', auth_token);
+>>>>>>> Stashed changes
         var callback = function() {window.location.reload()};
         initFromAuthToken(callback);
     });
@@ -83,7 +87,7 @@ var userInit = function() {
     } else {
         initFromAuthToken();
     }
-}
+};
 
 var initFromAuthToken = function(callback) {
     var auth_token = $.cookie('kk_token');

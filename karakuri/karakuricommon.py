@@ -71,15 +71,15 @@ class karakuriclient(karakuribase):
         return self.getRequest(endpoint, None, command, arg, **kwargs)
 
     def request(self, endpoint, method="GET", data=None, **kwargs):
-        self.logger.debug("request(%s,%s,%s", endpoint, method, data)
+        self.logger.debug("request(%s,%s,%s,%s)", endpoint, method, data)
         url = "http://%s:%i%s" % (self.args['karakuri_host'],
                                   self.args['karakuri_port'], endpoint)
         if 'token' in kwargs:
             token = kwargs['token']
         else:
             token = self.token
-        headers = {'Authorization': "kk_token=%s" % token}
-
+        headers = {'Accept-Encoding': 'compress, gzip, deflate, identity',
+                   'Authorization': "kk_token=%s" % token}
         res = requests.request(method, url, headers=headers, data=data)
         if res is not None:
             if res.status_code == requests.codes.ok:
@@ -122,7 +122,8 @@ class karakuriclient(karakuribase):
 
     def workflowRequest(self, workflow=None, command=None, arg=None, **kwargs):
         endpoint = '/workflow'
-        return self.getRequest(endpoint, workflow, command, arg, **kwargs)
+        output = self.getRequest(endpoint, workflow, command, arg, **kwargs)
+        return output
 
     def workflowsRequest(self, workflows, command=None, arg=None, **kwargs):
         _workflows = []

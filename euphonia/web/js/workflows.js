@@ -422,7 +422,7 @@ function renderTickets(issues,container){
         var issue = issues[i];
         var workflows = [];
         if(issue !== undefined && issue.karakuri !== undefined && issue.karakuri.workflows_performed !== undefined) {
-            for (var wf = 0; wf < issue.karakuri.workflows_performed; wf++) {
+            for (var wf = 0; wf < issue.karakuri.workflows_performed.length; wf++) {
                 workflows.push(issue.karakuri.workflows_performed[wf].name);
             }
         }

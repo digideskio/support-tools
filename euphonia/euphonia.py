@@ -136,8 +136,8 @@ class Euphonia(karakuricommon.karakuriclient):
         bottle.TEMPLATE_PATH.insert(0, '%s/views' % self.args['root_webdir'])
 
         def response(result, cookies=None, template=None, template_data=None):
-            self.logger.debug("response(%s,%s,%s,%s)", result, cookies,
-                              template, template_data)
+            #self.logger.debug("response(%s,%s,%s,%s)", result, cookies,
+            #                  template, template_data)
             if result['status'] == "success":
                 if cookies is not None:
                     for cookie in cookies:
@@ -166,13 +166,13 @@ class Euphonia(karakuricommon.karakuriclient):
             """ A decorator for bottle-route callback functions to pass
             auth_token cookies """
             def wrapped(*args, **kwargs):
-                kwargs['token'] = bottle.request.get_cookie("kk_token")
+                kwargs['token'] = bottle.request.get_cookie("auth_user")
                 return func(*args, **kwargs)
             return wrapped
 
         @b.post('/login')
         def login():
-            token = bottle.request.params.get('kk_token')
+            token = bottle.request.params.get('auth_user')
             res = self.postRequest("/login", data={'token': token})
             if res['status'] == 'success':
                 user = res['data']
@@ -408,9 +408,12 @@ class Euphonia(karakuricommon.karakuriclient):
                 if res['status'] == "success":
                     if 'data' in res and 'issues' in res['data']:
                         for issue in res['data']['issues']:
-                            del issue['jira']['changelog']
-                            del issue['jira']['fields']['comment']
-                            del issue['jira']['fields']['attachment']
+                            if 'changelog' in issue['jira']:
+                                del issue['jira']['changelog']
+                            if 'fields' in issue['jira'] and 'comment' in issue['jira']['fields']:
+                                del issue['jira']['fields']['comment']
+                            if 'fields' in issue['jira'] and 'attachment' in issue['jira']['fields']:
+                                del issue['jira']['fields']['attachment']
                             if 'karakuri' in issue and 'sleep' in\
                                     issue['karakuri']:
                                 del issue['karakuri']['sleep']
@@ -461,6 +464,14 @@ class Euphonia(karakuricommon.karakuriclient):
                 task_summary = []
 
             issue_objs = {}
+            res = self.workflowRequest(name, 'issues', **kwargs)
+            issues = None
+            if res['status'] == "success":
+                issues = res['data']
+            if issues is not None:
+                for issue in issues['issues']:
+                    issue_objs[str(issue['_id'])] = issue['jira']
+
             if (task_summary is not None and
                     'tasks' in task_summary and
                     len(task_summary['tasks']) > 0):
@@ -482,13 +493,6 @@ class Euphonia(karakuricommon.karakuriclient):
                         task['frozen'] = False
                     task['updateDate'] = task['t'].\
                         strftime(format="%Y-%m-%d %H:%M")
-                    res = self.issueRequest(str(task['iid']), **kwargs)
-                    if res['status'] == "success":
-                        issue = res['data']
-                    else:
-                        issue = None
-                    if issue is not None:
-                        issue_objs[str(task['iid'])] = issue['issue']['jira']
 
             hidden_done = {}
             cookie_hideDone = bottle.request.get_cookie('workflows_hide_done')

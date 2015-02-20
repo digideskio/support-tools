@@ -312,14 +312,18 @@ $(document).ready(function() {
 
     $('.selectWorkflowsDropdownCheckbox').click(function(evt){
         var checked = evt.currentTarget.checked;
-        var uid = $.cookie('_id')
+        var uid = $.cookie('_id');
         var value = evt.currentTarget.value;
 
         // update cookie
         var workflows = $.cookie('workflows');
         // SimpleCookie bug imo introduced in http://bugs.python.org/issue9824
-        workflows = workflows.decodeOctalEscapeSequence();
-        workflows = JSON.parse(workflows)
+        if(workflows !== '' && workflows !== null && workflows !== undefined){
+            workflows = workflows.decodeOctalEscapeSequence();
+        } else {
+            workflows = "[]";
+        }
+        workflows = JSON.parse(workflows);
         if (checked) {
             // persist server-side
             $.post('/user/'+uid+'/workflow/'+value, function(res) {
@@ -417,7 +421,7 @@ $(document).ready(function() {
         });
     }
 
-    setInterval(refresh, 10000)
+    setInterval(refresh, 15000);
 });
 
 var isWorkflowInCookie = function(workflow, cookieName) {
