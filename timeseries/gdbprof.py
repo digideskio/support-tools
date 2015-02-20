@@ -145,15 +145,15 @@ class node:
         self.bins = collections.defaultdict(int)
         self.children = {}
 
-    def add_func(self, func, t):
+    def _add_func(self, func, t, count=1):
         if not func in self.children:
             self.children[func] = node()
         child = self.children[func]
-        child.count += 1
-        child.counts[t] += 1
+        child.count += count
+        child.counts[t] += count
         return child
 
-    def add_stack(self, stack, t, extra=None, state=None):
+    def add_stack(self, stack, t, extra=None, state=None, count=1):
         if stack:
             if extra:
                 stack.append(extra)
@@ -166,9 +166,9 @@ class node:
             for f in self.filters:
                 f(stack)
             n = self # root
-            n.count += 1
+            n.count += count
             for func in stack:
-                n = n.add_func(func, t)
+                n = n._add_func(func, t, count)
         return []
 
     def prt(self, pfx=''):
@@ -177,14 +177,17 @@ class node:
         if len(pfx) > opt.max_depth:
             return
 
+        # format for avg and max
+        fmt = opt.fmt + ' ' + opt.fmt + ' '
+
         # children in order sorted by count
         children = sorted(self.children, key=lambda c: self.children[c].count, reverse=True)
         for i, func in enumerate(children):
             child = self.children[func]
 
-            # avg number of threads
-            avg_thr = child.avg_count
-            max_thr = child.max_count
+            # avg, max counts for this node
+            avg_count = child.avg_count
+            max_count = child.max_count
 
             # tree lines
             if pfx and i<len(children)-1: p = opt.tree_mid
@@ -193,7 +196,7 @@ class node:
             pc = opt.tree_line if pfx and i<len(children)-1 else ' '
 
             # print the info
-            put('%7.2f %7.2f ' % (avg_thr, max_thr))
+            put('%7s %7s ' % ((opt.fmt%avg_count)[0:7],( opt.fmt%max_count)[0:7]))
             graph_child(func, child)
             put(pfx+p)
             elt('span', {'id':'t%d' % opt.html_id, 'onClick':'hide(%d)'% opt.html_id})
@@ -411,6 +414,35 @@ def read_perf(filters, type_info):
 
 
 #
+# read folded stacks
+#
+
+def read_folded(filters, type_info):
+
+    root = node()
+    root.filters = filters
+    first = True
+
+    for line in sys.stdin:
+        fields = line.strip().split(';')
+        if first:
+            pass
+            first = False
+            opt.name = fields[1]
+            opt.fmt = '%.3f'
+        else:
+            t = float(fields[0])
+            count = float(fields[1])
+            root.add_stack(fields[-1:1:-1], t, count=count)
+            opt.times.append(t)
+            opt.samples += 1
+            opt.tmin = min(t, opt.tmin) if opt.tmin else t
+            opt.tmax = max(t, opt.tmax) if opt.tmax else t
+
+    return root
+
+
+#
 # time series graphs
 #
 
@@ -525,6 +557,8 @@ def main():
     opt.times = []
     opt.samples = 0
     opt.html_id = 0
+    opt.name = 'threads'
+    opt.fmt = '%.2f'
 
     if opt.series or opt.graph:
         global timeseries
@@ -550,10 +584,9 @@ def main():
     # print result
     html_head()
     graph_series(series)
-    threads = float(root.count)/opt.samples if opt.samples else 0
-    put('%d samples, %d traces, %.2f threads\n' % (opt.samples, root.count, threads))
+    put('%d samples\n' % opt.samples)
     root.pre_graph()
-    put('avg.thr max.thr  ')
+    put('%7.7s %7.7s  ' % ('avg.' + opt.name, 'max.' + opt.name))
     if opt.graph or opt.series: graph()
     put('call tree\n')
     root.prt()
