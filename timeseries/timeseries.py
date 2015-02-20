@@ -686,6 +686,7 @@ def series_read_json(fn, series, opt):
                 jnode = json.loads(line)
             except Exception as e:
                 msg('ignoring bad line', e)
+                continue
             fixup(jnode)
             result = collections.defaultdict(dict)
             match(ptree, jnode, result)
@@ -2023,7 +2024,7 @@ sysmon_disk('write_time_ms',  'busy writing (%)',           merge='sysmon_busy',
 sysmon_disk('io_in_progress', 'in progress', rate=False)
 sysmon_disk('io_time_ms',     'io_time_ms')
 sysmon_disk('io_queued_ms',   'io_queued_ms')
-sysmon_disk('io_queued_ms',   'qms/tms', scale_field='{disk}.io_time_ms')
+sysmon_disk('io_queued_ms',   'average queue length', scale_field='{disk}.io_time_ms')
 
 #
 # iostat output, e.g.
