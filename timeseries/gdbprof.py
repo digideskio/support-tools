@@ -160,6 +160,9 @@ class node:
             stack.reverse()
             if state:
                 stack.append(state)
+            if opt.reverse:
+                stack.append('LEAF')
+                stack.reverse()
             for f in self.filters:
                 f(stack)
             n = self # root
@@ -486,6 +489,7 @@ def main():
     p.add_argument('--tz', type=float, nargs=1, default=None)
     p.add_argument('--threads', type=str, nargs='+', default=None)
     p.add_argument('--type', type=str, default='gdb')
+    p.add_argument('--reverse', action='store_true')
     global opt
     opt = p.parse_args()
 
