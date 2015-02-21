@@ -300,6 +300,27 @@ class karakuri(karakuricommon.karakuribase):
             return {'ok': False, 'payload': e}
         return {'ok': True, 'payload': [issue for issue in curs_issues]}
 
+    def findWorkflowTasksIssuesSummaries(self, workflow, **kwargs):
+        res = self.getListOfTasks({'workflow': workflow, 'active': True})
+        if not res['ok']:
+            return res
+        tasks = res['payload']
+        issues = []
+        projection = {'jira.fields.assignee': 1,
+                      'jira.key': 1,
+                      'jira.fields.status': 1,
+                      'jira.fields.customfield_10030': 1,
+                      'karakuri.workflows_performed': 1
+        }
+        for task in tasks:
+            issues.append(task['iid'])
+        try:
+            curs_issues = self.coll_issues.find({"_id": {"$in": issues}}, projection)
+        except pymongo.errors.PyMongoError as e:
+            self.logger.exception(e)
+            return {'ok': False, 'payload': e}
+        return {'ok': True, 'payload': [issue for issue in curs_issues]}
+
     def findWorkflowTasks(self, workflowNameORworkflow, **kwargs):
         """ Find issues that satisfy the workflow and queue new tasks """
         self.logger.debug("findWorkflowTasks(%s)", workflowNameORworkflow)
@@ -1368,6 +1389,15 @@ class karakuri(karakuricommon.karakuribase):
         def workflow_issues(name, **kwargs):
             """ Find and queue new tasks for the workflow """
             res = self.findWorkflowTasksIssues(name, **kwargs)
+            if res['ok']:
+                return success({'issues': res['payload']})
+            return error(res['payload'])
+
+        @b.route('/workflow/<name>/issuesummaries')
+        @authenticated
+        def workflow_issues(name, **kwargs):
+            """ Find and queue new tasks for the workflow """
+            res = self.findWorkflowTasksIssuesSummaries(name, **kwargs)
             if res['ok']:
                 return success({'issues': res['payload']})
             return error(res['payload'])

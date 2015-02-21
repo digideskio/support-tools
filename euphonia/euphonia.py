@@ -464,7 +464,7 @@ class Euphonia(karakuricommon.karakuriclient):
                 task_summary = []
 
             issue_objs = {}
-            res = self.workflowRequest(name, 'issues', **kwargs)
+            res = self.workflowRequest(name, 'issuesummaries', **kwargs)
             issues = None
             if res['status'] == "success":
                 issues = res['data']
