@@ -278,13 +278,23 @@ class karakuri(karakuricommon.karakuribase):
         match = res['payload']
 
         # find 'em and get 'er done!
-        projection = {'jira.fields.assignee': 1,
-                      'jira.key': 1,
-                      'jira.fields.status': 1,
-                      'karakuri.workflows_performed': 1
-        }
         try:
-            curs_issues = self.coll_issues.find(match, projection)
+            curs_issues = self.coll_issues.find(match)
+        except pymongo.errors.PyMongoError as e:
+            self.logger.exception(e)
+            return {'ok': False, 'payload': e}
+        return {'ok': True, 'payload': [issue for issue in curs_issues]}
+
+    def findWorkflowTasksIssues(self, workflow, **kwargs):
+        res = self.getListOfTasks({'workflow': workflow, 'active': True})
+        if not res['ok']:
+            return res
+        tasks = res['payload']
+        issues = []
+        for task in tasks:
+            issues.append(task['iid'])
+        try:
+            curs_issues = self.coll_issues.find({"_id": {"$in": issues}})
         except pymongo.errors.PyMongoError as e:
             self.logger.exception(e)
             return {'ok': False, 'payload': e}
@@ -1348,6 +1358,7 @@ class karakuri(karakuricommon.karakuribase):
         def workflow_find(name, **kwargs):
             """ Find and queue new tasks for the workflow """
             res = self.findWorkflowTasks(name, **kwargs)
+            self.logger.debug(res)
             if res['ok']:
                 return success({'tasks': res['payload']})
             return error(res['payload'])
@@ -1356,8 +1367,7 @@ class karakuri(karakuricommon.karakuribase):
         @authenticated
         def workflow_issues(name, **kwargs):
             """ Find and queue new tasks for the workflow """
-            res = self.findWorkflowIssues(name, **kwargs)
-            self.logger.debug(res)
+            res = self.findWorkflowTasksIssues(name, **kwargs)
             if res['ok']:
                 return success({'issues': res['payload']})
             return error(res['payload'])
@@ -1395,6 +1405,7 @@ class karakuri(karakuricommon.karakuribase):
             """ Return tasks queued for the workflow """
             self.logger.debug("workflow_queue(%s)", name)
             res = self.getListOfWorkflowTasks(name, **kwargs)
+            self.logger.debug(res)
             if res['ok']:
                 return success({'tasks': res['payload']})
             return error(res['payload'])

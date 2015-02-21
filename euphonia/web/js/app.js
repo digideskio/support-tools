@@ -22,11 +22,7 @@ $(document).ready(function() {
     $('#nav_a_login').click(function() {
         var auth_token = prompt("Username:");
         deleteCookies();
-<<<<<<< Updated upstream
-        $.cookie('kk_token', auth_token, {path: '/'});
-=======
-        $.cookie('auth_user', auth_token);
->>>>>>> Stashed changes
+        $.cookie('auth_user', auth_token, {path: '/'});
         var callback = function() {window.location.reload()};
         initFromAuthToken(callback);
     });
