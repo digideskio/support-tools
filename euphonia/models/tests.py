@@ -1,6 +1,8 @@
 import pymongo
 import inspect
+
 from groupreport_tests import GroupReportTests
+from groupping_tests import GroupPingTests
 
 
 class Tests:
@@ -11,7 +13,7 @@ class Tests:
         :param database: MongoDB client object
         :return: None
         """
-        self.tests_collection = database.mmsgroupreporttests
+        self.tests_collection = database.tests
 
     def get_tests(self):
         """ Retrieves the set of tests defined in the database
@@ -55,9 +57,14 @@ class Tests:
         """ Retrieves the set of tests defined in the code
         :return: Dictionary containing the source of the defined tests
         """
+        tests = {}
         module = GroupReportTests()
         functions = inspect.getmembers(module)
-        tests = {}
+        for key, value in functions:
+            if key.startswith("test"):
+                tests[key.replace("test", "")] = inspect.getsource(value)
+        module = GroupPingTests()
+        functions = inspect.getmembers(module)
         for key, value in functions:
             if key.startswith("test"):
                 tests[key.replace("test", "")] = inspect.getsource(value)

@@ -3,11 +3,12 @@ import sys
 import os
 import datetime
 import re
+import mmap
 
 try:
     import snappy
 except:
-    #print 'snappy not available, will not decompress sections'
+    print 'snappy not available, will not print the content of compressed pages'
     snappy = None
 
 
@@ -86,6 +87,10 @@ class indent:
                 print
 
 indent = indent()
+
+def dbg(*args):
+    if do_dbg:
+        sys.stdout.write(' '.join(str(a) for a in args) + '\n')
 
 
 #
@@ -224,9 +229,9 @@ def embedded_bson(buf, at, end, *args, **kwargs):
             print_bson(buf, at, l, *args, **kwargs)
             indent.set(i)
             at += l
-        if at < end and extra:
+        if at < end: # and extra:
             indent.indent()
-            indent.prt(at, ' '.join(('%02x' % ord(c)) for c in buf[at:end]))
+            indent.prt(at, hexbytes(buf[at:end]))
             indent.outdent()
 
 #
@@ -269,17 +274,20 @@ def unpack_uint(buf, at=0):
             x = (x<<8) | ord(buf[at+1+j])
         return at+1+i, x + 8192 + 64 # check this
     else:
-        raise Exception('unhandled uint 0x%x)' % i)
+        raise Exception('unhandled uint 0x%x' % i)
 
 def unhandled_desc(desc):
     raise Exception('unhandled desc=0x%x\n' % desc)        
+
+def hexbytes(content):
+    return ' '.join(('%02x' % ord(c)) for c in content)
 
 def record_id(x):
     try:
         _, x = unpack_uint(x)
         return 'pack(' + str(x) + ')'
-    except:
-        return repr(x)
+    except Exception as e:
+        return hexbytes(x)
     
 # collection, internal, key: record id (maybe partial?)
 # collection, leaf, key:     record id
@@ -307,17 +315,32 @@ def cell_kv(desc, buf, at, short, key, find=None):
             embedded_bson(buf, at, end)
     elif is_index:
         if key:
-            indent.prt(start, 'key desc=0x%x(%s) sz=0x%x(%d)' % (desc, info, sz, sz))
-            embedded_bson(buf, at, end, null_name=True)
+            x = hexbytes(content)
+            indent.prt(start, 'key desc=0x%x(%s) sz=0x%x(%d) key=%s'% (desc, info, sz, sz, x))
         else:
-            x = ' '.join(('%02x' % ord(c)) for c in content)
+            x = hexbytes(content)
             indent.prt(start, 'val desc=0x%x(%s) sz=0x%x(%d) val=%s' % (desc, info, sz, sz, x))
-    else:
+    elif is_sizestorer:
         if key:
             x = repr(content)
+            if not x.startswith("'table:"): x = hexbytes(content)
+            indent.prt(start, 'key desc=0x%x(%s) sz=0x%x(%d) key=%s' % (desc, info, sz, sz, x))
+        else:
+            indent.prt(start, 'val desc=0x%x(%s) sz=0x%x(%d)' % (desc, info, sz, sz))
+            embedded_bson(buf, at, end)
+    elif is_wiredtiger:
+        if key:
+            x =repr(content)
             indent.prt(start, 'key desc=0x%x(%s) sz=0x%x(%d) key=%s'% (desc, info, sz, sz, x))
         else:
             x = repr(content) if do_value else ''
+            indent.prt(start, 'val desc=0x%x(%s) sz=0x%x(%d) %s' % (desc, info, sz, sz, x))
+    else:
+        if key:
+            x = hexbytes(content)
+            indent.prt(start, 'key desc=0x%x(%s) sz=0x%x(%d) key=%s'% (desc, info, sz, sz, x))
+        else:
+            x = hexbytes(content) if do_value else ''
             indent.prt(start, 'val desc=0x%x(%s) sz=0x%x(%d) %s' % (desc, info, sz, sz, x))
     return end, key and content==find, content
 
@@ -327,11 +350,14 @@ def unpack_addr(buf, at):
     at, a3 = unpack_uint(buf, at)
     return at, (a1, a2, a3)
 
+def fmt_cookie(c):
+    return '0x%x,%d,0x%x' % ((c[0]+1)*4096, c[1], c[2]) if c else 'None'
+
 def cell_addr(desc, buf, at, info):
     a, sz = unpack_uint(buf, at+1)
-    _, (a1, a2, a3) = unpack_addr(buf, a)
-    #x = ' '.join('%02x'%ord(c) for c in buf[a:a+sz])
-    indent.prt(at, 'val desc=0x%x sz=0x%x(%d) %s=%d,%d,0x%x' % (desc, sz, sz, 'addr', a1, a2, a3))
+    _, c = unpack_addr(buf, a)
+    #x = hexbytes(buf[a:a+sz])
+    indent.prt(at, 'val desc=0x%x sz=0x%x(%d) addr=%s' % (desc, sz, sz, fmt_cookie(c)))
     return a + sz, False, None
 
 def cell(buf, at, find=None):
@@ -374,6 +400,7 @@ def pair(buf, at):
     
 def extlist(buf, at):
     at, magic, zero = pair(buf, at)
+    dbg('at, magic, zero', at, magic, zero)
     ok = 'OK' if magic==71002 else 'ERROR' # xxx
     indent.prt(at, 'magic=%d(%s) zero=%d' % (magic, ok, zero))
     res = {}
@@ -421,10 +448,7 @@ def page(buf, at, root, avail, find=None):
     if at in avail:
         l = avail[at]
         indent.prt(at, 'avail len=0x%0x(%d)' % (l, l))
-        if do_avail:
-            indent.prt()
-        else:
-            return at + l, None
+        return at + l, None
 
     # page header
     page_header = buf[at:at+page_header_struct.size]
@@ -489,6 +513,7 @@ def ckpt_addr_cookie(info):
         print 'no addr info; no data or no checkpoint?'
         return None, None, None
     addr = m.group(1)
+    dbg('addr', addr)
     buf = ''.join(chr(int(addr[i:i+2],16)) for i in range(0, len(addr), 2))
     at = 0
     at, version = at+1, buf[at]
@@ -504,30 +529,41 @@ def ckpt_addr_cookie(info):
 
 def print_file(fn, at, meta, find=None):
 
-    # basic stuff
-    b = os.path.basename(fn)
-    global is_collection, is_index
-    is_collection = b.startswith('collection') or b.startswith('_mdb_catalog')
-    is_index = b.startswith('index')
-    buf = open(fn).read() # xxx use mmap?
+    global is_collection, is_index, is_sizestorer, is_wiredtiger
+    is_collection = 'collection' in fn or '_mdb_catalog' in fn
+    is_sizestorer = 'sizeStorer' in fn
+    is_index = 'index' in fn
+    is_wiredtiger = 'WiredTiger.wt' in fn
+
+    # mmap file
+    f = open(fn, 'rb')
+    sz = os.fstat(f.fileno()).st_size # 2.4 won't accept 0
+    buf = mmap.mmap(f.fileno(), sz, prot=mmap.PROT_READ)
 
     # get root and avail if possible from meta string xxx check this
     root = None
     avail = {}
     if meta:
-        r, _, a = ckpt_addr_cookie(meta)
-        if r:
-            root = (r[0]+1) * 4096
-        if a:
-            indent.hide()
-            if a[0]:
-                a = (a[0]+1) * 4096
-                avail = extlist(buf, a+block_header_struct.size+page_header_struct.size)
-            indent.show()
+        try:
+            r, _, a = ckpt_addr_cookie(meta)
+            print '%s: r=%s _=%s a=%s' % (fn, fmt_cookie(r), fmt_cookie(_), fmt_cookie(a))
+            if r:
+                root = (r[0]+1) * 4096
+            if a:
+                if not do_dbg: indent.hide()
+                if a[0]:
+                    a = (a[0]+1) * 4096
+                    avail = extlist(buf, a+block_header_struct.size+page_header_struct.size)
+                if not do_dbg: indent.show()
+        except Exception as e:
+            if not do_dbg: indent.show()
+            if do_dbg: print e
+            print 'problem reading extlist for %s at %x, proceeding without avail list' % (fn, a)
 
     # print the page(s)
-    if at==0:
-        at = block_desc(buf, at)
+    if at==0 or do_pages:
+        if at==0:
+            at = block_desc(buf, at)
         while at < len(buf):
             at, found = page(buf, at, root, avail, find)
             if found:
@@ -545,9 +581,18 @@ def find_key(dbpath, fn, meta, key):
 
 def print_with_meta(fn, at):
     dbpath = os.path.dirname(fn)
-    meta = open(os.path.join(dbpath, 'WiredTiger.turtle')).read()
-    if os.path.basename(fn) != 'WiredTiger.wt':
-        meta = find_key(dbpath, 'WiredTiger.wt', meta, 'file:%s\x00' % os.path.basename(fn))
+    meta = None
+    if not do_avail:
+        try:
+            meta = open(os.path.join(dbpath, 'WiredTiger.turtle')).read()
+            dbg('meta', meta)
+            if os.path.basename(fn) != 'WiredTiger.wt':
+                meta = find_key(dbpath, 'WiredTiger.wt', meta, 'file:%s\x00' % os.path.basename(fn))
+            dbg('meta', meta)
+        except Exception as e:
+            print 'metadata not available:', e
+    if not meta:
+        print 'proceeding without metadata; all pages, including available pages, will be printed'
     print_file(fn, at, meta)
 
 #
@@ -557,14 +602,15 @@ def print_with_meta(fn, at):
 print '===', ' '.join(sys.argv[0:])
 
 # what to do
-do_page = 'p' in sys.argv[1]
+do_pages = 'q' in sys.argv[1]
+do_page = 'p' in sys.argv[1] or do_pages
 do_entry = 'e' in sys.argv[1]
 do_block_manager_entry = do_entry or 'm' in sys.argv[1]
 do_bson = 'b' in sys.argv[1] or 'B' in sys.argv[1]
 do_bson_detail = 'B' in sys.argv[1]
 do_value = 'v' in sys.argv[1]
-#do_collection = 'c' in sys.argv[1]
-do_avail = 'f' in sys.argv[1] # xxxxx
+do_avail = 'f' in sys.argv[1]
+do_dbg = 'd' in sys.argv[1]
 
 #if do_collection:
 #    pass

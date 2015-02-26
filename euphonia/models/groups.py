@@ -1,24 +1,151 @@
+import pymongo
 
 class Groups:
     """ This class manages the MMS group content.
     """
 
-    def __init__(self, database):
+    def __init__(self, mongo):
         """ Initializes Groups class with a database object.
         :param database: MongoDB client object
         :return: None
         """
-        self.collection = database.groupsummaries
+        self.db_euphonia = mongo.euphonia
+        self.db_support = mongo.support
+        self.coll_groups = self.db_euphonia.groups
+        self.coll_failedtests = self.db_euphonia.failedtests
 
-    def get_group_summary(self, gid):
-        """ Retrieves the MMS group summary doc for a given Group ID.
+    def getGroupSummary(self, gid):
+        """ Retrieve that needed to render the group page
         :param gid: Group ID
-        :return: Dict containing a single group summary doc
+        :return: Dict containing everything there is to know
         """
-        query = {"GroupId": gid}
-        results = self.collection.find(query)\
-                      .limit(1)
-        group_summary = next(results, None)
+        # High-level information
+        query = {'_id': gid}
+        try:
+            res = self.coll_groups.find_one(query)
+        except pymongo.errors.PyMongoError as e:
+            raise e
+
+        if res is not None:
+            group_summary = res
+        else:
+            # TODO raise exception?
+            group_summary = {'gid': gid}
+
+        # Failed tests
+        # This is the list of currently failed tests
+        failedTests = group_summary.get('failedTests', [])
+        failedTestsDict = {ft['ftid']:ft for ft in failedTests}
+
+        # Have we created tickets for these failed tests before?
+        # Return the most recent one if so
+        # TODO remove this loop!
+        # TODO consolidate test and src
+        # TODO are we better off just querying all ticketed cases?
+        for i in range(0, len(failedTests)):
+            ft = failedTests[i]
+            query = {'gid': gid,
+                     'test': ft['test'],
+                     'src': ft['src'],
+                     '_id': {"$lt": ft['ftid']},
+                     'ticket': {"$exists": True}}
+            sort = [("_id", -1)]
+            try:
+                res = self.coll_failedtests.find(query).sort(sort).limit(1)
+            except pymongo.errors.PyMongoError as e:
+                raise e
+
+            if res is not None:
+                print("Found a previous ticket for this test!")
+                test = next(res, None)
+                if test is not None:
+                    failedTests[i]['ticket'] = test['ticket']
+
+        # Fetch these failed tests as we'll need their src documents
+        query = {'_id': {"$in": [ft['ftid'] for ft in failedTests]}}
+        try:
+            res = self.coll_failedtests.find(query)
+        except pymongo.errors.PyMongoError as e:
+            raise e
+
+        failedTests = []
+        testDocuments = {}
+
+        if res is not None:
+            for ft in res:
+                if ft['src'] not in testDocuments:
+                    testDocuments[ft['src']] = []
+                testDocuments[ft['src']].extend(ft['ids'])
+                for key in ft.keys():
+                    failedTestsDict[ft['_id']][key] = ft[key]
+                failedTests.append(failedTestsDict[ft['_id']])
+        else:
+            # TODO raise exception?
+            pass
+
+        # Get all past failed tests that are now resolved
+        query = {'gid': gid, 'resolved': {"$exists": True}}
+        resolvedTests = []
+        try:
+            res = self.coll_failedtests.find(query)
+        except pymongo.errors.PyMongoError as e:
+            raise e
+
+        for ft in res:
+            resolvedTests.append(ft)
+            testDocuments[ft['src']].extend(ft['ids'])
+
+        group_summary['failedTests'] = failedTests
+        group_summary['resolvedTests'] = resolvedTests
+
+        # Fetch test documents
+        ids = {}
+        for key in testDocuments:
+            query = {"_id": {"$in": testDocuments[key]}}
+            try:
+                res = self.db_euphonia[key].find(query)
+            except pymongo.errors.PyMongoError as e:
+                raise e
+
+            for r in res:
+                ids[r['_id'].__str__()] = r
+
+        group_summary['ids'] = ids
+
+        # Supplement with Clienthub info
+        # TODO move this to a separate library
+
+        if 'name' in group_summary:
+            try:
+                curr_companies = self.db_support.companies.find(
+                        {"$or":[{'jira_groups': group_summary['name']},
+                                {'mms_groups': group_summary['name']}]})
+            except pymongo.errors.PyMongoError as e:
+                raise e
+
+            if curr_companies.count() == 0:
+                #self.logger.warning("Error: company not found for group %s", group_summary['name'])
+                #self.company = None
+                group_summary['company'] = None
+            elif curr_companies.count() > 1:
+                # More than one company found... Are they the same sans _id?
+                # If so, take it, otherwise complain
+                lastCompany = None
+                for company in curr_companies:
+                    del company['_id']
+                    if lastCompany is None:
+                        lastCompany = company
+                        continue
+                    if company != lastCompany:
+                        lastCompany = None
+                        #self.logger.warning("Error: multiple companies found for group %s", self.groupName())
+                        break
+                #self.company = lastCompany
+                group_summary['company'] = lastCompany
+            else:
+                #self.company = curr_companies.next()
+                group_summary['company'] = curr_companies.next()
+
         return group_summary
 
     def get_failed_tests_summary(self, sort=None,

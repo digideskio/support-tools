@@ -10,6 +10,8 @@ import pymongo
 import re
 import string
 import sys
+import gzip
+import StringIO
 
 from datetime import datetime, timedelta
 from jirapp import jirapp
@@ -42,8 +44,7 @@ class karakuri(karakuricommon.karakuribase):
 
         # Initialize dbs and collections
         try:
-            self.mongo = pymongo.MongoClient(self.args['mongo_host'],
-                                             self.args['mongo_port'])
+            self.mongo = pymongo.MongoClient(self.args['mongo_uri'])
         except pymongo.errors.PyMongoError as e:
             self.logger.exception(e)
             raise e
@@ -284,6 +285,42 @@ class karakuri(karakuricommon.karakuribase):
             return {'ok': False, 'payload': e}
         return {'ok': True, 'payload': [issue for issue in curs_issues]}
 
+    def findWorkflowTasksIssues(self, workflow, **kwargs):
+        res = self.getListOfTasks({'workflow': workflow, 'active': True})
+        if not res['ok']:
+            return res
+        tasks = res['payload']
+        issues = []
+        for task in tasks:
+            issues.append(task['iid'])
+        try:
+            curs_issues = self.coll_issues.find({"_id": {"$in": issues}})
+        except pymongo.errors.PyMongoError as e:
+            self.logger.exception(e)
+            return {'ok': False, 'payload': e}
+        return {'ok': True, 'payload': [issue for issue in curs_issues]}
+
+    def findWorkflowTasksIssuesSummaries(self, workflow, **kwargs):
+        res = self.getListOfTasks({'workflow': workflow, 'active': True})
+        if not res['ok']:
+            return res
+        tasks = res['payload']
+        issues = []
+        projection = {'jira.fields.assignee': 1,
+                      'jira.key': 1,
+                      'jira.fields.status': 1,
+                      'jira.fields.customfield_10030': 1,
+                      'karakuri.workflows_performed': 1
+        }
+        for task in tasks:
+            issues.append(task['iid'])
+        try:
+            curs_issues = self.coll_issues.find({"_id": {"$in": issues}}, projection)
+        except pymongo.errors.PyMongoError as e:
+            self.logger.exception(e)
+            return {'ok': False, 'payload': e}
+        return {'ok': True, 'payload': [issue for issue in curs_issues]}
+
     def findWorkflowTasks(self, workflowNameORworkflow, **kwargs):
         """ Find issues that satisfy the workflow and queue new tasks """
         self.logger.debug("findWorkflowTasks(%s)", workflowNameORworkflow)
@@ -500,7 +537,9 @@ class karakuri(karakuricommon.karakuribase):
     def getUserByToken(self, token, **kwargs):
         """ Return the associated user document """
         self.logger.debug("getUserByToken(%s)", token)
-        res = self.find_one(self.coll_users, {'token': token})
+        # Currently authenticating against username
+        # TODO: use Crowd REST API to validate token
+        res = self.find_one(self.coll_users, {'user': token})
         if not res['ok']:
             return res
         user = res['payload']
@@ -755,10 +794,20 @@ class karakuri(karakuricommon.karakuribase):
 
         now = datetime.utcnow()
 
+        # is the workflow auto-approved?
+        res = self.getWorkflow(workflowName)
+        if not res['ok']:
+            return res
+        wf = res['payload']
+        approved = wf['auto_approve']
+
         task = {'_id': tid, 'iid': iid, 'key': key, 'company': company,
-                'workflow': workflowName, 'approved': False, 'done': False,
+                'workflow': workflowName, 'approved': approved, 'done': False,
                 'inProg': False, 't': now, 'start': now, 'active': True,
                 'createdBy': kwargs['userDoc']['user']}
+
+        if approved is True:
+            task['approvedBy'] = 'karakuri'
 
         try:
             self.coll_queue.insert(task)
@@ -998,10 +1047,11 @@ class karakuri(karakuricommon.karakuribase):
                 for kv in keyValuePairs:
                     if len(kv) == 2:
                         auth_dict = {kv[0]: kv[1]}
-                token = auth_dict.get('auth_token', None)
+                token = auth_dict.get('kk_token', None)
 
-                match = {'token': token,
-                         'token_expiry_date': {"$gt": datetime.utcnow()}}
+                # match = {'token': token,
+                #         'token_expiry_date': {"$gt": datetime.utcnow()}}
+                match = {'user': token}
                 doc = self.coll_users.find_one(match)
                 if not doc:
                     bottle.abort(401)
@@ -1023,7 +1073,12 @@ class karakuri(karakuricommon.karakuribase):
         def success(data=None):
             ret = {'status': 'success', 'data': data}
             bottle.response.status = 200
-            return bson.json_util.dumps(ret)
+            bottle.response.add_header("Content-Encoding", "gzip")
+            content = bson.json_util.dumps(ret)
+            compressed = StringIO.StringIO()
+            with gzip.GzipFile(fileobj=compressed, mode='w') as f:
+                f.write(content)
+            return compressed.getvalue()
 
         def fail(data=None):
             ret = {'status': 'fail', 'data': data}
@@ -1324,8 +1379,27 @@ class karakuri(karakuricommon.karakuribase):
         def workflow_find(name, **kwargs):
             """ Find and queue new tasks for the workflow """
             res = self.findWorkflowTasks(name, **kwargs)
+            self.logger.debug(res)
             if res['ok']:
                 return success({'tasks': res['payload']})
+            return error(res['payload'])
+
+        @b.route('/workflow/<name>/issues')
+        @authenticated
+        def workflow_issues(name, **kwargs):
+            """ Find and queue new tasks for the workflow """
+            res = self.findWorkflowTasksIssues(name, **kwargs)
+            if res['ok']:
+                return success({'issues': res['payload']})
+            return error(res['payload'])
+
+        @b.route('/workflow/<name>/issuesummaries')
+        @authenticated
+        def workflow_issues(name, **kwargs):
+            """ Find and queue new tasks for the workflow """
+            res = self.findWorkflowTasksIssuesSummaries(name, **kwargs)
+            if res['ok']:
+                return success({'issues': res['payload']})
             return error(res['payload'])
 
         @b.route('/workflow/<name>')
@@ -1361,6 +1435,7 @@ class karakuri(karakuricommon.karakuribase):
             """ Return tasks queued for the workflow """
             self.logger.debug("workflow_queue(%s)", name)
             res = self.getListOfWorkflowTasks(name, **kwargs)
+            self.logger.debug(res)
             if res['ok']:
                 return success({'tasks': res['payload']})
             return error(res['payload'])
@@ -1448,13 +1523,10 @@ if __name__ == "__main__":
     parser = karakuricommon.karakuriparser(description="An automaton: http://e"
                                                        "n.wikipedia.org/wiki/K"
                                                        "arakuri_ningy%C5%8D")
-    parser.add_config_argument("--mongo-host", metavar="HOSTNAME",
-                               default="localhost",
-                               help="specify the MongoDB hostname (default="
-                                    "localhost)")
-    parser.add_config_argument("--mongo-port", metavar="PORT", default=27017,
-                               type=int,
-                               help="specify the MongoDB port (default=27017)")
+    parser.add_config_argument("--mongo-uri", metavar="MONGO",
+                               default="mongodb://localhost:27017",
+                               help="specify the MongoDB connection URI (default="
+                                    "mongodb://localhost:27017)")
     parser.add_config_argument("--jira-password", metavar="PASSWORD",
                                help="specify a JIRA password")
     parser.add_config_argument("--jira-username", metavar="USERNAME",

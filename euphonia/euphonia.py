@@ -2,6 +2,7 @@
 
 import bottle
 import bson.json_util
+import bson.son
 import daemon
 import karakuricommon
 import logging
@@ -9,12 +10,18 @@ import os
 import pidlockfile
 import pymongo
 import pytz
+import re
 import signal
+import string
 import sys
 import urlparse
 
 from datetime import datetime
+<<<<<<< HEAD
 from models import groups, salesforce_client, tests, files
+=======
+from models import groups, tests
+>>>>>>> master
 
 utc = pytz.UTC
 
@@ -25,37 +32,116 @@ class Euphonia(karakuricommon.karakuriclient):
 
         # Initialize dbs and collections
         try:
-            self.mongo = pymongo.MongoClient(self.args['mongo_host'],
-                                             self.args['mongo_port'])
+            self.mongo = pymongo.MongoClient(self.args['mongo_uri'])
         except pymongo.errors.PyMongoError as e:
             self.logger.exception(e)
             raise e
 
         self.db_euphonia = self.mongo.euphonia
+        self.coll_grouptests = self.db_euphonia.tests
+
+    def _getTemplateValue(self, var, groupSummary, testDoc=None):
+        """ Return a value for the given template variable. A finite number of
+        such template variables are supported and defined below """
+        self.logger.debug("_getTemplateValue(%s,%s)", var, groupSummary)
+        if var == "MMS_GROUP_NAME":
+            if 'name' in groupSummary:
+                return {'ok': True, 'payload': groupSummary['name']}
+        elif var == "MMS_GROUP_ID":
+            if '_id' in groupSummary:
+                return {'ok': True, 'payload': groupSummary['_id']}
+        elif var == "MMS_GROUP_ANCHOR":
+            if 'name' in groupSummary:
+                gid = groupSummary['_id']
+                url = 'https://mms.mongodb.com/host/list/%s' % gid
+                return {'ok': True, 'payload': '<a href="%s">%s</a>' %
+                        (url, groupSummary['name'])}
+        elif var == "LIST_AFFECTED_HOSTS":
+            if 'ids' in testDoc:
+                res = ""
+                for _id in testDoc['ids']:
+                    ping = groupSummary['ids'][_id.__str__()]
+                    doc = ping['doc']
+                    res += '# [https://mms.mongodb.com/host/detail/%s/%s|%s:%s]>\n' %\
+                            (ping['gid'], ping['hid'], doc['host'], doc['port'])
+                return {'ok': True, 'payload': res}
+        elif var == "N_AFFECTED_HOSTS":
+            if 'nids' in testDoc:
+                return {'ok': True, 'payload': testDoc['nids']}
+        elif var == "REPORTER_NAME":
+                return {'ok': True, 'payload': 'Jake'}
+        elif var == "SALES_REP":
+            company = ['company']
+            if company is not None and 'sales' in company and\
+                    company['sales'] is not None:
+                sales = ['[~' + name['jira'] + ']' for name in company[
+                    'sales']]
+                return {'ok': True, 'payload': string.join(sales, ', ')}
+        return {'ok': False, 'payload': None}
+
+    def renderTemplatedComment(self, comment, group_summary, testDoc):
+        # Replace template variables with real values. A template variable is
+        # identified as capital letters between double square brackets
+        pattern = re.compile('\[\[([A-Z_]+)\]\]')
+        matches = set(pattern.findall(comment))
+        for match in matches:
+            res = self._getTemplateValue(match, group_summary, testDoc)
+            if not res['ok']:
+                continue
+            val = res['payload']
+            comment = comment.replace('[[%s]]' % match, str(val))
+        return comment
 
     def start(self):
-        g = groups.Groups(self.db_euphonia)
+        g = groups.Groups(self.mongo)
         t = tests.Tests(self.db_euphonia)
         # sf = salesforce_client.Salesforce()
 
         # TODO clean this up
-        descriptionCache = {
-                "greeting" : "Hi",
-                "opening" : "In reviewing your MongoDB configuration data in MMS, we have identified an issue that should be addressed in order to avoid potentially-critical issues in the future. In particular:",
-                "closing" : "We look forward to working with you to resolve this issues described above, and we have created individual support tickets to track each issue (you should receive notifications shortly). Please review any tickets at your earliest convenience so we can schedule some time to work with you.<br/><br/>Thanks,<br/>The MongoDB Proactive Services Team"
+        testDescriptionCache = {
+            "greeting": "Hi",
+            "opening": "My name is [[REPORTER_NAME]] and I am a member of "
+                       "the Proactive Technical Support team here at "
+                       "MongoDB, Inc. Proactive Support is a new "
+                       "initiative to identify issues in your MongoDB "
+                       "deployment before they become problematic. To "
+                       "this end we employ automated MMS data aggregation "
+                       "scripts to search for patterns consistent with "
+                       "known and potential complications. There are a "
+                       "couple of potential issues in your MMS group "
+                       "[[[MMS_GROUP_NAME]]|https://mms.mongodb.com/host/"
+                       "list/[[MMS_GROUP_ID]]] that we would like to "
+                       "address in this ticket. It's possible that we "
+                       "will discover more issues during the diagnostic "
+                       "process, and we will address those in turn.",
+            "closing": "We look forward to working with you to resolve "
+                       "this issues described above, and we have created "
+                       "individual support tickets to track each issue "
+                       "(you should receive notifications shortly). "
+                       "Please review any tickets at your earliest "
+                       "convenience so we can schedule some time to work "
+                       "with you.",
+            "signoff": "Thanks, The MongoDB Proactive Services Team"
         }
-        # populate descriptionCache
-        curr_tests = self.db_euphonia.mmsgroupreporttests.find({})
+        # populate testDescriptionCache
+        try:
+            curr_tests = self.coll_grouptests.find({}, {'_id': 0})
+        except pymongo.errors.PyMongoError as e:
+            raise e
         if curr_tests is not None:
             for test in curr_tests:
-                descriptionCache[test['name']] = test['comment']
+                if test['src'] in testDescriptionCache:
+                    testDescriptionCache[test['src']][test['name']] = test
+                else:
+                    testDescriptionCache[test['src']] = {test['name']: test}
 
         b = bottle.Bottle(autojson=False)
 
         bottle.TEMPLATE_PATH.insert(0, '%s/views' % self.args['root_webdir'])
 
         def response(result, cookies=None, template=None, template_data=None):
-            self.logger.debug("response(%s,%s,%s,%s)", result, cookies, template, template_data)
+            #self.logger.debug("response(%s,%s,%s,%s)", result, cookies,
+            #                  template, template_data)
             if result['status'] == "success":
                 if cookies is not None:
                     for cookie in cookies:
@@ -84,17 +170,17 @@ class Euphonia(karakuricommon.karakuriclient):
             """ A decorator for bottle-route callback functions to pass
             auth_token cookies """
             def wrapped(*args, **kwargs):
-                kwargs['token'] = bottle.request.get_cookie("auth_token")
+                kwargs['token'] = bottle.request.get_cookie("auth_user")
                 return func(*args, **kwargs)
             return wrapped
 
         @b.post('/login')
         def login():
-            token = bottle.request.params.get('auth_token')
-            res = self.postRequest("/login", data={'token':token})
+            token = bottle.request.params.get('auth_user')
+            res = self.postRequest("/login", data={'token': token})
             if res['status'] == 'success':
                 user = res['data']
-                cookies = [(prop,user[prop]) for prop in user]
+                cookies = [(prop, user[prop]) for prop in user]
             else:
                 cookies = None
             return response(res, cookies=cookies)
@@ -110,31 +196,52 @@ class Euphonia(karakuricommon.karakuriclient):
         @b.route('/groups')
         @b.route('/groups/')
         def get_groups(page=1, test=None, query=None):
+            match = {'failedTests': {"$exists": 1}}
             if query is not None:
-                query = {"GroupName": query}
+                match['gid'] = query
             if test is not None:
-                query = {"failedTests.test": {"$in": [test]}}
+                match['failedTest']['test'] = test
+
             limit = 25
             if page == '':
                 page = 1
             page = int(page)
             skip = (page - 1) * limit
-            sort = [("priority", pymongo.DESCENDING)]
-            tests_summary = g.get_failed_tests_summary(sort=sort,
-                                                       skip=skip,
-                                                       limit=limit,
-                                                       query=query)
+
+            try:
+                res = self.db_euphonia.groups.find(match).\
+                    sort('score', pymongo.DESCENDING).limit(limit).skip(skip)
+            except pymongo.errors.PyMongoError as e:
+                print(e)
+
+            groups = [group for group in res]
+
             return bottle.template('base_page', renderpage="summary",
-                            groups=tests_summary['groups'], page=page,
-                            count=tests_summary['count'], issue=test)
+                                   groups=groups, page=page,
+                                   count=len(groups), issue=test)
 
         @b.route('/group/<gid>')
         def get_group_summary(gid):
-            group_summary = g.get_group_summary(gid)
+            group_summary = g.getGroupSummary(gid)
+            testDescriptionCache['greeting'] = self.renderTemplatedComment(
+                testDescriptionCache['greeting'], group_summary, None)
+            testDescriptionCache['opening'] = self.renderTemplatedComment(
+                testDescriptionCache['opening'], group_summary, None)
+            testDescriptionCache['closing'] = self.renderTemplatedComment(
+                testDescriptionCache['closing'], group_summary, None)
+            testDescriptionCache['signoff'] = self.renderTemplatedComment(
+                testDescriptionCache['signoff'], group_summary, None)
+            for ft in group_summary['failedTests']:
+                # render templated comment for this test
+                comment = testDescriptionCache[ft['src']][ft['test']][
+                    'comment']
+                testDescriptionCache[ft['src']][ft['test']]['comment'] = self.\
+                    renderTemplatedComment(comment, group_summary, ft)
             if group_summary is not None:
-                return bottle.template('base_page', renderpage="group",
-                                       group=group_summary,
-                                       descriptionCache=descriptionCache)
+                return bottle.template(
+                    'base_page', renderpage="group",
+                    group=group_summary,
+                    testDescriptionCache=testDescriptionCache)
             else:
                 return bottle.redirect('/groups')
 
@@ -160,7 +267,7 @@ class Euphonia(karakuricommon.karakuriclient):
             return bson.json_util.dumps(output)
 
         @b.route('/defined_tests')
-        def get_tests():
+        def get_tests2():
             tobj = t.get_defined_tests()
             output = {"status": "success", "data": {"defined_tests": tobj}}
             return bson.json_util.dumps(output)
@@ -208,7 +315,8 @@ class Euphonia(karakuricommon.karakuriclient):
             else:
                 workflows = []
 
-            workflowMap = {workflow['name']:workflow for workflow in workflows}
+            workflowMap = {workflow['name']: workflow for workflow in
+                           workflows}
             workflowNames = workflowMap.keys()
             workflowNames.sort()
 
@@ -220,16 +328,18 @@ class Euphonia(karakuricommon.karakuriclient):
                 cookie_workflowNames = urlparse.unquote(cookie_workflowNames)
                 if cookie_workflowNames and cookie_workflowNames != "[]":
                     try:
-                        user_workflows = bson.json_util.loads(cookie_workflowNames)
+                        user_workflows = bson.json_util.\
+                            loads(cookie_workflowNames)
                         user_workflows.sort()
                     except Exception as e:
                         self.logger.exception(e)
 
-
             content = ''
             for workflow in user_workflows:
                 content += get_rendered_workflow(workflow, **kwargs)
-            return bottle.template('base_page', renderpage="tasks", allWorkflows=workflowNames, content=content)
+            return bottle.template(
+                'base_page', renderpage="tasks",
+                allWorkflows=workflowNames, content=content)
 
         @b.route('/task/<task>/process')
         @tokenize
@@ -239,7 +349,7 @@ class Euphonia(karakuricommon.karakuriclient):
         @b.route('/task/<task>/approve')
         @tokenize
         def approve_task(task, **kwargs):
-            ret = self.taskRequest(task, "approve")
+            self.taskRequest(task, "approve")
             return response(self.taskRequest(task, "approve", **kwargs))
 
         @b.route('/task/<task>/disapprove')
@@ -272,14 +382,16 @@ class Euphonia(karakuricommon.karakuriclient):
         @tokenize
         def user_add_workflow(uid, workflow, **kwargs):
             """ Add user workflow """
-            res = self.postRequest("/user/%s/workflow/%s" % (uid, workflow), **kwargs)
+            res = self.postRequest("/user/%s/workflow/%s" % (uid, workflow),
+                                   **kwargs)
             return bson.json_util.dumps(res)
 
         @b.delete('/user/<uid>/workflow/<workflow>')
         @tokenize
         def user_remove_workflow(uid, workflow, **kwargs):
             """ Remove user workflow """
-            res = self.deleteRequest("/user/%s/workflow/%s" % (uid, workflow), **kwargs)
+            res = self.deleteRequest("/user/%s/workflow/%s" % (uid, workflow),
+                                     **kwargs)
             return bson.json_util.dumps(res)
 
         @b.route('/workflows')
@@ -295,14 +407,19 @@ class Euphonia(karakuricommon.karakuriclient):
                 workflow = bson.json_util.loads(formcontent)['workflow']
                 wfstring = bson.json_util.dumps(workflow)
                 print wfstring
-                res = self.postRequest("/testworkflow", data=wfstring, **kwargs)
+                res = self.postRequest("/testworkflow", data=wfstring,
+                                       **kwargs)
                 if res['status'] == "success":
                     if 'data' in res and 'issues' in res['data']:
                         for issue in res['data']['issues']:
-                            del issue['jira']['changelog']
-                            del issue['jira']['fields']['comment']
-                            del issue['jira']['fields']['attachment']
-                            if 'karakuri' in issue and 'sleep' in issue['karakuri']:
+                            if 'changelog' in issue['jira']:
+                                del issue['jira']['changelog']
+                            if 'fields' in issue['jira'] and 'comment' in issue['jira']['fields']:
+                                del issue['jira']['fields']['comment']
+                            if 'fields' in issue['jira'] and 'attachment' in issue['jira']['fields']:
+                                del issue['jira']['fields']['attachment']
+                            if 'karakuri' in issue and 'sleep' in\
+                                    issue['karakuri']:
                                 del issue['karakuri']['sleep']
                     return bson.json_util.dumps(res)
                 else:
@@ -327,7 +444,8 @@ class Euphonia(karakuricommon.karakuriclient):
             workflow_id = bson.json_util.ObjectId(workflow['_id'])
             workflow['_id'] = workflow_id
             wfstring = bson.json_util.dumps(workflow)
-            return self.postRequest("/workflow", entity=wfname, data=wfstring, **kwargs)
+            return self.postRequest("/workflow", entity=wfname, data=wfstring,
+                                    **kwargs)
 
         @b.delete('/workflow/<wfname>')
         @tokenize
@@ -350,15 +468,26 @@ class Euphonia(karakuricommon.karakuriclient):
                 task_summary = []
 
             issue_objs = {}
+            res = self.workflowRequest(name, 'issuesummaries', **kwargs)
+            issues = None
+            if res['status'] == "success":
+                issues = res['data']
+            if issues is not None:
+                for issue in issues['issues']:
+                    issue_objs[str(issue['_id'])] = issue['jira']
+
             if (task_summary is not None and
                     'tasks' in task_summary and
                     len(task_summary['tasks']) > 0):
                 for task in task_summary['tasks']:
                     if 'start' in task:
-                        task['startDate'] = task['start'].strftime("%Y-%m-%d %H:%M")
+                        task['startDate'] = task['start'].\
+                            strftime("%Y-%m-%d %H:%M")
                         starttz = task['start'].tzinfo
-                        end_of_time = utc.localize(datetime.max).astimezone(starttz)
-                        end_of_time_str = end_of_time.strftime("%Y-%m-%d %H:%M")
+                        end_of_time = utc.localize(datetime.max).\
+                            astimezone(starttz)
+                        end_of_time_str = end_of_time.\
+                            strftime("%Y-%m-%d %H:%M")
                         if task['startDate'] == end_of_time_str:
                             task['frozen'] = True
                         else:
@@ -366,14 +495,8 @@ class Euphonia(karakuricommon.karakuriclient):
                     else:
                         task['startDate'] = ""
                         task['frozen'] = False
-                    task['updateDate'] = task['t'].strftime(format="%Y-%m-%d %H:%M")
-                    res = self.issueRequest(str(task['iid']), **kwargs)
-                    if res['status'] == "success":
-                        issue = res['data']
-                    else:
-                        issue = None
-                    if issue is not None:
-                        issue_objs[str(task['iid'])] = issue['issue']['jira']
+                    task['updateDate'] = task['t'].\
+                        strftime(format="%Y-%m-%d %H:%M")
 
             hidden_done = {}
             cookie_hideDone = bottle.request.get_cookie('workflows_hide_done')
@@ -393,7 +516,8 @@ class Euphonia(karakuricommon.karakuriclient):
                 hide_done = False
 
             hidden_frozen = {}
-            cookie_hideFrozen = bottle.request.get_cookie('workflows_hide_frozen')
+            cookie_hideFrozen = bottle.request.\
+                get_cookie('workflows_hide_frozen')
             # convert the octal
             if cookie_hideFrozen:
                 cookie_hideFrozen = urlparse.unquote(cookie_hideFrozen)
@@ -409,23 +533,28 @@ class Euphonia(karakuricommon.karakuriclient):
             else:
                 hide_frozen = False
 
-            data = {'ticketSummary': task_summary, 'issues': issue_objs, 'hide_done': hide_done, 'hide_frozen': hide_frozen}
-            return response(self.workflowRequest(name, **kwargs), template="tasks_workflow", template_data=data)
+            data = {'ticketSummary': task_summary, 'issues': issue_objs,
+                    'hide_done': hide_done, 'hide_frozen': hide_frozen}
+            return response(self.workflowRequest(name, **kwargs),
+                            template="tasks_workflow", template_data=data)
 
         @b.route('/workflow/<workflow>/process')
         @tokenize
         def process_workflow(workflow, **kwargs):
-            return response(self.workflowRequest(workflow, "process", **kwargs))
+            return response(self.workflowRequest(workflow, "process",
+                                                 **kwargs))
 
         @b.route('/workflow/<workflow>/approve')
         @tokenize
         def approve_workflow(workflow, **kwargs):
-            return response(self.workflowRequest(workflow, "approve", **kwargs))
+            return response(self.workflowRequest(workflow, "approve",
+                                                 **kwargs))
 
         @b.route('/workflow/<workflow>/disapprove')
         @tokenize
         def disapprove_workflow(workflow, **kwargs):
-            return response(self.workflowRequest(workflow, "disapprove", **kwargs))
+            return response(self.workflowRequest(workflow, "disapprove",
+                                                 **kwargs))
 
         @b.route('/workflow/<workflow>/remove')
         @tokenize
@@ -435,7 +564,8 @@ class Euphonia(karakuricommon.karakuriclient):
         @b.route('/workflow/<workflow>/sleep/<seconds>')
         @tokenize
         def sleep_workflow(workflow, seconds, **kwargs):
-            return response(self.workflowRequest(workflow, "sleep", seconds, **kwargs))
+            return response(self.workflowRequest(workflow, "sleep", seconds,
+                                                 **kwargs))
 
         # UPLOAD-RELATED ROUTES
         @b.route('/upload')
@@ -472,15 +602,18 @@ class Euphonia(karakuricommon.karakuriclient):
         # STATIC FILES
         @b.route('/js/<filename>')
         def server_js(filename):
-            return bottle.static_file(filename, root="%s/js" % self.args['root_webdir'])
+            return bottle.static_file(filename, root="%s/js" %
+                                      self.args['root_webdir'])
 
         @b.route('/css/<filename>')
         def server_css(filename):
-            return bottle.static_file(filename, root="%s/css" % self.args['root_webdir'])
+            return bottle.static_file(filename, root="%s/css" %
+                                      self.args['root_webdir'])
 
         @b.route('/img/<filename>')
         def server_img(filename):
-            return bottle.static_file(filename, root="%s/img" % self.args['root_webdir'])
+            return bottle.static_file(filename, root="%s/img" %
+                                      self.args['root_webdir'])
 
         self.logger.debug("start()")
         self.logger.info("euphonia!")
@@ -488,22 +621,19 @@ class Euphonia(karakuricommon.karakuriclient):
         b.run(host=self.args['euphonia_host'], port=self.args['euphonia_port'])
 
 if __name__ == "__main__":
-
     parser = karakuricommon.karakuriclientparser(description="A euphoric "
                                                              "experience")
     parser.add_config_argument("--euphonia-host", metavar="HOSTNAME",
                                default="localhost",
-                               help="specify the euphonia hostname (default=localhost)")
+                               help="specify the euphonia hostname "
+                                    "(default=localhost)")
     parser.add_config_argument("--euphonia-port", metavar="PORT", type=int,
                                default=8070,
                                help="specify the euphonia port (default=8080)")
-    parser.add_config_argument("--mongo-host", metavar="HOSTNAME",
-                               default="localhost",
-                               help="specify the MongoDB hostname (default="
-                                    "localhost)")
-    parser.add_config_argument("--mongo-port", metavar="PORT", default=27017,
-                               type=int,
-                               help="specify the MongoDB port (default=27017)")
+    parser.add_config_argument("--mongo-uri", metavar="MONGO",
+                               default="mongodb://localhost:27017",
+                               help="specify the MongoDB URI (default="
+                               "mongodb://localhost:27017)")
     parser.add_config_argument("--pid", metavar="FILE",
                                default="/tmp/euphonia.pid",
                                help="specify a PID file "

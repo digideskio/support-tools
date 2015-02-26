@@ -108,6 +108,7 @@
     src: url("/css/njnaruto.ttf");
 }
 
+<<<<<<< HEAD
 /* Dropzone */
 div.table {
   display: table;
@@ -150,3 +151,13 @@ div.table .file-row:nth-child(odd) {
 #previews .file-row.dz-success .delete {
   display: block;
 }
+=======
+.popover {
+    max-width: 600px;
+}
+.alert {
+    border-width: 1px;
+    border-style: solid;
+    border-color: #eeeeee;
+}
+>>>>>>> master
