@@ -29,7 +29,7 @@ The MongoDB Support Team
 
 ## Usage
 
-The easiest way to run the script is from the Run dialog (Win+R) type the following command and press `Ctrl`+`Shift`+`Enter`:
+The easiest way to run the script is from the Run dialog (Win+R) type the following command and press `Enter`:
 ```bat
 powershell -ExecutionPolicy Unrestricted -File "<full-path-to-mdiag.ps1>" CS-XXXX
 ```
@@ -69,12 +69,7 @@ The JSON output is an array of documents. The first character in the file will a
     "ref":  "CS-XXXX",
     "section":  "section-title",
     "ts":  {
-               "start":  {
-                             "$date":  "2014-11-03T16:34:53"
-                         },
-               "end":  {
-                           "$date":  "2014-11-03T16:34:53"
-                       }
+        "$date":  "2014-11-03T16:34:53"
            },
     "run":  {
                 "$date":  "2014-11-03T16:34:53"
@@ -93,7 +88,7 @@ member | description
 ------ | -----------
 `ref` | The argument passed to the script from the command-line. It is suggested to be the case number for identification purposes, however, it may take any string value.
 `section` | Descriptive name of the system probe being run, should be unique within any single file. See below for a list of all values that appear in this field, and a definition of the system probe that each represents.
-`ts` | Contains the starting and ending timestamps that bound the command being performed. In this revision these are only 1 second accurate.
+`ts` | Contains the timestamp that bounded the command being performed. In this revision it is 1 second accurate. In a later revision, when longer running statistical collection is performed, this field will contain a sub-document with two fields containing the starting and ending timestamps for those probes.
 `run` | The system timestamp at the beginning of the script. This remains constant for the duration of the run and can be used (in conjunction with 'ref') as a (probably) unique identifier given a larger set of probe documents. The combination of 'section' and 'run' should be unique per host (across time).
 `ok` | Boolean indicating if the script believes the system probe completed without error.
 `command` | A short-form of the system probe that was attempted. May be the actual command-line that was run or a short version of it. The "fingerprint" document is unique in that it sets this value to false.
@@ -134,4 +129,18 @@ section | content type | description
 `time-change` | Array of Document | The last 10 messages in the system event-log regarding system time changes. The message text should contain details that permit determining the clock before and after the event.
 
 
+
+### Changelog
+
+## 1.5.0
+ - Automatic Administrator elevation, script detects if not admin and tries to relaunch itself requesting promotion by UAC, will fallback to user-mode if denied
+ - Removed erroneous use of start/end timestamps for scalar probes (all of them at the moment)
+ - Environment output is now a single document, pure key/value rather than sub-docs (because env variables cannot repeat and are JSON compatible keys)
+ - Services lists everything now (was previously constrained to just those services which had "mongo" in the name)
+ - added network-tcp-active shows current TCP connected/listening ports with associated PID
+
+## 1.4.1
+ - Fixed fallback JSON output
+
+ 
 :construction_worker:
