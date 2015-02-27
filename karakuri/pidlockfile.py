@@ -18,9 +18,11 @@ import os
 import sys
 import errno
 import time
+import fcntl
 
 from lockfile import (LockBase, AlreadyLocked, LockFailed, NotLocked, NotMyLock,
                LockTimeout)
+
 
 class PIDLockFile(LockBase):
     """ Lockfile implemented as a Unix PID file.
@@ -116,6 +118,7 @@ class PIDLockFile(LockBase):
             """
         remove_existing_pidfile(self.path)
 
+
 def read_pid_from_pidfile(pidfile_path):
     """ Read the PID recorded in the named PID file.
 
@@ -157,22 +160,26 @@ def write_pid_to_pidfile(pidfile_path):
         and write it to the named file as a line of text.
 
         """
-    open_flags = (os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-    open_mode = 0644
-    pidfile_fd = os.open(pidfile_path, open_flags, open_mode)
-    pidfile = os.fdopen(pidfile_fd, 'w')
+    try:
+        pidfile = open(pidfile_path, "a+")
+    except:
+        sys.exit(1)
 
-    # According to the FHS 2.3 section on PID files in /var/run:
-    #
-    #   The file must consist of the process identifier in
-    #   ASCII-encoded decimal, followed by a newline character. For
-    #   example, if crond was process number 25, /var/run/crond.pid
-    #   would contain three characters: two, five, and newline.
+    try:
+        fcntl.flock(pidfile.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except IOError:
+        AlreadyLocked("%s is already locked" % pidfile_path)
+        sys.exit()
+    except:
+        LockFailed("failed to create %s" % pidfile_path)
+        sys.exit(1)
 
-    pid = os.getpid()
-    line = "%(pid)d\n" % vars()
-    pidfile.write(line)
-    pidfile.close()
+    # If we've made it this far, then we've successfully flock()ed the pidfile
+    pidfile.seek(0)
+    pidfile.truncate()
+    pidfile.write(str(os.getpid()))
+    pidfile.flush()
+    pidfile.seek(0)
 
 
 def remove_existing_pidfile(pidfile_path):

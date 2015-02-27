@@ -16,7 +16,7 @@
         <div class="collapse navbar-collapse">
             <ul class="nav navbar-nav">
             <%
-            for section in ["groups","tests","workflows","tasks","upload"]:
+            for section in ["groups","tests","workflows","tasks"]:
                 active = ""
                 if section == renderpage:
                     active = "active"

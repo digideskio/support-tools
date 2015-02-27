@@ -3,5 +3,6 @@
     <link rel="stylesheet" href="/css/ladda-themeless.min.css"/>
     <link rel="stylesheet" href="/css/app.css"/>
     <link rel="stylesheet" href="/css/prettify.css"/>
+    <link rel="stylesheet" href="/css/select2.min.css"/>
     <link rel="stylesheet" href="/css/{{renderpage}}.css"/>
 </head>

@@ -13,9 +13,10 @@
 <%
 if defined('renderpage'):
 %>
-    <script src="/js/{{renderpage}}.js?ts=8"></script>
+    <script src="/js/{{renderpage}}.js"></script>
 <%
 end
 %>
 <script src="/js/prettify.js"></script>
+<script src="/js/select2.min.js"></script>
 

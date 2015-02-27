@@ -17,11 +17,7 @@ import sys
 import urlparse
 
 from datetime import datetime
-<<<<<<< HEAD
-from models import groups, salesforce_client, tests, files
-=======
 from models import groups, tests
->>>>>>> master
 
 utc = pytz.UTC
 

@@ -19,7 +19,7 @@
                 <div class="panel panel-default">
                     <div class="panel-heading">
                         <div class="form-group">
-                            <label for="workflow.name" class="col-sm-2 control-label">Test Name</label>
+                            <label for="test.name" class="col-sm-2 control-label">Test Name</label>
                             <div class="col-sm-10">
                                 <h4 class="panel-title editable">
                                     <input type="text" class="form-control" name="test.name" id="test.name" value="">
@@ -29,19 +29,42 @@
                     </div>
                     <div class="panel-body">
                         <div class="form-group">
-                            <label for="workflow.active" class="col-sm-2 control-label">Active</label>
+                            <label for="test.active" class="col-sm-2 control-label">Active</label>
                             <div class="col-sm-10">
                                 <input type="checkbox" class="form-control input-sm" name="test.active" id="test.active" value="">
                             </div>
                         </div>
                         <div class="form-group">
-                            <label for="workflow.priority" class="col-sm-2 control-label">Priority</label>
+                            <label for="test.src" class="col-sm-2 control-label">Source</label>
+                            <div class="col-sm-10">
+                                <select class="form-control input-sm" name="test.src" id="test.src" value="">
+                                    <option value="pings">pings</option>
+                                    <option value="mmsgroupreports">mmsgroupreports</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="test.collections" class="col-sm-2 control-label">Collections</label>
+                            <div class="col-sm-10">
+                                <select class="form-control input-sm" multiple="true" name="test.collections" id="test.collections"></select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="test.priority" class="col-sm-2 control-label">Priority</label>
                             <div class="col-sm-10">
                                 <select class="form-control input-sm" name="test.priority" id="test.priority" value="">
                                     <option value="low">low</option>
                                     <option value="medium">medium</option>
                                     <option value="high">high</option>
                                 </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="test.header" class="col-sm-2 control-label">Header</label>
+                            <div class="col-sm-10">
+                                <h4 class="panel-title editable">
+                                    <input type="text" class="form-control" name="test.header" id="test.header" value="">
+                                </h4>
                             </div>
                         </div>
                         <div class="form-group">

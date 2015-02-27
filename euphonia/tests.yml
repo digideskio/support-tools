@@ -6,6 +6,7 @@
     name: "EvenVotingNumberReplicaSets"
     priority: "high"
     src: "mmsgroupreports"
+    collections: ["Best Practices"]
   - 
     active: true
     comment: "One or more of your hosts has an incorrect ulimits setting, which can result in performance and stability issues with the database. For more information, please refer to the following documentation: <a href='http://docs.mongodb.org/manual/reference/ulimit/'>http://docs.mongodb.org/manual/reference/ulimit/</a>"
@@ -13,6 +14,7 @@
     name: "LimitsStartupWarning"
     priority: "medium"
     src: "mmsgroupreports"
+    collections: ["Startup Warnings"]
   - 
     active: true
     collection: "MongoDB 2.0"
@@ -21,6 +23,7 @@
     name: "Mongo20ReplSetStepDown"
     priority: "high"
     src: "mmsgroupreports"
+    collections: ["Known Issues"]
   - 
     active: true
     collection: "MongoDB 2.2"
@@ -29,6 +32,7 @@
     name: "Mongo22Idempotency"
     priority: "high"
     src: "mmsgroupreports"
+    collections: ["Known Issues"]
   - 
     active: true
     collection: "MongoDB 2.4"
@@ -37,6 +41,7 @@
     name: "Mongo24AuthDbLock"
     priority: "medium"
     src: "mmsgroupreports"
+    collections: ["Known Issues"]
   - 
     active: true
     collection: "MongoDB 2.4"
@@ -45,6 +50,7 @@
     name: "Mongo24DbhashCache"
     priority: "high"
     src: "mmsgroupreports"
+    collections: ["Known Issues"]
   - 
     active: true
     collection: "MongoDB 2.4"
@@ -53,6 +59,7 @@
     name: "Mongo24InitialSync"
     priority: "medium"
     src: "mmsgroupreports"
+    collections: ["Known Issues"]
   - 
     active: true
     collection: "MongoDB 2.4"
@@ -61,6 +68,7 @@
     name: "Mongo24JSRemoteSegfault"
     priority: "medium"
     src: "mmsgroupreports"
+    collections: ["Known Issues"]
   - 
     active: true
     collection: "MongoDB 2.4"
@@ -69,6 +77,7 @@
     name: "Mongo24SecondaryIndexes"
     priority: "medium"
     src: "mmsgroupreports"
+    collections: ["Known Issues"]
   - 
     active: true
     collection: "MongoDB 2.6"
@@ -77,6 +86,7 @@
     name: "Mongo26Credentials"
     priority: "medium"
     src: "mmsgroupreports"
+    collections: ["Known Issues"]
   - 
     active: true
     collection: "MongoDB 2.6"
@@ -85,6 +95,7 @@
     name: "Mongo26X509Auth"
     priority: "low"
     src: "mmsgroupreports"
+    collections: ["Known Issues"]
   - 
     active: true
     comment: "You are running an older version of MongoDB (2.2.3 or 2.4.1) that has a known issue regarding function conflicts in the JS shell that was resolved in later versions of the software. Please consider upgrading to the latest release to take advantage of these fixes. For more information, please see the following Server ticket for more details: <a href='https://jira.mongodb.com/browse/SERVER-9131'>https://jira.mongodb.com/browse/SERVER-9131</a>"
@@ -92,6 +103,7 @@
     name: "MongoJSShellConflicts"
     priority: "low"
     src: "mmsgroupreports"
+    collections: ["Known Issues"]
   - 
     active: true
     comment: "You are running an older version of MongoDB that has a known issue regarding large chunk migrations that was resolved in later versions of the software. Please consider upgrading to the latest release to take advantage of these fixes. For more information, please see the following Server ticket for more details: <a href='https://jira.mongodb.com/browse/SERVER-10478'>https://jira.mongodb.com/browse/SERVER-10478</a>"
@@ -99,6 +111,7 @@
     name: "MongoLargeChunkMigrations"
     priority: "low"
     src: "mmsgroupreports"
+    collections: ["Known Issues"]
   - 
     active: true
     comment: "You are running an old version of MongoDB that has a known issue regarding missing documents on secondaries that was resolved in later versions of the software. Please consider upgrading to the latest release to take advantage of these fixes. For more information, please see the following Server ticket for more details: <a href='https://jira.mongodb.com/browse/SERVER-4270'>https://jira.mongodb.com/browse/SERVER-4270</a>"
@@ -106,6 +119,7 @@
     name: "MongoSecondaryMissingDocs"
     priority: "low"
     src: "mmsgroupreports"
+    collections: ["Known Issues"]
   - 
     active: true
     comment: "You are running an older version of MongoDB that has a known issue regarding a JavaScript nativeHelper vulnerability that was resolved in later versions of the software. Please consider upgrading to the latest release to take advantage of these fixes. For more information, please see the following Server ticket for more details: <a href='https://jira.mongodb.com/browse/SERVER-9124'>https://jira.mongodb.com/browse/SERVER-9124</a>"
@@ -113,6 +127,7 @@
     name: "MongoSMNativeHelper"
     priority: "low"
     src: "mmsgroupreports"
+    collections: ["Known Issues"]
   - 
     active: true
     comment: "You are running an older version of MongoDB that has a known issue regarding text-indexed fields that was resolved in later versions of the software. Please consider upgrading to the latest release to take advantage of these fixes. For more information, please see the following Server ticket for more details: <a href='https://jira.mongodb.com/browse/SERVER-14738'>https://jira.mongodb.com/browse/SERVER-14738</a>"
@@ -120,6 +135,7 @@
     name: "MongoTextIndexedFields"
     priority: "low"
     src: "mmsgroupreports"
+    collections: ["Known Issues"]
   - 
     active: true
     comment: "You are running an older version of MongoDB that has a known issue regarding the mongoS writeback listener that was resolved in later versions of the software. Please consider upgrading to the latest release to take advantage of these fixes. For more information, please see the following Server ticket for more details: <a href='https://jira.mongodb.com/browse/SERVER-12146'>https://jira.mongodb.com/browse/SERVER-12146</a>"
@@ -127,6 +143,7 @@
     name: "MongoWritebackListener"
     priority: "low"
     src: "mmsgroupreports"
+    collections: ["Known Issues"]
   - 
     active: true
     comment: "You are running a large number of MMS monitoring agents, you should consider whether you really require this many agents."
@@ -134,6 +151,7 @@
     name: "NMonitoringAgents"
     priority: "low"
     src: "mmsgroupreports"
+    collections: ["Best Practices"]
   - 
     active: true
     comment: "[[N_AFFECTED_HOSTS]] hosts in the [[MMS_GROUP_ANCHOR]] MMS Group is/are using NUMA (Non-Uniform Memory Access), which has been shown to cause performance and stability issues. Here is a list of the affected hosts:\n\n[[AFFECTED_HOSTS_UL]]\n\nFor more information, please refer to the following documentation: <a href=\"http://docs.mongodb.org/manual/administration/production-notes/#mongodb-and-numa-hardware\">http://docs.mongodb.org/manual/administration/production-notes/#mongodb-and-numa-hardware</a>"
@@ -141,6 +159,7 @@
     name: "NumaStartupWarning"
     priority: "medium"
     src: "pings"
+    collections: ["Startup Warnings"]
   - 
     active: true
     comment: "Hosts in your MMS group are logging warnings on startup. Please review the configuration of these hosts to resolve these warnings."
@@ -148,6 +167,7 @@
     name: "StartupWarning"
     priority: "low"
     src: "mmsgroupreports"
+    collections: ["Startup Warnings"]
   - 
     active: true
     comment: "You have one or more hosts configured with more than one vote. It is not recommended for a host to have more than one vote. Please see our documentation regarding <a href='http://docs.mongodb.org/manual/core/replica-set-architectures/'>Replica Set Deployment Architectures</a> for more information."
@@ -155,6 +175,7 @@
     name: "NumHostWithVotesMoreThanOne"
     priority: "medium"
     src: "mmsgroupreports"
+    collections: ["Best Practices"]
   - 
     active: true
     comment: "You have one or more replica sets that contain more than one arbiter node. It is not recommended to have more than one arbiter in a replica set. Please see our documentation regarding <a href='http://docs.mongodb.org/manual/core/replica-set-architectures/'>Replica Set Deployment Architectures</a> for more information."
@@ -162,6 +183,7 @@
     name: "NumReplicaSetWithMoreThanOneArbiter"
     priority: "low"
     src: "mmsgroupreports"
+    collections: ["Best Practices"]
   - 
     active: true
     comment: "You have an even number of voting nodes in your replica set. This can lead to election issues in the event of a primary node failure. Please consider adding an additional voting node to your replica set(s) to ensure an odd number of votes."
@@ -169,6 +191,7 @@
     name: "EvenVotingNumberReplicaSets"
     priority: "high"
     src: "pings"
+    collections: ["Best Practices"]
   - 
     active: true
     comment: "One or more of your hosts has an incorrect ulimits setting, which can result in performance and stability issues with the database. For more information, please refer to the following documentation: <a href='http://docs.mongodb.org/manual/reference/ulimit/'>http://docs.mongodb.org/manual/reference/ulimit/</a>"
@@ -176,6 +199,7 @@
     name: "LimitsStartupWarning"
     priority: "medium"
     src: "pings"
+    collections: ["Startup Warnings"]
   - 
     active: true
     collection: "MongoDB 2.0"
@@ -184,6 +208,7 @@
     name: "Mongo20ReplSetStepDown"
     priority: "high"
     src: "pings"
+    collections: ["Known Issues"]
   - 
     active: true
     collection: "MongoDB 2.2"
@@ -192,6 +217,7 @@
     name: "Mongo22Idempotency"
     priority: "high"
     src: "pings"
+    collections: ["Known Issues"]
   - 
     active: true
     collection: "MongoDB 2.4"
@@ -200,6 +226,7 @@
     name: "Mongo24AuthDbLock"
     priority: "medium"
     src: "pings"
+    collections: ["Known Issues"]
   - 
     active: true
     collection: "MongoDB 2.4"
@@ -208,6 +235,7 @@
     name: "Mongo24DbhashCache"
     priority: "high"
     src: "pings"
+    collections: ["Known Issues"]
   - 
     active: true
     collection: "MongoDB 2.4"
@@ -216,6 +244,7 @@
     name: "Mongo24InitialSync"
     priority: "medium"
     src: "pings"
+    collections: ["Known Issues"]
   - 
     active: true
     collection: "MongoDB 2.4"
@@ -224,6 +253,7 @@
     name: "Mongo24JSRemoteSegfault"
     priority: "medium"
     src: "pings"
+    collections: ["Known Issues"]
   - 
     active: true
     collection: "MongoDB 2.4"
@@ -232,6 +262,7 @@
     name: "Mongo24SecondaryIndexes"
     priority: "medium"
     src: "pings"
+    collections: ["Known Issues"]
   -
     active: true
     collection: "MongoDB 2.6"
@@ -240,6 +271,7 @@
     name: "Mongo26Credentials"
     priority: "medium"
     src: "pings"
+    collections: ["Known Issues"]
   -
     active: true
     collection: "MongoDB 2.6"
@@ -248,6 +280,7 @@
     name: "Mongo26X509Auth"
     priority: "low"
     src: "pings"
+    collections: ["Known Issues"]
   -
     active: true
     comment: "You are running an older version of MongoDB (2.2.3 or 2.4.1) that has a known issue regarding function conflicts in the JS shell that was resolved in later versions of the software. Please consider upgrading to the latest release to take advantage of these fixes. For more information, please see the following Server ticket for more details: <a href='https://jira.mongodb.com/browse/SERVER-9131'>https://jira.mongodb.com/browse/SERVER-9131</a>"
@@ -255,6 +288,7 @@
     name: "MongoJSShellConflicts"
     priority: "low"
     src: "pings"
+    collections: ["Known Issues"]
   -
     active: true
     comment: "You are running an older version of MongoDB that has a known issue regarding large chunk migrations that was resolved in later versions of the software. Please consider upgrading to the latest release to take advantage of these fixes. For more information, please see the following Server ticket for more details: <a href='https://jira.mongodb.com/browse/SERVER-10478'>https://jira.mongodb.com/browse/SERVER-10478</a>"
@@ -262,6 +296,7 @@
     name: "MongoLargeChunkMigrations"
     priority: "low"
     src: "pings"
+    collections: ["Known Issues"]
   -
     active: true
     comment: "You are running an old version of MongoDB that has a known issue regarding missing documents on secondaries that was resolved in later versions of the software. Please consider upgrading to the latest release to take advantage of these fixes. For more information, please see the following Server ticket for more details: <a href='https://jira.mongodb.com/browse/SERVER-4270'>https://jira.mongodb.com/browse/SERVER-4270</a>"
@@ -269,6 +304,7 @@
     name: "MongoSecondaryMissingDocs"
     priority: "low"
     src: "pings"
+    collections: ["Known Issues"]
   -
     active: true
     comment: "You are running an older version of MongoDB that has a known issue regarding a JavaScript nativeHelper vulnerability that was resolved in later versions of the software. Please consider upgrading to the latest release to take advantage of these fixes. For more information, please see the following Server ticket for more details: <a href='https://jira.mongodb.com/browse/SERVER-9124'>https://jira.mongodb.com/browse/SERVER-9124</a>"
@@ -276,6 +312,7 @@
     name: "MongoSMNativeHelper"
     priority: "low"
     src: "pings"
+    collections: ["Known Issues"]
   -
     active: true
     comment: "You are running an older version of MongoDB that has a known issue regarding text-indexed fields that was resolved in later versions of the software. Please consider upgrading to the latest release to take advantage of these fixes. For more information, please see the following Server ticket for more details: <a href='https://jira.mongodb.com/browse/SERVER-14738'>https://jira.mongodb.com/browse/SERVER-14738</a>"
@@ -283,6 +320,7 @@
     name: "MongoTextIndexedFields"
     priority: "low"
     src: "pings"
+    collections: ["Known Issues"]
   -
     active: true
     comment: "You are running an older version of MongoDB that has a known issue regarding the mongoS writeback listener that was resolved in later versions of the software. Please consider upgrading to the latest release to take advantage of these fixes. For more information, please see the following Server ticket for more details: <a href='https://jira.mongodb.com/browse/SERVER-12146'>https://jira.mongodb.com/browse/SERVER-12146</a>"
@@ -290,6 +328,7 @@
     name: "MongoWritebackListener"
     priority: "low"
     src: "pings"
+    collections: ["Known Issues"]
   -
     active: true
     comment: "You are running a large number of MMS monitoring agents, you should consider whether you really require this many agents."
@@ -297,6 +336,7 @@
     name: "NMonitoringAgents"
     priority: "low"
     src: "pings"
+    collections: ["Best Practices"]
   - 
     active: true
     comment: "You have one or more hosts configured with more than one vote. It is not recommended for a host to have more than one vote. Please see our documentation regarding <a href='http://docs.mongodb.org/manual/core/replica-set-architectures/'>Replica Set Deployment Architectures</a> for more information."
@@ -304,6 +344,7 @@
     name: "NumHostWithVotesMoreThanOne"
     priority: "medium"
     src: "pings"
+    collections: ["Best Practices"]
   -
     active: true
     comment: "You have one or more replica sets that contain more than one arbiter node. It is not recommended to have more than one arbiter in a replica set. Please see our documentation regarding <a href='http://docs.mongodb.org/manual/core/replica-set-architectures/'>Replica Set Deployment Architectures</a> for more information."
@@ -311,6 +352,7 @@
     name: "NumReplicaSetWithMoreThanOneArbiter"
     priority: "low"
     src: "pings"
+    collections: ["Best Practices"]
   -
     active: true
     comment: "Hosts in your MMS group are logging warnings on startup. Please review the configuration of these hosts to resolve these warnings."
@@ -318,13 +360,15 @@
     name: "StartupWarning"
     priority: "low"
     src: "mmsgroupreports"
+    collections: ["Startup Warnings"]
   - 
     active: true
     comment: "You have at least one MongoS instance running with the --noAutoSplit option, which is not recommended for production deployments."
-    header: "MongoS noAutoSplit"
+    header: "MongoDB Best Practices: Auto Split"
     name: "MongosNoAutoSplit"
     priority: "medium"
     src: "pings"
+    collections: ["Best Practices"]
   - 
     active: true
     comment: "You have a large amount of non-mapped memory, which means you are doing a lot of in-memory work"
@@ -332,6 +376,7 @@
     name: "LargeNonMappedMemory"
     priority: "medium"
     src: "pings"
+    collections: ["Performance"]
   -
     active: true
     comment: "You have [[N_AFFECTED_HOSTS]] mongoS hosts in the [[MMS_GROUP_ANCHOR]] MMS Group, which is higher than recommended. Too many mongoS hosts can result in a large number of open connections on your mongoD instances, which can have a performance impact. Consider whether you require this many mongoS instances, or if you can reduce the number."
@@ -339,6 +384,7 @@
     name: "NumMongos"
     priority: "medium"
     src: "pings"
+    collections: ["Best Practices"]
   -
     active: true
     comment: "You have [[N_AFFECTED_HOSTS]] host(s) in the [[MMS_GROUP_ANCHOR]] MMS Group reporting a non-default value for syncDelay. Setting a value other than the default (60) is not recommended in production environments."
@@ -346,6 +392,7 @@
     name: "SyncDelay"
     priority: "medium"
     src: "pings"
+    collections: ["Best Practices"]
   -
     active: true
     comment: "You have [[N_AFFECTED_HOSTS]] host(s) in the [[MMS_GROUP_ANCHOR]] MMS Group reporting the execution of queries that resulted in table scans. You should ensure your queries make use of available indexes to avoid these costly operations, or configure new indexes to improve query performance."
@@ -353,6 +400,7 @@
     name: "NotableScan"
     priority: "medium"
     src: "pings"
+    collections: ["Performance","Best Practices"]
   -
     active: true
     comment: "You have [[N_AFFECTED_HOSTS]] host(s) in the [[MMS_GROUP_ANCHOR]] MMS Group reporting a non-zero value for the diaglog commandline option. Enabling diagnostic logging can have a performance, and is not recommended for normal production operation."
@@ -360,3 +408,4 @@
     name: "DiagLogGreaterThanZero"
     priority: "medium"
     src: "pings"
+    collections: ["Performance","Best Practices"]
