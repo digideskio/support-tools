@@ -10,6 +10,7 @@ pat = '([^0-9]+) ([0-9]+) \(([^)]+)\) ([^(]+)'
 pat = re.compile(pat)
 stack = ['ROOT']
 
+print '# metric=MB format=%.3f'
 print 'time;MB;stack'
 
 def leaf():

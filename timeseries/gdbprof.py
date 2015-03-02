@@ -139,10 +139,9 @@ class node:
     def __init__(self):
         self.filters = []
         self.count = 0
-        self.counts = collections.defaultdict(int)
+        self.counts = collections.defaultdict(float)
         self.min_count = None
         self.max_count = None
-        self.bins = collections.defaultdict(int)
         self.children = {}
 
     def _add_func(self, func, t, count=1):
@@ -167,6 +166,7 @@ class node:
                 f(stack)
             n = self # root
             n.count += count
+            self.counts[t] += count
             for func in stack:
                 n = n._add_func(func, t, count)
         return []
@@ -406,9 +406,9 @@ def read_perf(filters, type_info):
     # bucketed times
     if opt.buckets:
         opt.t0 = min(opt.times)
-        opt.samples_per_t = {}
+        opt.samples_per_t = collections.defaultdict(float)
         for t in opt.times:
-            opt.samples_per_t[bucket_time(t)] = freq * opt.buckets
+            opt.samples_per_t[bucket_time(t)] += freq * opt.buckets
 
     return root
 
@@ -422,23 +422,50 @@ def read_folded(filters, type_info):
     root = node()
     root.filters = filters
     first = True
+    freq = None
+    time_field = 0
+    metric_field = 1
+    stack_field = 2
+
+    # xxx use relative floats for times internally instead of dates
+    start = dateutil.parser.parse('2000-01-01T00:00:00')
 
     for line in sys.stdin:
         fields = line.strip().split(';')
-        if first:
-            pass
+        if line.startswith('#'):
+            for nv in line[1:].split():
+                n, v = nv.split('=')
+                if n=='freq': freq = float(v)
+                elif n=='metric': opt.name = v
+                elif n=='format': opt.fmt = v
+                elif n=='start': start = dateutil.parser.parse(v)
+        elif first:
             first = False
-            opt.name = fields[1]
-            opt.fmt = '%.3f'
+            for i, n in enumerate(fields):
+                if n=='time': time_field = i
+                elif n==opt.name: metric_field = i
+                elif n=='stack': stack_field = i
         else:
-            t = float(fields[0])
-            count = float(fields[1])
-            root.add_stack(fields[-1:1:-1], t, count=count)
+            t = float(fields[time_field])
+            t = start + timedelta(0, t)
+            count = float(fields[metric_field])
+            fields[-1:stack_field-1:-1]
+            root.add_stack(fields[-1:stack_field-1:-1], t, count=count)
             opt.times.append(t)
             opt.samples += 1
             opt.tmin = min(t, opt.tmin) if opt.tmin else t
             opt.tmax = max(t, opt.tmax) if opt.tmax else t
 
+    # bucketed times
+    if opt.buckets:
+        opt.t0 = min(opt.times)
+        opt.samples_per_t = collections.defaultdict(float)
+        for t in opt.times:
+            if freq:
+                opt.samples_per_t[bucket_time(t)] = freq * opt.buckets 
+            else:
+                opt.samples_per_t[bucket_time(t)] += 1
+        
     return root
 
 
