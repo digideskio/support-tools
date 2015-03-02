@@ -1595,6 +1595,16 @@ ss(["dur", "writeToDataFilesMB"], rate=True) # CHECK rc5
 ss(["extra_info", "heap_usage_bytes"], scale=MB, wrap=2.0**31, level=9)
 ss(["extra_info", "note"], level=99)
 ss(["extra_info", "page_faults"], rate=True, level=1)
+ss(['tcmalloc', 'generic', 'current_allocated_bytes'], scale=MB, level=1)
+ss(['tcmalloc', 'generic', 'heap_size'], scale=MB, level=1)
+ss(['tcmalloc', 'tcmalloc', 'pageheap_free_bytes'], scale=MB, level=4)
+ss(['tcmalloc', 'tcmalloc', 'pageheap_unmapped_bytes'], scale=MB, level=4)
+ss(['tcmalloc', 'tcmalloc', 'max_total_thread_cache_bytes'], scale=MB, level=4)
+ss(['tcmalloc', 'tcmalloc', 'current_total_thread_cache_bytes'], scale=MB, level=4)
+ss(['tcmalloc', 'tcmalloc', 'central_cache_free_bytes'], scale=MB, level=4)
+ss(['tcmalloc', 'tcmalloc', 'transfer_cache_free_bytes'], scale=MB, level=4)
+ss(['tcmalloc', 'tcmalloc', 'thread_cache_free_bytes'], scale=MB, level=4)
+ss(['tcmalloc', 'tcmalloc', 'aggressive_memory_decommit'], scale=MB, level=4) # ???
 ss(["host"], level=99)
 
 def ss_lock(name):
