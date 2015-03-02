@@ -49,6 +49,5 @@ for line in sys.stdin:
     except Exception as e:
         print >>sys.stderr, 'ignoring bad line', e
         continue
-    for lhs in exprs:
-        print sep.join(str(eval(exprs[lhs])) for lhs in exprs)
+    print sep.join(str(eval(exprs[lhs])) for lhs in exprs)
 
