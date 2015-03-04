@@ -116,7 +116,7 @@ def html_head():
     html(html_script)
     end('script')
     elt('style')
-    if opt.graph: html(timeseries.graph_style)
+    if opt.graph_width: html(timeseries.graph_style)
     html(html_style)
     end('style')
     end('head')
@@ -279,145 +279,15 @@ def hide_filter(arg):
 def get_time(t):
     t = dateutil.parser.parse(t)
     if not t.tzinfo:
-        t = pytz.utc.localize(t+opt.tz)
+        tz = datetime(*time.gmtime()[:6]) - datetime(*time.localtime()[:6])
+        t = pytz.utc.localize(t+tz)
     return t
-
-def read_gdb(filters, type_info):
-
-    root = node()
-    root.filters = filters
-    stack = []
-    t = None
-
-    plevel = '^#([0-9]+) +'
-    paddr = '(?:0x[0-9a-f]+ in )?'
-    pfunc = '((?:[^)]|\)[^ ])*)'
-    pargs = '((?: ?\(.*\) ?)+ *)'
-    pfile = '(?:at (.*):([0-9]+))? ?(?:from (.*)|)?\n$'
-    pat = plevel + paddr + pfunc + pargs + pfile
-    pat = re.compile(pat)
-    
-    for line in sys.stdin:
-        if line.startswith('==='):
-            if stack:
-                stack = root.add_stack(stack, t, state=states[lwp])
-            states = collections.defaultdict(lambda: None)
-            t = line.split()[1]
-            t = get_time(t)
-            if t>=opt.after and t<opt.before:
-                opt.times.append(t)
-                opt.samples += 1
-                opt.tmin = min(t, opt.tmin) if opt.tmin else t
-                opt.tmax = max(t, opt.tmax) if opt.tmax else t
-            dbg('after', opt.after, 't', t, 'before', opt.before)
-        elif line.startswith('state:'):
-            for f in line.split()[1:]:
-                l, s = f.split('=')
-                states[l] = '+' + s
-        elif line.startswith('Thread'):
-            if stack:
-                stack = root.add_stack(stack, t, state=states[lwp])
-            m = re.search('LWP ([0-9]+)', line)
-            lwp = m.group(1)
-        elif line.startswith('#') and t>=opt.after and t<opt.before \
-             and (not opt.threads or lwp in opt.threads):
-            m = pat.match(line)
-            if not m:
-                msg('not matched:', repr(line))
-            else:
-                if opt.dbg:
-                    msg(line.strip())
-                    msg(m.groups())
-                level, func, args, at_file, at_ln, from_file = m.groups()
-                func = func.strip()
-                if not opt.templates: func = simplify(func)
-                if at_ln and not opt.no_line_numbers: func += ':' + at_ln
-                stack.append(func)
-
-    # last one
-    root.add_stack(stack, t, state=states[lwp])
-
-    # bucketed times
-    if opt.buckets:
-        opt.t0 = min(opt.times)
-        opt.samples_per_t = collections.defaultdict(int)
-        for t in opt.times:
-            opt.samples_per_t[bucket_time(t)] += 1
-
-    return root
-
-
-
-def read_perf(filters, type_info):
-
-    root = node()
-    root.filters = filters
-    stack = []
-    t = None
-    t0 = None
-    proc = None
-    freq = None
-    captured = None
-
-    # default bucket size is 1 sec
-    if opt.buckets==None:
-        opt.buckets = 1
-
-    for line in sys.stdin:
-        line = line[:-1]
-        start_marker = '# captured on: '
-        if line.startswith(start_marker): # comment with start time
-            if not captured:
-                captured = get_time(line[len(start_marker):])
-        elif line.startswith('# cmdline'):
-            m = re.search('-F ?([0-9]+)', line)
-            if m:
-                freq = float(m.groups()[0])
-        elif line.startswith('#'): # comment
-            pass
-        elif line.startswith('\t'): # line of a stack trace
-            func = re.split('[ \t(<]+', line)[2]
-            if func != '[unknown]':
-                stack.append(func)
-        elif line: # start of stack trace
-            stack = root.add_stack(stack, t, proc)
-            proc = line.split()[0]
-            fields = line.split()
-            t = fields[3] if fields[2].startswith('[') else fields[2]
-            t = float(t[:-1])
-            if not t0:
-                t0 = t
-            t = captured + timedelta(0, t-t0) # wrong: captured is end, not beginning...
-            if True: # t>=opt.after and t<opt.before: # doesn't work, timestamps are not correct
-                opt.times.append(t)
-                opt.samples += 1
-                opt.tmin = min(t, opt.tmin) if opt.tmin else t
-                opt.tmax = max(t, opt.tmax) if opt.tmax else t
-
-    # last one
-    root.add_stack(stack, t, proc)
-
-    # freq specified in type info (e.g. perf,99)?
-    if len(type_info)>1:
-        freq = float(type_info[1])
-    if freq==None:
-        raise Exception('sampling frequency not known')
-
-    # bucketed times
-    if opt.buckets:
-        opt.t0 = min(opt.times)
-        opt.samples_per_t = collections.defaultdict(float)
-        for t in opt.times:
-            opt.samples_per_t[bucket_time(t)] += freq * opt.buckets
-
-    return root
-
 
 #
 # read folded stacks
 #
 
-def read_folded(filters, type_info):
+def read_folded(filters):
 
     root = node()
     root.filters = filters
@@ -426,9 +296,11 @@ def read_folded(filters, type_info):
     time_field = 0
     metric_field = 1
     stack_field = 2
+    state_field = None
+    times = set()
 
     # xxx use relative floats for times internally instead of dates
-    start = dateutil.parser.parse('2000-01-01T00:00:00')
+    start = dateutil.parser.parse('2000-01-01T00:00:00Z')
 
     for line in sys.stdin:
         fields = line.strip().split(';')
@@ -445,16 +317,22 @@ def read_folded(filters, type_info):
                 if n=='time': time_field = i
                 elif n==opt.name: metric_field = i
                 elif n=='stack': stack_field = i
+                elif n=='state': state_field = i
         else:
             t = float(fields[time_field])
             t = start + timedelta(0, t)
-            count = float(fields[metric_field])
-            fields[-1:stack_field-1:-1]
-            root.add_stack(fields[-1:stack_field-1:-1], t, count=count)
-            opt.times.append(t)
-            opt.samples += 1
-            opt.tmin = min(t, opt.tmin) if opt.tmin else t
-            opt.tmax = max(t, opt.tmax) if opt.tmax else t
+            if t>=opt.after and t<opt.before:
+                count = float(fields[metric_field])
+                state = fields[state_field] if state_field is not None else ''
+                root.add_stack(fields[-1:stack_field-1:-1], t, count=count, state=state)
+                times.add(t)
+                opt.traces += 1
+                opt.tmin = min(t, opt.tmin) if opt.tmin else t
+                opt.tmax = max(t, opt.tmax) if opt.tmax else t
+
+    # compute distinct times
+    opt.times = list(sorted(times))
+    opt.samples = opt.traces if freq else len(opt.times)
 
     # bucketed times
     if opt.buckets:
@@ -465,7 +343,7 @@ def read_folded(filters, type_info):
                 opt.samples_per_t[bucket_time(t)] = freq * opt.buckets 
             else:
                 opt.samples_per_t[bucket_time(t)] += 1
-        
+
     return root
 
 
@@ -476,13 +354,13 @@ def read_folded(filters, type_info):
 def graph(ts=None, ys=None, ymin=None, ymax=None, shaded=True):
     timeseries.html_graph(
         data=[(ts, ys, 'black')] if ts else [],
-        tmin=opt.tmin, tmax=opt.tmax, width=opt.graph,
+        tmin=opt.tmin, tmax=opt.tmax, width=opt.graph_width,
         ymin=ymin, ymax=ymax, height=1.1, ticks=opt.graph_ticks,
         shaded=shaded
     )
 
 def graph_child(func, child):
-    if opt.graph:
+    if opt.graph_width:
         times = opt.times
         ymin = child.min_count if opt.graph_scale=='separate' else opt.min_count
         ymax = child.max_count if opt.graph_scale=='separate' else opt.max_count
@@ -538,16 +416,15 @@ def main():
                    help='include only samples before this time, in yyyy-mm-ddThh:mm:ss format')
     p.add_argument('--buckets', type=float, default=None, help=
                    'group counts into buckets of the specified length, in floating point seconds')
-    p.add_argument('--graph', '-g', type=int, default=0, nargs='?', const=20,
-                   help='produce a graph with the specified width, in ems')
+    p.add_argument('--graph-width', type=int, default=20,
+                   help='produce a graph with the specified width, in ems (0 to disable)')
     p.add_argument('--graph-scale', choices=['common', 'separate', 'log'], default='common')
     p.add_argument('--graph-ticks', type=int, default=5)
-    p.add_argument('--html', action='store_true',
-                   help='produce interactive html output; save to file and open in browser')
+    p.add_argument('--text', action='store_true',
+                   help='produce text instead of interactive html output')
     p.add_argument('--series', nargs='*', default=[])
     p.add_argument('--tz', type=float, nargs=1, default=None)
     p.add_argument('--threads', type=str, nargs='+', default=None)
-    p.add_argument('--type', type=str, default='gdb')
     p.add_argument('--reverse', action='store_true')
     global opt
     opt = p.parse_args()
@@ -565,14 +442,18 @@ def main():
     else:
         opt.tz = timedelta(hours=opt.tz[0])
 
+    opt.html = not opt.text
+    if not opt.html:
+        opt.graph_width = 0
+
     def datetime_parse(t):
         t = dateutil.parser.parse(t)
         if not t.tzinfo:
             t = pytz.utc.localize(t+opt.tz)
         return t
     
-    opt.after = datetime_parse(opt.after)
-    opt.before = datetime_parse(opt.before)
+    opt.after = get_time(opt.after)
+    opt.before = get_time(opt.before)
 
     if opt.threads:
         opt.threads = set(opt.threads)
@@ -583,17 +464,17 @@ def main():
     opt.tmax = None
     opt.times = []
     opt.samples = 0
+    opt.traces = 0
     opt.html_id = 0
     opt.name = 'threads'
     opt.fmt = '%.2f'
 
-    if opt.series or opt.graph:
+    if opt.series or opt.graph_width:
         global timeseries
         import timeseries
 
     # read stuff
-    type_info = opt.type.split(',')
-    root = globals()['read_' + type_info[0]](filters, type_info)
+    root = read_folded(filters)
     series = read_series()
 
     # bucketize times
@@ -608,17 +489,22 @@ def main():
     # canonical times
     opt.times = sorted(set(opt.times))
 
+    # disable graph if only one sample
+    if opt.samples < 2:
+        opt.graph_width = 0
+
     # print result
     html_head()
     graph_series(series)
-    put('%d samples\n' % opt.samples)
+    put('%d samples\n' % opt.samples) # xxx report traces too
     root.pre_graph()
     put('%7.7s %7.7s  ' % ('avg.' + opt.name, 'max.' + opt.name))
-    if opt.graph or opt.series: graph()
+    if opt.graph_width or opt.series: graph()
     put('call tree\n')
     root.prt()
     html_foot()
 
-    #msg(opt.tmin, opt.tmax)
+    msg('start:', opt.tmin)
+    msg('finish:', opt.tmax)
 
 main()

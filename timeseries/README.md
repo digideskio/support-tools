@@ -319,6 +319,8 @@ using under various parameters to calltree.py.
 
 ### Collecting and visualizing memory utilization call trees using perf
 
+See [SERVER-17424](https://jira.mongodb.org/browse/SERVER-17424)
+
 Install perf probe points related to tcmalloc
 
     sudo bash -c 'echo 0 >/proc/sys/kernel/kptr_restrict'
@@ -360,7 +362,6 @@ Record perf data
 Process
 
     perf script -s fold_perf_malloc.py | python calltree.py
-
 
 ![ex-calltree-perf-malloc](ex-calltree-perf-malloc.png)
 
