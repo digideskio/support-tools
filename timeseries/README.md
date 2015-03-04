@@ -175,10 +175,11 @@ The initial view will be restricted to the most important (level 1) statisics; y
   Then visualize the results using a separate tool found in this
   project; for example:
 
-        python gdbprof.py -g 10 --graph-scale log --html <gdbmon.log >gdbprof.html
-        open -a 'Google Chrome' gdbprof.html
+        python fold_gdb.py <gdbmon.log | \
+            python callstack.py --graph-scale log >callstack.html
+        open -a 'Google Chrome' callstack.html
 
-  See [gdbmon](gdbmon.md) and [gdbprof](gdbprof.md) documentation for
+  See [gdbmon](gdbmon.md) and [callstack](callstack.md) documentation for
   more information. *Important:* when using gdb profiling you should
   use a stripped binary because gdb stops the process for several
   seconds on each sample to obtain line numbers if the binary is not
@@ -232,25 +233,41 @@ can say for example:
     python timeseries.py "cpu user:iostat.log" "cpu system:iostat.log"  # specify same file multiple times to select multiple groups
 
 
-## Using the Stack Trace Sample Visualization Tool
+## Call Tree Visualzation tool
 
-The stack track sample visualization tool is packages separately from
-the main timeseries visualization tool described in the previous
-section. It is a simple gdb-based profiling tool, similar in spirit to
-[Poor Man's Profiler](http://poormansprofiler.org/), but a little
-fancier. The problem addressed is that most profiling tools see only
-CPU execution time and don't see time spent waiting for things like
-i/o and locks. This tool improves on the simple Poor Man's Profiler
-approach in two ways:
+The call tree visualization tool is able to display call trees from a
+variety of sources in a browser-based interactive graphical
+form. Nodes of the call tree are annotated with information relating
+to a metric, such as number of threads of execution or number of bytes
+of allocated memory, depending on the source of the call tree
+data. The annotation includes average and maximum values, together
+with a "sparkline" graph showing the value of the metric throughout
+the course of a run.
+
+The call tree tool itself, calltree.py, accepts as input call stacks,
+one per line, in a generic form. The format of the input is described
+in detail below. A set of auxiliary tools are provided that accept
+call stack data available from a variety of sources, converting it to
+the form that is accepted by calltree.py. The following sections
+describe each of the sources currently supported.
+
+### Collecting and visualizing call trees using gdb
+
+Stack trace samples are collected using a tool, gdbmon.py, packaged
+with this project.  It is a simple gdb-based profiling tool, similar
+in spirit to [Poor Man's Profiler](http://poormansprofiler.org/), but
+a little fancier. The problem addressed is that most profiling tools
+see only CPU execution time and don't see time spent waiting for
+things like i/o and locks. This tool improves on the simple Poor Man's
+Profiler approach in two ways:
 
 * it starts up gdb only once, and then scripts it to collect the stack
   traces, reducing overhead.
-* it includes a tool that aggregates stack traces into call trees to
-  give a little more informative view of where the time is being
-  spent.
 
-Here's a simple example to get started, based on the issue reported in
-[SERVER-16235](https://jira.mongodb.org/browse/SERVER-16235). First,
+* the results can be visualized using the call tree visualization tool.
+
+Here's a simple example to get started, based on
+[SERVER-16355](https://jira.mongodb.org/browse/SERVER-16355). First,
 we reproduce the issue, and then collect some profile data using
 gdbmon:
 
@@ -258,118 +275,95 @@ gdbmon:
 
 This fires up gdb to collect 10 stack trace samples at 1 second
 intervals. Now analyze the results, focusing only on stack traces that
-include initAndListen or handleIncomingMsg:
+include handleIncomingMsg:
 
-    python gdbprof.py -j 'handleIncomingMsg|initAndListen' <example.gdbmon
-
-This produces the following output:
-
-    10 samples, 120 traces, 12.00 threads
-    avg.thr max.thr  call tree
-       1.00    1.00  main:664
-       1.00    1.00   mongoDbMain:848
-       1.00    1.00    mongo::initAndListen:615
-       1.00    1.00     _initAndListen:610
-       1.00    1.00      mongo::Listener::initAndListen:256
-       1.00    1.00       select
-       1.00    1.00  clone
-       1.00    1.00   start_thread
-       1.00    1.00    mongo::PortMessageServer::handleIncomingMsg:234
-       1.00    1.00     mongo::MyMessageHandler::process:190
-       1.00    1.00      mongo::assembleResponse:390
-       1.00    1.00       receivedQuery:220
-       1.00    1.00        mongo::newRunQuery:549
-       1.00    1.00         runCommands:131
-       1.00    1.00          mongo::_runCommands:1498
-       1.00    1.00           mongo::Command::execCommand:1423
-       1.00    1.00            mongo::_execCommand:1209
-       1.00    1.00             mongo::WriteCmd::run:144
-       1.00    1.00              mongo::WriteBatchExecutor::executeBatch:265
-       1.00    1.00               mongo::WriteBatchExecutor::bulkExecute:756
-       1.00    1.00                mongo::WriteBatchExecutor::execInserts:873
-       0.90    1.00                ├mongo::WriteBatchExecutor::execOneInsert:1078
-       0.90    1.00                │ insertOne:1051
-       0.90    1.00                │  singleInsert:1107
-       0.90    1.00                │   mongo::Collection::insertDocument:196
-       0.90    1.00                │    mongo::Collection::_insertDocument:235
-       0.80    1.00                │    ├mongo::WiredTigerRecordStore::insertRecord:507
-       0.80    1.00                │    │ mongo::WiredTigerRecordStore::cappedDeleteAsNeeded:403
-       0.80    1.00                │    │  __curfile_next:79
-       0.80    1.00                │    │   __wt_btcur_next:439
-       0.80    1.00                │    │    __cursor_row_next:279
-       0.80    1.00                │    │     __wt_txn_read:173
-       0.60    1.00                │    │      __wt_txn_visible:119
-       0.10    1.00                │    └mongo::WiredTigerRecordStore::insertRecord:498
-       0.10    1.00                │      __curfile_insert:211
-       0.10    1.00                │       __wt_btcur_insert:492
-       0.10    1.00                │        __cursor_row_modify:263
-       0.10    1.00                │         __wt_row_modify:205
-       0.10    1.00                │          __wt_insert_serial:264
-       0.10    1.00                │           __wt_cache_page_inmem_incr:50
-       0.10    1.00                │            __wt_page_is_modified:25
-       0.10    1.00                └mongo::WriteBatchExecutor::execOneInsert:1084
-       0.10    1.00                  mongo::finishCurrentOp:638
-       0.10    1.00                   mongo::logger::LogstreamBuilder::~LogstreamBuilder:123
-       0.10    1.00                    mongo::logger::LogDomain<...>::append:60
-       0.10    1.00                     mongo::logger::RotatableFileAppender<...>::append:63
-       0.10    1.00                      std::ostream::flush
-       0.10    1.00                       std::basic_filebuf<...>::sync
-       0.10    1.00                        std::basic_filebuf<...>::overflow
-       0.10    1.00                         std::basic_filebuf<...>::_M_convert_to_external
-       0.10    1.00                          ??
-       0.10    1.00                           write
-    
-* We collected 120 stack traces over our 10 samples, indicating that
-  there were 12 threads running.
-
-* Of those our filter serves to select two threads: the main thread
-  and a pthread, represented by the two call trees, one rooted in
-  main() and the other rooted in clone().
-
-* The call tree shows the average and maximum number of threads
-  executing at each call site over the course of the run.
-
-* The main thread is spending all of its time in select() waiting for
-  a new connection. This is wait time that would be invisible to
-  CPU-based profiling tools.
-
-* The other thread shown is servicing incoming messages on a
-  connection, and is spending most of its time in cappedDeleteAsNeeded
-  at line 403 calling __curfile_next. This begins to pinpoint the
-  problem.
-
-* Each function is annotated with the line number within that
-  function, which means that if a given function calls another
-  function twice it will show up as two separate branches of the
-  tree. This gives the most information about what calls are
-  responsible for performance issues, but the line numbers can be
-  suppressed with the -l flag if you wish to count all calls to a
-  given callee from a given caller in the same bucket.
-
-* Note that our sampling also caught the connection thread waiting in
-  write for i/o to the mongod log, probably logging a slow op. This
-  would have been invisible to CPU-based profiling tools. (We would
-  need to collect more samples to determine how significant an impact
-  this has on performance.)
-
-### Interactive HTML profile view with graphical timeline
-
-You can generate an interactive HTML profile for viewing in your
-browser. An example taken from
-[SERVER-16355](https://jira.mongodb.org/browse/SERVER-16355). This
-command produces the view shown below.
-
-    gdbprof -j handleIncomingMsg --html -g 10 --graph-scale log <example.gdbmon >example.html
+    python fold_gdb.py <example.gdbmon | \
+        python calltree.py -j handleIncomingMsg --graph-scale log >example.html
     open example.html
 
+The fold_gdb.py utility takes the samples produced by gdbmon.py and
+outputs them in the "folded" form, one stack trace per line, that is
+accepted by calltree.py.
+
 When the generated HTML is viewed in a browser the tree can be
-interactively pruned to focus on the parts of interest. The -g option
-adds a timeline next to each call site showing the number of threads
-executing at that call site at each point in time. Here we see a
+interactively pruned to focus on the parts of interest. Here we see a
 correlation in time between the two call sites highlighted by the
 notes (added using Preview), giving us a clue as to the source of the
 bottleneck.
 
-![ex-gdbprof](ex-gdbprof.png)
+![ex-callstack-gdb](ex-callstack-gdb.png)
 
+
+### Collecting and visualizing CPU utilization call trees using perf
+
+An alternative to gdb for collecting stack trace samples is perf. The
+primary advantage of perf is that it has much lower overhead than
+gdb. However (this form of) perf sampling only sees threads that are
+executing at the time of the sample, so it is not suitable for
+diagnosing problems related to locking or i/o, where the primary issue
+is threads that are not executing.
+
+    sudo nohup perf record -T -F 99 -p $(pidof mongod) -g
+
+For best results, mongod should have been compiled with
+-fno-omit-frame-pointers, and a non-stripped binary should be used.
+
+Then process the collected data as follows:
+
+    perf script | python fold_perf_cpu.py | python calltree.py >perf.html
+
+Since extracting the stack trace samples from the perf data can take a
+substantial amount of time, you may prefer to save the folded form as
+output by fold_perf.py in a file so that you can more readily process
+using under various parameters to calltree.py.
+
+### Collecting and visualizing memory utilization call trees using perf
+
+Install perf probe points related to tcmalloc
+
+    sudo bash -c 'echo 0 >/proc/sys/kernel/kptr_restrict'
+    sudo bash -c 'echo -1 >/proc/sys/kernel/perf_event_paranoid'
+
+    mongod=$(which mongod)
+
+    sudo perf probe -x $mongod --del '*alloc*'
+    sudo perf probe -x $mongod --del '*free*'
+        
+    # new and malloc
+    for f in tc_malloc tc_new tc_new_nothrow tc_newarray tc_newarray_nothrow do_memalign; do
+        sudo perf probe -x $mongod -f alloc=$f size
+        sudo perf probe -x $mongod -f allocRET=$f%return ptr='$retval'
+    done
+    
+    # calloc
+    sudo perf probe -x $mongod -f calloc=tc_calloc n elem_size
+    sudo perf probe -x $mongod -f allocRET=tc_calloc%return ptr='$retval'
+    
+    # realloc
+    sudo perf probe -x $mongod realloc=tc_realloc ptr=old_ptr size=new_size
+    sudo perf probe -x $mongod reallocRET=tc_realloc%return ptr='$retval'
+    
+    # free
+    for f in tc_free tc_cfree; do
+        sudo perf probe -x $mongod -f free=$f ptr
+    done
+    
+    # delete
+    for f in tc_delete tc_delete_nothrow tc_deletearray tc_deletearray_nothrow; do
+        sudo perf probe -x $mongod -f free=$f ptr=p
+    done
+
+Record perf data
+
+    sudo perf record -r 1 -m 65536 -g -- mongod ...
+
+Process
+
+    perf script -s fold_perf_malloc.py | python calltree.py
+
+
+### Collecting and visualizing memory utilization call trees ons OS/X
+
+    fold_osx_heap.py
+    fold_osx_malloc_history.py
 

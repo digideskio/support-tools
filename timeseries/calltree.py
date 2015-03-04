@@ -279,8 +279,7 @@ def hide_filter(arg):
 def get_time(t):
     t = dateutil.parser.parse(t)
     if not t.tzinfo:
-        tz = datetime(*time.gmtime()[:6]) - datetime(*time.localtime()[:6])
-        t = pytz.utc.localize(t+tz)
+        t = pytz.utc.localize(t+opt.tz)
     return t
 
 def read_gdb(filters, type_info):
@@ -427,11 +426,9 @@ def read_folded(filters, type_info):
     time_field = 0
     metric_field = 1
     stack_field = 2
-    state_field = None
-    times = set()
 
     # xxx use relative floats for times internally instead of dates
-    start = dateutil.parser.parse('2000-01-01T00:00:00Z')
+    start = dateutil.parser.parse('2000-01-01T00:00:00')
 
     for line in sys.stdin:
         fields = line.strip().split(';')
@@ -448,22 +445,16 @@ def read_folded(filters, type_info):
                 if n=='time': time_field = i
                 elif n==opt.name: metric_field = i
                 elif n=='stack': stack_field = i
-                elif n=='state': state_field = i
         else:
             t = float(fields[time_field])
             t = start + timedelta(0, t)
-            if t>=opt.after and t<opt.before:
-                count = float(fields[metric_field])
-                state = fields[state_field] if state_field is not None else ''
-                root.add_stack(fields[-1:stack_field-1:-1], t, count=count, state=state)
-                times.add(t)
-                opt.traces += 1
-                opt.tmin = min(t, opt.tmin) if opt.tmin else t
-                opt.tmax = max(t, opt.tmax) if opt.tmax else t
-
-    # compute distinct times
-    opt.times = list(sorted(times))
-    opt.samples = opt.traces if freq else len(opt.times)
+            count = float(fields[metric_field])
+            fields[-1:stack_field-1:-1]
+            root.add_stack(fields[-1:stack_field-1:-1], t, count=count)
+            opt.times.append(t)
+            opt.samples += 1
+            opt.tmin = min(t, opt.tmin) if opt.tmin else t
+            opt.tmax = max(t, opt.tmax) if opt.tmax else t
 
     # bucketed times
     if opt.buckets:
@@ -474,7 +465,7 @@ def read_folded(filters, type_info):
                 opt.samples_per_t[bucket_time(t)] = freq * opt.buckets 
             else:
                 opt.samples_per_t[bucket_time(t)] += 1
-
+        
     return root
 
 
@@ -580,8 +571,8 @@ def main():
             t = pytz.utc.localize(t+opt.tz)
         return t
     
-    opt.after = get_time(opt.after)
-    opt.before = get_time(opt.before)
+    opt.after = datetime_parse(opt.after)
+    opt.before = datetime_parse(opt.before)
 
     if opt.threads:
         opt.threads = set(opt.threads)
@@ -592,7 +583,6 @@ def main():
     opt.tmax = None
     opt.times = []
     opt.samples = 0
-    opt.traces = 0
     opt.html_id = 0
     opt.name = 'threads'
     opt.fmt = '%.2f'
@@ -621,7 +611,7 @@ def main():
     # print result
     html_head()
     graph_series(series)
-    put('%d samples\n' % opt.samples) # xxx report traces too
+    put('%d samples\n' % opt.samples)
     root.pre_graph()
     put('%7.7s %7.7s  ' % ('avg.' + opt.name, 'max.' + opt.name))
     if opt.graph or opt.series: graph()
@@ -629,7 +619,6 @@ def main():
     root.prt()
     html_foot()
 
-    msg('start:', opt.tmin)
-    msg('fnish:', opt.tmax)
+    #msg(opt.tmin, opt.tmax)
 
 main()

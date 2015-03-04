@@ -1,5 +1,5 @@
 ## NAME
-* gdbprof - generic timeseries visualization tool
+* timeseries - generic timeseries visualization tool
 
 ## SYNOPSIS
 * python timeseries.py [--width WIDTH] [--height HEIGHT] [--show-empty] [--show-zero] [--no-merges] [--number-rows] [--duration DURATION] [--after AFTER] [--before BEFORE] [--every EVERY] [--relative] [--level {1,2,3,4,5,6,7,8,9}] [--list] what:where [what:where ...]
