@@ -291,7 +291,7 @@ correlation in time between the two call sites highlighted by the
 notes (added using Preview), giving us a clue as to the source of the
 bottleneck.
 
-![ex-callstack-gdb](ex-callstack-gdb.png)
+![ex-calltree-gdb](ex-calltree-gdb.png)
 
 
 ### Collecting and visualizing CPU utilization call trees using perf
@@ -360,6 +360,9 @@ Record perf data
 Process
 
     perf script -s fold_perf_malloc.py | python calltree.py
+
+
+![ex-calltree-perf-malloc](ex-calltree-perf-malloc.png)
 
 
 ### Collecting and visualizing memory utilization call trees ons OS/X
