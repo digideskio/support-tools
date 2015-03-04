@@ -303,7 +303,7 @@ executing at the time of the sample, so it is not suitable for
 diagnosing problems related to locking or i/o, where the primary issue
 is threads that are not executing.
 
-    sudo nohup perf record -T -F 99 -p $(pidof mongod) -g
+    sudo perf record -T -F 99 -p $(pidof mongod) -g
 
 For best results, mongod should have been compiled with
 -fno-omit-frame-pointers, and a non-stripped binary should be used.
