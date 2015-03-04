@@ -355,7 +355,7 @@ Install perf probe points related to tcmalloc
 
 Record perf data
 
-    sudo perf record -r 1 -m 65536 -g -- mongod ...
+    sudo perf record -r 1 -m 65536 -g -e 'probe_mongod:*' -- mongod ...
 
 Process
 
@@ -365,7 +365,7 @@ Process
 ![ex-calltree-perf-malloc](ex-calltree-perf-malloc.png)
 
 
-### Collecting and visualizing memory utilization call trees ons OS/X
+### Collecting and visualizing memory utilization call trees on OS/X
 
     fold_osx_heap.py
     fold_osx_malloc_history.py
