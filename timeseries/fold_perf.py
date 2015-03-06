@@ -19,6 +19,7 @@ first = True
 add_total = False
 t0 = None
 captured = None
+freq = None
 stacks = []
 stack = []
 
@@ -36,9 +37,20 @@ def output_sample(stack, t, proc):
     stacks.append((stack, t))
 
 def print_samples(captured, t0, t):
-    start = captured - timedelta(0, t - t0)
-    print '# metric=threads format=%%.2f freq=%g start=%s' % (freq, start.isoformat())
+
+    # meta information
+    meta = '# metric=threads format=%.2f'
+    if captured:
+        start = captured - timedelta(0, t - t0)
+        meta += ' start=%s' % start.isoformat()
+    if freq:
+        meta += ' freq=%g' % freq
+    print meta
+    
+    # header
     print 'time;threads;stack'
+
+    # traces
     for stack, t in stacks:
         if add_total:
             stack.append('TOTAL')
