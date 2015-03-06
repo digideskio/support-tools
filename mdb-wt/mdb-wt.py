@@ -295,7 +295,9 @@ def record_id(x):
 # index,      internal, key: bson (mabye compact? maybe partial?)
 # index,      leaf, key:     bson (maybe compact?)
 # index,      leaf, value:   record id
-def cell_kv(desc, buf, at, short, key, find=None):
+last_key_content = ''
+def cell_kv(desc, buf, at, short, key, find=None, prefix=False):
+    global last_key_content
     start = at
     if short:
         at, sz = at+1, desc >> 2
@@ -303,9 +305,17 @@ def cell_kv(desc, buf, at, short, key, find=None):
     else:
         at, sz = unpack_uint(buf, at+1)
         sz += 64
-        info =  'long'
+        info = 'long'
     end = at + sz
-    content = buf[at:at+sz]
+    if prefix:
+        end += 1
+        info += '+pfx'
+        pfx_len = ord(buf[at])
+        content = last_key_content[0:pfx_len] + buf[at+1:end] 
+    else:
+        content = buf[at:end]
+    if key:
+        last_key_content = content
     if is_collection:
         if key:
             x = record_id(content)
@@ -364,7 +374,8 @@ def cell(buf, at, find=None):
     desc = ord(buf[at])
     if   desc&3==CELL_SHORT_KEY:     return cell_kv(desc, buf, at, short=True, key=True, find=find)
     elif desc&3==CELL_SHORT_VALUE:   return cell_kv(desc, buf, at, short=True, key=False)
-    elif desc&3==CELL_SHORT_KEY_PFX: unhandled_desc(desc)
+    elif desc&3==CELL_SHORT_KEY_PFX: return cell_kv(desc, buf, at, short=True, key=True, find=find, prefix=True)
+    #elif desc&3==CELL_SHORT_KEY_PFX: unhandled_desc(desc)
     elif desc==CELL_KEY:             return cell_kv(desc, buf, at, short=False, key=True, find=find)
     elif desc==CELL_VALUE:           return cell_kv(desc, buf, at, short=False, key=False)
     elif desc==CELL_ADDR_INT :       return cell_addr(desc, buf, at, 'addr')
@@ -508,10 +519,12 @@ def page(buf, at, root, avail, find=None):
 #
 
 def ckpt_addr_cookie(info):
-    m = re.search('checkpoint=\(WiredTigerCheckpoint\.[0-9]+=\(addr="([0-9a-f]+)"', info)
+    pat = 'checkpoint=\(WiredTigerCheckpoint\.[0-9]+=\(addr="([0-9a-f]+)".*?time=([0-9]+)'
+    m = re.search(pat, info)
     if not m:
         print 'no addr info; no data or no checkpoint?'
         return None, None, None
+    print 'checkpoint time', datetime.datetime.utcfromtimestamp(int(m.group(2))).isoformat() + 'Z'
     addr = m.group(1)
     dbg('addr', addr)
     buf = ''.join(chr(int(addr[i:i+2],16)) for i in range(0, len(addr), 2))
