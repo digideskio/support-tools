@@ -109,7 +109,7 @@ The initial view will be restricted to the most important (level 1) statisics; y
   db.serverStatus() timeseries as follows, substituting an appropriate
   value for sampling interval $delay (in floating point seconds):
 
-        mongo --eval "while(true) {print(JSON.stringify(db.serverStatus())); sleep($delay*1000)}" >ss.log &
+        mongo --eval "while(true) {print(JSON.stringify(db.serverStatus({tcmalloc:1}))); sleep($delay*1000)}" >ss.log &
 
   Then visualize the output ss.log as by adding the following
   timeseries.py command line argument:
