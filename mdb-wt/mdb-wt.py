@@ -466,8 +466,13 @@ def page(buf, at, root, avail, find=None):
     recno, gen, msz, entries, t, pflags, _ = page_header_struct.unpack(page_header)
     ts = page_types[t] if t in page_types else None
     fs = flags_string({1: 'comp', 2: 'all0', 4: 'no0'}, pflags)
+    anno = ''
+    if at==root:
+        anno += 'ROOT '
+    if at in avail:
+        anno += 'AVAIL '
     indent.prt(at, 'page recno=%d gen=%d msz=0x%x entries=%d type=%d(%s) flags=0x%x(%s) %s' % \
-        (recno, gen, msz, entries, t, ts, pflags, fs, 'ROOT' if at==root else ''))
+        (recno, gen, msz, entries, t, ts, pflags, fs, anno))
     at += page_header_struct.size
 
     # block header
@@ -595,15 +600,14 @@ def find_key(dbpath, fn, meta, key):
 def print_with_meta(fn, at):
     dbpath = os.path.dirname(fn)
     meta = None
-    if not do_avail:
-        try:
-            meta = open(os.path.join(dbpath, 'WiredTiger.turtle')).read()
-            dbg('meta', meta)
-            if os.path.basename(fn) != 'WiredTiger.wt':
-                meta = find_key(dbpath, 'WiredTiger.wt', meta, 'file:%s\x00' % os.path.basename(fn))
-            dbg('meta', meta)
-        except Exception as e:
-            print 'metadata not available:', e
+    try:
+        meta = open(os.path.join(dbpath, 'WiredTiger.turtle')).read()
+        dbg('meta', meta)
+        if os.path.basename(fn) != 'WiredTiger.wt':
+            meta = find_key(dbpath, 'WiredTiger.wt', meta, 'file:%s\x00' % os.path.basename(fn))
+        dbg('meta', meta)
+    except Exception as e:
+        print 'metadata not available:', e
     if not meta:
         print 'proceeding without metadata; all pages, including available pages, will be printed'
     print_file(fn, at, meta)
