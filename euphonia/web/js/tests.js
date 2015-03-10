@@ -2,24 +2,25 @@
  * @fileoverview This file contains the methods used by ../views/tests.tpl
  */
 
+"use strict";
 var testsObj = {};
 var tests = [];
 var defined_tests = {};
+var collections = {};
 
 /**
  * Retrieves the set of tests from the database (via REST API).
  * @return {null}
  */
 function getTestList(){
-    "use strict";
     $.ajax({
         type: "GET",
         url: "/test",
         datatype: "json"
     }).success(function(response){
-        tests = [];
         var responseObj = JSON.parse(response);
         if (responseObj.status === "success") {
+            tests = [];
             testsObj = responseObj.data;
             for (var t = 0; t < testsObj.tests.length; t++) {
                 var tObj;
@@ -28,7 +29,7 @@ function getTestList(){
             }
             renderList(tests);
         } else {
-            alert("Could not load test list.");
+            window.alert("Could not load test list.");
         }
     });
 }
@@ -38,7 +39,6 @@ function getTestList(){
  * @return {null}
  */
 function getDefinedTestList(){
-    "use strict";
     $.ajax({
         type: "GET",
         url: "/defined_tests",
@@ -52,7 +52,7 @@ function getDefinedTestList(){
                 defined_tests = defined_testsObj.data.defined_tests;
             }
         } else {
-            alert("Could not load defined test list.");
+            window.alert("Could not load defined test list.");
         }
     });
 }
@@ -72,7 +72,10 @@ function renderTest(tid) {
     $(":input[id='test._id']").val(test._id.$oid);
     $(":input[id='test.active']").prop('checked',test.active);
     $(":input[id='test.priority']").val(test.priority);
+    $(":input[id='test.src']").val(test.src);
+    $(":input[id='test.header']").val(test.header);
     $(":input[id='test.comment']").val(test.comment);
+    updateCollectionDropdown(test.collections);
     $(this).addClass("active");
 }
 
@@ -98,27 +101,27 @@ function renderRemoveClick() {
  * @return {null}
  */
 function renderList(tests) {
-    "use strict";
     var list = $('#existingtests');
     list.empty();
     // Retrieve set of test collections by iterating over the tests
-    var collections = {};
+    collections = {};
     for (var t in tests){
         var tt = tests[t];
-        var collname = tt.collection;
-        if(collname === undefined){
-            if(collections['No Collection'] === undefined) {
+        var collnames = tt.collections;
+        if(collnames === null || typeof collnames === "undefined" || collnames === [] || collnames.length === 0) {
+            if (collections['No Collection'] === undefined) {
                 collections['No Collection'] = [];
             }
             collections['No Collection'].push(tt);
-        } else {
-            if(collections[collname] === undefined) {
-                collections[collname] = [];
+        }
+        for(var c in collnames) {
+            if (collections[collnames[c]] === undefined) {
+                collections[collnames[c]] = [];
             }
-            collections[collname].push(tt);
+            collections[collnames[c]].push(tt);
         }
     }
-
+    updateCollectionDropdown();
     // Loop over collections, rendering each test in the collection
     for (var coll in collections) {
         var colltests = collections[coll];
@@ -165,7 +168,7 @@ function showTestExistsAlert(test){
  * @return {boolean}
  */
 function removeTest(tname){
-    if(confirm("Are you sure you want to delete test " + tname + "?")){
+    if(window.confirm("Are you sure you want to delete test " + tname + "?")){
         clearForm();
         $.ajax({
             type: "DELETE",
@@ -204,6 +207,7 @@ function saveChanges(form) {
     var formdata = JSON.stringify(jsonform, null, 4);
     var url = "/test";
     var exists = false;
+    var tests = testsObj.tests;
     for (var t = 0; t < tests.length; t++) {
         if (tests[t].name === jsonform.test.name && tests[t]._id.$oid != jsonform.test._id) {
             exists = true;
@@ -212,7 +216,7 @@ function saveChanges(form) {
         }
     }
     if (exists) {
-        alert("A test named " + jsonform.test.name + " already exists. Changes have not been saved.");
+        window.alert("A test named " + jsonform.test.name + " already exists. Changes have not been saved.");
         return false;
     } else {
         saveTest(formdata, url);
@@ -233,13 +237,14 @@ function saveChangesNew(form) {
     var formdata = JSON.stringify(jsonform, null, 4);
     var url = "/test";
     var exists = false;
+    var tests = testsObj.tests;
     for (var t = 0; t < tests.length; t++) {
         if (tests[t].name === jsonform.test.name) {
             exists = true;
         }
     }
     if (exists) {
-        alert("A test named " + jsonform.test.name + " already exists. Changes have not been saved.");
+        window.alert("A test named " + jsonform.test.name + " already exists. Changes have not been saved.");
         return false;
     } else {
         saveTest(formdata, url);
@@ -312,7 +317,6 @@ function testTest(){
  * @return {null}
  */
 function renderGroups(groups,container){
-    "use strict";
     if(groups.groups !== undefined) {
         groups = groups.groups;
         for (var i = 0; i < groups.length; i++) {
@@ -348,6 +352,23 @@ function replaceStartDate(timestamp){
     return year + "-" + month + "-" + date + " " + hours + ":" + minutes;
 }
 
+function updateCollectionDropdown(selected){
+    var collectionsDropdown = [];
+    var collcount = 0;
+    for(var collection in collections){
+        collectionsDropdown.push({"id":collection, "text":collection});
+        collcount++;
+    }
+    var opts = {
+        data: collectionsDropdown,
+        tags: true,
+        tokenSeparators: [',']
+    };
+    $("select[id = 'test.collections']").select2(opts);
+    if(selected !== null){
+        $("select[id = 'test.collections']").val(selected).select2(opts);
+    }
+}
 /**
  * Executes logic when the page has completed loading.
  */

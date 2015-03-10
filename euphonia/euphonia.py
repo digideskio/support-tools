@@ -563,6 +563,30 @@ class Euphonia(karakuricommon.karakuriclient):
             return response(self.workflowRequest(workflow, "sleep", seconds,
                                                  **kwargs))
 
+        # UPLOAD-RELATED ROUTES
+        @b.route('/upload')
+        def upload_form():
+            return bottle.template('base_page', renderpage="upload")
+
+        @b.post('/upload')
+        def upload_files():
+            category = bottle.request.forms.get('category')
+            print category
+            upload = bottle.request.files.get('file')
+            name, ext = os.path.splitext(upload.filename)
+            print upload.filename
+
+            # if ext not in ('.zip', '.json', '.gzip'):
+            if ext not in ('.csv', '.json'):
+                print 'File extension not allowed.'
+                return False
+
+            save_path = "/tmp"
+            upload.save(save_path, overwrite=True)
+            processor = files.Files("%s/%s" % (save_path, upload.filename))
+            if category == "group_report":
+                processor.process_group_report()
+
         # AUTOCOMPLETE SEARCH
         @b.route('/search/<query>')
         def autocomplete(query):
