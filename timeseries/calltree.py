@@ -500,7 +500,7 @@ def main():
     root.pre_graph()
     put('%7.7s %7.7s  ' % ('avg.' + opt.name, 'max.' + opt.name))
     if opt.graph_width or opt.series: graph()
-    put('call tree\n')
+    put('call tree\n' if not opt.reverse else 'reverse call tree\n')
     root.prt()
     html_foot()
 
