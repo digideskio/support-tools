@@ -14,13 +14,15 @@ from collections import defaultdict
 in_progress = {}               # alloc_start waiting for alloc_finish, by pid
 ptrs = {}                      # (size, allocating stack) for each ptr
 allocated = defaultdict(int)   # cumulative size for each stack
-#last_shown = defaultdict(int) # last shown size for each stack
 
 total_size = 0
 max_size = 0
 last_size = 0
 finish_no_start = 0
 free_no_alloc = 0
+t0 = None
+samples = 0
+last_report = 0
 
 sep = ';'
 MB = 1024.0 * 1024.0
@@ -32,13 +34,16 @@ def trace_begin():
 def output_sample(all=False):
     for stack in allocated:
         print str(last_t) + sep + str(allocated[stack]/MB) + sep + stack
-        #if allocated_size != last_shown[stack]:
-        #last_shown[stack] = allocated_size
             
 
 def accumulate(t, size, stack):
 
-    global total_size, max_size, last_size, last_t
+    global total_size, max_size, last_size, last_t, t0, samples, last_report
+
+    # 0-based timestamps
+    if not t0:
+        t0 = t
+    t -= t0
 
     # output previous sample if it may have been the global max
     #if total_size==max_size and size<0 and last_size!=max_size:
@@ -56,6 +61,12 @@ def accumulate(t, size, stack):
     total_size += size
     max_size = max(total_size, max_size)
     last_t = t
+    samples += 1
+
+    # progress report
+    if t - last_report > 1:
+        print >>sys.stderr, samples, 'samples,', '%0.3f s' % t
+        last_report = t
 
     # output this sample if total size has changed by more than a given proportion
     if abs(total_size-last_size) > 0.02 * max_size:
