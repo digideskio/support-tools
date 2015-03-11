@@ -165,6 +165,11 @@ def info_double(buf, at):
     at, info = info_basic('double', 8, buf, at)
     return at, '%s =%g' % (info, d)
 
+def info_int32(buf, at):
+    i = unpack_from('i', buf, at)[0]
+    at, info = info_basic('int32', 4, buf, at)
+    return at, '%s =%d' % (info, i)
+
 def info_simple(name, l):
     def info(buf, at):
         return info_basic(name, l, buf, at)        
@@ -182,7 +187,7 @@ types = {
     0x09: info_time('datetime', 8, 'q', scale=1000),
     0x0a: info_simple('null', 0),
     0x0b: info_regexp,
-    0x10: info_simple('int32', 4),
+    0x10: info_int32,
     0x11: info_time('timestamp', 8, 'i', skip=4),
     0x12: info_simple('int64', 8),
     0x7f: info_simple('maxkey', 0),
@@ -458,21 +463,17 @@ def page(buf, at, root, avail, find=None):
     # avail?
     if at in avail:
         l = avail[at]
-        indent.prt(at, 'avail len=0x%0x(%d)' % (l, l))
-        return at + l, None
+        indent.prt(at, 'AVAIL len=0x%0x(%d)' % (l, l))
+        if not do_avail or find: # ensure we skip avail when searching for something
+            return at + l, None
 
     # page header
     page_header = buf[at:at+page_header_struct.size]
     recno, gen, msz, entries, t, pflags, _ = page_header_struct.unpack(page_header)
     ts = page_types[t] if t in page_types else None
     fs = flags_string({1: 'comp', 2: 'all0', 4: 'no0'}, pflags)
-    anno = ''
-    if at==root:
-        anno += 'ROOT '
-    if at in avail:
-        anno += 'AVAIL '
     indent.prt(at, 'page recno=%d gen=%d msz=0x%x entries=%d type=%d(%s) flags=0x%x(%s) %s' % \
-        (recno, gen, msz, entries, t, ts, pflags, fs, anno))
+               (recno, gen, msz, entries, t, ts, pflags, fs, 'ROOT' if at==root else ''))
     at += page_header_struct.size
 
     # block header
@@ -569,9 +570,8 @@ def print_file(fn, at, meta, find=None):
                 root = (r[0]+1) * 4096
             if a:
                 if not do_dbg: indent.hide()
-                if a[0]:
-                    a = (a[0]+1) * 4096
-                    avail = extlist(buf, a+block_header_struct.size+page_header_struct.size)
+                a = (a[0]+1) * 4096
+                avail = extlist(buf, a+block_header_struct.size+page_header_struct.size)
                 if not do_dbg: indent.show()
         except Exception as e:
             if not do_dbg: indent.show()
