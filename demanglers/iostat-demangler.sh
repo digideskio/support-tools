@@ -4,14 +4,24 @@ remove_pattern="$1"
 shift
 
 cat "$@" \
-	| sed \
-		-e '1,2d' \
 	| grep -v "$remove_pattern" \
 	| awk '
-		{
+		NR == 1 {
+			date = $4;
+			dayadj = 0;
+		}
+
+		NR > 2 {
 			num_devices = 0;
+			if ($1 == "Time:") {
+				$1 = date;
+				if ($2 == "12:00:00" && $3 == "AM") {
+					# ARGH. Woeful.
+					dayadj++;
+				}
+			}
 			split($1, datebits, "/");
-			D = datebits[2];
+			D = datebits[2] + dayadj;
 			M = datebits[1];  # ARGH. Also, is this locale dependent?
 			Y = datebits[3];
 			split($2, timebits, ":");
