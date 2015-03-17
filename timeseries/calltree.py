@@ -12,7 +12,7 @@ import json
 import pytz
 import time
 import dateutil.parser
-
+import cgi
 
 def dbg(*ss):
     if __name__=='__main__' and opt.dbg:
@@ -134,6 +134,21 @@ def html_foot():
 # call tree
 #
 
+def simplify_templates(func):
+    func = func.strip()
+    simple = ''
+    t = 0
+    for c in func:
+        if c=='<':
+            if t==0:
+                simple += '<...>'
+            t += 1
+        elif c=='>':
+            t -= 1
+        elif t==0:
+            simple += c
+    return simple
+        
 class node:
 
     def __init__(self):
@@ -145,6 +160,8 @@ class node:
         self.children = {}
 
     def _add_func(self, func, t, count=1):
+        if not opt.templates:
+            func = simplify_templates(func)
         if not func in self.children:
             self.children[func] = node()
         child = self.children[func]
@@ -203,6 +220,8 @@ class node:
             html(html_down)
             end('span')
             elt('span', {'onClick':'hide_all(%d)' % opt.html_id})
+            if opt.html:
+                func = cgi.escape(func)
             put(func)
             end('span')
             put('\n')
@@ -241,21 +260,6 @@ def bucket_time(t):
     s1 = s0 // opt.buckets * opt.buckets
     return t + timedelta(0, s1-s0)
 
-def simplify(func):
-    func = func.strip()
-    simple = ''
-    t = 0
-    for c in func:
-        if c=='<':
-            if t==0:
-                simple += '<...>'
-            t += 1
-        elif c=='>':
-            t -= 1
-        elif t==0:
-            simple += c
-    return simple
-        
 def just_filter(pattern):
     def f(stack):
         s = stack_sep.join(stack)
