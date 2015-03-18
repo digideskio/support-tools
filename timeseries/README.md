@@ -312,14 +312,14 @@ target program (mongod for example) needs to be compiled with
 --no-omit-frame-pointer (see details below); in particular it does not
 work very well with our pre-compiled binary downloads.
 
-To use it, you must download Quickstack from github and compile it on
+To use it, you must download quickstack from github and compile it on
 the target machine. I have provided a script as part of this project,
 [quickmon.sh](quickmon.sh), that
 
-    * downloads quickstack to the current directory if necessary
-    * installs prerequisites if needed
-    * compiles quickstack if it has not already been compiled
-    * then runs quick stack in a loop collecting stack trace samples.
+* downloads quickstack to the current directory if necessary
+* installs prerequisites if needed
+* compiles quickstack if it has not already been compiled
+* then runs quick stack in a loop collecting stack trace samples.
     
 The command line arguments and output are compatible with gdbmon, so
 the example from the preceding section becomes
