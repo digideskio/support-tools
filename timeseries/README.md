@@ -60,10 +60,11 @@ follows. Adding descriptors for each new type is relatively easy.
     * can be easily configured to parse any file with timestamps and
       data, such as customer log files, on an ad-hoc basis.
 
-* periodic stack trace samples collected by gdbmon (provided as part
-  of this project). Visualizes call tree with time series data showing
-  number of threads at each call site over time to allow correl ating
-  program activity with other system, mongod, and app behavior.
+* periodic stack trace samples collected by gdbmon or quickmon (both
+  provided as part of this project). Visualizes call tree with time
+  series data showing number of threads at each call site over time to
+  allow correl ating program activity with other system, mongod, and
+  app behavior.
 
 
 ## Using the Timeseries Visualization Tool
@@ -185,6 +186,11 @@ The initial view will be restricted to the most important (level 1) statisics; y
   seconds on each sample to obtain line numbers if the binary is not
   stripped.
 
+  An alternative to gdbmon, quickmon, is also available. It is much
+  faster than gdb at collecting the stack traces so it has less impact
+  on the running process, but it requires that you compile mongod from
+  source with the --no-omit-frame-pointer flags.  Details are provided
+  in a [later section](#quickmon).
 
 ### About the browser
 
@@ -294,6 +300,48 @@ bottleneck.
 ![ex-calltree-gdb](ex-calltree-gdb.png)
 
 
+### Collecting and visualizing call trees using quickstack <a
+    name="quickmon"></a>
+
+An alternative to gdb for collecting stack traces is provided by the
+[quickstack tool](https://github.com/yoshinorim/quickstack) by
+Yoshinori Matsunobu. Quickstack is much faster than gdb at collecting
+stack traces - the process is only stopped for a few milliseconds for
+each sample. However in order to get reasonable stack traces, the
+target program (mongod for example) needs to be compiled with
+--no-omit-frame-pointer (see details below); in particular it does not
+work very well with our pre-compiled binary downloads.
+
+To use it, you must download Quickstack from github and compile it on
+the target machine. I have provided a script as part of this project,
+[quickmon.sh](quickhmon.sh), that
+
+    * downloads quickstack to the current directory if necessary
+    * installs prerequisites if needed
+    * compiles quickstack if it has not already been compiled
+    * then runs quick stack in a loop collecting stack trace samples.
+    
+The command line arguments and output are compatible with gdbmon, so
+the example from the preceding section becomes
+
+    bash quickmon.sh $(pidof mongod) 1 10 >example.quickmon
+    python fold_gdb.py <example.quickmon | \
+        python calltree.py -j handleIncomingMsg --graph-scale log >example.html
+    open example.html
+
+Note that, unlike gdb, quickmon performs best on *unstripped*
+binaries. In addition, you will need to compile mongod from source
+specifying --no-omit-frame-pointers. You can request this when
+compiling with scons as follows:
+        
+    scons CCFLAGS=-fno-omit-frame-pointer SHCCFLAGS=-fno-omit-frame-pointer \
+        CFLAGS=-fno-omit-frame-pointer SHCFLAGS=-fno-omit-frame-pointer \
+        CXXFLAGS=-fno-omit-frame-pointer SHCXXFLAGS=-fno-omit-frame-pointer ...
+
+(I don't know if all those flags actually needed; those are just the
+occurrences of CFLAGS or CXXFLAGS that I found in the SConstruct
+file.)
+
 ### Collecting and visualizing CPU utilization call trees using perf
 
 An alternative to gdb for collecting stack trace samples is perf. The
@@ -357,7 +405,7 @@ Install perf probe points related to tcmalloc
 
 Record perf data
 
-    sudo perf record -r 1 -m 65536 -g -e 'probe_mongod:*' -- mongod ...
+    sudo perf record -r 1 -m $((128*1024)) --call-graph dwarf -e 'probe_mongod:*' -- mongod ...
 
 Process
 
