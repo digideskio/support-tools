@@ -300,8 +300,8 @@ bottleneck.
 ![ex-calltree-gdb](ex-calltree-gdb.png)
 
 
-### Collecting and visualizing call trees using quickstack <a
-    name="quickmon"></a>
+### <a name="quickmon"></a> Collecting and visualizing call trees using quickstack
+
 
 An alternative to gdb for collecting stack traces is provided by the
 [quickstack tool](https://github.com/yoshinorim/quickstack) by
@@ -314,7 +314,7 @@ work very well with our pre-compiled binary downloads.
 
 To use it, you must download Quickstack from github and compile it on
 the target machine. I have provided a script as part of this project,
-[quickmon.sh](quickhmon.sh), that
+[quickmon.sh](quickmon.sh), that
 
     * downloads quickstack to the current directory if necessary
     * installs prerequisites if needed
