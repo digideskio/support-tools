@@ -20,6 +20,7 @@ max_size = 0
 last_size = 0
 finish_no_start = 0
 free_no_alloc = 0
+start_no_finish = 0
 t0 = None
 samples = 0
 last_report = 0
@@ -65,7 +66,7 @@ def accumulate(t, size, stack):
 
     # progress report
     if t - last_report > 1:
-        print >>sys.stderr, samples, 'samples,', '%0.3f s' % t
+        print >>sys.stderr, samples, 'samples,', '%0.3f s, maxsize: %d' % (t, max_size)
         last_report = t
 
     # output this sample if total size has changed by more than a given proportion
@@ -75,8 +76,10 @@ def accumulate(t, size, stack):
 
 def trace_end():
     output_sample(True)
-    print >>sys.stderr, 'finish_no_start:', finish_no_start, 'free_no_alloc:', free_no_alloc
     print >>sys.stderr, 'max_size:', max_size
+    print >>sys.stderr, 'start_no_finish', start_no_finish,
+    print >>sys.stderr, 'finish_no_start:', finish_no_start,
+    print >>sys.stderr, 'free_no_alloc:', free_no_alloc
 
 
 #
@@ -88,7 +91,11 @@ def show_stack(callchain):
 
 def alloc_start(pid, size, callchain):
     #print >>sys.stderrr, 'alloc_start'
+    if pid in in_progress:
+        global start_no_finish
+        start_no_finish += 1
     in_progress[pid] = (size, callchain)
+
 
 def alloc_finish(pid, ptr, prog, secs, nsecs, callchain):
     #print >>sys.stderrr, 'alloc_finish', prog, callchain
