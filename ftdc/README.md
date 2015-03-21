@@ -191,36 +191,36 @@ the last group.
 
 ss-wt-20k-mixed-600.bson: 3.0.0, wt, ~20 k mixed ops/s, 600 samples @ 1 sample/s, 300 samples per chunk
 
-                       bytes/   incr    comp
-                       sample   redn   ratio  MB/day
-
-raw bson                16126    ---     ---    1130
-delta                    4367    73%     4:1     306
-delta+zlib                222    95%    73:1    15.6
-delta+zlib+pack           181    18%    89:1    12.7
-delta+zlib+pack+run       178     2%    91:1    12.5
-
+                           bytes/   incr    comp
+                           sample   redn   ratio  MB/day
+    
+    raw bson                16126    ---     ---    1130
+    delta                    4367    73%     4:1     306
+    delta+zlib                222    95%    73:1    15.6
+    delta+zlib+pack           181    18%    89:1    12.7
+    delta+zlib+pack+run       178     2%    91:1    12.5
+    
 ss-mmapv1-20k-mixed-600.bson: 3.0.0, mmapv1, ~20 k mixed ops/s, 600 samples @ 1 sample/s, 300 samples per chunk
 
-                       bytes/   incr    comp
-                       sample   redn   ratio  MB/day
-
-raw bson                11650    ---     ---    816
-delta                   34577    70%     3:1    242
-delta+zlib                118    97%    99:1    8.3
-delta+zlib+pack            98    17%   119:1    6.9
-delta+zlib+pack+run        95     3%   123:1    6.7
+                           bytes/   incr    comp
+                           sample   redn   ratio  MB/day
+    
+    raw bson                11650    ---     ---    816
+    delta                   34577    70%     3:1    242
+    delta+zlib                118    97%    99:1    8.3
+    delta+zlib+pack            98    17%   119:1    6.9
+    delta+zlib+pack+run        95     3%   123:1    6.7
 
 ss-wt-idle-600.bson: 3.0.0, wt, idle, 600 samples @ 1 sample/s, 300 samples per chunk
 
-                       bytes/   incr    comp
-                       sample   redn   ratio  MB/day
-
-raw bson               16081     ---     ---   1126
-delta                   4367     73%     4:1    306
-delta+zlib                26     99%   619:1    1.8
-delta+zlib+pack           20     23%   804:1    1.4
-delta+zlib+pack+run       18     10%   893:1    1.3
+                           bytes/   incr    comp
+                           sample   redn   ratio  MB/day
+    
+    raw bson               16081     ---     ---   1126
+    delta                   4367     73%     4:1    306
+    delta+zlib                26     99%   619:1    1.8
+    delta+zlib+pack           20     23%   804:1    1.4
+    delta+zlib+pack+run       18     10%   893:1    1.3
 
 
 ### Time cost
