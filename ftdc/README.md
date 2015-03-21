@@ -1,10 +1,11 @@
 ## Full-Time Data Capture ("Flight Data Recorder")
 
-This document describes some requirements and design options around a
-full-time data capture facility for mongod. The goal is to capture
-time-series data useful for analyzing issues in production after the
-fact. A good analogy is the "flight data recorder" used to capture
-real-time data on airplanes for later analysis.
+This document describes some requirements, a strawman design, and a
+proof-of-concept implementation for a full-time data capture facility
+for mongod. The goal is to capture time-series data useful for
+analyzing issues in production after the fact. A good analogy is the
+"flight data recorder" or "black box" used to capture real-time data
+on airplanes for later analysis.
 
 * The facility should be on full time, enabled by default.
 
@@ -42,138 +43,186 @@ real-time data on airplanes for later analysis.
   particularly mongod bugs. Potentially high volume of data, but see
   section below on minimizing storage.
 
-### Storage container
+## Data capture format strawman design
 
-Some options:
+This section describes a general format for space-efficient storage of
+time series monitoring data by mongod. Assumptions:
 
-* Flat file managed as a circular buffer (or possibly a ring of flat files).
+* Space efficiency is paramount, to maximize retention time, and to
+  minimize storage i/o.
 
-    * +dead simple.
+* Time efficiency is also very important. Impact on performance should
+  be at noise levels.
 
-* Capped collection
+* The data is presented and recovered in the form of BSON documents
+  with an arbitrary schema. The schema may change during the course of
+  a time series, but such changes are infrequent.
 
-    * +built-in compression
-    * +less obtrusive
-    * -may be difficult to recover in case of db corruption
-    * -performance may not be as good?
+* The data may be transformed arbitrarily for storage, necessitating
+  the use of decoding software to recover the data. This software may
+  be external, that is, the data need not be recovered internal to
+  mongod.
 
-### Storage format
+* The data of interest is numeric, specifically integer. In
+  particular, string data is (largely) ignored, and floating-point
+  data must be integer. Precise numeric data type information does not
+  need to be recovered.
 
-Requirements:
-
-* minimize storage
-
-* minimize CPU overhead
-
-* avoid excessive code complexity on producing end
-
-* avoid excessive code complexity on consuming end
-
-Following are some options; some simple experiments to evaluate are
-needed.
-
-#### Adaptive sampling rate
-
-Simple fixed sampling rate does not account for the fact that
-often not much is changing between samples.
-
-For example, at first glance it seems that collecting stats() for all
-namespaces could be prohibitively expensive. However, the total rate
-of change of sample values across all namespaces combined for
-collection.stats() should be roughly comparable to the total rate of
-change for the global serverStats(), since each change affects
-(roughly) 1) global serverStats() and 2) stats for one namespace (tbd
-how accurate this is with a large number of indexes).
-
-This could be captured by using an adaptive sampling rate that samples
-each group of stats depending on how fast it changing. How to measure
-that?
-
-* capture a sample for each sampling group after a certain accumulated
-  magnitude of changes. Probably not the right thing to do: the
-  counters have wildly varying numerical magnitudes.
-
-* capture a sample for each sampling group after a certain number of
-  changes.
-
-* some thought might be needed towards giving some stats extra weight
-  in the above. For example, it would be nice to capture "checkpoint
-  currently running" at or near each transition in order to precisely
-  record the checkpoints.
-
-Some of this might be achieved "for free" by using fixed-rate sampling
-along with compression (using standard or customer compression
-techniques) - if not much is changing, things will compress well.
+* Efficient storage is required for all storage engines. In
+  particular, the storage format cannot rely on storage engine
+  compression to achieve space efficiency, but rather must provide its
+  own compression.
 
 
-#### Raw bson
+### Data capture container format
 
-Will have a high degree of redundancy. For example
+This section describes the storage of timeseries data in a capped
+collection. If needed, a similar storage format for flat files could
+be devised. Following is a schematic overview of the capped collection
+storage format:
 
-* serverStatus() metrics have an unchanging schema with some very long
-  field names (e.g. wiredTiger section). However much of that should
-  compress out.
+    capped collection (ns "local.ftdc")
+        document
+            _id: BSON datetime (ms since Unix epoch)
+            type: 0
+            data: BinData containing
+                zlib stream containing
+                    sample chunk
+                        full reference BSON sample
+                        delta sample 1
+                        delta sample 2
+                        ...
+        ...
 
-* Stack trace samples will have a large number of traces, one for each
-  thread, but with a high degree of redundancy: many common prefixes
-  (if represented root to leaf) or common suffixes (if represented
-  leaf to root). Common prefixes or suffixes could be explicitly
-  captured in the sample representation, or be left to be compressed
-  out.
+As illustrated above, data is encapsulated in a time-sequential stream
+of *chunks*. Each chunk represents a sequence of consecutive samples,
+and contains
 
-#### Delta coding
+* A *reference sample* consisting of a BSON document representing a
+  full data sample. This sample determines the schema that the
+  subsequent delta samples must follow up until the next reference
+  sample, and it is the first sample of the sequence of samples
+  represented by this chunk.
 
-Very high degree of coherence from one sample to the next:
+* A sequence of *delta samples* each represented by a delta from the
+  previous sample, starting with the reference sample. Since the delta
+  samples must have the same schema as the reference sample, only the
+  numeric field values need to be stored. In addition to delta coding,
+  several compression techniques (described below) are applied to the
+  deltas to form the delta sample chunk, prior to zlib compression as
+  shown above.
 
-* schema does not change
+A ms-resolution BSON timestamp is used for the _id. This allows
+efficient retrieval of a time range of samples, while supporting
+sampling rates up to 1 kHz. Typically the samples will contain their
+own timestamp, which precisely defines the timing of the individual
+samples; the relationship of the _id to the sample timestamps is
+approximate and is not precisely defined.
 
-* many of the recorded values do not change, or change slowly
+### Delta compression
 
-Delta coding could consist of
+In the interest of space efficiency, most samples are captured as
+compressed deltas relative the preceding sample, starting with a full
+reference sample, and are processed together in groups of delta
+samples.
 
-* Periodic "full samples" consisting of a full raw bson document
+* The data-bearing elements of the reference sample are
+  identified. These consist of all elements with BSON numeric types,
+  recursively enumerated in the order they occur in the reference
+  sample.
 
-* Between the full samples would be delta samples:
+* The data-bearing elements of a delta sample must be of the same name
+  (including matching names of enclosing documents), and in the same
+  order, as the data-bearing elements of the reference sample. In
+  practical terms this means that a schema change requires terminating
+  the chunk and starting a new chunk with a new reference sample.
 
-    * field names not recorded; field values recorded
-      positionally. Change in schema (can this occur?) triggers full
-      sample.
+* The types of the data-bearing elements in the delta sample need not
+  match the type of the corresponding element in the reference sample
+  or in other delta samples; the only requirement is that they be
+  numeric. This is to allow for efficient representation of metrics
+  that vary their representation among the various BSON numeric
+  types. The practical consequence of this is that the numeric type of
+  the recorded metrics may not be reconstructed after decompression,
+  and there may be some edge-case issues related to the differing
+  ranges that each numeric type can represent.
 
-    * numeric values recorded as numeric delta
+* A group of deltas is captured, processed, compressed, and emitted
+  together in a single chunk as described below. Processing a group of
+  delta samples together allows for much more efficient compression.
 
-    * string values (not many of these) recorded as symbol indicating
-      "same value", or symbol indicating "different value" followed by
-      new value. Alternatively, string values not recorded at all, and
-      change in string value triggers full sample.
+Assume a reference sample with a list of metrics m1, m2, m3, ...:
 
-TBD how this interacts with standard compression; suspect it might be
-particularly effective with custom compression.
+    ref sample: m1, m2, m3, ...
 
-#### Standard compression
+For each subsequent delta sample in the chunk, for each metric compute
+the deltas between that metric and the corresponding metric in the
+previous sample:
 
-Need to evaluate effectiveness of snappy and zlib on raw bson and
-delta codings.
+    (sample 1) d11, d12, d13, ...
+    (sample 2) d21, d22, d23, ...
+    ...
+    (sample n) dn1, dn2, dn3, ...
 
-#### Custom compression
+Transpose this array of deltas, so that the deltas for each metric are
+adjacent:
 
-Might benefit from custom compression, particularly with delta coding,
-using a custom fixed(?) symbol dictionary and either
+    (sample 1) (sample 2) ...  (sample n)
+    d11,       d21,       ..., dn1
+    d12,       d22,       ..., dn2
+    d13,       d23,       ..., dn3
+    ...
 
-* Huffman coding - fairly simple, works well down to 1-2 bits per
-  symbol.
+Treating this array of deltas as a sequence of numbers in row-major
+order, run-length encode runs of 0s: replace each run of 0s with a 0
+followed by n-1, where n is the length of the run.
 
-* Dead simple variant of Huffman coding in conjunction with delta coding:
+Form a packed representation of each number by packing groups of 7
+bits, starting with the low-order 7 bits, into bytes, with the
+high-order bit of the packed representation indicating whether this is
+the last group.
 
-    * single bit value to encode "same value"
 
-    * different values encoded as opposite bit value followed by some
-      compact representation of delta (e.g. something like WT compact
-      int representation).
+### POC implementation
 
-* Arithmetic coding - can achieve coded rates of <1 bit per
-  symbol. Given the high degree of coherency between samples (that is,
-  lots of deltas with a value of 0) it is possible entropy will be <1
-  bit per symbol, so this option could be explored.
 
-CPU efficiency of this compared to standard compression TBD, but I
-suspect it could compare favorably.
+
+### Space cost
+
+ss-wt-20k-mixed-600.bson: 3.0.0, wt, ~20 k mixed ops/s, 600 samples @ 1 sample/s, 300 samples per chunk
+
+                       bytes/   incr    comp
+                       sample   redn   ratio  MB/day
+
+raw bson                16126    ---     ---    1130
+delta                    4367    73%     4:1     306
+delta+zlib                222    95%    73:1    15.6
+delta+zlib+pack           181    18%    89:1    12.7
+delta+zlib+pack+run       178     2%    91:1    12.5
+
+ss-mmapv1-20k-mixed-600.bson: 3.0.0, mmapv1, ~20 k mixed ops/s, 600 samples @ 1 sample/s, 300 samples per chunk
+
+                       bytes/   incr    comp
+                       sample   redn   ratio  MB/day
+
+raw bson                11650    ---     ---    816
+delta                   34577    70%     3:1    242
+delta+zlib                118    97%    99:1    8.3
+delta+zlib+pack            98    17%   119:1    6.9
+delta+zlib+pack+run        95     3%   123:1    6.7
+
+ss-wt-idle-600.bson: 3.0.0, wt, idle, 600 samples @ 1 sample/s, 300 samples per chunk
+
+                       bytes/   incr    comp
+                       sample   redn   ratio  MB/day
+
+raw bson               16081     ---     ---   1126
+delta                   4367     73%     4:1    306
+delta+zlib                26     99%   619:1    1.8
+delta+zlib+pack           20     23%   804:1    1.4
+delta+zlib+pack+run       18     10%   893:1    1.3
+
+
+### Time cost
+
+
