@@ -431,10 +431,10 @@ class GroupPingTests:
                 totalOps = 0
                 totalTime = datetime.timedelta(0)
                 for i in range(0, len(opsDocs) - 1):
-                    dOps = opsDocs[i+1]['ops'] - opsDocs[i]['ops']
+                    dOps = abs(opsDocs[i+1]['ops'] - opsDocs[i]['ops'])
                     totalOps += dOps
 
-                    dTime = opsDocs[i+1]['time'] - opsDocs[i]['time']
+                    dTime = abs(opsDocs[i+1]['time'] - opsDocs[i]['time'])
                     totalTime += dTime
 
                     if dTime.total_seconds() == 0:
@@ -527,7 +527,7 @@ class GroupPingTests:
                     dTimeInHours = dTime.total_seconds() / 60 / 60
                     if dTimeInHours == 0:
                         continue
-                    dCommitsPerHour = dCommits / dTimeInHours
+                    dCommitsPerHour = float(dCommits) / dTimeInHours
                     if dCommitsPerHour > 0:
                         res = False
                         ids.append(commitDocs[i+1]['pingId'])
