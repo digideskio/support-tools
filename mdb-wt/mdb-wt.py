@@ -4,6 +4,8 @@ import os
 import datetime
 import re
 import mmap
+import zlib
+import base64
 
 try:
     import snappy
@@ -223,12 +225,15 @@ def print_bson(buf, at, l=None, null_name=False):
 
 
 def embedded_bson(buf, at, end, *args, **kwargs):
+    if do_extract:
+        extracted_bson.write(buf[at:end])
     if do_bson:
         if end-at >= 4:
             at, l = get_int(buf, at)
             i = indent.get()
             indent.indent()
-            indent.prt(at, 'DOC len=%d' % l)
+            indent.prt(at, 'DOC len=0x%x(%d) EOO=0x%x' % (l, l, at+l-4))
+            #indent.prt(at, 'DOC len=%d' % l)
             indent.indent()
             l -= 4
             print_bson(buf, at, l, *args, **kwargs)
@@ -326,7 +331,7 @@ def cell_kv(desc, buf, at, short, key, find=None, prefix=False):
             x = record_id(content)
             indent.prt(start, 'key desc=0x%x(%s) sz=0x%x(%d) key=%s' % (desc, info, sz, sz, x))
         else:
-            indent.prt(start, 'val desc=0x%x(%s) sz=0x%x(%d)' % (desc, info, sz, sz))
+            indent.prt(start, 'val desc=0x%x(%s) sz=0x%x(%d) end=0x%x' % (desc, info, sz, sz, end))
             embedded_bson(buf, at, end)
     elif is_index:
         if key:
@@ -453,7 +458,7 @@ block_header_struct = struct.Struct('< I I B 3s')
 # snappy_compress.c: length stored at beginning of compressed buffer
 snappy_header_struct = struct.Struct('< Q')
 
-def page(buf, at, root, avail, find=None):
+def page(buf, at, root, avail, compressor, find=None):
 
     # sz is relative to this
     start = at
@@ -483,15 +488,39 @@ def page(buf, at, root, avail, find=None):
     indent.prt(at, 'block sz=0x%x cksum=0x%x flags=0x%x(%s)' % (sz, cksum, bflags, fs))
     at += block_header_struct.size
     
-    # decompress xxx only handles snappy for now
-    if pflags & 1 and snappy:
-        a = start + 64
-        l, = snappy_header_struct.unpack(buf[a:a+snappy_header_struct.size])
-        a += snappy_header_struct.size
-        buf = buf[at:start+64] + snappy.decompress(buf[a:a+l])
-        indent.prt(start+64, 'snappy compressed=%d decompressed=%d' % (l, len(buf)))
-        at = 0
-        indent.pfx('  ')
+    # decompress
+    invalid_at = None
+    if pflags & 1 and (do_entry or do_decompress) and not recno:
+        if compressor=='snappy' and snappy:
+            a = start + 64
+            l, = snappy_header_struct.unpack(buf[a:a+snappy_header_struct.size])
+            a += snappy_header_struct.size
+            buf = buf[at:start+64] + snappy.decompress(buf[a:a+l])
+            indent.prt(start+64, 'snappy compressed=%d decompressed=%d' % (l, len(buf)))
+            at = 0
+            indent.pfx('  ')
+        elif compressor=='zlib':
+            zlib_error = ''
+            try:
+                d = zlib.decompressobj()
+                buf = buf[at:start+64] + d.decompress(buf[start+64:start+sz])
+            except Exception as e:
+                res = buf[at:start+64]
+                d = zlib.decompressobj()
+                try:
+                    r = d.decompress(buf[start+64:start+sz], 1)
+                    while r:
+                        res += r
+                        invalid_at = start + sz - len(d.unconsumed_tail)
+                        r = d.decompress(d.unconsumed_tail, 1)
+                except:
+                    pass
+                invalid_bytes = buf[invalid_at:]
+                buf = res
+                zlib_error = 'ERROR: ' + str(e)
+            indent.prt(start+64, 'zlib decompressed=%d %s' % (len(buf), zlib_error))
+            at = 0
+            indent.pfx('  ')
 
     # entries
     found = False
@@ -502,13 +531,17 @@ def page(buf, at, root, avail, find=None):
         indent.outdent()
     elif ts=='ROW_INT' or ts=='ROW_LEAF':
         indent.indent()
-        if do_entry or find:
-            for i in range(entries):
-                at, f, content = cell(buf, at, find)
-                if found:
-                    return None, content
-                found = f
-        indent.outdent()
+        try:
+            if do_entry or find:
+                for i in range(entries):
+                    at, f, content = cell(buf, at, find)
+                    if found:
+                        return None, content
+                    found = f
+        except IndexError:
+            indent.prt(len(buf), 'ERROR: end of buffer before end of page')
+        finally:
+            indent.outdent()
     elif ts=='OVFL':
         embedded_bson(buf, at, at+4)
     else:
@@ -516,6 +549,9 @@ def page(buf, at, root, avail, find=None):
 
     # done
     indent.pfx('')
+    if invalid_at != None:
+        s = 'ERROR: invalid compressed: ' + hexbytes(invalid_bytes[:16])
+        indent.prt(invalid_at, s)
     at = start + (sz if ts and recno==0 else 4096) # xxx need better recovery
     return at, None
 
@@ -524,14 +560,18 @@ def page(buf, at, root, avail, find=None):
 # this gives us the starting points in the file
 #
 
-def ckpt_addr_cookie(info):
-    pat = 'checkpoint=\(WiredTigerCheckpoint\.[0-9]+=\(addr="([0-9a-f]+)".*?time=([0-9]+)'
+def parse_meta(info):
+    pat = 'block_compressor=([a-z]*).*'
+    pat += 'checkpoint=\(WiredTigerCheckpoint\.[0-9]+=\('
+    pat += 'addr="([0-9a-f]+)".*?time=([0-9]+).*?write_gen=([0-9]+)'
     m = re.search(pat, info)
     if not m:
         print 'no addr info; no data or no checkpoint?'
         return None, None, None
-    print 'checkpoint time', datetime.datetime.utcfromtimestamp(int(m.group(2))).isoformat() + 'Z'
-    addr = m.group(1)
+    compressor = m.group(1)
+    print 'checkpoint time', datetime.datetime.utcfromtimestamp(int(m.group(3))).isoformat() + 'Z'
+    print 'write gen', int(m.group(4))
+    addr = m.group(2)
     dbg('addr', addr)
     buf = ''.join(chr(int(addr[i:i+2],16)) for i in range(0, len(addr), 2))
     at = 0
@@ -544,7 +584,7 @@ def ckpt_addr_cookie(info):
     at, ckptsz = unpack_uint(buf, at)
     #at, gen = unpack_uint(buf, at) # ???
     #print ord(version), root, alloc, avail, discard, fsz, ckptsz
-    return root, alloc, avail
+    return root, alloc, avail, compressor
 
 def print_file(fn, at, meta, find=None):
 
@@ -564,8 +604,8 @@ def print_file(fn, at, meta, find=None):
     avail = {}
     if meta:
         try:
-            r, _, a = ckpt_addr_cookie(meta)
-            print '%s: r=%s _=%s a=%s' % (fn, fmt_cookie(r), fmt_cookie(_), fmt_cookie(a))
+            r, u, a, compressor = parse_meta(meta)
+            print '%s: r=%s u=%s a=%s' % (fn, fmt_cookie(r), fmt_cookie(u), fmt_cookie(a))
             if r:
                 root = (r[0]+1) * 4096
             if a:
@@ -583,11 +623,11 @@ def print_file(fn, at, meta, find=None):
         if at==0:
             at = block_desc(buf, at)
         while at < len(buf):
-            at, found = page(buf, at, root, avail, find)
+            at, found = page(buf, at, root, avail, compressor, find)
             if found:
                 return found
     else:
-        page(buf, at, root, avail)
+        page(buf, at, root, avail, compressor)
 
 
 def find_key(dbpath, fn, meta, key):
@@ -600,15 +640,24 @@ def find_key(dbpath, fn, meta, key):
 def print_with_meta(fn, at):
     dbpath = os.path.dirname(fn)
     meta = None
-    try:
-        meta = open(os.path.join(dbpath, 'WiredTiger.turtle')).read()
-        dbg('meta', meta)
-        if os.path.basename(fn) != 'WiredTiger.wt':
-            meta = find_key(dbpath, 'WiredTiger.wt', meta, 'file:%s\x00' % os.path.basename(fn))
-        dbg('meta', meta)
-    except Exception as e:
-        print 'metadata not available:', e
+    exc = None
+    while dbpath:
+        try:
+            meta = open(os.path.join(dbpath, 'WiredTiger.turtle')).read()
+            dbg('meta', meta)
+            if os.path.basename(fn) != 'WiredTiger.wt':
+                f = fn[len(dbpath)+1:]
+                meta = find_key(dbpath, 'WiredTiger.wt', meta, 'file:%s\x00' % f)
+            dbg('meta', meta)
+            break
+        except Exception as e:
+            exc = e
+        if not '/' in dbpath:
+            break
+        dbpath = dbpath.rsplit('/', 1)[0]
     if not meta:
+        if exc:
+            print 'metadata not available:', exc
         print 'proceeding without metadata; all pages, including available pages, will be printed'
     print_file(fn, at, meta)
 
@@ -628,6 +677,13 @@ do_bson_detail = 'B' in sys.argv[1]
 do_value = 'v' in sys.argv[1]
 do_avail = 'f' in sys.argv[1]
 do_dbg = 'd' in sys.argv[1]
+do_decompress = 'z' in sys.argv[1]
+do_extract = 'x' in sys.argv[1] or 'X' in sys.argv[1]
+do_extract_append = 'X' in sys.argv[1]
+
+if do_extract:
+    mode = 'a' if do_extract_append else 'w'
+    extracted_bson = open(sys.argv[-1], mode)
 
 #if do_collection:
 #    pass
