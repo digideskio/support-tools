@@ -1,4 +1,4 @@
-## Full-Time Data Capture ("Flight Data Recorder")
+## Full-Time Data Capture ("Black Box")
 
 This document describes some requirements, a strawman design, and a
 proof-of-concept implementation for a full-time data capture facility
@@ -182,9 +182,15 @@ bits, starting with the low-order 7 bits, into bytes, with the
 high-order bit of the packed representation indicating whether this is
 the last group.
 
+Finally, as described in the previous section, a chunk comprising the
+reference sample and sequence of deltas compressed as described in
+this section are collected together, zlib compressed, and emitted
+wrapped in a BinData field of a document, one document per chunk.
+
 
 ### POC implementation
 
+A proof-of-concept implementation ...
 
 
 ### Space cost

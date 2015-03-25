@@ -1,3 +1,5 @@
+#define STATIC_LIBMONGOCLIENT
+
 #include "mongo/client/dbclient.h" 
 #include <algorithm>
 #include <boost/algorithm/string.hpp>
@@ -19,6 +21,7 @@
 
 using namespace std;
 using namespace mongo;
+using namespace boost;
 
 
 //
@@ -781,6 +784,77 @@ public:
     }
 };
 
+//
+// put compressed samples to a mongodb collection
+// spec is: mongodb//host?ns=...&size=...
+//    ns - destination ns - default is local.ftdc
+//    size - capped size - default is 100 MB
+// capped collection is created if it doesn't already exist
+//
+
+class LiveSink : public SampleSink, DataSink, Stats {
+
+    DBClientBase *c;
+    string ns;
+    scoped_ptr<Compress> compress;
+
+    void put_compressed(char* buf, char* end) {
+        size_t sz = end - buf;
+        BSONObjBuilder b;
+        b.appendDate("_id", now_ms());
+        b.appendNumber("type", 0);
+        b.appendBinData("data", sz, BinDataGeneral, buf);
+        c->insert(ns, b.obj());
+        record_sample(0, sz);
+    };
+
+public:
+
+    LiveSink(string spec) : Stats("live sink " + spec) {
+
+        // parse and check spec s connection string
+        string errmsg;
+        ConnectionString cs = ConnectionString::parse(spec, errmsg);
+        if (!cs.isValid())
+            err(spec + ": " + errmsg, false);
+
+        // ns - default is local.ftdc
+        BSONElement _ns = cs.getOptions()["ns"];
+        ns = !_ns.eoo()? _ns.String() : "local.ftdc";
+
+        // capped collection size - default is 100 MB
+        BSONElement _sizeMB = cs.getOptions()["sizeMB"];
+        int size = !_sizeMB.eoo()? stoi(_sizeMB.String())*1024*1024 : 100*1024*1024;
+
+        // connect
+        client::initialize();
+        c = cs.connect(errmsg);
+        if (!c)
+            err(errmsg, false);
+
+        // create collection if it doesn't already exist
+        string::size_type dot = ns.find(".");
+        string db = ns.substr(0, dot);
+        string coll = ns.substr(dot+1, string::npos);
+        BSONObj cmd = BSON(
+            "create" << coll <<
+            "capped" << true <<
+            "size" << size <<
+            "storageEngine" << BSON("wiredTiger" << BSON("configString" <<  "block_compressor=none"))
+        );
+        BSONObj info;
+        c->runCommand(db, cmd, info);
+        cout << "creating " << db << "." << coll << ": " << info << endl;
+
+        // initialize compressor with ourselves as data sink
+        compress.reset(new Compress(this));
+    }
+  
+    void put_sample(BSONObj& sample) {
+        compress->put_sample(sample);
+        record_sample(1, 0);
+    }
+};
 
 
 //
@@ -818,8 +892,9 @@ int main(int argc, char* argv[]) {
         source.reset(new LiveSource(host));
         if (!delay)
             delay = 1.0;
-    } else
+    } else {
         source.reset(new CompressedFileSource(source_spec));
+    }
 
     // sink
     if (boost::algorithm::ends_with(sink_spec, ".bson")) {
@@ -830,8 +905,11 @@ int main(int argc, char* argv[]) {
         sink.reset(new JsonFileSink());
     } else if (sink_spec=="-null") {
         sink.reset(new CompressedFileSink());
-    } else
+    } else if (boost::starts_with(sink_spec, "mongodb:")) {
+        sink.reset(new LiveSink(sink_spec));
+    } else {
         sink.reset((new CompressedFileSink(sink_spec)));
+    }
 
     // shovel samples
     BSONObj sample;
