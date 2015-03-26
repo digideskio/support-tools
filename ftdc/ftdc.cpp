@@ -258,11 +258,12 @@ template<class T> struct PACK {
     }
 };
 
+
 //
 //
 //
 
-class Stats {
+class SpaceStats {
 
     string name;
     int n_samples;
@@ -270,7 +271,7 @@ class Stats {
 
 public:
 
-    Stats(string name) {
+    SpaceStats(string name) {
         cerr << name << endl;
         this->name = name;
         n_samples = 0;
@@ -282,9 +283,59 @@ public:
         n_bytes += nb;
     }
 
-    ~Stats() {
+    ~SpaceStats() {
         cerr << name << " " << n_samples << " samples, " << n_bytes << " bytes, " <<
             (n_bytes/n_samples) << " bytes/sample" << endl;
+    }        
+};
+
+class TimeStats {
+
+    string name;
+    double t_start;
+    double t_total;
+    double t_max;
+    double t_min;
+    int n_samples;
+
+public:
+
+    TimeStats(string name) {
+        this->name = name;
+        n_samples = 0;
+        t_total = 0;
+        t_max = 0;
+        t_min = 1.0 / 0.0;
+    }
+
+    void start() {
+        t_start = now();
+    }
+
+    void stop(int ns = 1) {
+        double t = now() - t_start;
+        t_total += t;
+        if (t > t_max) t_max = t;
+        if (t < t_min) t_min = t;
+        n_samples += ns;
+    }
+
+    double avg() {
+        return t_total / n_samples;
+    }
+
+    double min() {
+        return t_min;
+    }
+
+    ~TimeStats() {
+        int t_avg_us = int(avg() * 1e6);
+        int t_max_us = int(t_max * 1e6);
+        int t_min_us = int(t_min * 1e6);
+        cerr << name << " " << n_samples << " samples, " <<
+            t_min_us << " µs min, " << 
+            t_avg_us << " µs avg, " <<
+            t_max_us << " µs max " << endl;
     }        
 };
 
@@ -296,7 +347,7 @@ public:
 
 class DataSink {
 public:
-    virtual void put_compressed(char* buf, char* end) = 0;
+    virtual void push_data(char* buf, char* end) = 0;
 };
 
 class Compress {
@@ -317,9 +368,17 @@ private:
 
     DataSink* sink;
 
+    TimeStats put_sample_timer; // put_sample_timer()
+    TimeStats push_compression_timer; // compression portion of push()
+    TimeStats push_data_timer; // push_data()
+
 public:
 
-    Compress(DataSink* sink, int max_samples = 300) {
+    Compress(DataSink* sink, int max_samples = 300) :
+        put_sample_timer("put sample"),
+        push_compression_timer("compression"),
+        push_data_timer("push data")
+    {
 
         prev_metrics.reset(new vector<METRIC>);
         curr_metrics.reset(new vector<METRIC>);
@@ -332,6 +391,9 @@ public:
     }
 
     void put_sample(BSONObj curr_sample) {
+
+        // start timer for put_sample
+        put_sample_timer.start();
 
         // get metrics from current sample
         curr_metrics->clear();
@@ -364,12 +426,18 @@ public:
 
         // swap current and previous metrics
         boost::swap(curr_metrics, prev_metrics);
+
+        // finish timer
+        put_sample_timer.stop();
     }
 
     void push() {
 
         if (first_sample.isEmpty())
             return;
+
+        // timer for compression portion
+        push_compression_timer.start();
 
         // set up compression
         vector<char> out;
@@ -423,9 +491,15 @@ public:
         // finalize compression
         z.reset();
 
+        // timing
+        push_compression_timer.stop();
+
         // return data to caller if requested
-        if (sink)
-            sink->put_compressed(out.data(), out.data() + out.size());
+        if (sink) {
+            push_data_timer.start();
+            sink->push_data(out.data(), out.data() + out.size());
+            push_data_timer.stop();
+        }
 
         // stats
         int ns = n_deltas + 1;
@@ -435,6 +509,7 @@ public:
         // reset
         first_sample = BSONObj();
         n_deltas = 0;
+
     }
 
     ~Compress() {
@@ -605,12 +680,13 @@ public:
 // simple compressed file container for debugging and testing
 //
 
-class CompressedFileSink : public DataSink, public SampleSink, Stats {
+class CompressedFileSink : public DataSink, public SampleSink {
 
     int fd;
     scoped_ptr<Compress> compress;
+    SpaceStats space;
 
-    void put_compressed(char* buf, char* end) {
+    void push_data(char* buf, char* end) {
         int sz = end - buf;
         if (fd >= 0) {
             int n = write(fd, &sz, sizeof(sz));
@@ -619,12 +695,12 @@ class CompressedFileSink : public DataSink, public SampleSink, Stats {
             if (n != sz)
                 err("write");
         };
-        record_sample(0, sz);
+        space.record_sample(0, sz);
     };
     
 public:
 
-    CompressedFileSink(string fn = "") : Stats("compressed file sink " + fn) {
+    CompressedFileSink(string fn = "") : space("compressed file sink " + fn) {
         if (!fn.empty()) {
             fd = open(fn.c_str(), O_CREAT | O_WRONLY | O_TRUNC, 0666);
             if (fd<0) err(fn);
@@ -636,15 +712,16 @@ public:
 
     void put_sample(BSONObj& sample) {
         compress->put_sample(sample);
-        record_sample(1, 0);
+        space.record_sample(1, 0);
     }
 };
 
 
-class CompressedFileSource : public DataSource, public SampleSource, Stats {
+class CompressedFileSource : public DataSource, public SampleSource {
 
     int fd;
     scoped_ptr<Decompress> decompress;
+    SpaceStats space;
 
     virtual bool get_compressed(vector<char>& compressed) {
         int sz = -1;
@@ -654,13 +731,13 @@ class CompressedFileSource : public DataSource, public SampleSource, Stats {
         compressed.resize(sz);
         n = read(fd, compressed.data(), sz);
         if (n!=sz) err("read");
-        record_sample(0, sz);
+        space.record_sample(0, sz);
         return true;
     }
     
 public:
 
-    CompressedFileSource(string fn) : Stats("compressed file source " + fn) {
+    CompressedFileSource(string fn) : space("compressed file source " + fn) {
         fd = open(fn.c_str(), O_RDONLY);
         if (fd<0) err(fn);
         decompress.reset(new Decompress(this));
@@ -669,7 +746,7 @@ public:
     bool get_sample(BSONObj& sample) {
         bool rc = decompress->get_sample(sample);
         if (rc)
-            record_sample(1, 0);
+            space.record_sample(1, 0);
         return rc;
     }
 };
@@ -679,15 +756,18 @@ public:
 // read/write uncompressed samples from/to a .bson file
 //
 
-class BsonFileSource : public SampleSource, Stats {
+class BsonFileSource : public SampleSource {
 
     scoped_array<char> buf;
     struct stat s;
     int at;
+    SpaceStats space;
+    bool loop;
 
 public:
 
-    BsonFileSource(string fn) : Stats("bson file source " + fn) {
+    BsonFileSource(string fn, bool loop = false) : space("bson file source " + fn) {
+        this->loop = loop;
         int fd = open(fn.c_str(), O_RDONLY);
         if (fd<0) err(fn);
         int rc = fstat(fd, &s);
@@ -699,60 +779,67 @@ public:
     }
 
     bool get_sample(BSONObj& sample) {
-        if (at < s.st_size) {
-            sample = BSONObj(buf.get()+at);
-            at += sample.objsize();
-            record_sample(1, sample.objsize());
-            return true;
-        } else {
-            return false;
+        if (at >= s.st_size) {
+            if (!loop)
+                return false;
+            at = 0;
         }
+        sample = BSONObj(buf.get()+at);
+        at += sample.objsize();
+        space.record_sample(1, sample.objsize());
+        return true;
     }        
 };
 
 
-class BsonFileSink : public SampleSink, Stats {
+class BsonFileSink : public SampleSink {
 
     int fd;
+    SpaceStats space;
 
 public:
 
-    BsonFileSink(string fn) : Stats("bson file sink " + fn) {
+    BsonFileSink(string fn) : space("bson file sink " + fn) {
         fd = open(fn.c_str(), O_CREAT | O_WRONLY | O_TRUNC, 0666);
         if (fd<0) err(fn);
     }
 
-    BsonFileSink(int fd) : Stats("bson file sink fd=" + to_string(fd)) {
+    BsonFileSink(int fd) : space("bson file sink fd=" + to_string(fd)) {
         this->fd = fd;
     }
 
     void put_sample(BSONObj& sample) {
         int n = write(fd, sample.objdata(), sample.objsize());
         if (n!=sample.objsize()) err("write");
-        record_sample(1, sample.objsize());
+        space.record_sample(1, sample.objsize());
     }
 };
 
 
-class JsonFileSink : public SampleSink, Stats {
+//
+//
+//
+
+class JsonFileSink : public SampleSink {
 
     ofstream file_out;
     ostream* out;
+    SpaceStats space;
 
 public:
 
-    JsonFileSink(string fn) : Stats("json file sink " + fn) {
+    JsonFileSink(string fn) : space("json file sink " + fn) {
         file_out.open(fn, ios::out);
         out = &file_out;
     }
 
-    JsonFileSink() : Stats("json stdout file sink") {
+    JsonFileSink() : space("json stdout file sink") {
         out = &cout;
     }
 
     void put_sample(BSONObj& sample) {
         *out << sample.jsonString() << endl;
-        record_sample(1, sample.objsize());
+        space.record_sample(1, sample.objsize());
     }
 };
 
@@ -762,27 +849,35 @@ public:
 // get samples live from a mongodb source
 //
 
-class LiveSource : public SampleSource, Stats {
+void serverStatus(DBClientBase& c, BSONObj& result) {
+    BSONObj cmd = BSON(
+        "serverStatus" << 1 <<
+        "tcmalloc" << 1
+    );
+    int rc = c.runCommand("local", cmd, result);
+    if (!rc)
+        err("serverStatus", false);
+}
+
+class LiveSource : public SampleSource {
 
     DBClientConnection c;
+    SpaceStats space;
 
 public:
 
-    LiveSource(string spec = "localhost") : Stats("live source " + spec) {
+    LiveSource(string spec = "localhost") : space("live source " + spec) {
         client::initialize();
         c.connect(spec); // xxx error handling
     }
 
     bool get_sample(BSONObj& sample) {
-        BSONObjBuilder b;
-        b.appendNumber("serverStatus", 1);
-        b.appendNumber("tcmalloc", 1);
-        int rc = c.runCommand("local", b.obj(), sample);
-        // xxx error handling
-        record_sample(1, sample.objsize());
+        serverStatus(c, sample);
+        space.record_sample(1, sample.objsize());
         return true;
     }
 };
+
 
 //
 // put compressed samples to a mongodb collection
@@ -792,25 +887,31 @@ public:
 // capped collection is created if it doesn't already exist
 //
 
-class LiveSink : public SampleSink, DataSink, Stats {
+class LiveSink : public SampleSink, DataSink {
 
     DBClientBase *c;
     string ns;
     scoped_ptr<Compress> compress;
+    SpaceStats space;
+    Date_t last_id;
 
-    void put_compressed(char* buf, char* end) {
+    void push_data(char* buf, char* end) {
         size_t sz = end - buf;
         BSONObjBuilder b;
-        b.appendDate("_id", now_ms());
+        Date_t _id = now_ms();
+        if (_id==last_id)
+            _id = last_id + 1;
+        last_id = _id;
+        b.appendDate("_id", _id);
         b.appendNumber("type", 0);
         b.appendBinData("data", sz, BinDataGeneral, buf);
         c->insert(ns, b.obj());
-        record_sample(0, sz);
+        space.record_sample(0, sz);
     };
 
 public:
 
-    LiveSink(string spec) : Stats("live sink " + spec) {
+    LiveSink(string spec) : space("live sink " + spec), last_id(0) {
 
         // parse and check spec s connection string
         string errmsg;
@@ -852,9 +953,59 @@ public:
   
     void put_sample(BSONObj& sample) {
         compress->put_sample(sample);
-        record_sample(1, 0);
+        space.record_sample(1, 0);
     }
 };
+
+
+//
+//
+//
+
+void time_ping(string spec, int n, double delay) {
+
+    // parse and check spec s connection string
+    string errmsg;
+    ConnectionString cs = ConnectionString::parse(spec, errmsg);
+    if (!cs.isValid())
+        err(spec + ": " + errmsg, false);
+
+    // connect
+    client::initialize();
+    DBClientBase *c = cs.connect(errmsg);
+    if (!c)
+        err(errmsg, false);
+
+    BSONObj result;
+    TimeStats serverStatus_timer("serverStatus");
+    TimeStats ping_timer("ping");
+
+    for (int i=0; i<n; i++) {
+
+        // serverStatus
+        serverStatus_timer.start();
+        serverStatus(*c, result);
+        serverStatus_timer.stop();
+
+        // ping
+        /*
+        ping_timer.start();
+        int rc = c->simpleCommand("local", &result, "ping");
+        ping_timer.stop();
+        if (!rc)
+            err("ping");
+        */
+
+        // sleep if requested
+        if (delay)
+            sleep(delay);
+    }
+
+    int t_ss_less_ping_us_avg = int((serverStatus_timer.avg() - ping_timer.avg()) * 1e6);
+    int t_ss_less_ping_us_min = int((serverStatus_timer.min() - ping_timer.min()) * 1e6);
+    cout << "serverStatus less ping " << t_ss_less_ping_us_min << " µs min, " << 
+         t_ss_less_ping_us_avg << " µs avg" << endl;
+}
 
 
 //
@@ -867,12 +1018,15 @@ int main(int argc, char* argv[]) {
     string source_spec;
     string sink_spec;
     float delay = 0.0;
+    string ping_spec;
 
     for (int i=1; i<argc; i++) {
         if (argv[i]==string("-n"))
             n = atoi(argv[++i]);
         else if (argv[i]==string("-t"))
-            delay = atof(argv[++i]);
+           delay = atof(argv[++i]);
+        else if (argv[i]==string("-p"))
+            ping_spec = argv[++i];
         else if (source_spec.empty())
             source_spec = argv[i];
         else if (sink_spec.empty())
@@ -881,12 +1035,17 @@ int main(int argc, char* argv[]) {
             err(string("unrecognized arg ") + argv[i], false);
     }
 
+    if (!ping_spec.empty()) {
+        time_ping(ping_spec, n, delay);
+        return 0;
+    }
+
     scoped_ptr<SampleSource> source;
     scoped_ptr<SampleSink> sink;
 
     // source
     if (boost::ends_with(source_spec, ".bson")) {
-        source.reset(new BsonFileSource(source_spec));
+        source.reset(new BsonFileSource(source_spec, n>0));
     } else if (boost::starts_with(source_spec, "mongodb:")) {
         string host = source_spec.substr(8);
         source.reset(new LiveSource(host));
@@ -911,12 +1070,19 @@ int main(int argc, char* argv[]) {
         sink.reset((new CompressedFileSink(sink_spec)));
     }
 
+    TimeStats get_sample_timer("get_sample");
+    TimeStats overall_timer("overall");
+
     // shovel samples
     BSONObj sample;
     for (int i=0; n==0 || i<n; i++) {
+        overall_timer.start();
+        get_sample_timer.start();
         if (!source->get_sample(sample))
             break;
+        get_sample_timer.stop();
         sink->put_sample(sample);
+        overall_timer.stop();
         if (delay)
             sleep(delay);
     }
