@@ -212,10 +212,10 @@ ss-mmapv1-20k-mixed-600.bson: 3.0.0, mmapv1, ~20 k mixed ops/s, 600 samples @ 1 
                            sample   redn   ratio  MB/day
     
     raw bson                11650    ---     ---    816
-    delta                   34577    70%     3:1    242
-    delta+zlib                118    97%    99:1    8.3
-    delta+zlib+pack            98    17%   119:1    6.9
-    delta+zlib+pack+run        95     3%   123:1    6.7
+    delta                    3409    71%     3:1    239
+    delta+zlib                112    97%   104:1    7.8
+    delta+zlib+pack            92    18%   127:1    6.4
+    delta+zlib+pack+run        89     3%   131:1    6.2
 
 ss-wt-idle-600.bson: 3.0.0, wt, idle, 600 samples @ 1 sample/s, 300 samples per chunk
 
@@ -231,4 +231,56 @@ ss-wt-idle-600.bson: 3.0.0, wt, idle, 600 samples @ 1 sample/s, 300 samples per 
 
 ### Time cost
 
+CPU cost of obtaining, compressing, and storing samples was estimated
+using the POC implementation described above. Measurements were taking
+using MongoDB 3.0.1 on OS/X on a MacBook Pro.
+
+These measurements were also confirmed by a more complicated procedure
+involving instrumenting the POC implemenation with timers; only the
+simpler methodology is presented here.
+
+To estimate the CPU requirements the system time command was used to
+measure mongod and the POC client CPU utilization while performing
+various tests. In most cases system CPU utilization was excluded
+because that mostly represents time related to the client-server
+implementation that would not be relevant in an integrated
+implementation.
+
+* To estimate CPU time used to process serverStatus, the total user
+  CPU time used by mongod while processing 1M serverStatus commands
+  was measured. This may overestimate the cost as it includes some
+  message processing time that would not be relevant in an integrated
+  implementation.
+
+* To estimate CPU time used to process (compress and store) chunks of
+  samples, total CPU time of mongod and of the client were measured
+  while processing 1M samples. The sample data in this case was
+  pre-recorded data.
+
+** The user CPU time used by the client represents the time required
+   to compress the chunks of samples.
+
+** The CPU time used by mongod represents the time required to store
+   the samples. System CPU time was included in this case because some
+   system CPU time is used by WT in normal operation, but in any case
+   the total CPU time for storing the samples was negligible.
+
+Results:
+
+
+                             wiredTiger    mmapv1
+    serverStatus (mongod)       165 µs      56 µs
+    compress chunks (client)     63 µs      46 µs
+    store chunks (mongod)         2 µs       1 µs
+    total per sample            230 µs     103 µs
+
+
+### Summary of results
+
+Assuming the worst case of the scenarios measured, a rate of 1 sample per second would
+
+* Require about 0.2% or so of a single CPU core, or (much) less than
+  0.1% of the total CPU resources of a typical machine.
+
+* Require about 100 MB per week of storage.
 
