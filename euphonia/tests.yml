@@ -1,4 +1,3 @@
----
   - 
     active: true
     comment: "You have an even number of voting nodes in your replica set. This can lead to election issues in the event of a primary node failure. Please consider adding an additional voting node to your replica set(s) to ensure an odd number of votes."
@@ -362,7 +361,7 @@
     src: "mmsgroupreports"
     collections: ["Startup Warnings"]
   - 
-    active: true
+    active: false
     comment: "You have at least one MongoS instance running with the --noAutoSplit option, which is not recommended for production deployments."
     header: "MongoDB Best Practices: Auto Split"
     name: "MongosNoAutoSplit"
@@ -370,7 +369,7 @@
     src: "pings"
     collections: ["Best Practices"]
   - 
-    active: true
+    active: false
     comment: "You have a large amount of non-mapped memory, which means you are doing a lot of in-memory work"
     header: "MongoDB: Large Non-Mapped Memory"
     name: "LargeNonMappedMemory"
@@ -409,3 +408,35 @@
     priority: "medium"
     src: "pings"
     collections: ["Performance","Best Practices"]
+  - 
+    active: false
+    comment: "You have a large proportion of failed queries, more than 0.5%"
+    header: "MongoDB Cursor Timeout"
+    name: "TimedoutCursors"
+    priority: "medium"
+    src: "pings"
+    collections: ["Performance"]
+  - 
+    active: false
+    comment: "You have a delayed secondary and it should be hidden with priority=0"
+    header: "MongoDB Best Practices: Delayed Secondaries hidden and priority=0"
+    name: "VisibleDelayedSecondaries"
+    priority: "medium"
+    src: "pings"
+    collections: ["Best Practices"]
+  - 
+    active: false
+    comment: "You have a large ratio of global locks"
+    header: "MongoDB High Number of Global Locks"
+    name: "HighGlobalLock"
+    priority: "medium"
+    src: "pings"
+    collections: ["Performance"]
+  - 
+    active: false
+    comment: "You have a sharp increase in index misses ratio"
+    header: "MongoDB Index Miss Ratio Sharp Increase"
+    name: "IndexMissIncrease"
+    priority: "medium"
+    src: "pings"
+    collections: ["Performance"]

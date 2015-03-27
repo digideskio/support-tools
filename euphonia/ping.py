@@ -2,7 +2,10 @@ import logging
 
 
 class Ping:
-    """ A host's last ping document """
+    """ 
+    A host's last ping document 
+    Getters are sorted alphabetically by the name of the subdocument in the DB
+    """
     def __init__(self, doc):
         self.doc = doc
 
@@ -28,6 +31,9 @@ class Ping:
 
     def getCmdLineOpts(self):
         return self.getPingSubdoc('cmdLineOpts')
+
+    def getArgv(self):
+        return self.getPingSubdoc('cmdLineOpts.argv')
 
     def getConfigCollections(self):
         return self.getPingSubdoc('configCollections')
@@ -77,6 +83,12 @@ class Ping:
     def getLocalSystemReplSet(self):
         return self.getPingSubdoc('localSystemReplSet')
 
+    def getReplNodeMembers(self):
+        return self.getPingSubdoc('localSystemReplSet.members')
+
+    def getReplSetVersion(self):
+        return self.getPingSubdoc('localSystemReplSet.version')
+
     def getLocks(self):
         return self.getPingSubdoc('locks')
 
@@ -98,6 +110,9 @@ class Ping:
     def getServerStatus(self):
         return self.getPingSubdoc('serverStatus')
 
+    def getPingTime(self):
+        return self.getPingSubdoc('serverStatus.localTime')
+
     def getServerStatusExecTimeMS(self):
         return self.getPingSubdoc('serverStatusExecTimeMs')
 
@@ -107,11 +122,11 @@ class Ping:
     def getStartupWarnings(self):
         return self.getPingSubdoc('startupWarnings')
 
-    def getArgv(self):
-        return self.getPingSubdoc('cmdLineOpts.argv')
-
     def getCurrentConnections(self):
         return self.getPingSubdoc('serverStatus.connections.current')
+
+    def getTimedoutCursorCount(self):
+        return self.getPingSubdoc('serverStatus.cursors.timedOut')
 
     def getMappedMemory(self):
         return self.getPingSubdoc('serverStatus.mem.mapped')
@@ -122,8 +137,27 @@ class Ping:
     def getVirtualMemory(self):
         return self.getPingSubdoc('serverStatus.mem.virtual')
 
+    def getQueryOpCount(self):
+        return self.getPingSubdoc('serverStatus.opcounters.query')
+
+    def getGlobalLockTotalTime(self):
+        return self.getPingSubdoc('serverStatus.globalLock.totalTime')
+
+    def getGlobalLockLockTime(self):
+        return self.getPingSubdoc('serverStatus.globalLock.lockTime')
+    
+    def getBtreeIndexMissRatio(self):
+        return self.getPingSubdoc('serverStatus.indexCounters.btree.missRatio')
+
+    def getDbCount(self):
+        # TODO: fill this out once the DB count data becomes available
+        return 1
+
     def getHostId(self):
         return self.doc['hid']
+
+    def getId(self):
+        return self.doc['_id']
 
     def isPrimary(self):
         doc = self.getIsMaster()
