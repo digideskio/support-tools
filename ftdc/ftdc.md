@@ -12,10 +12,10 @@ Copy samples from source to sink.
 * -n N - number of samples to copy. Default is to copy until source is
   exhausted, or indefinitely in the case of a live source.
 * -t T - delay in floating point seconds between samples. Default is
-   0.
+   0 for recorded sources, 1 in the case of a live source.
 
 
-Source may be one of:
+*Source may be one of:*
 
 * *.bson - a file containing a sequence of uncompressed samples as
    BSON documents.
@@ -26,14 +26,14 @@ Source may be one of:
 
 * mongodb://host[:port]/?ns=NS - specifies a mongodb instance and
   collection to read compressed samples from. The samples are
-  decompressed before being sent to the sink. **Not implemented**
+  decompressed before being sent to the sink.
 
 * *.ftdc - a file containing compressed samples, produced by
    specifying this file as a sink to a previous ftdc command. This
    defines a simple container of compressed samples and is intended
    for testing purposes only.
 
-Sink may be one of
+*Sink may be one of:*
 
 * *.bson - a file containing a sequence of uncompressed samples as
    BSON documents.
