@@ -15,7 +15,7 @@ Copy samples from source to sink.
    0 for recorded sources, 1 in the case of a live source.
 
 
-*Source may be one of:*
+**Source may be one of:**
 
 * *.bson - a file containing a sequence of uncompressed samples as
    BSON documents.
@@ -33,7 +33,7 @@ Copy samples from source to sink.
    defines a simple container of compressed samples and is intended
    for testing purposes only.
 
-*Sink may be one of:*
+**Sink may be one of:**
 
 * *.bson - a file containing a sequence of uncompressed samples as
    BSON documents.
