@@ -190,7 +190,49 @@ wrapped in a BinData field of a document, one document per chunk.
 
 ### POC implementation
 
-A proof-of-concept implementation ...
+A proof-of-concept implementation is available.
+* Source is in [ftdc.cpp](ftdc.cpp).
+* For compilation instructions see the compile() function in [test.sh](test.sh).
+* Command is documented at [ftdc.md](ftdc.md).
+
+The ftdc command copies samples from a source to a sink as specified
+on the command line, doing compression or decompression as necessary,
+depending on the type of the source and sink.
+
+Supported sources include
+* uncompressed serverStatus samples obtained live from a mongod instance
+* compressed samples from a MongoDB collection (for example local.ftdc)
+* pre-recorded uncompressed BSON samples from a .bson file
+* compressed samples from a file, for testing purposes.
+
+Supported sinks include
+* compressed samples stored to a MongoDB collection (for example, a local.ftdc capped collection)
+* uncompressed BSON samples stored to a .bson file
+* uncompressed JSON samples stored to a .json file
+* compressed samples stored to a file, for testing purposes.
+* null sink, for compression and decompression measurement purposes
+
+The following two examples illustrate use of the ftdc command to
+simulate a built-in FTDC capability by first obtaining serverStatus
+samples from a mongod process and storing them in compressed form in a
+MongoDB capped collection, and then extracting, decompressing, and
+visualizing the samples.
+
+*Collection the samples* Obtain samples by executing serverStatus at the specified
+host once per second until terminated, and then compressing and
+storing them in local.ftdc. If local.ftdc does not exist it will be
+created as a 100 MB capped collection.
+
+    ftdc mongodb://host mongodb://host
+
+*Extracting and visualizing the samples* Read all compressed samples
+from local.ftdc on the specified host, decompress them, and store them
+as JSON documents in ss.json. Then visualize the samples using the
+[timeseries tool](https://github.com/10gen/support-tools/tree/master/timeseries).
+
+    ftdc mongodb://host/?ns=local.ftdc ss.json
+    python timeseries.py ss:ss.json >ts.html
+    open /a "Google Chrome" ts.html
 
 
 ### Space cost
