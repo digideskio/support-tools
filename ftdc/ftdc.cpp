@@ -861,18 +861,28 @@ void serverStatus(DBClientBase& c, BSONObj& result) {
 
 class LiveSource : public SampleSource {
 
-    DBClientConnection c;
+    scoped_ptr<DBClientBase> c;
     SpaceStats space;
 
 public:
 
     LiveSource(string spec = "localhost") : space("live source " + spec) {
+
+        // parse and check spec connection string
+        string errmsg;
+        ConnectionString cs = ConnectionString::parse(spec, errmsg);
+        if (!cs.isValid())
+            err(spec + ": " + errmsg, false);
+
+        // connect
         client::initialize();
-        c.connect(spec); // xxx error handling
+        c.reset(cs.connect(errmsg));
+        if (!c)
+            err(errmsg, false);
     }
 
     bool get_sample(BSONObj& sample) {
-        serverStatus(c, sample);
+        serverStatus(*c, sample);
         space.record_sample(1, sample.objsize());
         return true;
     }
@@ -889,7 +899,7 @@ public:
 
 class LiveSink : public SampleSink, DataSink {
 
-    DBClientBase *c;
+    scoped_ptr<DBClientBase> c;
     string ns;
     scoped_ptr<Compress> compress;
     SpaceStats space;
@@ -913,7 +923,7 @@ public:
 
     LiveSink(string spec) : space("live sink " + spec), last_id(0) {
 
-        // parse and check spec s connection string
+        // parse and check spec connection string
         string errmsg;
         ConnectionString cs = ConnectionString::parse(spec, errmsg);
         if (!cs.isValid())
@@ -929,7 +939,7 @@ public:
 
         // connect
         client::initialize();
-        c = cs.connect(errmsg);
+        c.reset(cs.connect(errmsg));
         if (!c)
             err(errmsg, false);
 
@@ -956,6 +966,66 @@ public:
         space.record_sample(1, 0);
     }
 };
+
+//
+//
+//
+
+class CompressedCollectionSource : public SampleSource, DataSource {
+
+    scoped_ptr<DBClientBase> c;
+    string ns;
+    auto_ptr<DBClientCursor> cursor;
+    scoped_ptr<Decompress> decompress;
+    
+    SpaceStats space;
+
+    virtual bool get_compressed(vector<char>& compressed) {
+        if (!cursor->more())
+            return false;
+        int len;
+        const char* data = cursor->next()["data"].binData(len); // xxx error checkign
+        compressed.assign(data, data+len);
+        space.record_sample(0, len);
+        return true;
+    }
+    
+public:
+
+    CompressedCollectionSource(string spec) : space("compressed collection source " + spec) {
+
+        // parse and check spec connection string
+        string errmsg;
+        ConnectionString cs = ConnectionString::parse(spec, errmsg);
+        if (!cs.isValid())
+            err(spec + ": " + errmsg, false);
+
+        // ns - default is local.ftdc
+        BSONElement _ns = cs.getOptions()["ns"];
+        ns = !_ns.eoo()? _ns.String() : "local.ftdc";
+
+        // connect
+        client::initialize();
+        c.reset(cs.connect(errmsg));
+        if (!c)
+            err(errmsg, false);
+
+        // initialize cursor
+        cursor = c->query(ns, BSONObj());
+
+        // initialize decompressor
+        decompress.reset(new Decompress(this));
+    }
+
+    bool get_sample(BSONObj& sample) {
+        bool rc = decompress->get_sample(sample);
+        if (rc)
+            space.record_sample(1, 0);
+        return rc;
+    }
+};
+
+
 
 
 //
@@ -1044,15 +1114,20 @@ int main(int argc, char* argv[]) {
     scoped_ptr<SampleSink> sink;
 
     // source
-    if (boost::ends_with(source_spec, ".bson")) {
+    if (ends_with(source_spec, ".bson")) {
         source.reset(new BsonFileSource(source_spec, n>0));
     } else if (boost::starts_with(source_spec, "mongodb:")) {
-        string host = source_spec.substr(8);
-        source.reset(new LiveSource(host));
-        if (!delay)
-            delay = 1.0;
-    } else {
+        if (source_spec.find("?ns") != string::npos) {
+            source.reset(new CompressedCollectionSource(source_spec));
+        } else {
+            source.reset(new LiveSource(source_spec));
+            if (!delay)
+                delay = 1.0;
+        }
+    } else if (ends_with(source_spec, ".ftdc")) {
         source.reset(new CompressedFileSource(source_spec));
+    } else {
+        err(string("unrecognized source ") + source_spec, false);
     }
 
     // sink
@@ -1066,8 +1141,10 @@ int main(int argc, char* argv[]) {
         sink.reset(new CompressedFileSink());
     } else if (boost::starts_with(sink_spec, "mongodb:")) {
         sink.reset(new LiveSink(sink_spec));
-    } else {
+    } else if (ends_with(sink_spec, ".ftdc")) {
         sink.reset((new CompressedFileSink(sink_spec)));
+    } else {
+        err(string("unrecognized sink ") + sink_spec, false);
     }
 
     TimeStats get_sample_timer("get_sample");
