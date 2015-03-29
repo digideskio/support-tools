@@ -18,6 +18,7 @@
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
+#include <signal.h>
 
 using namespace std;
 using namespace mongo;
@@ -407,7 +408,7 @@ public:
         if (first_sample.isEmpty()) {
 
             // first sample: remember it, and allocate space for deltas
-            first_sample = curr_sample;
+            first_sample = curr_sample.getOwned();
             n_metrics = curr_metrics->size();
             deltas.reset(new DELTA[n_metrics * max_deltas]);
             n_deltas = 0;
@@ -955,7 +956,7 @@ public:
         );
         BSONObj info;
         c->runCommand(db, cmd, info);
-        cout << "creating " << db << "." << coll << ": " << info << endl;
+        cerr << "creating " << db << "." << coll << ": " << info << endl;
 
         // initialize compressor with ourselves as data sink
         compress.reset(new Compress(this));
@@ -1073,8 +1074,19 @@ void time_ping(string spec, int n, double delay) {
 
     int t_ss_less_ping_us_avg = int((serverStatus_timer.avg() - ping_timer.avg()) * 1e6);
     int t_ss_less_ping_us_min = int((serverStatus_timer.min() - ping_timer.min()) * 1e6);
-    cout << "serverStatus less ping " << t_ss_less_ping_us_min << " µs min, " << 
+    cerr << "serverStatus less ping " << t_ss_less_ping_us_min << " µs min, " << 
          t_ss_less_ping_us_avg << " µs avg" << endl;
+}
+
+//
+// signal handling
+//
+
+static bool stop = false;
+
+void signal_exit(int s) {
+    cerr << "interrupt" << endl;
+    stop = true;
 }
 
 
@@ -1150,9 +1162,12 @@ int main(int argc, char* argv[]) {
     TimeStats get_sample_timer("get_sample");
     TimeStats overall_timer("overall");
 
+    // clean exit on ^C
+    signal(SIGINT, signal_exit);
+
     // shovel samples
     BSONObj sample;
-    for (int i=0; n==0 || i<n; i++) {
+    for (int i=0; (n==0 || i<n) && !stop; i++) {
         overall_timer.start();
         get_sample_timer.start();
         if (!source->get_sample(sample))

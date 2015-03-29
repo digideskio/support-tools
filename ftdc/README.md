@@ -192,6 +192,7 @@ wrapped in a BinData field of a document, one document per chunk.
 
 A proof-of-concept implementation is available.
 * Source is in [ftdc.cpp](ftdc.cpp).
+* A statically linked Linux binary that should work on most distros is included as [ftdc.linux](ftdc.linux).
 * For compilation instructions see the compile() function in [test.sh](test.sh).
 * Command is documented at [ftdc.md](ftdc.md).
 

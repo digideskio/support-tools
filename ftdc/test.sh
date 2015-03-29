@@ -1,8 +1,9 @@
 function @echo {
     echo ">" $* >&2
     if ! "$@"; then
-        echo FAIL >&2
+        echo FAIL $* >&2
         result=FAIL
+        exit -1
     fi
 }
 
@@ -21,7 +22,7 @@ function compile {
         -I /usr/local/include -I /opt/local/include -L /usr/local/lib -L /opt/local/lib \
         -lmongoclient -lboost_system$mt -lboost_thread$mt -lboost_regex$mt \
         -lboost_date_time$mt -lboost_serialization$mt -lboost_filesystem$mt \
-        -lboost_iostreams$mt -lpthread -rdynamic
+        -lboost_iostreams$mt -lpthread  -lz -static -static-libgcc -static-libstdc++
 }
 
 function compare-bson {
