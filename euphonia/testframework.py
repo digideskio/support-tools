@@ -119,8 +119,8 @@ class TestFramework:
                 # Persist failures
                 doc = {'gid': g.groupId(), 'name': g.groupName(),
                        'src': self.src, 'test': testName,
-                       'ids': results[testName].get('ids', []),
-                       'nids': len(results[testName].get('ids', [])),
+                       'ids': results[testName]['payload']['ids'],
+                       'nids': len(results[testName]['payload']['ids']),
                        'score': g.testPriorityScores[g.tests[testName][
                            'priority']]}
 
