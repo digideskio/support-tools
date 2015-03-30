@@ -246,10 +246,10 @@ samples from a mongod process and storing them in compressed form in a
 MongoDB capped collection, and then extracting, decompressing, and
 visualizing the samples.
 
-*Collection the samples* Obtain samples by executing serverStatus at the specified
-host once per second until terminated, and then compressing and
-storing them in local.ftdc. If local.ftdc does not exist it will be
-created as a 100 MB capped collection.
+*Collecting the samples* Obtain samples by executing serverStatus at
+the specified host once per second until terminated, and then
+compressing and storing them in local.ftdc. If local.ftdc does not
+exist it will be created as a 100 MB capped collection.
 
     ftdc mongodb://host mongodb://host
 
@@ -318,7 +318,7 @@ Larger chunks result in a smaller number of bytes/sample, I believe
 for two reasons:
 
 * Fixed overheads, including general zlib overhead and the overhead of
-  the full sample are amortized over a larger number o fdelta samples.
+  the full sample are amortized over a larger number of delta samples.
 
 * The samples are transposed so that all samples for a given metric
   are adjacent. Since a given metric will tend to have similar deltas
@@ -439,11 +439,11 @@ Following related tooling is needed. Simplest approach is to keep
 these internal for now, possibly to be made public at some point.
 
 * [Timeseries visualization
-  tool|https://github.com/10gen/support-tools/tree/master/timeseries]. Provides
+  tool](https://github.com/10gen/support-tools/tree/master/timeseries). Provides
   support for visualizing decompressed ftdc serverStatus timeseries.
 
 * Utility for decompressing ftdc samples. The POC implementation
-  described above may sufficient for this for internal use.
+  described above may be sufficient for this for internal use.
 
 
 
