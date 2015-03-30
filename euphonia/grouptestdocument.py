@@ -112,16 +112,19 @@ class GroupTestDocument:
             fname = "test" + test
             try:
                 f = getattr(self.testsLibrary, fname)
-                self.logger.debug("Testing " + test + "...")
-                r = f(self)
-                if r['pass'] is True:
-                    self.logger.info("Passed!")
-                else:
-                    self.logger.info("Failed!")
-                return r
             except AttributeError as e:
                 print e
                 raise Exception(fname + " not defined")
+            self.logger.debug("Testing " + test + "...")
+            r = f(self)
+            if r['ok'] is True:
+                if r['payload']['pass'] is True:
+                    self.logger.debug("Passed!")
+                else:
+                    self.logger.debug("Failed!")
+            else:
+                self.logger.debug("Test " + test + " failed to execute.")
+            return r
         else:
             self.logger.exception(test + " not defined")
             raise Exception(test + " not defined")

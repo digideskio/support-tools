@@ -440,3 +440,24 @@
     priority: "medium"
     src: "pings"
     collections: ["Performance"]
+  -
+    active: false
+    comment: "You have mongods with vastly differing versions within your group. Because of potential incompatibilities, it is recommended you upgrade outdated versions to the most recent in your cluster"
+    header: "Differing Versions"
+    name: "VersionDifference"
+    priority: "medium"
+    src: "pings"
+  -
+    active: false
+    comment: "You have unusually high background flush averages which could be indicative of larger performance problems."
+    header: "BackgroundFlushAverage"
+    name: "BackgroundFlushAverage"
+    priority: "medium"
+    src: "pings"
+  -
+    active: false
+    comment: "You have unusually high background flush averages which could be indicative of larger performance problems."
+    header: "RecentBackgroundFlushAverage"
+    name: "RecentBackgroundFlushAverage"
+    priority: "medium"
+    src: "pings"
