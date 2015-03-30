@@ -3,22 +3,40 @@
 This document describes some requirements, a strawman design, and a
 proof-of-concept implementation for a full-time data capture facility
 for mongod. The goal is to capture time-series data useful for
-analyzing issues in production after the fact. A good analogy is the
-"flight data recorder" or "black box" used to capture real-time data
-on airplanes for later analysis.
+analyzing issues in production. A good analogy is the "flight data
+recorder" or "black box" used to capture real-time data on airplanes
+for later analysis.
 
-* The facility should be on full time, enabled by default.
+Goals and requirements:
+
+* Collect timeseries metrics in mongod to enable post-mortem RCA and
+  analysis of recurring problems for support and engineering team.
 
 * It should be unobtrusive, not noticeable to a customer until it is
   needed in the wake of an incident.
 
+* The facility should be on full time, enabled by default.
+
 * It should retain as much data for as long as possible, at as high a
-  sampling rate as possible, conistent with minimal performance and
+  sampling rate as possible, consistent with minimal performance and
   space impact.
 
 * It should have customer-configurable parameters to control sampling
   rate, classes of data captured, retention period, and space
   utilization.
+
+* Flexible schema: can accommodate platform specific and optional
+  measurements
+
+Rationale
+
+* RCA of production issues is very difficult without a full array of data
+
+* Currently, we have two primary sources of timeseries data: log files and MMS
+    * Log files do not capture everything and are often at too low verbosity
+    * MMS has a different set of goals and audience
+        * sampling rate is too coarse, retention of data too short.
+        * we have to support customers who cannot or will not use MMS
 
 
 ### Data to capture
@@ -42,6 +60,11 @@ on airplanes for later analysis.
 * Stack trace samples. Can be very useful for diagnosing issues,
   particularly mongod bugs. Potentially high volume of data, but see
   section below on minimizing storage.
+
+The initial proof of concept and strawman integration proposal
+addresses serverStatus only, which is sufficient for a wide range of
+problems. Possibility for enhancement in the future with additional
+data capture is tbd.
 
 ## Data capture format strawman design
 
@@ -78,7 +101,11 @@ time series monitoring data by mongod. Assumptions:
 
 This section describes the storage of timeseries data in a capped
 collection. If needed, a similar storage format for flat files could
-be devised. Following is a schematic overview of the capped collection
+be devised; a flat file could have some advantages, for example, it
+might be more feasible to store the last samples immediately preceding
+a crash in a flat file.
+
+Following is a schematic overview of the capped collection
 storage format:
 
     capped collection (ns "local.ftdc")
