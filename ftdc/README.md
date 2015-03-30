@@ -283,33 +283,33 @@ ss-wt-20k-mixed-600.bson: 3.0.0, wt, ~20 k mixed ops/s, 600 samples @ 1 sample/s
                            bytes/   incr    comp
                            sample   redn   ratio  MB/day
     
-    raw bson                16126    ---     ---    1130
-    delta                    4367    73%     4:1     306
-    delta+zlib                222    95%    73:1    15.6
-    delta+zlib+pack           181    18%    89:1    12.7
-    delta+zlib+pack+run       178     2%    91:1    12.5
+    raw bson                16126    ---     ---    1329
+    delta                    4367    73%     4:1     360
+    delta+zlib                222    95%    73:1    18.3
+    delta+zlib+pack           181    18%    89:1    15.0
+    delta+zlib+pack+run       178     2%    91:1    14.7
     
 ss-mmapv1-20k-mixed-600.bson: 3.0.0, mmapv1, ~20 k mixed ops/s, 600 samples @ 1 sample/s, 300 samples per chunk
 
                            bytes/   incr    comp
                            sample   redn   ratio  MB/day
     
-    raw bson                11650    ---     ---    816
-    delta                    3409    71%     3:1    239
-    delta+zlib                112    97%   104:1    7.8
-    delta+zlib+pack            92    18%   127:1    6.4
-    delta+zlib+pack+run        89     3%   131:1    6.2
+    raw bson                11650    ---     ---    960
+    delta                    3409    71%     3:1    281
+    delta+zlib                112    97%   104:1    9.2
+    delta+zlib+pack            92    18%   127:1    7.6
+    delta+zlib+pack+run        89     3%   131:1    7.3
 
 ss-wt-idle-600.bson: 3.0.0, wt, idle, 600 samples @ 1 sample/s, 300 samples per chunk
 
                            bytes/   incr    comp
                            sample   redn   ratio  MB/day
     
-    raw bson               16081     ---     ---   1126
-    delta                   4367     73%     4:1    306
-    delta+zlib                26     99%   619:1    1.8
-    delta+zlib+pack           20     23%   804:1    1.4
-    delta+zlib+pack+run       18     10%   893:1    1.3
+    raw bson               16081     ---     ---   1325
+    delta                   4367     73%     4:1    360
+    delta+zlib                26     99%   619:1    2.1
+    delta+zlib+pack           20     23%   804:1    1.6
+    delta+zlib+pack+run       18     10%   893:1    1.5
 
 
 ### Effect of chunk size on compression
