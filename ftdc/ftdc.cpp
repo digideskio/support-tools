@@ -375,7 +375,7 @@ private:
 
 public:
 
-    Compress(DataSink* sink, int max_samples = 300) :
+    Compress(DataSink* sink, int chunk_size = 300) :
         put_sample_timer("put sample"),
         push_compression_timer("compression"),
         push_data_timer("push data")
@@ -386,7 +386,7 @@ public:
 
         this->sink = sink;
 
-        max_deltas = max_samples - 1;
+        max_deltas = chunk_size - 1;
         n_metrics = 0;
         n_deltas = 0;
     }
@@ -701,14 +701,14 @@ class CompressedFileSink : public DataSink, public SampleSink {
     
 public:
 
-    CompressedFileSink(string fn = "") : space("compressed file sink " + fn) {
+    CompressedFileSink(string fn, int chunk_size) : space("compressed file sink " + fn) {
         if (!fn.empty()) {
             fd = open(fn.c_str(), O_CREAT | O_WRONLY | O_TRUNC, 0666);
             if (fd<0) err(fn);
         } else {
             fd = -1;
         }
-        compress.reset(new Compress(this));
+        compress.reset(new Compress(this, chunk_size));
     }
 
     void put_sample(BSONObj& sample) {
@@ -922,7 +922,7 @@ class LiveSink : public SampleSink, DataSink {
 
 public:
 
-    LiveSink(string spec) : space("live sink " + spec), last_id(0) {
+    LiveSink(string spec, int chunk_size) : space("live sink " + spec), last_id(0) {
 
         // parse and check spec connection string
         string errmsg;
@@ -959,7 +959,7 @@ public:
         cerr << "creating " << db << "." << coll << ": " << info << endl;
 
         // initialize compressor with ourselves as data sink
-        compress.reset(new Compress(this));
+        compress.reset(new Compress(this, chunk_size));
     }
   
     void put_sample(BSONObj& sample) {
@@ -1101,6 +1101,7 @@ int main(int argc, char* argv[]) {
     string sink_spec;
     float delay = 0.0;
     string ping_spec;
+    int chunk_size = 300;
 
     for (int i=1; i<argc; i++) {
         if (argv[i]==string("-n"))
@@ -1109,6 +1110,8 @@ int main(int argc, char* argv[]) {
            delay = atof(argv[++i]);
         else if (argv[i]==string("-p"))
             ping_spec = argv[++i];
+        else if (argv[i]==string("-c"))
+            chunk_size = atoi(argv[++i]);
         else if (source_spec.empty())
             source_spec = argv[i];
         else if (sink_spec.empty())
@@ -1149,12 +1152,10 @@ int main(int argc, char* argv[]) {
         sink.reset(new JsonFileSink(sink_spec));
     } else if (sink_spec=="-") {
         sink.reset(new JsonFileSink());
-    } else if (sink_spec=="-null") {
-        sink.reset(new CompressedFileSink());
     } else if (boost::starts_with(sink_spec, "mongodb:")) {
-        sink.reset(new LiveSink(sink_spec));
-    } else if (ends_with(sink_spec, ".ftdc")) {
-        sink.reset((new CompressedFileSink(sink_spec)));
+        sink.reset(new LiveSink(sink_spec, chunk_size));
+    } else if (ends_with(sink_spec, ".ftdc") || sink_spec=="") {
+        sink.reset((new CompressedFileSink(sink_spec, chunk_size)));
     } else {
         err(string("unrecognized sink ") + sink_spec, false);
     }

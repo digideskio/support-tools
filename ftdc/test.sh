@@ -53,8 +53,8 @@ function test-one {
     ofnd=/tmp/$bn-d.bson
     rm -f $ofn $ofn2 $ofnd /tmp/*.json
 
-    @echo ftdc $ifn $ofn   # compress it
-    @echo ftdc $ofn $ofn2  # compress again to check for idempotency
+    @echo ftdc -c 250 $ifn $ofn   # compress it
+    @echo ftdc -c 250 $ofn $ofn2  # compress again to check for idempotency
     @echo ftdc $ofn $ofnd  # decompress to compare against original
     
     echo === checking idempotency of compression >&2

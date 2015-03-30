@@ -3,16 +3,20 @@
 
 ## SYNOPSIS
 
-* ftdc [-n N] [-t T] source sink
+* ftdc [-n NSAMPLES] [-t DELAY] [-c CHUNKSIZE] source [sink]
 
 ## DESCRIPTION
 
 Copy samples from source to sink.
 
-* -n N - number of samples to copy. Default is to copy until source is
-  exhausted, or indefinitely in the case of a live source.
-* -t T - delay in floating point seconds between samples. Default is
-   0 for recorded sources, 1 in the case of a live source.
+* -n NSAMPLES - number of samples to copy. Default is to copy until
+  source is exhausted, or indefinitely in the case of a live source.
+
+* -t DELAY - delay in floating point seconds between samples. Default
+   is 0 for recorded sources, 1 in the case of a live source.
+
+* -c CHUNKSIZE - number of samples accumulated in each chunk. Default
+   is 300.
 
 
 **Source may be one of:**
@@ -38,12 +42,8 @@ Copy samples from source to sink.
 * *.bson - a file containing a sequence of uncompressed samples as
    BSON documents.
 
-* *.json - a file contianing a sequence of uncompressed samples as
+* *.json - a file containing a sequence of uncompressed samples as
    JSON documents.
-
-* -null - samples are discarded. This is useful for computing
-   compression or decompression statistics on a source and then
-   discarding the result.
 
 * mongodb://host[:port][?ns=NS][&sizeMB=MB] - compressed samples are
   stored in the specified collection in a mongod instance. If the
@@ -55,6 +55,11 @@ Copy samples from source to sink.
    specifying this file as a source in a subsequent ftdc command. This
    defines a simple container of compressed samples and is intended
    for testing purposes only.
+
+* if no sink is specfied samples are collected and chunks are
+  compressed and then discarded. This is useful for computing
+  compression or decompression statistics on a source and then
+  discarding the result.
 
 
 
