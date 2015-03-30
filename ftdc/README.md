@@ -238,6 +238,19 @@ as JSON documents in ss.json. Then visualize the samples using the
 
 ### Space cost
 
+Space requirements and compression ratios were measured on three data
+sets collected while running workloads:
+
+* A mixed workload of about 20 k ops/s running under WiredTiger
+
+* The same mixed workload running under mmapv1. Space requirements are
+  less for mmapv1 because it collects fewer metrics.
+
+* An idle mongod under WiredTiger. Space requirements drop
+  dramatically for an idle workload because most of the deltas are 0.
+
+Details follow:
+
 ss-wt-20k-mixed-600.bson: 3.0.0, wt, ~20 k mixed ops/s, 600 samples @ 1 sample/s, 300 samples per chunk
 
                            bytes/   incr    comp
@@ -270,6 +283,48 @@ ss-wt-idle-600.bson: 3.0.0, wt, idle, 600 samples @ 1 sample/s, 300 samples per 
     delta+zlib                26     99%   619:1    1.8
     delta+zlib+pack           20     23%   804:1    1.4
     delta+zlib+pack+run       18     10%   893:1    1.3
+
+
+### Effect of chunk size on compression
+
+Larger chunks result in a smaller number of bytes/sample, I believe
+for two reasons:
+
+* Fixed overheads, including general zlib overhead and the overhead of
+  the full sample are amortized over a larger number o fdelta samples.
+
+* The samples are transposed so that all samples for a given metric
+  are adjacent. Since a given metric will tend to have similar deltas
+  from one sample to the next, a larger chunk therefore results in
+  longer runs of similar sample deltas.
+
+The effect of chunk size on compression was measured using the same
+three sample data sets described in the preceding section.
+
+            ----- bytes/sample ----
+    chunk     WT     mmapv1     WT
+    size    20kop/s  20kop/s   idle
+   
+      60      251      138      80
+     120      207      101      41
+     300      178       89      18
+     600      168       44      10
+
+While a larger chunk size decreases storage requirements due to better
+compression, it has the drawback that more samples may be lost in case
+of a crash. A chunk size of 300 (5 minutes at 1 sample per second) was
+chosen for the remainder of the tests.
+
+A more complicated strategy for managing chunks is possible: the last
+chunk can be updated more frequently - for example, every 30 seconds -
+to reduce the number of samples lost in case of a crash. Then when a
+certain number of samples - say 300 - have been accumulated in a
+chunk, an new chunk can be started, to keep the chunk from growing in
+size indefinitely. This strategy has not been implemented yet; the
+time cost would need to be evaluated.
+
+In addition, it may be possible to attempt to write the last sample
+chunk on abort or segfault.
 
 
 ### Time cost
