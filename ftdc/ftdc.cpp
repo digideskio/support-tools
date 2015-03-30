@@ -56,214 +56,6 @@ void err(string s, bool with_errno=true) {
     exit(-1);
 }
 
-
-//
-// basic types
-//
-
-typedef int64_t METRIC;
-
-typedef int64_t DELTA;
-//typedef int64_t DELTA;
-//typedef int32_t DELTA;
-//typedef int16_t DELTA;
-
-//
-// options
-//
-
-#ifndef NO_COMP
-int z_level = 6;
-//int z_level = 9;
-#else
-int z_level = 0;
-#endif
-
-#ifndef NO_PACK
-template<class> struct PACK;
-typedef PACK<char> pack;
-#else
-struct NOPACK;
-typedef NOPACK pack;
-#endif
-
-#ifndef NO_RUN
-static const bool run_length = true;
-#else
-static const bool run_length = false;
-#endif
-
-//
-//
-//
-
-void extract_metrics(const BSONObj& ref, const BSONObj& curr, vector<METRIC>& metrics, bool& matches) {
-
-    BSONObjIterator i_curr(curr);
-    BSONObjIterator i_ref(ref);
-
-    while (i_curr.more()) {
-
-        if (matches && !i_ref.more()) {
-            //cerr << "!i_ref.more()" << endl;
-            //cerr << "ref = " << ref << endl;
-            //cerr << "curr = " << curr << endl;
-            matches = false;
-        }
-
-        BSONElement e_curr = i_curr.next();
-        BSONElement e_ref = matches? i_ref.next() : BSONElement();
-
-        if (matches) {
-            if (strcmp(e_ref.fieldName(), e_curr.fieldName())!=0 ) {
-                cerr << e_ref.fieldName() << " " << e_curr.fieldName() << endl;
-                matches = false;
-            }
-            if ((e_curr.type() != e_ref.type()) && (e_curr.isNumber() != e_ref.isNumber())) {
-                cerr << e_ref.fieldName() << " " <<  e_ref.type() << " " << e_curr.type() << endl;
-                matches = false;
-            }
-        }
-
-        switch (e_curr.type()) {
-
-        case NumberDouble:
-        case NumberInt:
-        case NumberLong:
-            metrics.push_back(e_curr.numberLong());
-            break;
-
-        case Bool:
-            metrics.push_back(e_curr.Bool());
-            break;
-
-        case Date:
-            metrics.push_back(e_curr.Date());
-            break;
-
-        case Object:
-            extract_metrics(matches? e_ref.Obj() : BSONObj(), e_curr.Obj(), metrics, matches);
-            break;
-
-        case jstOID:
-        case String:
-            // ignore
-            break;
-
-        default:
-            if (matches && e_curr != e_ref) {
-                cerr << "e_curr != e_ref" << endl;
-                matches = false;
-            }
-            break;
-        }
-
-    }
-
-    if (matches && i_ref.more())
-        matches = false;
-}
-
-void _insert_metrics(const BSONObj& first, BSONObjBuilder& b, vector<METRIC>& metrics, int& at) {
-
-    BSONObjIterator i(first);
-    while (i.more()) {
-
-        BSONElement e = i.next();
-
-        switch (e.type()) {
-
-        case NumberDouble:
-        case NumberInt:
-        case NumberLong:
-            b.append(e.fieldName(), (long long)metrics[at++]);
-            break;
-
-        case Bool:
-            b.append(e.fieldName(), (bool)metrics[at++]);
-            break;
-
-        case Date:
-            b.append(e.fieldName(), Date_t(metrics[at++]));
-            break;
-
-        case Object: {
-            BSONObjBuilder sub(b.subobjStart(e.fieldName()));
-            _insert_metrics(e.Obj(), sub, metrics, at);
-            break;
-        }
-
-        default:
-            b.append(e);
-            break;
-        }
-    }
-}
-
-BSONObj insert_metrics(BSONObj& first, vector<METRIC>& metrics) {
-    int at = 0;
-    BSONObjBuilder b;
-    _insert_metrics(first, b, metrics, at);
-    return b.obj();
-}
-
-
-//
-//
-//
-
-struct NOPACK {
-
-    static const int max = sizeof(DELTA);
-
-    static void pack(char*& p, DELTA i) {
-        *(DELTA*)p = i;
-        p += sizeof(DELTA);
-    }
-
-    static void unpack(char*& p, DELTA& i) {
-        i = *(DELTA*)p;
-        p += sizeof(DELTA);
-    }
-};
-
-template<class T> struct PACK {
-
-    static const int shift = sizeof(T)*8 - 1; // 7
-    static const int more = 1 << shift; // 0x80
-    static const T mask = (T)~more; // 0x7f
-    static const int max = (sizeof(DELTA)*8 + shift-1) / shift * sizeof(T);
-
-    static void pack(char*& p, DELTA i) {
-        T* pp = (T*) p;
-        uint64_t u = (uint64_t) i;
-        while (u >= more) {
-            *pp++ = (u & mask) | more;
-            u >>= shift;
-        }
-        *pp++ = u & mask;
-        p = (char*) pp;
-    }
-
-    static void unpack(char*& p, DELTA& i) {
-        i = 0;
-        DELTA b;
-        int s = 0;
-        T* pp = (T*) p;
-        do {
-            b = *pp++;
-            i |= (b & mask) << s;
-            s += shift;
-        } while (b & more);
-        p = (char*) pp;
-    }
-};
-
-
-//
-//
-//
-
 class SpaceStats {
 
     string name;
@@ -342,19 +134,266 @@ public:
 
 
 //
-//
+// basic types
 //
 
+// metrics are represented as int64
+// this loses range from doubles and requires that they be ints
+// but avoids having to consider a change of numeric type a schema change
+typedef int64_t METRIC;
 
-class DataSink {
-public:
-    virtual void push_data(char* buf, char* end) = 0;
+// deltas are represented as int64 also
+// using a smaller type here doesn't help any if we are doing packing
+typedef int64_t DELTA;
+//typedef int64_t DELTA;
+//typedef int32_t DELTA;
+//typedef int16_t DELTA;
+
+
+//
+// options for measuring impact on compression
+//
+// NO_COMP - disable zlib compression
+// NO_PACK - disable packing deltas into variable-length ints
+// NO_RUN - disable rle of runs of 0s
+//
+
+#ifndef NO_COMP
+int z_level = 6;
+//int z_level = 9;
+#else
+int z_level = 0;
+#endif
+
+#ifndef NO_PACK
+template<class> struct PACK;
+typedef PACK<char> pack;
+#else
+struct NOPACK;
+typedef NOPACK pack;
+#endif
+
+#ifndef NO_RUN
+static const bool run_length = true;
+#else
+static const bool run_length = false;
+#endif
+
+
+//
+// PACK<T> packs an integer into a variable length integer coding
+// T - unit of packed result
+//
+
+template<class T> struct PACK {
+
+    static const int shift = sizeof(T)*8 - 1; // 7
+    static const int more = 1 << shift; // 0x80
+    static const T mask = (T)~more; // 0x7f
+    static const int max = (sizeof(DELTA)*8 + shift-1) / shift * sizeof(T);
+
+    // pack an integer
+    // i - integer to pack
+    // p - buffer to pack into
+    // on return p is advanced by length of packed result
+    static void pack(char*& p, DELTA i) {
+        T* pp = (T*) p;
+        uint64_t u = (uint64_t) i;
+        while (u >= more) {
+            *pp++ = (u & mask) | more;
+            u >>= shift;
+        }
+        *pp++ = u & mask;
+        p = (char*) pp;
+    }
+
+    // unpack an integer
+    // i - resulting unpacked integer
+    // p - buffer to unpack from
+    // on return p is advanced by length of packed input
+    static void unpack(char*& p, DELTA& i) {
+        i = 0;
+        DELTA b;
+        int s = 0;
+        T* pp = (T*) p;
+        do {
+            b = *pp++;
+            i |= (b & mask) << s;
+            s += shift;
+        } while (b & more);
+        p = (char*) pp;
+    }
 };
 
+struct NOPACK {
+
+    static const int max = sizeof(DELTA);
+
+    static void pack(char*& p, DELTA i) {
+        *(DELTA*)p = i;
+        p += sizeof(DELTA);
+    }
+
+    static void unpack(char*& p, DELTA& i) {
+        i = *(DELTA*)p;
+        p += sizeof(DELTA);
+    }
+};
+
+
+//
+// extract numeric metrics from a sample, while comparing schema against a reference sample
+//
+// ref - reference sample
+// curr - current sample to extract metrics from and compare with reference sample
+// metrics - fills this vector with extracted metrics
+// matches - returns true if schema of curr matces ref
+//
+
+void extract_metrics(const BSONObj& ref, const BSONObj& curr, vector<METRIC>& metrics, bool& matches) {
+
+    BSONObjIterator i_curr(curr);
+    BSONObjIterator i_ref(ref);
+
+    while (i_curr.more()) {
+
+        // schema mismatch if curr is longer than ref
+        if (matches && !i_ref.more())
+            matches = false;
+
+        BSONElement e_curr = i_curr.next();
+        BSONElement e_ref = matches? i_ref.next() : BSONElement();
+
+        if (matches) {
+
+            // check for matching field names
+            if (strcmp(e_ref.fieldName(), e_curr.fieldName())!=0 ) {
+                //cerr << e_ref.fieldName() << " " << e_curr.fieldName() << endl;
+                matches = false;
+            }
+
+            // check that types match, allowing any numeric type to match any other numeric type
+            // this looseness is necessary because some metrics use varying numeric types,
+            // and if that was considered a schema mismatch
+            // it would increase the number of reference samples required
+            if ((e_curr.type() != e_ref.type()) && (e_curr.isNumber() != e_ref.isNumber())) {
+                //cerr << e_ref.fieldName() << " " <<  e_ref.type() << " " << e_curr.type() << endl;
+                matches = false;
+            }
+        }
+
+        switch (e_curr.type()) {
+
+        // all numeric types are extracted as long (int64)
+        // this supports the loose schema matching mentioned above,
+        // but does create a range issue for doubles, and requires doubles to be integer
+        case NumberDouble:
+        case NumberInt:
+        case NumberLong:
+            metrics.push_back(e_curr.numberLong());
+            break;
+
+        case Bool:
+            metrics.push_back(e_curr.Bool());
+            break;
+
+        case Date:
+            metrics.push_back(e_curr.Date());
+            break;
+
+        case Object:
+            extract_metrics(matches? e_ref.Obj() : BSONObj(), e_curr.Obj(), metrics, matches);
+            break;
+
+        // strings and objectids are not captured in the delta samples
+        case jstOID:
+        case String:
+            break;
+
+        default:
+            if (matches && e_curr != e_ref) {
+                //cerr << "e_curr != e_ref" << endl;
+                matches = false;
+            }
+            break;
+        }
+
+    }
+
+    // schema mismatch if ref is longer than curr
+    if (matches && i_ref.more())
+        matches = false;
+}
+
+
+//
+// construct a sample from decompressed metrics following the schema of a reference sample
+//
+// ref - the reference sample
+// b - result following the schema of the reference sample will be constructed here
+// metrics - the decompressed metrics to insert into the result
+// at - current position in metrics
+//
+
+void _insert_metrics(const BSONObj& ref, BSONObjBuilder& b, vector<METRIC>& metrics, int& at) {
+
+    BSONObjIterator i(ref);
+    while (i.more()) {
+
+        BSONElement e = i.next();
+
+        switch (e.type()) {
+
+        case NumberDouble:
+        case NumberInt:
+        case NumberLong:
+            b.append(e.fieldName(), (long long)metrics[at++]);
+            break;
+
+        case Bool:
+            b.append(e.fieldName(), (bool)metrics[at++]);
+            break;
+
+        case Date:
+            b.append(e.fieldName(), Date_t(metrics[at++]));
+            break;
+
+        case Object: {
+            BSONObjBuilder sub(b.subobjStart(e.fieldName()));
+            _insert_metrics(e.Obj(), sub, metrics, at);
+            break;
+        }
+
+        default:
+            b.append(e);
+            break;
+        }
+    }
+}
+
+BSONObj insert_metrics(BSONObj& ref, vector<METRIC>& metrics) {
+    int at = 0;
+    BSONObjBuilder b;
+    _insert_metrics(ref, b, metrics, at);
+    return b.obj();
+}
+
+
+//
+// 
+//
+
+// Callback for each accumulated chunk
+class DataSink {
+public:
+    virtual void push_chunk(char* buf, char* end) = 0;
+};
+
+// Compress handles accumulating samples into chunks and compressing them
 class Compress {
 private:
 
-    BSONObj first_sample;
+    BSONObj ref;
 
     scoped_ptr<vector<METRIC> > prev_metrics;
     scoped_ptr<vector<METRIC> > curr_metrics;
@@ -371,70 +410,11 @@ private:
 
     TimeStats put_sample_timer; // put_sample_timer()
     TimeStats push_compression_timer; // compression portion of push()
-    TimeStats push_data_timer; // push_data()
-
-public:
-
-    Compress(DataSink* sink, int chunk_size = 300) :
-        put_sample_timer("put sample"),
-        push_compression_timer("compression"),
-        push_data_timer("push data")
-    {
-
-        prev_metrics.reset(new vector<METRIC>);
-        curr_metrics.reset(new vector<METRIC>);
-
-        this->sink = sink;
-
-        max_deltas = chunk_size - 1;
-        n_metrics = 0;
-        n_deltas = 0;
-    }
-
-    void put_sample(BSONObj curr_sample) {
-
-        // start timer for put_sample
-        put_sample_timer.start();
-
-        // get metrics from current sample
-        curr_metrics->clear();
-        bool matches = !first_sample.isEmpty();
-        extract_metrics(first_sample, curr_sample, *curr_metrics, matches);
-
-        // schema change, so can't use deltas; finish off what we have
-        if (!matches)
-            push();
-
-        if (first_sample.isEmpty()) {
-
-            // first sample: remember it, and allocate space for deltas
-            first_sample = curr_sample.getOwned();
-            n_metrics = curr_metrics->size();
-            deltas.reset(new DELTA[n_metrics * max_deltas]);
-            n_deltas = 0;
-
-        } else {
-
-            // not first sample - compute deltas
-            for (int i=0; i<n_metrics; i++)
-                deltas[n_deltas + i*max_deltas] = (*curr_metrics)[i] - (*prev_metrics)[i];
-            n_deltas += 1;
-        }
-
-        // push what we have if full
-        if (n_deltas==max_deltas)
-            push();
-
-        // swap current and previous metrics
-        boost::swap(curr_metrics, prev_metrics);
-
-        // finish timer
-        put_sample_timer.stop();
-    }
+    TimeStats push_chunk_timer; // push_chunk()
 
     void push() {
 
-        if (first_sample.isEmpty())
+        if (ref.isEmpty())
             return;
 
         // timer for compression portion
@@ -448,8 +428,8 @@ public:
         z->push(boost::iostreams::zlib_compressor(zlp));
         z->push(boost::iostreams::back_insert_device<vector<char> >(out));
 
-        // put first sample
-        z->sputn(first_sample.objdata(), first_sample.objsize());
+        // put ref sample
+        z->sputn(ref.objdata(), ref.objsize());
 
         // deltas if there are any
         z->sputn((const char *)&n_deltas, sizeof(n_deltas));
@@ -497,9 +477,9 @@ public:
 
         // return data to caller if requested
         if (sink) {
-            push_data_timer.start();
-            sink->push_data(out.data(), out.data() + out.size());
-            push_data_timer.stop();
+            push_chunk_timer.start();
+            sink->push_chunk(out.data(), out.data() + out.size());
+            push_chunk_timer.stop();
         }
 
         // stats
@@ -508,9 +488,77 @@ public:
              (out.size() / ns) << " bytes/sample" << endl;
 
         // reset
-        first_sample = BSONObj();
+        ref = BSONObj();
         n_deltas = 0;
 
+    }
+
+public:
+
+    //
+    // Compress handles accumulating samples into chunks and compressing them
+    // sink - callback for each compressed chunk
+    // chunk_size - maximum number of samples per chunk
+    //
+    Compress(DataSink* sink, int chunk_size = 300) :
+        put_sample_timer("put sample"),
+        push_compression_timer("compression"),
+        push_chunk_timer("push data")
+    {
+
+        prev_metrics.reset(new vector<METRIC>);
+        curr_metrics.reset(new vector<METRIC>);
+
+        this->sink = sink;
+
+        max_deltas = chunk_size - 1;
+        n_metrics = 0;
+        n_deltas = 0;
+    }
+
+    //
+    // add a sample to the current chunk
+    // curr_sample - sample to add
+    //
+    void put_sample(BSONObj curr_sample) {
+
+        // start timer for put_sample
+        put_sample_timer.start();
+
+        // get metrics from current sample
+        curr_metrics->clear();
+        bool matches = !ref.isEmpty();
+        extract_metrics(ref, curr_sample, *curr_metrics, matches);
+
+        // schema change, so can't use deltas; finish off what we have
+        if (!matches)
+            push();
+
+        if (ref.isEmpty()) {
+
+            // ref sample: remember it, and allocate space for deltas
+            ref = curr_sample.getOwned();
+            n_metrics = curr_metrics->size();
+            deltas.reset(new DELTA[n_metrics * max_deltas]);
+            n_deltas = 0;
+
+        } else {
+
+            // not ref sample - compute deltas
+            for (int i=0; i<n_metrics; i++)
+                deltas[n_deltas + i*max_deltas] = (*curr_metrics)[i] - (*prev_metrics)[i];
+            n_deltas += 1;
+        }
+
+        // push what we have if full
+        if (n_deltas==max_deltas)
+            push();
+
+        // swap current and previous metrics
+        boost::swap(curr_metrics, prev_metrics);
+
+        // finish timer
+        put_sample_timer.stop();
     }
 
     ~Compress() {
@@ -522,17 +570,18 @@ public:
 //
 //
 
+// Callback to obtain each chunk
 class DataSource {
 public:
-    virtual bool get_compressed(vector<char>& compressed) = 0;
+    virtual bool get_chunk(vector<char>& compressed) = 0;
 };
 
-
+// Decompress handles extracting samples from compressed chunks
 class Decompress {
 private:
 
-    scoped_array<char> first_data;
-    BSONObj first;
+    scoped_array<char> ref_data;
+    BSONObj ref_sample;
 
     scoped_ptr<vector<METRIC> > prev_metrics;
     scoped_ptr<vector<METRIC> > curr_metrics;
@@ -548,7 +597,7 @@ private:
         
         // get compressed data
         vector<char> compressed;
-        if (!source->get_compressed(compressed))
+        if (!source->get_chunk(compressed))
             return false;
         char *data = compressed.data();
         char* end = data + compressed.size();
@@ -558,18 +607,18 @@ private:
         z.push(boost::iostreams::zlib_decompressor());
         z.push(boost::iostreams::basic_array_source<char>(data, end));
 
-        // get first sample
+        // get reference sample
         uint32_t sz;
         z.sgetn((char*)&sz, sizeof(sz));
-        first_data.reset(new char[sz]);
-        *(uint32_t*)(first_data.get()) = sz;
-        z.sgetn(first_data.get() + sizeof(uint32_t), sz - sizeof(uint32_t));
-        first = BSONObj(first_data.get());
+        ref_data.reset(new char[sz]);
+        *(uint32_t*)(ref_data.get()) = sz;
+        z.sgetn(ref_data.get() + sizeof(uint32_t), sz - sizeof(uint32_t));
+        ref_sample = BSONObj(ref_data.get());
         
         // set up curr_metrics and prev_metrics
         bool matches = false;
         curr_metrics->clear();
-        extract_metrics(BSONObj(), first, *curr_metrics, matches);
+        extract_metrics(BSONObj(), ref_sample, *curr_metrics, matches);
         n_metrics = curr_metrics->size();
         prev_metrics->resize(n_metrics);
         
@@ -616,6 +665,10 @@ private:
 
 public:
 
+    //
+    // Decompress handles extracting samples from compressed chunks
+    // source - callback to obtain each chunk
+    //
     Decompress(DataSource* source) {
 
         prev_metrics.reset(new vector<METRIC>);
@@ -624,19 +677,24 @@ public:
         this->source = source;
     }
 
-    bool get_sample(BSONObj& curr) {
+    //
+    // extract the next sample
+    // curr_sample - returns the extracted sample
+    // returns true if a sample was available
+    //
+    bool get_sample(BSONObj& curr_sample) {
 
         // get samples if needed and possible
-        if (first.isEmpty() || delta_n==n_deltas) {
+        if (ref_sample.isEmpty() || delta_n==n_deltas) {
 
             // get more data if possible
             if (!pull())
                 return false;
 
-            // return first sample
-            curr = first;
+            // return reference sample
+            curr_sample = ref_sample;
 
-            // next sample will be first delta
+            // next sample will be ref delta
             delta_n = 0;
 
         } else {
@@ -646,7 +704,7 @@ public:
                 (*curr_metrics)[i] = (*prev_metrics)[i] + deltas[delta_n + i*n_deltas];
 
             // construct sample
-            curr = insert_metrics(first, *curr_metrics);
+            curr_sample = insert_metrics(ref_sample, *curr_metrics);
 
             // next sample will be next delta
             delta_n += 1;
@@ -660,6 +718,7 @@ public:
     }
 
 };
+
 
 //
 //
@@ -677,6 +736,7 @@ public:
     virtual ~SampleSource() {};
 };
 
+
 //
 // simple compressed file container for debugging and testing
 //
@@ -687,7 +747,7 @@ class CompressedFileSink : public DataSink, public SampleSink {
     scoped_ptr<Compress> compress;
     SpaceStats space;
 
-    void push_data(char* buf, char* end) {
+    void push_chunk(char* buf, char* end) {
         int sz = end - buf;
         if (fd >= 0) {
             int n = write(fd, &sz, sizeof(sz));
@@ -724,7 +784,7 @@ class CompressedFileSource : public DataSource, public SampleSource {
     scoped_ptr<Decompress> decompress;
     SpaceStats space;
 
-    virtual bool get_compressed(vector<char>& compressed) {
+    virtual bool get_chunk(vector<char>& compressed) {
         int sz = -1;
         int n = read(fd, (char*)&sz, sizeof(sz));
         if (n==0) return false;
@@ -818,7 +878,7 @@ public:
 
 
 //
-//
+// write uncompressed samples to a .json file
 //
 
 class JsonFileSink : public SampleSink {
@@ -847,7 +907,7 @@ public:
 
 
 //
-// get samples live from a mongodb source
+// get serverStatus samples live from a mongodb source
 //
 
 void serverStatus(DBClientBase& c, BSONObj& result) {
@@ -906,7 +966,7 @@ class LiveSink : public SampleSink, DataSink {
     SpaceStats space;
     Date_t last_id;
 
-    void push_data(char* buf, char* end) {
+    void push_chunk(char* buf, char* end) {
         size_t sz = end - buf;
         BSONObjBuilder b;
         Date_t _id = now_ms();
@@ -968,8 +1028,11 @@ public:
     }
 };
 
+
 //
-//
+// extract and decompress samples from a mongodb collection
+// spec is: mongodb//host?ns=...
+//    ns - destination ns - default is local.ftdc
 //
 
 class CompressedCollectionSource : public SampleSource, DataSource {
@@ -981,7 +1044,7 @@ class CompressedCollectionSource : public SampleSource, DataSource {
     
     SpaceStats space;
 
-    virtual bool get_compressed(vector<char>& compressed) {
+    virtual bool get_chunk(vector<char>& compressed) {
         if (!cursor->more())
             return false;
         int len;
@@ -1027,10 +1090,8 @@ public:
 };
 
 
-
-
 //
-//
+// time serverStatus and/or ping
 //
 
 void time_ping(string spec, int n, double delay) {
@@ -1079,7 +1140,7 @@ void time_ping(string spec, int n, double delay) {
 }
 
 //
-// signal handling
+// signal handling for clean exit on ^C
 //
 
 static bool stop = false;
@@ -1120,6 +1181,7 @@ int main(int argc, char* argv[]) {
             err(string("unrecognized arg ") + argv[i], false);
     }
 
+    // timing for ping and/or serverStatus
     if (!ping_spec.empty()) {
         time_ping(ping_spec, n, delay);
         return 0;
@@ -1128,10 +1190,10 @@ int main(int argc, char* argv[]) {
     scoped_ptr<SampleSource> source;
     scoped_ptr<SampleSink> sink;
 
-    // source
+    // construct source from source_spec
     if (ends_with(source_spec, ".bson")) {
         source.reset(new BsonFileSource(source_spec, n>0));
-    } else if (boost::starts_with(source_spec, "mongodb:")) {
+    } else if (starts_with(source_spec, "mongodb:")) {
         if (source_spec.find("?ns") != string::npos) {
             source.reset(new CompressedCollectionSource(source_spec));
         } else {
@@ -1145,14 +1207,14 @@ int main(int argc, char* argv[]) {
         err(string("unrecognized source ") + source_spec, false);
     }
 
-    // sink
-    if (boost::algorithm::ends_with(sink_spec, ".bson")) {
+    // construct sink from sink_spec
+    if (ends_with(sink_spec, ".bson")) {
         sink.reset(new BsonFileSink(sink_spec));
-    } else if (boost::algorithm::ends_with(sink_spec, ".json")) {
+    } else if (algorithm::ends_with(sink_spec, ".json")) {
         sink.reset(new JsonFileSink(sink_spec));
     } else if (sink_spec=="-") {
         sink.reset(new JsonFileSink());
-    } else if (boost::starts_with(sink_spec, "mongodb:")) {
+    } else if (starts_with(sink_spec, "mongodb:")) {
         sink.reset(new LiveSink(sink_spec, chunk_size));
     } else if (ends_with(sink_spec, ".ftdc") || sink_spec=="") {
         sink.reset((new CompressedFileSink(sink_spec, chunk_size)));
@@ -1160,6 +1222,7 @@ int main(int argc, char* argv[]) {
         err(string("unrecognized sink ") + sink_spec, false);
     }
 
+    // overall timers
     TimeStats get_sample_timer("get_sample");
     TimeStats overall_timer("overall");
 
