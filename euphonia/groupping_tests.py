@@ -657,6 +657,76 @@ class GroupPingTests:
 
         return {'pass':  res, 'ids': ids}
 
+    def testHighOpsPerSecond(cls, groupPing):
+        opsByHost = defaultdict(list)
+
+        # Reorganizes pings to arrays of necessary values in a dict by host
+        def buildOpsByHost(host):
+            hid = host.getHostId()
+
+            serverStatus = host.getServerStatus()
+            if serverStatus is None:
+                return None
+            if 'opcounters' not in serverStatus:
+                return None
+
+            ops = 0
+            for counter in serverStatus['opcounters'].values():
+                ops += int(counter)
+            opsByHost[hid].insert(0, {'time': serverStatus['localTime'],
+                                      'ops': ops,
+                                      'pingId': host.doc['_id']})
+            return True
+
+        while groupPing:
+            groupPing.forEachHost(buildOpsByHost)
+            groupPing = groupPing.prev()
+
+        # Build deltas and averages across hosts
+        deltaDocsByHost = {}
+        avgByHost = {}
+        for host in opsByHost:
+            opsDocs = opsByHost[host]
+            if len(opsDocs) >= 2:
+                totalOps = 0
+                totalTime = datetime.timedelta(0)
+                for i in range(0, len(opsDocs) - 1):
+                    dOps = abs(opsDocs[i+1]['ops'] - opsDocs[i]['ops'])
+                    totalOps += dOps
+
+                    dTime = abs(opsDocs[i+1]['time'] - opsDocs[i]['time'])
+                    totalTime += dTime
+
+                    if dTime.total_seconds() == 0:
+                        continue
+                    opsPerSecond = float(dOps) / dTime.total_seconds()
+
+                    if host not in deltaDocsByHost:
+                        deltaDocsByHost[host] = []
+                    deltaDocsByHost[host].append({'opsPerSecond': opsPerSecond,
+                                                  'pings': [
+                                                      opsDocs[i+1]['pingId'],
+                                                      opsDocs[i]['pingId']]})
+                if totalTime.total_seconds() > 0:
+                    avgByHost[host] = totalOps / totalTime.total_seconds()
+
+        res = True
+        ok = True
+        ids = []
+
+        # Test deltas against averages for each host
+        for host in deltaDocsByHost:
+            if host in avgByHost:
+                deltaDocs = deltaDocsByHost[host]
+                for deltaDoc in deltaDocs:
+                    if deltaDoc['opsPerSecond'] > avgByHost[host] * 2:
+                        res = False
+                        ids += deltaDoc['pings']
+
+        return {'ok': ok, 'payload': {'pass': res, 'ids': ids}}
+
+    @classmethod
+
     def testJournalCommitsInWriteLock(cls, groupPing):
         commitsInWriteLockByHost = {}
 
