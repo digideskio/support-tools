@@ -440,3 +440,45 @@
     priority: "medium"
     src: "pings"
     collections: ["Performance"]
+  -
+    active: false
+    comment: "You have mongods with vastly differing versions within your group. Because of potential incompatibilities, it is recommended you upgrade outdated versions to the most recent in your cluster"
+    header: "Differing Versions"
+    name: "VersionDifference"
+    priority: "medium"
+    src: "pings"
+  -
+    active: false
+    comment: "You have unusually high background flush averages which could be indicative of larger performance problems."
+    header: "BackgroundFlushAverage"
+    name: "BackgroundFlushAverage"
+    priority: "medium"
+    src: "pings"
+  -
+    active: false
+    comment: "You have unusually high background flush averages which could be indicative of larger performance problems."
+    header: "RecentBackgroundFlushAverage"
+    name: "RecentBackgroundFlushAverage"
+    priority: "medium"
+    src: "pings"
+  -
+    active: false
+    comment: "You have journal commits in write lock. This could be an indication of other bottlenecks and should be further examined."
+    header: "Journal Commits in Write Lock"
+    name: "JournalCommitsInWriteLock"
+    priority: "low"
+    src: "pings"
+  -
+    active: false
+    comment: "You have a growing number of journal commits occurring in write lock. This could be an indication of other bottlenecks and should be further examined."
+    header: "Journal Commits in Write Lock"
+    name: "ChangeInJournalCommitsInWriteLock"
+    priority: "medium"
+    src: "pings"
+  -
+    active: false
+    comment: "Your operations per second have recently more than doubled. This could be an indication of an unusually high load on your application or potentially misfiring queries."
+    header: "High Operations Per Second"
+    name: "HighOpsPerSecond"
+    priority: "medium"
+    src: "pings"
