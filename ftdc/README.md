@@ -382,13 +382,14 @@ implementation.
   while processing 1M samples. The sample data in this case was
   pre-recorded data.
 
-** The user CPU time used by the client represents the time required
-   to compress the chunks of samples.
+    * The user CPU time used by the client represents the time required
+      to compress the chunks of samples.
 
-** The CPU time used by mongod represents the time required to store
-   the samples. System CPU time was included in this case because some
-   system CPU time is used by WT in normal operation, but in any case
-   the total CPU time for storing the samples was negligible.
+    * The CPU time used by mongod represents the time required to
+      store the samples. System CPU time was included in this case
+      because some system CPU time is used by WT in normal operation,
+      but in any case the total CPU time for storing the samples was
+      negligible.
 
 Results:
 
