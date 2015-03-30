@@ -1,4 +1,5 @@
 import grouptestdocument
+import logging
 import ping
 import pymongo
 
@@ -52,23 +53,33 @@ class GroupPing(grouptestdocument.GroupTestDocument):
         return False
 
     def forEachHost(self, test, *args, **kwargs):
+        ok = True
         res = True
         ids = []
         for pid in self.pings:
-            if not test(self.pings[pid], *args, **kwargs):
+            testRes = test(self.pings[pid], *args, **kwargs)
+            if testRes is None:
+                ok = False
+                self.logger.warning('Test returned bad document format')
+            elif not testRes:
                 res = False
                 ids.append(pid)
-        return {'pass': res, 'ids': ids}
+        return {'ok': ok, 'payload': {'pass': res, 'ids': ids}}
 
     def forEachPrimary(self, test, *args, **kwargs):
+        ok = True
         res = True
         ids = []
         for pid in self.pings:
             if self.pings[pid].isPrimary():
-                if not test(self.pings[pid], *args, **kwargs):
+                testRes = test(self.pings[pid], *args, **kwargs)
+                if testRes is None:
+                    ok = False
+                    self.logger.warning('Test returned bad document format')
+                elif not testRes:
                     res = False
                     ids.append(pid)
-        return {'pass': res, 'ids': ids}
+        return {'ok': ok, 'payload': {'pass': res, 'ids': ids}}
 
     def next(self):
         """ Return the GroupPing after this one """
