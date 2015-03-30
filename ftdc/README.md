@@ -373,12 +373,57 @@ Results:
     total per sample            230 µs     103 µs
 
 
-### Summary of results
+### Strawman integration proposal
 
-Assuming the worst case of the scenarios measured, a rate of 1 sample per second would
+Assuming the worst case of the scenarios measured, a rate of 1 sample
+per second would
 
 * Require about 0.2% or so of a single CPU core, or (much) less than
-  0.1% of the total CPU resources of a typical machine.
+  0.1% of the total CPU resources of a typical machine. Assuming this
+  holds up under further testing (under way), a rate of 1 sample per
+  second should impact performance at noise levels.
 
-* Require about 100 MB per week of storage.
+* Require about 100 MB per week of storage. Storing ftdc data for
+  a week would be a useful goal because a typical backup strategy with a
+  retention of weekly backups for some period of time would ensure
+  retention of continuous ftdc data for a corresponding period of
+  time. This would be very useful when, as is occasionally the case,
+  we are asked to do a post-mortem of a performance-related outage
+  substantially after the fact.
+
+Given performance data so far, propose that ftdc collecting
+serverStatus samples be integrated into mongod, capturing samples in a
+new local.ftdc capped collection, on by default, controlled by the
+following parameters:
+
+* ftdc.samplePeriod - floating point seconds between samples. 0
+  disables ftdc. Default 1.0.
+
+* ftdc.chunkSize - number of samples per chunk. 0 disables ftdc
+  collection. Default 300.
+
+* ftdc.maxSizeMB - maximum size of local.ftdc capped collection, in
+  MB. 0 disables ftdc. Default 100 MB.
+
+### Related tooling
+
+Following related tooling is needed. Simplest approach is to keep
+these internal for now, possibly to be made public at some point.
+
+* [Timeseries visualization
+  tool|https://github.com/10gen/support-tools/tree/master/timeseries]. Provides
+  support for visualizing decompressed ftdc serverStatus timeseries.
+
+* Utility for decompressing ftdc samples. The POC implementation
+  described above may sufficient for this for internal use.
+
+
+
+
+
+
+
+
+
+
 
