@@ -461,3 +461,17 @@
     name: "RecentBackgroundFlushAverage"
     priority: "medium"
     src: "pings"
+  -
+    active: false
+    comment: "You have journal commits in write lock. This could be an indication of other bottlenecks and should be further examined."
+    header: "Journal Commits in Write Lock"
+    name: "JournalCommitsInWriteLock"
+    priority: "low"
+    src: "pings"
+  -
+    active: false
+    comment: "You have a growing number of journal commits occurring in write lock. This could be an indication of other bottlenecks and should be further examined."
+    header: "Journal Commits in Write Lock"
+    name: "ChangeInJournalCommitsInWriteLock"
+    priority: "medium"
+    src: "pings"

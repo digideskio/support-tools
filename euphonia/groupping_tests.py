@@ -511,7 +511,7 @@ class GroupPingTests:
                     ids.append(newVersionVDoc['pingId'])
                     ids.append(olderVersionVDoc['pingId'])
 
-        return {'pass':  res, 'ids': list(set(ids))}
+        return {'ok': True, 'payload': {'pass':  res, 'ids': list(set(ids))}}
 
     @classmethod
     def testLargeNonMappedMemory(cls, groupPing):
@@ -533,6 +533,7 @@ class GroupPingTests:
         return groupPing.forEachHost(hasSmallNonMappedMemory)
 
     @classmethod
+
     def testNumMongos(cls, groupPing):
         ids = []
         for ping in groupPing.pings:
@@ -655,3 +656,72 @@ class GroupPingTests:
                     highPingEndIndex = -1
 
         return {'pass':  res, 'ids': ids}
+
+    def testJournalCommitsInWriteLock(cls, groupPing):
+        commitsInWriteLockByHost = {}
+
+        def checkHostCommitsInWriteLock(host):
+            serverStatus = host.getServerStatus()
+            if serverStatus is None:
+                return None
+
+            pingId = host.doc['_id']
+            hid = host.getHostId()
+            if 'dur' not in serverStatus:
+                return None
+            dur = serverStatus['dur']
+
+            commitsInWriteLock = dur['commitsInWriteLock']
+            return commitsInWriteLock == 0
+
+        return groupPing.forEachHost(checkHostCommitsInWriteLock)
+
+    @classmethod
+    def testChangeInJournalCommitsInWriteLock(cls, groupPing):
+        commitsInWriteLockByHost = {}
+
+        def buildCommitsByHost(host):
+            serverStatus = host.getServerStatus()
+            if serverStatus is None:
+                return None
+
+            pingId = host.doc['_id']
+            hid = host.getHostId()
+            if 'dur' not in serverStatus:
+                return None
+            dur = serverStatus['dur']
+
+            localTime = serverStatus['localTime']
+            commitsInWriteLock = dur['commitsInWriteLock']
+            if hid not in commitsInWriteLockByHost:
+                commitsInWriteLockByHost[hid] = []
+            commitsInWriteLockByHost[hid].insert(0, {
+                'time': localTime,
+                'commits': commitsInWriteLock,
+                'pingId': pingId
+                })
+            return True
+
+        while groupPing:
+            groupPing.forEachHost(buildCommitsByHost)
+            groupPing = groupPing.prev()
+
+        ok = True
+        res = True
+        ids = []
+        for commitDocs in commitsInWriteLockByHost.values():
+            if len(commitDocs) >= 2:
+                for i in range(0, len(commitDocs) - 1):
+                    dCommits = (commitDocs[i+1]['commits']
+                                - commitDocs[i]['commits'])
+                    dTime = commitDocs[i+1]['time'] - commitDocs[i]['time']
+                    dTimeInHours = dTime.total_seconds() / 60 / 60
+                    if dTimeInHours == 0:
+                        continue
+                    dCommitsPerHour = float(dCommits) / dTimeInHours
+                    if abs(dCommitsPerHour) > 0:
+                        res = False
+                        ids.append(commitDocs[i+1]['pingId'])
+                        ids.append(commitDocs[i]['pingId'])
+
+        return {'ok': ok, 'payload': {'pass': res, 'ids': ids}}
