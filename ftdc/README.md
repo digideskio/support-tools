@@ -391,7 +391,9 @@ implementation.
       but in any case the total CPU time for storing the samples was
       negligible.
 
-Results:
+Results below. Times shown are per-sample, so the times shown to
+compress and store chunks are amortized over the samples in each
+chunk.
 
 
                              wiredTiger    mmapv1
@@ -406,10 +408,10 @@ Results:
 Assuming the worst case of the scenarios measured, a rate of 1 sample
 per second would
 
-* Require about 0.2% or so of a single CPU core, or (much) less than
-  0.1% of the total CPU resources of a typical machine. Assuming this
-  holds up under further testing (under way), a rate of 1 sample per
-  second should impact performance at noise levels.
+* Require about 0.02% or so of a single CPU core, or less than 0.01%
+  of the total CPU resources of a typical machine. Assuming this holds
+  up under further testing (under way), the performance impact of a
+  rate of 1 sample per second should be unmeasurable.
 
 * Require about 100 MB per week of storage. Storing ftdc data for
   a week would be a useful goal because a typical backup strategy with a
