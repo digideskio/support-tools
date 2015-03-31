@@ -29,6 +29,15 @@ using namespace boost;
 // helpers
 //
 
+int verbosity = 2;
+
+ostream& msg(int v) {
+    static struct nullstream : std::ostream {
+        nullstream() : std::ios(0), std::ostream(0) {}
+    } nullstream;
+    return verbosity>=v? cerr : nullstream;
+}
+
 double now() {
     struct timeval t;
     gettimeofday(&t, NULL);
@@ -49,10 +58,10 @@ Date_t now_ms() {
 }
 
 void err(string s, bool with_errno=true) {
-    cerr << s;
+    msg(0) << s;
     if (with_errno)
-        cerr << ": " << strerror(errno);
-    cerr << endl;
+        msg(0) << ": " << strerror(errno);
+    msg(0) << endl;
     exit(-1);
 }
 
@@ -60,12 +69,12 @@ class SpaceStats {
 
     string name;
     int n_samples;
-    int n_bytes;
+    size_t n_bytes;
 
 public:
 
     SpaceStats(string name) {
-        cerr << name << endl;
+        msg(1) << name << endl;
         this->name = name;
         n_samples = 0;
         n_bytes = 0;
@@ -77,7 +86,7 @@ public:
     }
 
     ~SpaceStats() {
-        cerr << name << " " << n_samples << " samples, " << n_bytes << " bytes, " <<
+        msg(1) << name << " " << n_samples << " samples, " << n_bytes << " bytes, " <<
             (n_bytes/n_samples) << " bytes/sample" << endl;
     }        
 };
@@ -125,7 +134,7 @@ public:
         int t_avg_us = int(avg() * 1e6);
         int t_max_us = int(t_max * 1e6);
         int t_min_us = int(t_min * 1e6);
-        cerr << name << " " << n_samples << " samples, " <<
+        msg(1) << name << " " << n_samples << " samples, " <<
             t_min_us << " µs min, " << 
             t_avg_us << " µs avg, " <<
             t_max_us << " µs max " << endl;
@@ -258,8 +267,10 @@ void extract_metrics(const BSONObj& ref, const BSONObj& curr, vector<METRIC>& me
     while (i_curr.more()) {
 
         // schema mismatch if curr is longer than ref
-        if (matches && !i_ref.more())
+        if (matches && !i_ref.more()) {
+            msg(3) << "schema change: curr longer than ref";
             matches = false;
+        }
 
         BSONElement e_curr = i_curr.next();
         BSONElement e_ref = matches? i_ref.next() : BSONElement();
@@ -268,7 +279,8 @@ void extract_metrics(const BSONObj& ref, const BSONObj& curr, vector<METRIC>& me
 
             // check for matching field names
             if (strcmp(e_ref.fieldName(), e_curr.fieldName())!=0 ) {
-                //cerr << e_ref.fieldName() << " " << e_curr.fieldName() << endl;
+                msg(3) << "schema change: field name change " << e_ref.fieldName() << " "
+                       << e_curr.fieldName() << endl;
                 matches = false;
             }
 
@@ -277,7 +289,8 @@ void extract_metrics(const BSONObj& ref, const BSONObj& curr, vector<METRIC>& me
             // and if that was considered a schema mismatch
             // it would increase the number of reference samples required
             if ((e_curr.type() != e_ref.type()) && (e_curr.isNumber() != e_ref.isNumber())) {
-                //cerr << e_ref.fieldName() << " " <<  e_ref.type() << " " << e_curr.type() << endl;
+                msg(3) << "schema change: field type change " << e_ref.fieldName() << " "
+                       <<  e_ref.type() << " " << e_curr.type() << endl;
                 matches = false;
             }
         }
@@ -312,7 +325,7 @@ void extract_metrics(const BSONObj& ref, const BSONObj& curr, vector<METRIC>& me
 
         default:
             if (matches && e_curr != e_ref) {
-                //cerr << "e_curr != e_ref" << endl;
+                msg(3) << "schema change: e_curr != e_ref" << endl;
                 matches = false;
             }
             break;
@@ -321,8 +334,10 @@ void extract_metrics(const BSONObj& ref, const BSONObj& curr, vector<METRIC>& me
     }
 
     // schema mismatch if ref is longer than curr
-    if (matches && i_ref.more())
+    if (matches && i_ref.more()) {
+        msg(3) << "schema change: ref longer than curr" << endl;
         matches = false;
+    }
 }
 
 
@@ -386,7 +401,7 @@ BSONObj insert_metrics(BSONObj& ref, vector<METRIC>& metrics) {
 // Callback for each accumulated chunk
 class DataSink {
 public:
-    virtual void push_chunk(char* buf, char* end) = 0;
+    virtual void push_chunk(char* buf, char* end, Date_t id) = 0;
 };
 
 // Compress handles accumulating samples into chunks and compressing them
@@ -394,11 +409,13 @@ class Compress {
 private:
 
     BSONObj ref;
+    Date_t ref_id;
 
     scoped_ptr<vector<METRIC> > prev_metrics;
     scoped_ptr<vector<METRIC> > curr_metrics;
 
     int max_deltas;
+    int chunk_update_size;
     int n_deltas;
     int n_metrics;
     int n_samples;
@@ -412,7 +429,7 @@ private:
     TimeStats push_compression_timer; // compression portion of push()
     TimeStats push_chunk_timer; // push_chunk()
 
-    void push() {
+    void push(bool interim) {
 
         if (ref.isEmpty())
             return;
@@ -478,19 +495,22 @@ private:
         // return data to caller if requested
         if (sink) {
             push_chunk_timer.start();
-            sink->push_chunk(out.data(), out.data() + out.size());
+            sink->push_chunk(out.data(), out.data() + out.size(), ref_id);
             push_chunk_timer.stop();
         }
 
         // stats
         int ns = n_deltas + 1;
-        cerr << "pushed chunk, " << ns << " sample(s), " << out.size() << " bytes, " << 
-             (out.size() / ns) << " bytes/sample" << endl;
+        msg(interim? 3 : 2) << "pushed " << (interim? "interim" : "finished") << " chunk, "
+                            << ns << " sample(s), " << out.size() << " bytes, "
+                            <<  (out.size() / ns) << " bytes/sample" << endl;
 
-        // reset
-        ref = BSONObj();
-        n_deltas = 0;
-
+        // reset if this was the last update to this chunk
+        if (!interim) {
+            ref = BSONObj();
+            ref_id = 0;
+            n_deltas = 0;
+        }
     }
 
 public:
@@ -500,7 +520,7 @@ public:
     // sink - callback for each compressed chunk
     // chunk_size - maximum number of samples per chunk
     //
-    Compress(DataSink* sink, int chunk_size = 300) :
+    Compress(DataSink* sink, int chunk_size = 300, int chunk_update_size = 0) :
         put_sample_timer("put sample"),
         push_compression_timer("compression"),
         push_chunk_timer("push data")
@@ -512,6 +532,7 @@ public:
         this->sink = sink;
 
         max_deltas = chunk_size - 1;
+        this->chunk_update_size = chunk_update_size;
         n_metrics = 0;
         n_deltas = 0;
     }
@@ -519,9 +540,10 @@ public:
     //
     // add a sample to the current chunk
     // curr_sample - sample to add
+    // id - id supplied by caller; if 0 id will be supplied when pushed
     //
-    void put_sample(BSONObj curr_sample) {
-
+    void put_sample(BSONObj curr_sample, Date_t id = 0) {
+        
         // start timer for put_sample
         put_sample_timer.start();
 
@@ -532,12 +554,13 @@ public:
 
         // schema change, so can't use deltas; finish off what we have
         if (!matches)
-            push();
+            push(false);
 
         if (ref.isEmpty()) {
 
             // ref sample: remember it, and allocate space for deltas
             ref = curr_sample.getOwned();
+            ref_id = id;
             n_metrics = curr_metrics->size();
             deltas.reset(new DELTA[n_metrics * max_deltas]);
             n_deltas = 0;
@@ -550,9 +573,11 @@ public:
             n_deltas += 1;
         }
 
-        // push what we have if full
+        // push what we have
         if (n_deltas==max_deltas)
-            push();
+            push(false);
+        else if (chunk_update_size && (n_deltas+1)%chunk_update_size==0)
+            push(true);
 
         // swap current and previous metrics
         boost::swap(curr_metrics, prev_metrics);
@@ -562,7 +587,7 @@ public:
     }
 
     ~Compress() {
-        push();
+        push(false);
     }
 };
 
@@ -626,12 +651,12 @@ private:
         z.sgetn((char*)&n_deltas, sizeof(n_deltas));
         z.sgetn((char*)&n_metrics, sizeof(n_metrics));
         if (n_metrics != curr_metrics->size())
-            cerr << n_metrics << " " << curr_metrics->size() << endl;
+            msg(1) << n_metrics << " " << curr_metrics->size() << endl;
         assert(n_metrics==curr_metrics->size());
 
         // report chunk stats
         int ns = n_deltas + 1;
-        cerr << "pulled chunk, " << ns << " samples, " << compressed.size() << " bytes, "
+        msg(2) << "pulled chunk, " << ns << " samples, " << compressed.size() << " bytes, "
              << (compressed.size()/ns) << " bytes/sample" << endl;
 
         // get compressed deltas
@@ -747,7 +772,7 @@ class CompressedFileSink : public DataSink, public SampleSink {
     scoped_ptr<Compress> compress;
     SpaceStats space;
 
-    void push_chunk(char* buf, char* end) {
+    void push_chunk(char* buf, char* end, Date_t id) {
         int sz = end - buf;
         if (fd >= 0) {
             int n = write(fd, &sz, sizeof(sz));
@@ -966,23 +991,28 @@ class LiveSink : public SampleSink, DataSink {
     SpaceStats space;
     Date_t last_id;
 
-    void push_chunk(char* buf, char* end) {
+    void push_chunk(char* buf, char* end, Date_t id) {
+
         size_t sz = end - buf;
+
+        BSONObjBuilder q;
+        q.appendDate("_id", id);
+
         BSONObjBuilder b;
-        Date_t _id = now_ms();
-        if (_id==last_id)
-            _id = last_id + 1;
-        last_id = _id;
-        b.appendDate("_id", _id);
+        b.appendDate("_id", id);
         b.appendNumber("type", 0);
         b.appendBinData("data", sz, BinDataGeneral, buf);
-        c->insert(ns, b.obj());
+
+        c->update(ns, q.obj(), b.obj(), true);
+        //c->insert(ns, b.obj());
         space.record_sample(0, sz);
     };
 
 public:
 
-    LiveSink(string spec, int chunk_size) : space("live sink " + spec), last_id(0) {
+    LiveSink(string spec, int chunk_size, int chunk_update_size) :
+        space("live sink " + spec), last_id(0)
+    {
 
         // parse and check spec connection string
         string errmsg;
@@ -1016,14 +1046,22 @@ public:
         );
         BSONObj info;
         c->runCommand(db, cmd, info);
-        cerr << "creating " << db << "." << coll << ": " << info << endl;
+        msg(1) << "creating " << db << "." << coll << ": " << info << endl;
 
         // initialize compressor with ourselves as data sink
-        compress.reset(new Compress(this, chunk_size));
+        compress.reset(new Compress(this, chunk_size, chunk_update_size));
     }
   
     void put_sample(BSONObj& sample) {
-        compress->put_sample(sample);
+
+        // compute id
+        Date_t id = now_ms();
+        if (id==last_id)
+            id = last_id + 1;
+        last_id = id;
+
+        // put the sample
+        compress->put_sample(sample, id);
         space.record_sample(1, 0);
     }
 };
@@ -1135,7 +1173,7 @@ void time_ping(string spec, int n, double delay) {
 
     int t_ss_less_ping_us_avg = int((serverStatus_timer.avg() - ping_timer.avg()) * 1e6);
     int t_ss_less_ping_us_min = int((serverStatus_timer.min() - ping_timer.min()) * 1e6);
-    cerr << "serverStatus less ping " << t_ss_less_ping_us_min << " µs min, " << 
+    msg(0) << "serverStatus less ping " << t_ss_less_ping_us_min << " µs min, " << 
          t_ss_less_ping_us_avg << " µs avg" << endl;
 }
 
@@ -1146,7 +1184,7 @@ void time_ping(string spec, int n, double delay) {
 static bool stop = false;
 
 void signal_exit(int s) {
-    cerr << "interrupt" << endl;
+    msg(0) << "interrupt" << endl;
     stop = true;
 }
 
@@ -1163,6 +1201,7 @@ int main(int argc, char* argv[]) {
     float delay = 0.0;
     string ping_spec;
     int chunk_size = 300;
+    int chunk_update_size = 0;
 
     for (int i=1; i<argc; i++) {
         if (argv[i]==string("-n"))
@@ -1173,6 +1212,10 @@ int main(int argc, char* argv[]) {
             ping_spec = argv[++i];
         else if (argv[i]==string("-c"))
             chunk_size = atoi(argv[++i]);
+        else if (argv[i]==string("-u"))
+            chunk_update_size = atoi(argv[++i]);
+        else if (argv[i]==string("-v"))
+            verbosity = atoi(argv[++i]);
         else if (source_spec.empty())
             source_spec = argv[i];
         else if (sink_spec.empty())
@@ -1215,7 +1258,7 @@ int main(int argc, char* argv[]) {
     } else if (sink_spec=="-") {
         sink.reset(new JsonFileSink());
     } else if (starts_with(sink_spec, "mongodb:")) {
-        sink.reset(new LiveSink(sink_spec, chunk_size));
+        sink.reset(new LiveSink(sink_spec, chunk_size, chunk_update_size));
     } else if (ends_with(sink_spec, ".ftdc") || sink_spec=="") {
         sink.reset((new CompressedFileSink(sink_spec, chunk_size)));
     } else {

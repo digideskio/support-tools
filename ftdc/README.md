@@ -339,16 +339,18 @@ three sample data sets described in the preceding section.
 
 While a larger chunk size decreases storage requirements due to better
 compression, it has the drawback that more samples may be lost in case
-of a crash. A chunk size of 300 (5 minutes at 1 sample per second) was
-chosen for the remainder of the tests.
+of a crash. For example, a chunk size of 300 (5 minutes at 1 sample
+per second) was chosen for the remainder of the tests in order to
+reduce storage costs, but this risks losing 5 minutes worth of samples
+on a crash.
 
-A more complicated strategy for managing chunks is possible: the last
-chunk can be updated more frequently - for example, every 30 seconds -
-to reduce the number of samples lost in case of a crash. Then when a
-certain number of samples - say 300 - have been accumulated in a
-chunk, an new chunk can be started, to keep the chunk from growing in
-size indefinitely. This strategy has not been implemented yet; the
-time cost would need to be evaluated.
+To minimize this risk a more complicated strategy for managing chunks
+may be adopted: the last chunk can be updated more frequently - for
+example, every 10 seconds - to reduce the number of samples lost in
+case of a crash. Then when a certain number of samples - say 300 -
+have been accumulated in a chunk, an new chunk can be started, to keep
+the chunk from growing in size indefinitely. This strategy however has
+a time cost, which is measured in a later section.
 
 In addition, it may be possible to attempt to write the last sample
 chunk on abort or segfault.
@@ -403,15 +405,41 @@ chunk.
     total per sample            230 µs     103 µs
 
 
+### Time cost of interim chunk updates to minimize sample loss on crash
+
+As mentioned above, the number of samples lost on a crash can be
+reduced by doing periodic interim updates of the last chunk. The time
+cost of this strategy was evaluated by modifying the previous test (1
+sample per second, 300 samples per chunk) to do an interim update of
+the last chunk every 10 seconds, so that no more than 10 seconds worth
+of samples can be lost on a crash. This increases the cpu cost of
+compressing and storing chunks:
+
+                             wiredTiger    mmapv1
+    serverStatus (mongod)       165 µs
+    compress chunks (client)    311 µs
+    store chunks (mongod)        33 µs
+    total per sample            509 µs
+
+(Note: this was only evaluated on WiredTiger for the POC
+implementation because of the mmapv1 restriction that documents in a
+capped collection cannot grow. A robust implementation for mmapv1 will
+pre-allocate a document when writing the first interim update for a
+chunk, or alternatively forego interim updates under mmapv1.)
+
+
 ### Strawman integration proposal
 
 Assuming the worst case of the scenarios measured, a rate of 1 sample
-per second would
+per second with a chunk size of 300 samples would
 
 * Require about 0.02% or so of a single CPU core, or less than 0.01%
   of the total CPU resources of a typical machine. Assuming this holds
   up under further testing (under way), the performance impact of a
   rate of 1 sample per second should be unmeasurable.
+
+* Require about 0.05% of a single CPU core if in addition interim
+  updates are written for the last chunk every 10 seconds.
 
 * Require about 100 MB per week of storage. Storing ftdc data for
   a week would be a useful goal because a typical backup strategy with a
@@ -431,6 +459,11 @@ following parameters:
 
 * ftdc.chunkSize - number of samples per chunk. 0 disables ftdc
   collection. Default 300.
+
+* ftdc.interimChunkSize - write interim updates to the last chunk
+  after this many samples. Default 0 (disabled). Consider setting
+  default to 10 if further testing confirms initial performance
+  results.
 
 * ftdc.maxSizeMB - maximum size of local.ftdc capped collection, in
   MB. 0 disables ftdc. Default 100 MB.

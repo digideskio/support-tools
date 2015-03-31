@@ -3,7 +3,7 @@
 
 ## SYNOPSIS
 
-* ftdc [-n NSAMPLES] [-t DELAY] [-c CHUNKSIZE] source [sink]
+* ftdc [-n NSAMPLES] [-t DELAY] [-c CHUNKSIZE] [-u UPDATESIZE] source [sink]
 
 ## DESCRIPTION
 
@@ -17,6 +17,10 @@ Copy samples from source to sink.
 
 * -c CHUNKSIZE - number of samples accumulated in each chunk. Default
    is 300.
+
+* -u UPDATESIZE - write interim chunk updates for the last chunk after
+   accumulating this many samples in order to minimize sample loss on
+   crash. Default is 0 (disabled).
 
 
 **Source may be one of:**
