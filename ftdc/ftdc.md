@@ -3,7 +3,7 @@
 
 ## SYNOPSIS
 
-* ftdc [-n NSAMPLES] [-t DELAY] [-c CHUNKSIZE] [-u UPDATESIZE] source [sink]
+* ftdc [-n NSAMPLES] [-t DELAY] [-c CHUNKSIZE] [-u UPDATESIZE] [--fork] source [sink]
 
 ## DESCRIPTION
 
@@ -21,6 +21,8 @@ Copy samples from source to sink.
 * -u UPDATESIZE - write interim chunk updates for the last chunk after
    accumulating this many samples in order to minimize sample loss on
    crash. Default is 0 (disabled).
+
+* --fork - execute in the background
 
 
 **Source may be one of:**

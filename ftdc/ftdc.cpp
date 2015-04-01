@@ -1205,6 +1205,7 @@ int main(int argc, char* argv[]) {
     string ping_spec;
     int chunk_size = 300;
     int chunk_update_size = 0;
+    bool do_fork = false;
 
     for (int i=1; i<argc; i++) {
         if (argv[i]==string("-n"))
@@ -1219,6 +1220,8 @@ int main(int argc, char* argv[]) {
             chunk_update_size = atoi(argv[++i]);
         else if (argv[i]==string("-v"))
             verbosity = atoi(argv[++i]);
+        else if (argv[i]==string("--fork"))
+            do_fork = true;
         else if (source_spec.empty())
             source_spec = argv[i];
         else if (sink_spec.empty())
@@ -1272,8 +1275,13 @@ int main(int argc, char* argv[]) {
     TimeStats get_sample_timer("get_sample");
     TimeStats overall_timer("overall");
 
-    // clean exit on ^C
+    // clean exit on ^C or kill
     signal(SIGINT, signal_exit);
+    signal(SIGTERM, signal_exit);
+
+    // fork?
+    if (do_fork)
+        daemon(true /*nochdir*/, false /*noclose*/);
 
     // shovel samples
     BSONObj sample;
