@@ -665,7 +665,7 @@ private:
         // get compressed deltas
         char buf[2 * n_deltas * n_metrics * pack::max];
         end = buf + z.sgetn(buf, sizeof(buf));
-        assert(end < buf + sizeof(buf));
+        assert(end <= buf + sizeof(buf));
         char* p = buf;
 
         // decompress the deltas
