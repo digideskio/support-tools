@@ -86,8 +86,10 @@ public:
     }
 
     ~SpaceStats() {
-        msg(1) << name << " " << n_samples << " samples, " << n_bytes << " bytes, " <<
-            (n_bytes/n_samples) << " bytes/sample" << endl;
+        msg(1) << name << " " << n_samples << " samples";
+        if (n_samples)
+            msg(1) << ", " << n_bytes << " bytes, " << (n_bytes/n_samples) << " bytes/sample";
+        msg(1) << endl;
     }        
 };
 
@@ -134,10 +136,11 @@ public:
         int t_avg_us = int(avg() * 1e6);
         int t_max_us = int(t_max * 1e6);
         int t_min_us = int(t_min * 1e6);
-        msg(1) << name << " " << n_samples << " samples, " <<
-            t_min_us << " µs min, " << 
-            t_avg_us << " µs avg, " <<
-            t_max_us << " µs max " << endl;
+        msg(1) << name << " " << n_samples << " samples";
+        if (n_samples)
+            msg(1) << ", " << t_min_us << " µs min, " << 
+                t_avg_us << " µs avg, " << t_max_us << " µs max ";
+        msg(1) << endl;
     }        
 };
 
