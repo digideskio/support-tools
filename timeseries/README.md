@@ -342,6 +342,46 @@ compiling with scons as follows:
 occurrences of CFLAGS or CXXFLAGS that I found in the SConstruct
 file.)
 
+###Collecting stack trace time series on Windows
+
+You can collect a series of stack traces using the
+[procdump](https://technet.microsoft.com/en-us/sysinternals/dd996900.aspx)
+tool; for example, the following will collect 20 stack dumps at 10
+second intervals from mongod:
+
+    mkdir dump
+    cd dump
+    procdump -s 10 -n 20 mongod
+
+Then you can extract the stack traces from the dumps using cdb, which
+you can obtain as part of the [standalone debugging tool
+set](https://msdn.microsoft.com/en-us/library/windows/hardware/ff551063%28v=vs.85%29.aspx)
+(or bundled as part of other Windows SDKs, as detailed on that
+page). The following will extract the stack traces from the dumps
+obtained in the previous step and store them in dump.stacks:
+
+    sp_mongo="...\mongodb-win32-x86_64-2008plus-3.0.1\bin"
+    sp_system="SRV*c:\symbols*http://msdl.microsoft.com/download/symbols"
+    export _NT_SYMBOL_PATH="$sp_mongo;$sp_system"
+    for fn in dump/*; do
+        cdb -z $fn -c "~*k; q"
+    done >dump.stacks
+
+Adjust sp_mongo above to point to the path where the mongod.exe and
+mongod.pdb (symbols) files are located. The other incantation in
+_NT_SYMBOL_PATH above will direct cdb to download symbols for
+ndtdll.dll and other system libraries from Microsoft and cache them in
+c:\symbols. (Note: above uses bash syntax because I use Cygwin on
+Windows; adjust as needed for other shells).
+
+Finally fold the stacks and process them into a call tree as follows:
+
+    python fold_win.py <dump.stacks | python calltree.py --graph-scale log >dump.html
+    open dump.html        
+
+You can find an example at
+[SERVER-17907](https://jira.mongodb.org/browse/SERVER-17907?focusedCommentId=874658&page=com.atlassian.jira.plugin.system.issuetabpanels:comment-tabpanel#comment-874658).
+
 ### Collecting and visualizing CPU utilization call trees using perf
 
 An alternative to gdb for collecting stack trace samples is perf. The
