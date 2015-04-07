@@ -2307,6 +2307,9 @@ wt('cache', 'pages split during eviction', rate=True)
 wt('cache', 'pages walked for eviction', rate=True)
 wt('cache', 'pages written from cache', merge = 'wt_cache_pages_cache', rate=True)
 wt('cache', 'percentage overhead')
+wt('cache', 'tracked bytes belonging to internal pages in the cache', scale=MB)
+wt('cache', 'tracked bytes belonging to leaf pages in the cache', scale=MB)
+wt('cache', 'tracked bytes belonging to overflow pages in the cache', scale=MB)
 wt('cache', 'tracked dirty bytes in the cache', scale=MB)
 wt('cache', 'tracked dirty pages in the cache')
 wt('cache', 'unmodified pages evicted', rate=True)
@@ -2367,9 +2370,12 @@ wt('log', 'log read operations', rate=True)
 wt('log', 'log records compressed', rate=True) # CHECK
 wt('log', 'log records not compressed', rate=True) # CHECK
 wt('log', 'log records too small to compress', rate=True) # CHECK
+wt('log', 'log release advances write LSN', rate=True)
 wt('log', 'log scan operations', rate=True)
 wt('log', 'log scan records requiring two reads', rate=True)
+wt('log', 'log server thread advances write LSN', rate=True)
 wt('log', 'log sync operations', rate=True)
+wt('log', 'log sync_dir operations', rate=True)
 wt('log', 'log write operations', rate=True)
 wt('log', 'logging bytes consolidated', scale=MB, rate=True)
 wt('log', 'maximum log file size', scale=MB)
@@ -2408,18 +2414,22 @@ wt('thread-yield', 'page acquire read blocked', rate=True) # CHECK
 wt('thread-yield', 'page acquire time sleeping (usecs)', rate=True) # CHECK
 wt('transaction', 'transaction begins', rate=True, level=3)
 wt('transaction', 'transaction checkpoint currently running', level=2)
+wt('transaction', 'transaction checkpoint generation')
 wt('transaction', 'transaction checkpoint max time (msecs)') # CHECK
 wt('transaction', 'transaction checkpoint min time (msecs)') # CHECK
 wt('transaction', 'transaction checkpoint most recent time (msecs)') # CHECK
 wt('transaction', 'transaction checkpoint total time (msecs)') # CHECK
 wt('transaction', 'transaction checkpoints', rate='delta')
 wt('transaction', 'transaction failures due to cache overflow', rate=True)
+wt('transaction', 'transaction range of IDs currently pinned by a checkpoint')
 wt('transaction', 'transaction range of IDs currently pinned')
 wt('transaction', 'transactions committed', rate=True, level=2)
 wt('transaction', 'transactions rolled back', rate=True, level=2)
 wt('transaction', 'update conflicts', rate=True, level=2)
 
 ss(['wiredTiger', 'uri'], level=99)
+
+
 
 
 
