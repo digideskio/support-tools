@@ -2100,22 +2100,22 @@ iostat_disk('util',    'average utilization (%)', ymax=100, level=1)
 #
 
 def mongod(**kwargs):
-    kwargs['re'] = '^(....-..-..T..:..:..\....[+-]....)' + kwargs['re']
+    kwargs['re'] = '^(....-..-..T..:..:..\....(?:[+-]....|Z))' + kwargs['re']
     kwargs['file_type'] = 'text'
     kwargs['parse_type'] = 're'
     descriptor(**kwargs)
 
 mongod(
-    name = 'mongod max logged query (ms) per {bucket_size}s',
-    re = '.* query: .* ([0-9]+)ms$',
+    name = 'mongod max logged op (ms) per {bucket_size}s',
+    re = '.* (?:query:|command:) .* ([0-9]+)ms$',
     bucket_op = 'max',
     bucket_size = 1, # size of buckets in seconds
     level = 1
 )
 
 mongod(
-    name = 'mongod logged queries longer than {count_min}ms per {bucket_size}s',
-    re = '.* query: .* ([0-9]+)ms$',
+    name = 'mongod logged ops longer than {count_min}ms per {bucket_size}s',
+    re = '.* (?:query:|command:) .* ([0-9]+)ms$',
     bucket_op = 'count',
     bucket_size = 1,    # size of buckets in seconds
     count_min = 0,      # minimum query duration to count',
