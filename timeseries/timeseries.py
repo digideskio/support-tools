@@ -574,7 +574,7 @@ def get_time(time, opt, s):
 # read lines from file, printing progress messages
 #
 
-def progress(fn, every=10000):
+def progress(fn, opt):
 
     # start time
     t = time.time()
@@ -594,7 +594,7 @@ def progress(fn, every=10000):
         # enumerate lines
         for n, line in enumerate(f):
             yield line
-            if n>0 and n%every==0:
+            if n>0 and n%opt.progress_every==0:
                 s = '%s: processed %d lines' % (fn, n)
                 if size:
                     s += ' (%d%%)' % (100*f.tell()/size)
@@ -679,7 +679,7 @@ def series_read_json(fn, series, opt):
                         result[s][fname] = value
 
     # process lines
-    for line in progress(fn):
+    for line in progress(fn, opt):
         time = None
         if line.startswith('{'):
             try:
@@ -734,7 +734,7 @@ def series_read_re(fn, series, opt):
 
     # process the file
     last_time = None
-    for line in progress(fn):
+    for line in progress(fn, opt):
         line = line.strip()
         for chunk_re, chunk, chunk_groups in chunks:
             m = chunk_re.match(line)
@@ -762,7 +762,7 @@ def series_read_csv(fn, series, opt):
 
     field_names = None
 
-    for line in progress(fn):
+    for line in progress(fn, opt):
         line = [s.strip() for s in line.split(',')]
         if not field_names:
             field_names = line
@@ -1234,6 +1234,7 @@ def main():
     p.add_argument('--list', action='store_true')
     p.add_argument('--level', type=int, default=1)
     p.add_argument('--bins', type=int, default=25)
+    p.add_argument('--progress-every', type=int, default=10000)
 
     global opt
     opt = p.parse_args()

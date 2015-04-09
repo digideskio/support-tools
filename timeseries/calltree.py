@@ -378,6 +378,7 @@ def read_series():
     if opt.series:
         opt.merges = True # xxx get from cmd line instead?
         opt.level = 0 # xxx get from cmd line instead?
+        opt.progress_every = 1000 # xxx get from elsewhere?
         opt.relative = False
         series = [graph[0] for graph in timeseries.get_graphs(opt.series, opt)]
         if not opt.tmin:
