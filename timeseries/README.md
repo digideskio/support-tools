@@ -407,7 +407,8 @@ using under various parameters to calltree.py.
 
 ### Collecting and visualizing memory utilization call trees using perf
 
-See [SERVER-17424](https://jira.mongodb.org/browse/SERVER-17424)
+See [SERVER-17616](https://jira.mongodb.org/browse/SERVER-17616) and
+[SERVER-17424](https://jira.mongodb.org/browse/SERVER-17424).
 
 Install perf probe points related to tcmalloc
 
