@@ -33,6 +33,9 @@ def dbg(*ss):
     if o.dbg:
         sys.stderr.write(' '.join(str(s) for s in ss) + '\n')
 
+def msg(*ss):
+    sys.stderr.write(' '.join(str(s) for s in ss) + '\n')
+
 def put(cmd):
     if o.dbg: print >>sys.stderr, 'PUT', cmd
     gdb.stdin.write(cmd + '\n')
@@ -46,7 +49,9 @@ def get(response, show=False, timeout=None):
             return None
         line = gdb.stdout.readline().strip()
         if line.startswith('^error'):
-            raise Exception(line)
+            msg('error from gdb:', line)
+            msg('possibly permissions issue tracing the process?')
+            sys.exit(-1)
         elif line.startswith(response):
             dbg('GOT expected', len(line), line)
             return line[len(response)+1:]
@@ -71,7 +76,12 @@ def get_state():
     return states
 
 cmd = ['gdb', '-p', str(o.pid), '--interpreter=mi']
-gdb = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+try:
+    gdb = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+except OSError as e:
+    msg('error starting gdb:', e)
+    msg('is gdb installed?')
+    sys.exit(-1)
 
 put('cont')
 get('^running')
