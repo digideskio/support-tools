@@ -544,8 +544,8 @@ def collection(dbpath, ns):
         count = (count_h << 32) + count_l
         mk = (mkh << 32) + mkl
         name = name[:name.find('\0')]
-        #if (ns==db and hash) or name==ns:
-        if (ns==db and name) or name==ns:
+        if (ns==db and hash) or name==ns:
+        #if (ns==db and name) or name==ns:
             print '%08x: namespace name=%s first=%d:%x last=%d:%x, ce=%d:%x, cfn=%d:%x' % \
                 (at, name, first_f, first_o, last_f, last_o, ce_f, ce_o, cfnr_f, cfnr_o)
             if do_collection_indexes:
