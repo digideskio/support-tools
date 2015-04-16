@@ -266,7 +266,7 @@ other performance data you may have collected, such as serverStatus
 time series, using the [timeseries tool](timeseries.py) from this
 project:
 
-    python timeseries.py win:win-perf.csv
+    python timeseries.py win:win-perf.csv ss:ss.log ...
 
 Here's an example, taken from
 [SERVER-18079](https://jira.mongodb.org/browse/SERVER-18079):
