@@ -307,7 +307,9 @@ def read_folded(filters):
     start = dateutil.parser.parse('2000-01-01T00:00:00Z')
 
     for line in sys.stdin:
-        fields = line.strip().split(';')
+        line = line.strip()
+        if not line: continue
+        fields = line.split(';')
         if line.startswith('#'):
             for nv in line[1:].split():
                 n, v = nv.split('=')
