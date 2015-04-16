@@ -1,0 +1,93 @@
+#
+# cpu
+#
+
+\Processor(_Total)\% Interrupt Time
+\Processor(_Total)\% Privileged Time
+\Processor(_Total)\% Processor Time
+\Processor(_Total)\% User Time
+\System\Context Switches/sec
+\System\Processor Queue Length
+\System\System Calls/sec
+
+\Process(mongod)\% Privileged Time
+\Process(mongod)\% Processor Time
+\Process(mongod)\% User Time
+
+#
+# memory
+#
+
+\Memory\% Committed Bytes In Use
+\Memory\Available Bytes
+\Memory\Available MBytes
+\Memory\Cache Bytes
+\Memory\Committed Bytes
+
+\Memory\Free System Page Table Entries
+
+\Memory\Page Faults/sec
+\Memory\Pages/sec
+\Memory\Page Reads/sec
+\Memory\Page Writes/sec
+\Memory\Pages Input/sec
+\Memory\Pages Output/sec
+
+\Memory\Pool Nonpaged Allocs
+\Memory\Pool Nonpaged Bytes
+\Memory\Pool Paged Allocs
+\Memory\Pool Paged Bytes
+\Memory\Pool Paged Resident Bytes
+
+\Process(mongod)\Page Faults/sec
+\Process(mongod)\Page File Bytes
+\Process(mongod)\Pool Nonpaged Bytes
+\Process(mongod)\Pool Paged Bytes
+\Process(mongod)\Private Bytes
+\Process(mongod)\Virtual Bytes
+\Process(mongod)\Working Set
+\Process(mongod)\Working Set - Private
+
+#
+# https://askldjd.wordpress.com/2011/03/22/heap-performance-counters/
+# [HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\PerfProc\Performance]
+# “DisplayHeapPerfObject”=dword:00000001
+#
+\Heap(mongod*)\*
+
+
+#
+# disk
+#
+
+\PhysicalDisk(*)\Avg. Disk Queue Length
+\PhysicalDisk(*)\Avg. Disk Read Queue Length
+\PhysicalDisk(*)\Avg. Disk Write Queue Length
+
+\PhysicalDisk(*)\% Idle Time
+\PhysicalDisk(*)\% Disk Time
+\PhysicalDisk(*)\% Disk Read Time
+\PhysicalDisk(*)\% Disk Write Time
+
+\PhysicalDisk(*)\Disk Transfers/sec
+\PhysicalDisk(*)\Disk Reads/sec
+\PhysicalDisk(*)\Disk Writes/sec
+
+\PhysicalDisk(*)\Avg. Disk sec/Transfer
+\PhysicalDisk(*)\Avg. Disk sec/Read
+\PhysicalDisk(*)\Avg. Disk sec/Write
+
+\PhysicalDisk(*)\Disk Bytes/sec
+\PhysicalDisk(*)\Disk Read Bytes/sec
+\PhysicalDisk(*)\Disk Write Bytes/sec
+
+\Process(mongod)\IO Data Bytes/sec
+\Process(mongod)\IO Other Bytes/sec
+\Process(mongod)\IO Read Bytes/sec
+\Process(mongod)\IO Write Bytes/sec
+
+\Process(mongod)\IO Data Operations/sec
+\Process(mongod)\IO Other Operations/sec
+\Process(mongod)\IO Read Operations/sec
+\Process(mongod)\IO Write Operations/sec
+

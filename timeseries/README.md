@@ -239,6 +239,41 @@ can say for example:
     python timeseries.py "cpu user:iostat.log" "cpu system:iostat.log"  # specify same file multiple times to select multiple groups
 
 
+### Collecting system performance data on Windows
+
+You can collect system performance data related to CPU, memory, and
+disk on Windows using the built-in Windows logman command. First,
+define up a data collector called "win-perf" as follows:
+
+    logman create counter win-perf --v -si 1 -f csv -o c:\tmp\win-perf.csv -cf win-perf.txt
+
+This uses a file [win-perf.txt](win-perf.txt), found in this project,
+that lists an assortment of useful Windows performance counters
+related to CPU, memory, and disk. The -si parameter controls the
+sampling frequency; a frequency of 1 second is useful for most short-
+to medium-length runs.  Output location is specified by the -o
+parameter.
+
+Then when you are ready to begin data collection, start, run your
+workload, then stop the data collection as follows:
+
+    logman start win-perf
+    ...
+    logman stop win-perf
+
+You can visualize the resulting win-perf.csv file, together with any
+other performance data you may have collected, such as serverStatus
+time series, using the [timeseries tool](timeseries.py) from this
+project:
+
+    python timeseries.py win:win-perf.csv
+
+Here's an example, taken from
+[SERVER-18079](https://jira.mongodb.org/browse/SERVER-18079):
+
+![ex-win-perf](https://jira.mongodb.org/secure/attachment/71075/drop.png)
+
+
 ## Call Tree Visualzation tool
 
 The call tree visualization tool is able to display call trees from a

@@ -272,6 +272,9 @@ class Series:
         if self.parse_type=='csv':
             self.csv_field = self.get('csv_field', None)
 
+        # special csv header processing
+        self.process_headers = self.get('process_headers', lambda series, headers: headers)
+
         # timezone offset
         tz = self.get('tz', None)
         if tz==None:
@@ -763,10 +766,13 @@ def series_read_csv(fn, series, opt):
     field_names = None
 
     for line in progress(fn, opt):
-        line = [s.strip() for s in line.split(',')]
+        line = [s.strip(' \n"') for s in line.split(',')]
         if not field_names:
-            field_names = line
-            time_field = field_names.index('time')
+            field_names = series[0].process_headers(series, line)
+            try:
+                time_field = field_names.index('time')
+            except:
+                time_field = 0
         elif len(line)==len(field_names):
             field_values = line
             field_dict = dict(zip(field_names, field_values))
@@ -774,8 +780,8 @@ def series_read_csv(fn, series, opt):
                 t = get_time(field_values[time_field], opt, s)
                 if not t:
                     break
-                for field_name, field_value in zip(field_names, field_values):
-                    if field_name != 'time':
+                for i, (field_name, field_value) in enumerate(zip(field_names, field_values)):
+                    if i != time_field:
                         m = re.match(s.csv_field, field_name)
                         if m:
                             field_dict.update(m.groupdict())
@@ -1446,6 +1452,26 @@ descriptor(
 )
 
 #
+# windows csv - special header processing
+#
+
+def win_headers(series, headers):
+    tz = headers[0].split('(')[3].strip(')')
+    tz = timedelta(hours = -float(tz)/60)
+    for s in series:
+        s.tz = tz
+    return [' '.join(h.split('\\')[3:]) for h in headers]
+
+descriptor(
+    name = 'win {fn}: {csv_field}',
+    parse_type = 'csv',
+    file_type = 'text',
+    csv_field = '(?P<csv_field>.*)',
+    split_field = 'csv_field',
+    process_headers = win_headers
+)
+
+#
 # json test
 #
 
@@ -2093,6 +2119,13 @@ iostat_disk('avgrqsz', 'average request size (sectors)')
 iostat_disk('avgqusz', 'average queue length')
 iostat_disk('await',   'average wait time (ms)')
 iostat_disk('util',    'average utilization (%)', ymax=100, level=1)
+
+
+#
+#
+#
+
+
 
 
 #
