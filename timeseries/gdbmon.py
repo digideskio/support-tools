@@ -17,6 +17,7 @@ sys.stdout.flush()
 parser = optparse.OptionParser()
 parser.add_option('--debug', '-d', action='store_true', dest='dbg')
 parser.add_option('--state', '-s', action='store_true')
+parser.add_option('--timeout', '-t', type=float, default=1.0)
 o, args = parser.parse_args()
 o.pid = int(args[0]) if len(args)>0 else None
 o.delay = float(args[1]) if len(args)>1 else None
@@ -45,7 +46,8 @@ def get(response, show=False, timeout=None):
     while True:
         rlist, _, _ = select.select([gdb.stdout], [], [], timeout)
         if not rlist:
-            dbg('TIMEOUT')
+            t = datetime.datetime.utcnow()
+            print t.strftime('%FT%T.%f+0000: timeout waiting for'), response
             return None
         line = gdb.stdout.readline().strip()
         if line.startswith('^error'):
@@ -94,7 +96,7 @@ for i in itertools.count():
     while True: # timeout and retry handles race condition btw thread starts and SIGTRAP
         dbg('SIGTRAP')
         os.kill(int(o.pid), signal.SIGTRAP)
-        if get('*stopped', timeout=1):
+        if get('*stopped', timeout=o.timeout):
             break
     t1 = time.time()
     sys.stdout.write(datetime.datetime.utcnow().strftime('\n=== %FT%T.%f+0000 \n'))
