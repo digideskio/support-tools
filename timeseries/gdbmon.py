@@ -11,7 +11,7 @@ import optparse
 import select
 
 
-print ' '.join(sys.argv)
+print ' '.join(sys.argv), '(version 1.1)'
 sys.stdout.flush()
 
 parser = optparse.OptionParser()
