@@ -268,9 +268,8 @@ class Series:
         if self.parse_type=='json':
             self.json_fields = self.get('json_fields', None)
 
-        # info for csv-format files
-        if self.parse_type=='csv':
-            self.csv_field = self.get('csv_field', None)
+        # info for field-based file formats, like csv and rs
+        self.field_name = self.get('field_name', None)
 
         # special csv header processing
         self.process_headers = self.get('process_headers', lambda series, headers: headers)
@@ -629,6 +628,14 @@ def fixup(j):
 # process json file
 # 
 
+def read_json(fn, opt):
+    for line in progress(fn, opt):
+        if line.startswith('{'):
+            try:
+                yield json.loads(line)
+            except Exception as e:
+                msg('ignoring bad line', e)
+
 def series_read_json(fn, series, opt):
 
     # interior nodes
@@ -682,25 +689,19 @@ def series_read_json(fn, series, opt):
                         result[s][fname] = value
 
     # process lines
-    for line in progress(fn, opt):
+    for jnode in read_json(fn, opt):
         time = None
-        if line.startswith('{'):
+        fixup(jnode)
+        result = collections.defaultdict(dict)
+        match(ptree, jnode, result)
+        set_fields = {}
+        for s in sorted(result.keys(), key=lambda s: s.key):
+            fields = result[s]
+            fields.update(set_fields)
             try:
-                jnode = json.loads(line)
-            except Exception as e:
-                msg('ignoring bad line', e)
-                continue
-            fixup(jnode)
-            result = collections.defaultdict(dict)
-            match(ptree, jnode, result)
-            set_fields = {}
-            for s in sorted(result.keys(), key=lambda s: s.key):
-                fields = result[s]
-                fields.update(set_fields)
-                try:
-                    s.data_point(fields['time'], fields['data'], fields.__getitem__, set_fields.__setitem__, opt)
-                except KeyError as e:
-                    pass
+                s.data_point(fields['time'], fields['data'], fields.__getitem__, set_fields.__setitem__, opt)
+            except KeyError as e:
+                pass
 
     if unmatched:
         msg('unmatched in', fn)
@@ -761,12 +762,9 @@ def series_read_re(fn, series, opt):
                                 s.data_point(t, d, get_field, None, opt)
                             last_time = t
 
-def series_read_csv(fn, series, opt):
-
+def series_read_fields(field_source, series, opt):
     field_names = None
-
-    for line in progress(fn, opt):
-        line = [s.strip(' \n"') for s in line.split(',')]
+    for line in field_source:
         if not field_names:
             field_names = series[0].process_headers(series, line)
             try:
@@ -782,12 +780,18 @@ def series_read_csv(fn, series, opt):
                     break
                 for i, (field_name, field_value) in enumerate(zip(field_names, field_values)):
                     if i != time_field:
-                        m = re.match(s.csv_field, field_name)
+                        m = re.match(s.field_name, field_name)
                         if m:
                             field_dict.update(m.groupdict())
                             field_value = s.data_point(t, field_value, field_dict.__getitem__, field_dict.__setitem__, opt)
                             field_dict[field_name] = field_value # xxx use set_field instead?
                                 
+def series_read_csv(fn, series, opt):
+    def field_source():
+        for line in progress(fn, opt):
+            yield [s.strip(' \n"') for s in line.split(',')]
+    series_read_fields(field_source(), series, opt)
+            
 
 descriptors = []     # descriptors loaded from various def files
 split_ords = {}      # sort order for each split_key - first occurrence of split_key in def file
@@ -1444,11 +1448,11 @@ descriptor(
 #
 
 descriptor(
-    name = 'csv {fn}: {csv_field}',
+    name = 'csv {fn}: {field_name}',
     parse_type = 'csv',
     file_type = 'text',
-    csv_field = '(?P<csv_field>.*)',
-    split_field = 'csv_field'
+    field_name = '(?P<field_name>.*)',
+    split_field = 'field_name'
 )
 
 #
@@ -1463,11 +1467,11 @@ def win_headers(series, headers):
     return [' '.join(h.split('\\')[3:]) for h in headers]
 
 descriptor(
-    name = 'win {fn}: {csv_field}',
+    name = 'win {fn}: {field_name}',
     parse_type = 'csv',
     file_type = 'text',
-    csv_field = '(?P<csv_field>.*)',
-    split_field = 'csv_field',
+    field_name = '(?P<field_name>.*)',
+    split_field = 'field_name',
     process_headers = win_headers
 )
 
@@ -1862,6 +1866,55 @@ ss(["version"], level=99) # CHECK
 ss(["writeBacksQueued"], level=9) # CHECK
 
 
+#
+# replica set status
+# do special-case computation of repl set lag here to produce a sequence of samples
+# then delegate to the generic series_read_fields
+#
+
+def series_read_rs(fn, series, opt):
+
+    def rs_fields():
+
+        headers = None
+
+        for jnode in read_json(fn, opt):
+
+            # produce headers
+            if not headers:
+                headers = ['time']
+                for m in jnode['members']:
+                    name = m['name']
+                    for s in ['state', 'lag']:
+                        headers.append(name + ' ' + s)
+                yield headers
+
+            # compute primary_optime
+            primary_optime = None
+            for m in jnode['members']:
+                if m['stateStr'] == 'PRIMARY':
+                    primary_optime = m['optime']['t']
+                    break
+
+            # produce result
+            result = [jnode['date']]
+            for m in jnode['members']:
+                result.append(m['state'])
+                result.append(primary_optime - m['optime']['t'])
+            yield result
+
+    series_read_fields(rs_fields(), series, opt)
+
+descriptor(
+    name = 'rs: {field_name}',
+    parse_type = 'rs',
+    file_type = 'json',
+    field_name = '(?P<field_name>.*)',
+    split_field = 'field_name'
+)
+
+
+
 
 #
 #
@@ -2005,7 +2058,7 @@ def sysmon_cpu(which, **kwargs):
         name = 'sysmon cpu: %s (%%)' % which,
         parse_type = 'csv',
         file_type = 'text',
-        csv_field = 'cpu_%s' % which,
+        field_name = 'cpu_%s' % which,
         scale_field = 'cpus',
         ymax = 100,
         rate = True,
@@ -2033,7 +2086,7 @@ def stat(which, name=None, **kwargs):
         name = name,
         parse_type = 'csv',
         file_type = 'text',
-        csv_field = '%s' % which,
+        field_name = '%s' % which,
         **kwargs
     )
 
@@ -2049,7 +2102,7 @@ def sysmon_disk(which, desc, **kwargs):
         name = 'sysmon disk: {disk} %s' % desc,
         parse_type = 'csv',
         file_type = 'text',
-        csv_field = '(?P<disk>.*)\.%s' % which,
+        field_name = '(?P<disk>.*)\.%s' % which,
         split_field = 'disk',
         **kwargs
     )
