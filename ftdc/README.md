@@ -44,6 +44,10 @@ Rationale
 * db.serverStatus(). Contains a wealth of mongod-global information,
   including storage-engine-specific counters.
 
+* rs.getStatus() (replSetGetStatus command). Contains information
+  related to diagnosing replica set functional and performance
+  problems, such as replica state and replication lag.
+
 * db.c.stats(). Contains similar data per-namespace. Ideally data
   would be collected for all namespaces, if consistent with
   performance and space goals. Potentially high volume of data, but
@@ -62,9 +66,9 @@ Rationale
   section below on minimizing storage.
 
 The initial proof of concept and strawman integration proposal
-addresses serverStatus only, which is sufficient for a wide range of
-problems. Possibility for enhancement in the future with additional
-data capture is tbd.
+addresses serverStatus and replSetGetStatus only, which is sufficient
+for a wide range of problems. Possibility for enhancement in the
+future with additional data capture is tbd.
 
 ## Data capture format strawman design
 
@@ -228,7 +232,7 @@ on the command line, doing compression or decompression as necessary,
 depending on the type of the source and sink.
 
 Supported sources include
-* uncompressed serverStatus samples obtained live from a mongod instance
+* uncompressed serverStatus and replSetGetStatus samples obtained live from a mongod instance
 * compressed samples from a MongoDB collection (for example local.ftdc)
 * pre-recorded uncompressed BSON samples from a .bson file
 * compressed samples from a file, for testing purposes.
@@ -242,23 +246,24 @@ Supported sinks include
 
 The following two examples illustrate use of the ftdc command to
 simulate a built-in FTDC capability by first obtaining serverStatus
-samples from a mongod process and storing them in compressed form in a
-MongoDB capped collection, and then extracting, decompressing, and
-visualizing the samples.
+and replSetGetStatus samples from a mongod process and storing them in
+compressed form in a MongoDB capped collection, and then extracting,
+decompressing, and visualizing the samples.
 
-*Collecting the samples* Obtain samples by executing serverStatus at
-the specified host once per second until terminated, and then
-compressing and storing them in local.ftdc. If local.ftdc does not
-exist it will be created as a 100 MB capped collection.
+*Collecting the samples* Obtain samples by executing serverStatus and
+replSetGetStatus at the specified host once per second until
+terminated, and then compressing and storing them in local.ftdc. If
+local.ftdc does not exist it will be created as a 100 MB capped
+collection.
 
-    ftdc mongodb://host mongodb://host
+    ftdc -r mongodb://host mongodb://host
 
 *Extracting and visualizing the samples* Read all compressed samples
 from local.ftdc on the specified host, decompress them, and store them
 as JSON documents in ss.json. Then visualize the samples using the
 [timeseries tool](https://github.com/10gen/support-tools/tree/master/timeseries).
 
-    ftdc mongodb://host/?ns=local.ftdc ss.json
+    ftdc -r mongodb://host/?ns=local.ftdc ss.json
     python timeseries.py ss:ss.json >ts.html
     open /a "Google Chrome" ts.html
 
@@ -427,6 +432,21 @@ capped collection cannot grow. A robust implementation for mmapv1 will
 pre-allocate a document when writing the first interim update for a
 chunk, or alternatively forego interim updates under mmapv1.)
 
+### Adding replica set status
+
+The above timings were obtained using serverStatus only. Additional
+useful performance and diagnostic information is provided by the
+replSetGetStatus command. Of particular interest are
+
+* Replica state, useful for diagnosing problems causing and related to
+  failover.
+
+* Replica lag, useful for diagnosing performance issues related to
+  replication.
+
+Obtaining and storing replica set status adds a small cost but given
+the good time and space performance numbers seen so far, it would seem
+to be worthwhile to collect this information.
 
 ### Strawman integration proposal
 
@@ -449,10 +469,21 @@ per second with a chunk size of 300 samples would
   we are asked to do a post-mortem of a performance-related outage
   substantially after the fact.
 
+A document structure like the following for each sample will support
+encapsulating multiple optional sources of data, and allows for adding
+new sources of data in the future:
+
+    {
+        "serverStatus": { ... serverStatus document ...},
+        "replSetGetStatus": { ... replSetGetStatus document ...},
+        ...
+    }
+
 Given performance data so far, propose that ftdc collecting
-serverStatus samples be integrated into mongod, capturing samples in a
-new local.ftdc capped collection, on by default, controlled by the
-following parameters:
+serverStatus and replSetGetStatus samples in the document format above
+be integrated into mongod, capturing samples in a new local.ftdc
+capped collection, on by default, controlled by the following
+parameters:
 
 * ftdc.samplePeriod - floating point seconds between samples. 0
   disables ftdc. Default 1.0.
@@ -468,6 +499,11 @@ following parameters:
 * ftdc.maxSizeMB - maximum size of local.ftdc capped collection, in
   MB. 0 disables ftdc. Default 100 MB.
 
+* ftdc.sources - comma-separated string of sources of metrics to
+  include. Default "serverStatus,replSetGetStatus". Each source will
+  result in a sub-document of the same name in the top-level sample
+  documents, as shown above.
+
 ### Related tooling
 
 Following related tooling is needed. Simplest approach is to keep
@@ -479,14 +515,4 @@ these internal for now, possibly to be made public at some point.
 
 * Utility for decompressing ftdc samples. The POC implementation
   described above may be sufficient for this for internal use.
-
-
-
-
-
-
-
-
-
-
 

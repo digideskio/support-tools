@@ -11,18 +11,23 @@ function compile {
 
     arch=$(uname)
     if [[ $arch == Linux ]]; then
-        mt=
+        MCXX=$HOME/mongodb/mongo-cxx-driver-install
+        g++ --std=c++11 ftdc.cpp -o ~/bin/ftdc -O4 $* \
+            -I $MCXX/include -L $MCXX/lib \
+            -I /usr/local/include -I /opt/local/include -L /usr/local/lib -L /opt/local/lib \
+            -lmongoclient -lboost_system$mt -lboost_thread$mt -lboost_regex$mt \
+            -lboost_date_time$mt -lboost_serialization$mt -lboost_filesystem$mt \
+            -lboost_iostreams$mt -lpthread  -lz -static -static-libgcc -static-libstdc++
     else
-        mt=-mt
+        MCXX=$HOME/mongodb/mongo-cxx-driver-install
+        g++ --std=c++11 ftdc.cpp -o ~/bin/ftdc -O4 $* \
+            -I $MCXX/include -L $MCXX/lib \
+            -I /usr/local/include -I /opt/local/include -L /usr/local/lib -L /opt/local/lib \
+            -lmongoclient -lboost_system-mt -lboost_thread-mt -lboost_regex-mt \
+            -lboost_date_time-mt -lboost_serialization-mt -lboost_filesystem-mt \
+            -lboost_iostreams-mt -lpthread  -lz -Wno-deprecated
     fi
 
-    MCXX=$HOME/mongodb/mongo-cxx-driver-install
-    g++ --std=c++11 ftdc.cpp -o ~/bin/ftdc -O4 $* \
-        -I $MCXX/include -L $MCXX/lib \
-        -I /usr/local/include -I /opt/local/include -L /usr/local/lib -L /opt/local/lib \
-        -lmongoclient -lboost_system$mt -lboost_thread$mt -lboost_regex$mt \
-        -lboost_date_time$mt -lboost_serialization$mt -lboost_filesystem$mt \
-        -lboost_iostreams$mt -lpthread  -lz -static -static-libgcc -static-libstdc++
 }
 
 function compare-bson {
@@ -69,6 +74,7 @@ function test-all {
     if ! compile; then
         exit -1
     fi
+    test-one test/ss-wt-repl-600.bson
     test-one test/ss-wt-idle-600.bson
     test-one test/ss-300-1.bson
     test-one test/ss-300-2.bson

@@ -58,7 +58,7 @@ Date_t now_ms() {
 }
 
 void err(string s, bool with_errno=true) {
-    msg(0) << s;
+    msg(0) << "error: " << s;
     if (with_errno)
         msg(0) << ": " << strerror(errno);
     msg(0) << endl;
@@ -317,7 +317,14 @@ void extract_metrics(const BSONObj& ref, const BSONObj& curr, vector<METRIC>& me
             metrics.push_back(e_curr.Date());
             break;
 
+        case Timestamp:
+            // very slightly more space efficient to treat these as two separate metrics
+            metrics.push_back(e_curr.Timestamp().seconds());
+            metrics.push_back(e_curr.Timestamp().increment());
+            break;
+
         case Object:
+        case Array:
             extract_metrics(matches? e_ref.Obj() : BSONObj(), e_curr.Obj(), metrics, matches);
             break;
 
@@ -329,6 +336,8 @@ void extract_metrics(const BSONObj& ref, const BSONObj& curr, vector<METRIC>& me
         default:
             if (matches && e_curr != e_ref) {
                 msg(3) << "schema change: e_curr != e_ref" << endl;
+                msg(3) << "e_curr " << e_curr << endl;
+                msg(3) << "e_ref " << e_ref << endl;
                 matches = false;
             }
             break;
@@ -376,8 +385,21 @@ void _insert_metrics(const BSONObj& ref, BSONObjBuilder& b, vector<METRIC>& metr
             b.append(e.fieldName(), Date_t(metrics[at++]));
             break;
 
+        case Timestamp: {
+            uint64_t seconds = metrics[at++];
+            uint64_t increment = metrics[at++];
+            b.appendTimestamp(e.fieldName(), Timestamp_t(seconds, increment));
+            break;
+        }
+
         case Object: {
             BSONObjBuilder sub(b.subobjStart(e.fieldName()));
+            _insert_metrics(e.Obj(), sub, metrics, at);
+            break;
+        }
+
+        case Array: {
+            BSONObjBuilder sub(b.subarrayStart(e.fieldName()));
             _insert_metrics(e.Obj(), sub, metrics, at);
             break;
         }
@@ -772,8 +794,8 @@ public:
 class CompressedFileSink : public DataSink, public SampleSink {
 
     int fd;
-    scoped_ptr<Compress> compress;
     SpaceStats space;
+    scoped_ptr<Compress> compress;
 
     void push_chunk(char* buf, char* end, Date_t id) {
         int sz = end - buf;
@@ -948,14 +970,27 @@ void serverStatus(DBClientBase& c, BSONObj& result) {
         err("serverStatus", false);
 }
 
+void replSetGetStatus(DBClientBase& c, BSONObj& result) {
+    BSONObj cmd = BSON(
+        "replSetGetStatus" << 1
+    );
+    int rc = c.runCommand("admin", cmd, result);
+    if (!rc)
+        err("replSetGetStatus", false);
+}
+
 class LiveSource : public SampleSource {
 
     scoped_ptr<DBClientBase> c;
     SpaceStats space;
+    bool do_repl;
 
 public:
 
-    LiveSource(string spec = "localhost") : space("live source " + spec) {
+    LiveSource(string spec = "localhost", bool do_repl = true) :
+        space("live source " + spec),
+        do_repl(do_repl)
+    {
 
         // parse and check spec connection string
         string errmsg;
@@ -971,8 +1006,18 @@ public:
     }
 
     bool get_sample(BSONObj& sample) {
-        serverStatus(*c, sample);
-        space.record_sample(1, sample.objsize());
+        if (do_repl) {
+            BSONObj ss, rs;
+            serverStatus(*c, ss);
+            replSetGetStatus(*c, rs);
+            sample = BSON(
+                "serverStatus" << ss <<
+                "replSetGetStatus" << rs
+            );
+        } else {
+            serverStatus(*c, sample);
+            space.record_sample(1, sample.objsize());
+        }
         return true;
     }
 };
@@ -1151,6 +1196,7 @@ void time_ping(string spec, int n, double delay) {
 
     BSONObj result;
     TimeStats serverStatus_timer("serverStatus");
+    TimeStats replSetGetStatus_timer("replSetGetStatus");
     TimeStats ping_timer("ping");
 
     for (int i=0; i<n; i++) {
@@ -1160,24 +1206,34 @@ void time_ping(string spec, int n, double delay) {
         serverStatus(*c, result);
         serverStatus_timer.stop();
 
+        // replSetGetStatus
+        replSetGetStatus_timer.start();
+        replSetGetStatus(*c, result);
+        replSetGetStatus_timer.stop();
+
         // ping
-        /*
         ping_timer.start();
         int rc = c->simpleCommand("local", &result, "ping");
         ping_timer.stop();
         if (!rc)
             err("ping");
-        */
 
         // sleep if requested
         if (delay)
             sleep(delay);
     }
 
+    /*
     int t_ss_less_ping_us_avg = int((serverStatus_timer.avg() - ping_timer.avg()) * 1e6);
     int t_ss_less_ping_us_min = int((serverStatus_timer.min() - ping_timer.min()) * 1e6);
     msg(0) << "serverStatus less ping " << t_ss_less_ping_us_min << " µs min, " << 
          t_ss_less_ping_us_avg << " µs avg" << endl;
+
+    int t_rs_less_ping_us_avg = int((replSetGetStatus_timer.avg() - ping_timer.avg()) * 1e6);
+    int t_rs_less_ping_us_min = int((replSetGetStatus_timer.min() - ping_timer.min()) * 1e6);
+    msg(0) << "replSetGetStatus less ping " << t_rs_less_ping_us_min << " µs min, " << 
+         t_rs_less_ping_us_avg << " µs avg" << endl;
+    */
 }
 
 //
@@ -1206,6 +1262,7 @@ int main(int argc, char* argv[]) {
     int chunk_size = 300;
     int chunk_update_size = 0;
     bool do_fork = false;
+    bool replSet = false;
 
     for (int i=1; i<argc; i++) {
         if (argv[i]==string("-n"))
@@ -1220,8 +1277,12 @@ int main(int argc, char* argv[]) {
             chunk_update_size = atoi(argv[++i]);
         else if (argv[i]==string("-v"))
             verbosity = atoi(argv[++i]);
+        else if (argv[i]==string("-r"))
+            replSet = true;
         else if (argv[i]==string("--fork"))
             do_fork = true;
+        else if (starts_with(argv[i], "-"))
+            err(string("unrecognized arg ") + argv[i], false);
         else if (source_spec.empty())
             source_spec = argv[i];
         else if (sink_spec.empty())
@@ -1246,7 +1307,7 @@ int main(int argc, char* argv[]) {
         if (source_spec.find("?ns") != string::npos) {
             source.reset(new CompressedCollectionSource(source_spec));
         } else {
-            source.reset(new LiveSource(source_spec));
+            source.reset(new LiveSource(source_spec, replSet));
             if (!delay)
                 delay = 1.0;
         }
@@ -1281,7 +1342,7 @@ int main(int argc, char* argv[]) {
 
     // fork?
     if (do_fork)
-        daemon(true /*nochdir*/, false /*noclose*/);
+        int rc = daemon(true /*nochdir*/, false /*noclose*/);
 
     // shovel samples
     BSONObj sample;
