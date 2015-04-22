@@ -1310,6 +1310,10 @@ def td(cls, *content):
         put(*content)
         end('td')
 
+#
+#
+#
+
 def main():
 
     p = argparse.ArgumentParser()
@@ -1332,9 +1336,25 @@ def main():
     p.add_argument('--level', type=int, default=1)
     p.add_argument('--bins', type=int, default=25)
     p.add_argument('--progress-every', type=int, default=10000)
+    p.add_argument('--profile', action='store_true')
 
     global opt
     opt = p.parse_args()
+
+    if opt.profile:
+        # pip install -e git+https://github.com/joerick/pyinstrument.git#egg=pyinstrument
+        import pyinstrument, codecs, locale
+        p = pyinstrument.Profiler()
+        p.start()
+        _main()
+        p.stop()
+        out = codecs.getwriter('UTF-8')(sys.stderr)
+        out.write(p.output_text(unicode=True, color=True))
+    else:
+        _main()
+
+
+def _main():
 
     # just list?
     if opt.list:
