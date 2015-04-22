@@ -264,9 +264,8 @@ class Series:
             self.re_time = self.get('re_time', 0)
             self.re_data = self.get('re_data', 1)
 
-        # info for json-format files
-        if self.parse_type=='json':
-            self.json_fields = self.get('json_fields', None)
+        # info for json-based files
+        self.json_fields = self.get('json_fields', None)
 
         # info for field-based file formats, like csv and rs
         self.field_name = self.get('field_name', None)
@@ -594,6 +593,7 @@ def progress(fn, opt):
             size = None
 
         # enumerate lines
+        msg('reading', fn)
         for n, line in enumerate(f):
             yield line
             if n>0 and n%opt.progress_every==0:
@@ -612,31 +612,60 @@ def progress(fn, opt):
 #
 
 def fixup(j):
-    for k, v in j.items():
-        if type(v)==dict:
-            if len(v)==1:
-                if '$date' in v:
-                    j[k] = v['$date']
-                elif '$numberLong' in v:
-                    j[k] = int(v['$numberLong'])
-                elif 'floatApprox' in v:
-                    j[k] = v['floatApprox']
-            fixup(v)
+    if type(j)==dict:
+        for k, v in j.items():
+            if type(v)==dict:
+                if len(v)==1:
+                    if '$date' in v:
+                        j[k] = v['$date']
+                    elif '$numberLong' in v:
+                        j[k] = int(v['$numberLong'])
+                    elif '$timestamp' in v:
+                        j[k] = v['$timestamp']
+                    elif 'floatApprox' in v:
+                        j[k] = v['floatApprox']
+                fixup(v)
+            elif type(v)==list:
+                fixup(v)
+    elif type(j)==list:
+        for jj in j:
+            fixup(jj)
+
 
 
 #
-# process json file
-# 
+# each read_* generator reads files of a given type
+# and yields a sequence of parsed data structures
+# useable as a src for transfer(src, *dst)
+#
+
+def read_csv(fn, opt):
+    for line in progress(fn, opt):
+        yield [s.strip(' \n"') for s in line.split(',')]
+
 
 def read_json(fn, opt):
     for line in progress(fn, opt):
         if line.startswith('{'):
             try:
-                yield json.loads(line)
+                jnode = json.loads(line)
+                fixup(jnode)
+                yield jnode
             except Exception as e:
                 msg('ignoring bad line', e)
 
-def series_read_json(fn, series, opt):
+
+def read_lines(fn, opt):
+    return progress(fn, opt)
+
+
+#
+# each series_process_* generator accepts data of a given type
+# and generates graphs from the data as determined by the series arg
+# useable as a dst for transfer(src, *dst)
+# 
+
+def series_process_json(fn, series, opt):
 
     # interior nodes
     interior = dict
@@ -662,9 +691,11 @@ def series_read_json(fn, series, opt):
     # construct combined path tree for all paths in all series
     ptree = interior()
     for s in series:
-        for fname, path in s.json_fields.items():
-            add_path(ptree, path, fname, s)
+        if s.json_fields:
+            for fname, path in s.json_fields.items():
+                add_path(ptree, path, fname, s)
 
+    # for reporting unmatched json paths
     unmatched = set()
 
     # match a path tree with a json doc
@@ -689,9 +720,10 @@ def series_read_json(fn, series, opt):
                         result[s][fname] = value
 
     # process lines
-    for jnode in read_json(fn, opt):
+    while True:
+        try: jnode = yield
+        except StopIteration: break
         time = None
-        fixup(jnode)
         result = collections.defaultdict(dict)
         match(ptree, jnode, result)
         set_fields = {}
@@ -699,17 +731,50 @@ def series_read_json(fn, series, opt):
             fields = result[s]
             fields.update(set_fields)
             try:
-                s.data_point(fields['time'], fields['data'], fields.__getitem__, set_fields.__setitem__, opt)
+                getitem = fields.__getitem__
+                setitem = set_fields.__setitem__
+                s.data_point(fields['time'], fields['data'], getitem, setitem, opt)
             except KeyError as e:
                 pass
 
+    # report on unmatched json paths
     if unmatched:
         msg('unmatched in', fn)
         for t in sorted(unmatched):
             msg('  ', [str(tt) for tt in t])
 
 
-def series_read_re(fn, series, opt):
+def series_process_fields(series, opt):
+    field_names = None
+    while True:
+        line = yield
+        if not field_names:
+            field_names = series[0].process_headers(series, line)
+            try:
+                time_field = field_names.index('time')
+            except:
+                time_field = 0
+        elif len(line)==len(field_names):
+            field_values = line
+            field_dict = dict(zip(field_names, field_values))
+            for s in series:
+                if not s.field_name:
+                    continue
+                t = get_time(field_values[time_field], opt, s)
+                if not t:
+                    break
+                for i, (field_name, field_value) in enumerate(zip(field_names, field_values)):
+                    if i != time_field:
+                        m = re.match(s.field_name, field_name)
+                        if m:
+                            field_dict.update(m.groupdict())
+                            getitem = field_dict.__getitem__
+                            setitem = field_dict.__setitem__
+                            field_value = s.data_point(t, field_value, getitem, setitem, opt)
+                            field_dict[field_name] = field_value # xxx use set_field instead?
+
+
+def series_process_re(series, opt):
 
     # group series by re
     series_by_re = collections.defaultdict(list)
@@ -736,9 +801,11 @@ def series_read_re(fn, series, opt):
         chunk_re = re.compile(chunk_re)
         chunks.append((chunk_re, chunk, chunk_groups))
 
+
     # process the file
     last_time = None
-    for line in progress(fn, opt):
+    while True:
+        line = yield
         line = line.strip()
         for chunk_re, chunk, chunk_groups in chunks:
             m = chunk_re.match(line)
@@ -762,36 +829,56 @@ def series_read_re(fn, series, opt):
                                 s.data_point(t, d, get_field, None, opt)
                             last_time = t
 
-def series_read_fields(field_source, series, opt):
-    field_names = None
-    for line in field_source:
-        if not field_names:
-            field_names = series[0].process_headers(series, line)
+
+
+#
+# transfer(src, *dst) pulls data from src and pushes it to each *dst
+# as a convenience we
+#     init each dst with .next
+#     wrap it in a genrator that catches StopIteration so dst does not need to
+#
+
+def init_dst(d):
+    def wrap():
+        d.next()
+        while True:
             try:
-                time_field = field_names.index('time')
-            except:
-                time_field = 0
-        elif len(line)==len(field_names):
-            field_values = line
-            field_dict = dict(zip(field_names, field_values))
-            for s in series:
-                t = get_time(field_values[time_field], opt, s)
-                if not t:
-                    break
-                for i, (field_name, field_value) in enumerate(zip(field_names, field_values)):
-                    if i != time_field:
-                        m = re.match(s.field_name, field_name)
-                        if m:
-                            field_dict.update(m.groupdict())
-                            field_value = s.data_point(t, field_value, field_dict.__getitem__, field_dict.__setitem__, opt)
-                            field_dict[field_name] = field_value # xxx use set_field instead?
-                                
+                x = yield
+                d.send(x)
+            except StopIteration:
+                pass
+    w = wrap()
+    w.next()
+    return w
+
+def transfer(src, *dst):
+    ds = [init_dst(d) for d in dst]
+    for x in src:
+        for d in ds:
+            d.send(x)
+
+#
+# each series_read_* routine processes and generates graphs from a file of a given type
+# typically implemented by gluing a source and a destination together using transfer(src, *dst)
+#
+
+def series_read_re(fn, series, opt):
+    transfer(read_lines(fn, opt), series_process_re(series, opt))
+
+def series_read_json(fn, series, opt):
+    transfer(read_json(fn, opt), series_process_json(fn, series, opt))
+
+def series_read_fields(field_source, series, opt):
+    transfer(field_source, series_process_fields(series, opt))
+
+
 def series_read_csv(fn, series, opt):
-    def field_source():
-        for line in progress(fn, opt):
-            yield [s.strip(' \n"') for s in line.split(',')]
-    series_read_fields(field_source(), series, opt)
-            
+    series_read_fields(read_csv(fn, opt), series, opt)
+
+
+#
+#
+#
 
 descriptors = []     # descriptors loaded from various def files
 split_ords = {}      # sort order for each split_key - first occurrence of split_key in def file
@@ -1514,16 +1601,34 @@ def desc_units(scale, rate):
     return units
 
 def ss(json_data, name=None, scale=1, rate=False, units=None, level=3, **kwargs):
+
     if not name:
         name = ' '.join(s for s in json_data[1:] if s!='floatApprox')
         name = 'ss ' + json_data[0] +  ': ' + name
     if not units: units = desc_units(scale, rate)
     if units: units = ' (' + units + ')'
     name = name + units
+
+    # for parsing direct serverStatus command output
     descriptor(
         file_type = 'json',
         parse_type = 'json',
         name = name,
+        json_fields = {
+            'data': json_data,
+            'time': ['localTime'],
+        },
+        scale = scale,
+        rate = rate,
+        level = level,
+        **kwargs
+    )
+
+    # for parsing serverStatus section of ftdc
+    descriptor(
+        file_type = 'json',
+        parse_type = 'ftdc',
+        name = 'ftdc ' + name,
         json_fields = {
             'data': json_data,
             'time': ['localTime'],
@@ -1869,41 +1974,46 @@ ss(["writeBacksQueued"], level=9) # CHECK
 #
 # replica set status
 # do special-case computation of repl set lag here to produce a sequence of samples
-# then delegate to the generic series_read_fields
+# then delegate to the generic series_process_fields
 #
 
+def series_process_rs(series, opt):
+
+    # delegate to generic field processor
+    p = init_dst(series_process_fields(series, opt))
+
+    # compute and send headers
+    jnode = yield
+    headers = ['time']
+    for m in jnode['members']:
+        name = m['name']
+        for s in ['state', 'lag']:
+            headers.append(name + ' ' + s)
+    p.send(headers)
+
+    while True:
+
+        # next json doc
+        jnode = yield
+
+        # compute primary_optime
+        primary_optime = None
+        for m in jnode['members']:
+            if m['stateStr'] == 'PRIMARY':
+                primary_optime = m['optime']['t']
+                break
+
+        # compute result fields
+        result = [jnode['date']]
+        for m in jnode['members']:
+            result.append(m['state'])
+            result.append(primary_optime - m['optime']['t'])
+
+        # send result to field processor
+        p.send(result)
+
 def series_read_rs(fn, series, opt):
-
-    def rs_fields():
-
-        headers = None
-
-        for jnode in read_json(fn, opt):
-
-            # produce headers
-            if not headers:
-                headers = ['time']
-                for m in jnode['members']:
-                    name = m['name']
-                    for s in ['state', 'lag']:
-                        headers.append(name + ' ' + s)
-                yield headers
-
-            # compute primary_optime
-            primary_optime = None
-            for m in jnode['members']:
-                if m['stateStr'] == 'PRIMARY':
-                    primary_optime = m['optime']['t']
-                    break
-
-            # produce result
-            result = [jnode['date']]
-            for m in jnode['members']:
-                result.append(m['state'])
-                result.append(primary_optime - m['optime']['t'])
-            yield result
-
-    series_read_fields(rs_fields(), series, opt)
+    transfer(read_json(fn, opt), series_process_rs(series, opt))
 
 descriptor(
     name = 'rs: {field_name}',
@@ -1913,7 +2023,31 @@ descriptor(
     split_field = 'field_name'
 )
 
+descriptor(
+    name = 'ftdc rs: {field_name}',
+    parse_type = 'ftdc',
+    file_type = 'json',
+    field_name = '(?P<field_name>.*)',
+    split_field = 'field_name'
+)
 
+
+#
+# ftdc processing
+# demultiplex the embedded streams:
+#     series_process_json processes serverStatus
+#     series_process_rs does special-case processing (e.g. replica lag) for replSetGetStatus
+#
+
+def series_read_ftdc(fn, series, opt):
+    ss = init_dst(series_process_json(fn, series, opt))
+    rs = init_dst(series_process_rs(series, opt))
+    for jnode in read_json(fn, opt):
+        ss.send(jnode['serverStatus'])
+        rs.send(jnode['replSetGetStatus'])
+
+    #dst = [series_process_json(fn, series, opt), series_process_rs(series, opt)]
+    #transfer(read_json(fn, opt), *dst)
 
 
 #
@@ -2277,6 +2411,18 @@ def wt(wt_cat, wt_name, rate=False, scale=1.0, level=3, **kwargs):
         **kwargs
     )
 
+    # for parsing wt data in serverStatus section of ftdc output
+    descriptor(
+        file_type = 'json',
+        parse_type = 'ftdc',
+        json_fields = {
+            'time': ['localTime'],
+            'data': ['wiredTiger', wt_cat, wt_name],
+        },
+        name = 'ftdc ss ' + name,
+        **kwargs
+    )
+
     # for parsing wt data in json re format wtstats files
     descriptor(
         file_type = 'text',
@@ -2285,6 +2431,7 @@ def wt(wt_cat, wt_name, rate=False, scale=1.0, level=3, **kwargs):
         name = name,
         **kwargs
     )
+
 
 ss(['wiredTiger', 'concurrentTransactions', 'read', 'available'], level=4)
 ss(['wiredTiger', 'concurrentTransactions', 'read', 'out'], level=2)
