@@ -2349,7 +2349,7 @@ def mongod(**kwargs):
     descriptor(**kwargs)
 
 mongod(
-    name = 'mongod max logged op (ms) per {bucket_size}s',
+    name = 'mongod: max logged op (ms) per {bucket_size}s',
     re = '.* (?:query:|command:) .* ([0-9]+)ms$',
     bucket_op = 'max',
     bucket_size = 1, # size of buckets in seconds
@@ -2357,11 +2357,25 @@ mongod(
 )
 
 mongod(
-    name = 'mongod logged ops longer than {count_min}ms per {bucket_size}s',
+    name = 'mongod: logged ops longer than {count_min}ms per {bucket_size}s',
     re = '.* (?:query:|command:) .* ([0-9]+)ms$',
     bucket_op = 'count',
     bucket_size = 1,    # size of buckets in seconds
     count_min = 0,      # minimum query duration to count',
+    level = 1
+)
+
+mongod(
+    name = 'mongod connections opened per {bucket_size}s',
+    re = '.* connections accepted from',
+    bucket_op = 'count',
+    bucket_size = 1,    # size of buckets in seconds
+    level = 1
+)
+
+mongod(
+    name = 'mongod: connections currently open',
+    re = '.*?([0-9]+) connections now open',
     level = 1
 )
 
