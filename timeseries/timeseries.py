@@ -2029,7 +2029,8 @@ def series_process_rs(series, opt):
         result = [jnode['date']]
         for m in jnode['members']:
             result.append(m['state'])
-            result.append(primary_optime - m['optime']['t'])
+            secondary_optime = m['optime']['t']
+            result.append(primary_optime-secondary_optime if secondary_optime else '')
 
         # send result to field processor
         p.send(result)
