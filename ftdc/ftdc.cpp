@@ -1058,7 +1058,7 @@ class LiveSink : public SampleSink, DataSink {
 
 public:
 
-    LiveSink(string spec, int chunk_size, int chunk_update_size) :
+    LiveSink(string spec, int chunk_size, int chunk_update_size, bool do_reset) :
         space("live sink " + spec), last_id(0)
     {
 
@@ -1082,17 +1082,26 @@ public:
         if (!c)
             err(errmsg, false);
 
-        // create collection if it doesn't already exist
+        // parse ns
         string::size_type dot = ns.find(".");
         string db = ns.substr(0, dot);
         string coll = ns.substr(dot+1, string::npos);
+
+        // drop collection first if requested
         BSONObj cmd = BSON(
+            "drop" << coll
+        );
+        BSONObj info;
+        c->runCommand(db, cmd, info);
+        msg(1) << "dropping " << db << "." << coll << ": " << info << endl;
+
+        // create collection if it doesn't already exist
+        cmd = BSON(
             "create" << coll <<
             "capped" << true <<
             "size" << size <<
             "storageEngine" << BSON("wiredTiger" << BSON("configString" <<  "block_compressor=none"))
         );
-        BSONObj info;
         c->runCommand(db, cmd, info);
         msg(1) << "creating " << db << "." << coll << ": " << info << endl;
 
@@ -1262,6 +1271,7 @@ int main(int argc, char* argv[]) {
     int chunk_size = 300;
     int chunk_update_size = 0;
     bool do_fork = false;
+    bool do_reset = false;
     bool replSet = false;
 
     for (int i=1; i<argc; i++) {
@@ -1281,6 +1291,8 @@ int main(int argc, char* argv[]) {
             replSet = true;
         else if (argv[i]==string("--fork"))
             do_fork = true;
+        else if (argv[i]==string("--reset"))
+            do_reset = true;
         else if (starts_with(argv[i], "-"))
             err(string("unrecognized arg ") + argv[i], false);
         else if (source_spec.empty())
@@ -1325,7 +1337,7 @@ int main(int argc, char* argv[]) {
     } else if (sink_spec=="-") {
         sink.reset(new JsonFileSink());
     } else if (starts_with(sink_spec, "mongodb:")) {
-        sink.reset(new LiveSink(sink_spec, chunk_size, chunk_update_size));
+        sink.reset(new LiveSink(sink_spec, chunk_size, chunk_update_size, do_reset));
     } else if (ends_with(sink_spec, ".ftdc") || sink_spec=="") {
         sink.reset((new CompressedFileSink(sink_spec, chunk_size)));
     } else {
