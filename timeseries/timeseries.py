@@ -102,7 +102,7 @@ def html_graph(
         if not ts:
             continue
 
-        tspan = float((tmax-tmin).total_seconds())
+        tspan = tmax - tmin
         yspan = float(ymax - ymin)
         if yspan==0:
             if ymin==0:
@@ -111,7 +111,7 @@ def html_graph(
                 ymin -= 1
                 yspan = 1
 
-        dt = lambda t: (t-tmin).total_seconds()  # dt relative to global tmin
+        dt = lambda t: t - tmin
         gx = lambda dt: dt / tspan * (width-2*xpad) + xpad # gx for a given dt
         gy = lambda y: ((1 - (y-ymin) / yspan) * (1-2*ypad) + ypad) * height
 
@@ -169,8 +169,9 @@ def html_graph(
 
 def labels(tmin, tmax, width, ts, labels):
     elt('div', {'style':'height: 1.1em; position:relative; width:%gem' % width})
-    tspan = float((tmax-tmin).total_seconds())
-    gx = lambda t: (t-tmin).total_seconds() / tspan * (width-2*xpad) + xpad
+    tspan = tmax - tmin
+    gx = lambda t: (t-tmin) / tspan * (width-2*xpad) + xpad
+    #gx = lambda t: (t-tmin) / tspan * (width-2*xpad) + xpad
     for t, label in zip(ts, labels):
         style = 'left:{x}em; position:absolute; width:100em'.format(x=gx(t)-50)
         elt('span', {'align':'center', 'style':style})
@@ -182,8 +183,6 @@ def labels(tmin, tmax, width, ts, labels):
 #
 #
 #
-
-t0 = dateutil.parser.parse('2000-01-01T00:00:00Z')
 
 REQUIRED = []
 fmtr = string.Formatter()
@@ -346,7 +345,7 @@ class Series:
             if self.last_t:
                 dd = d - self.last_d
                 if self.rate != 'delta':
-                    dd /= (t-self.last_t).total_seconds()
+                    dd /= t - self.last_t
                 self.last_t = t
                 self.last_d = d
                 d = dd
@@ -368,9 +367,9 @@ class Series:
 
         # record the data
         if self.buckets:
-            s0 = (t - t0).total_seconds()
+            s0 = t
             s1 = s0 // self.buckets * self.buckets
-            t = t + timedelta(0, s1-s0)
+            t = s1
             self.ys[t] = self.op(self.ys, t, d)
         elif self.queue:
             if d>self.queue_min_ms:
@@ -427,8 +426,8 @@ class Series:
             if self.ys.keys():
                 tmin = min(self.ys.keys())
                 tmax = max(self.ys.keys())
-                n = int(math.ceil(float((tmax-tmin).total_seconds()) / self.buckets))
-                dt = timedelta(0, self.buckets)
+                n = int(math.ceil((tmax-tmin) / self.buckets))
+                dt = self.buckets
                 self.ts = [tmin + dt*i for i in range(n+1)]
             else:
                 self.ts = []
@@ -537,8 +536,17 @@ def get_series(spec, spec_ord, opt):
 
 
 #
-# flexible date parser
+# date handling
 #
+
+#t0 = dateutil.parser.parse('2000-01-01T00:00:00Z')
+t0 = None
+
+def f2t(f):
+    return t0 + timedelta(seconds=f)
+
+def t2f(t):
+    return (t-t0).total_seconds()
 
 def get_time(time, opt, s):
 
@@ -568,7 +576,11 @@ def get_time(time, opt, s):
         else:
             opt.last_time = time
 
-    return time
+    # convert to floating point representation used internally
+    global t0
+    if not t0:
+        t0 = datetime(time.year, time.month, time.day, tzinfo=time.tzinfo) # gives local tz labels
+    return t2f(time)
 
 
 #
@@ -1069,7 +1081,7 @@ def cursors_html(width, tmin, tmax, ticks):
     eltend('svg', {'id':'deleters', 'width':'%gem'%width, 'height':'%gem'%h, 'viewBox':viewBox}),
     end('div')
 
-    labels(tmin, tmax, width, ticks, [t.strftime('%H:%M:%S') for t in ticks])
+    labels(tmin, tmax, width, ticks, [f2t(t).strftime('%H:%M:%S') for t in ticks])
 
 
 
@@ -1372,7 +1384,7 @@ def _main():
     try:
         tmin = min(s.tmin for g in graphs for s in g if s.tmin)
         tmax = max(s.tmax for g in graphs for s in g if s.tmax)
-        tspan = float((tmax-tmin).total_seconds())
+        tspan = tmax - tmin
     except ValueError:
         msg('no data found')
         return
@@ -1385,9 +1397,11 @@ def _main():
     spec_empty = collections.defaultdict(int)
     spec_zero = collections.defaultdict(int)
 
-    msg('start:', tmin)
-    msg('finish:', tmax)
-    msg('duration:', tmax - tmin)
+    msg('start:', f2t(tmin))
+    msg('finish:', f2t(tmax))
+
+
+    msg('duration:', f2t(tmax) - f2t(tmin))
     if opt.duration: # in seconds
         tmax = tmin + timedelta(0, opt.duration)
 
@@ -1402,10 +1416,7 @@ def _main():
         if tickdelta<r:
             tickdelta = r
             break
-    #tickbase = t0 # gives utc timestamp labels
-    tickbase = datetime(tmin.year, tmin.month, tmin.day, tzinfo=tmin.tzinfo) # gives local tz labels
-    tickmin = tickbase + timedelta(0, math.ceil((tmin-tickbase).total_seconds()/tickdelta)*tickdelta)
-    tickdelta = timedelta(0, tickdelta)
+    tickmin = math.ceil(tmin/tickdelta) * tickdelta
     ticks = []
     for i in range(nticks+1):
         t = tickmin + i * tickdelta
