@@ -19,9 +19,12 @@ def respondToChat(msg, username = nil, protocol = 'XMPP', room = "nil")
         response+= "#!NEEDSWORK <case> - State that the response on a case is in need of work (visible under #!LIST)\n"
         response+= "#!LOOKING <case> - State that you are looking at the review of a given Case\n"
         response+= "#!UNLOOKING <case> - State that you are no longer looking at the review of a given Case\n"
+        response+= "#!REFRESH <case> - Request ticket to be re-reviewed (after some feedback or #!NEEDSWORK)\n"
         response+= "#!FIN <case> - Mark a case as reviewed\n"
         response+= "#!FTS - Do the FTS email lookup (time consuming)\n"
-        response+= "#!INVITE <email> Invite user to support-bot channel\n"
+        response+= "#!INVITE <email> - Invite user to support-bot channel\n"
+        response+= "#!UPTIME - Uptime in seconds\n"
+        response+= "#!SYN - Request acknowledgment to see if the bot is alive\n"
       when 'I'
         if array.join(' ').chomp.upcase == 'REQUEST THE HIGHEST OF FIVES'
           response = "/me gives #{username} the highest fives"
