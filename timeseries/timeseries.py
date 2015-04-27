@@ -1402,7 +1402,9 @@ def _main():
         if tickdelta<r:
             tickdelta = r
             break
-    tickmin = t0 + timedelta(0, math.ceil((tmin-t0).total_seconds()/tickdelta)*tickdelta)
+    #tickbase = t0 # gives utc timestamp labels
+    tickbase = datetime(tmin.year, tmin.month, tmin.day, tzinfo=tmin.tzinfo) # gives local tz labels
+    tickmin = tickbase + timedelta(0, math.ceil((tmin-tickbase).total_seconds()/tickdelta)*tickdelta)
     tickdelta = timedelta(0, tickdelta)
     ticks = []
     for i in range(nticks+1):
