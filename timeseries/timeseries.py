@@ -764,7 +764,7 @@ def series_process_fields(series, opt):
                 if not t:
                     break
                 for i, (field_name, field_value) in enumerate(zip(field_names, field_values)):
-                    if i != time_field:
+                    if i != time_field and field_value not in ('', None):
                         m = re.match(s.field_name, field_name)
                         if m:
                             field_dict.update(m.groupdict())
