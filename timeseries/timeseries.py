@@ -440,7 +440,7 @@ class Series:
                 self.ts.append(t)
         else:
             self.ts = sorted(self.ys.keys())
-    
+
         self.tmin = self.ts[0] if self.ts else None
         self.tmax = self.ts[-1] if self.ts else None
         self.ymin = min(self.ys.values()) if self.ys else float('inf')
@@ -2350,7 +2350,7 @@ def mongod(**kwargs):
 
 mongod(
     name = 'mongod: max logged op (ms) per {bucket_size}s',
-    re = '.* (?:query:|command:) .* ([0-9]+)ms$',
+    re = '.* (?:query:|command:|getmore) .* ([0-9]+)ms$',
     bucket_op = 'max',
     bucket_size = 1, # size of buckets in seconds
     level = 1
@@ -2358,7 +2358,7 @@ mongod(
 
 mongod(
     name = 'mongod: logged ops longer than {count_min}ms per {bucket_size}s',
-    re = '.* (?:query:|command:) .* ([0-9]+)ms$',
+    re = '.* (?:query:|command:|getmore) .* ([0-9]+)ms$',
     bucket_op = 'count',
     bucket_size = 1,    # size of buckets in seconds
     count_min = 0,      # minimum query duration to count',
