@@ -171,7 +171,6 @@ def labels(tmin, tmax, width, ts, labels):
     elt('div', {'style':'height: 1.1em; position:relative; width:%gem' % width})
     tspan = tmax - tmin
     gx = lambda t: (t-tmin) / tspan * (width-2*xpad) + xpad
-    #gx = lambda t: (t-tmin) / tspan * (width-2*xpad) + xpad
     for t, label in zip(ts, labels):
         style = 'left:{x}em; position:absolute; width:100em'.format(x=gx(t)-50)
         elt('span', {'align':'center', 'style':style})
@@ -536,11 +535,10 @@ def get_series(spec, spec_ord, opt):
 
 
 #
-# date handling
+# date parsing
 #
 
-#t0 = dateutil.parser.parse('2000-01-01T00:00:00Z')
-t0 = None
+t0 = dateutil.parser.parse('2000-01-01T00:00:00Z')
 
 def f2t(f):
     return t0 + timedelta(seconds=f)
@@ -548,39 +546,86 @@ def f2t(f):
 def t2f(t):
     return (t-t0).total_seconds()
 
-def get_time(time, opt, s):
+class parse_time:
 
-    # dateutil first, then unix timestamp
-    try:
-        if s and s.default_date:
-            time = dateutil.parser.parse(time, default=s.default_date)
+    patterns = [
+        ('(....)-(..)-(..)T(..):(..):(..)(?:\.(...))?(Z|[+-]....)', (1, 2, 3, 4, 5, 6, 7, 8)),
+    ]
+
+    def __init__(self):
+        self._parse_time = None
+
+    def _find_time(self, time):
+        for pat, gs in parse_time.patterns:
+            try:
+                self.pat = re.compile(pat)
+                self.gs = gs
+                tz = self.pat.match(time).group(self.gs[7])
+                if tz=='Z':
+                    self.tzo = dateutil.tz.tzoffset(None, 0)
+                else:
+                    tzo = 60 * (60*int(tz[1:3]) + int(tz[3:5]))
+                    if tz[0]=='-': tzo = -tzo
+                    self.tzo = dateutil.tz.tzoffset(None, tzo)
+                self._parse_time = self._parse_time_fast
+            except:
+                pass
+        if not self._parse_time:
+            #msg('using slow timestamp parsing')
+            self._parse_time = self._parse_time_slow
+
+    def parse_time(self, time, opt, s):
+        if not self._parse_time:
+            self._find_time(time)
+            time = self._parse_time(time, opt, s)
+            global t0
+            t0 = t0.astimezone(time.tzinfo)
         else:
-            time = dateutil.parser.parse(time)
-    except Exception as e:
-        dbg(e)
-        time = datetime.fromtimestamp(int(time), pytz.utc)
+            time = self._parse_time(time, opt, s)
 
-    # supply tz if missing
-    if not time.tzinfo:
-        if s:
-            time = pytz.utc.localize(time-s.tz)
-        else:
-            raise Exception('require non-naive timestamps')
-
-    # subset or range of times
-    if time < opt.after or time >= opt.before:
-        return None
-    elif opt.every:
-        if time - opt.last_time < opt.every:
+        # convert to internal fp repr
+        time = t2f(time)
+    
+        # subset or range of times
+        if time < opt.after or time >= opt.before:
             return None
-        else:
-            opt.last_time = time
+        elif opt.every:
+            if time - opt.last_time < opt.every:
+                return None
+            else:
+                opt.last_time = time
+    
+        # time is in range
+        return time
+    
+    def _parse_time_fast(self, time, opt, s):
+        group = self.pat.match(time).group
+        ms = group(self.gs[6])
+        us = 1000*int(ms) if ms else 0
+        g = lambda i: int(group(self.gs[i]))
+        return datetime(g(0), g(1), g(2), g(3), g(4), g(5), us, self.tzo)
 
-    # convert to floating point representation used internally
-    global t0
-    if not t0:
-        t0 = datetime(time.year, time.month, time.day, tzinfo=time.tzinfo) # gives local tz labels
-    return t2f(time)
+    def _parse_time_slow(self, time, opt, s):
+
+        # dateutil first, then unix timestamp
+        try:
+            if s and s.default_date:
+                time = dateutil.parser.parse(time, default=s.default_date)
+            else:
+                time = dateutil.parser.parse(time)
+        except Exception as e:
+            dbg(e)
+            time = datetime.fromtimestamp(int(time), pytz.utc)
+    
+        # supply tz if missing
+        if not time.tzinfo:
+            if s:
+                time = pytz.utc.localize(time-s.tz)
+            else:
+                raise Exception('require non-naive timestamps')
+
+        return time
+
 
 
 #
@@ -611,7 +656,7 @@ def progress(fn, opt):
             if n>0 and n%opt.progress_every==0:
                 s = '%s: processed %d lines' % (fn, n)
                 if size:
-                    s += ' (%d%%)' % (100*f.tell()/size)
+                    s += ' (%d%%)' % (100.0*f.tell()/size)
                 msg(s)
 
     # final stats
@@ -711,6 +756,7 @@ def series_process_json(fn, series, opt):
     unmatched = set()
 
     # match a path tree with a json doc
+    pt = parse_time()
     def match(pnode, jnode, result, path=()):
         if type(pnode)==interior or type(jnode)==dict:
             for jname in jnode:
@@ -726,7 +772,10 @@ def series_process_json(fn, series, opt):
         else:
             for fname in pnode:
                 # convert time here so we don't do it multiple times for each series that uses it
-                value = get_time(jnode, opt, None) if fname=='time' else jnode
+                if fname=='time':
+                    value = pt.parse_time(jnode, opt, None)
+                else:
+                    value = jnode
                 if value is not None:
                     for s in pnode[fname]:
                         result[s][fname] = value
@@ -758,6 +807,7 @@ def series_process_json(fn, series, opt):
 
 def series_process_fields(series, opt):
     field_names = None
+    pt = parse_time()
     while True:
         line = yield
         if not field_names:
@@ -772,7 +822,7 @@ def series_process_fields(series, opt):
             for s in series:
                 if not s.field_name:
                     continue
-                t = get_time(field_values[time_field], opt, s)
+                t = pt.parse_time(field_values[time_field], opt, s)
                 if not t:
                     break
                 for i, (field_name, field_value) in enumerate(zip(field_names, field_values)):
@@ -816,6 +866,7 @@ def series_process_re(series, opt):
 
     # process the file
     last_time = None
+    pt = parse_time()
     while True:
         line = yield
         line = line.strip()
@@ -830,7 +881,7 @@ def series_process_re(series, opt):
                     for s in series_by_re[s_re]:
                         t = get_field(s.re_time)
                         if t:
-                            t = get_time(t, opt, s)
+                            t = pt.parse_time(t, opt, s)
                             if not t:
                                 continue
                         else:
@@ -883,7 +934,6 @@ def series_read_json(fn, series, opt):
 def series_read_fields(field_source, series, opt):
     transfer(field_source, series_process_fields(series, opt))
 
-
 def series_read_csv(fn, series, opt):
     series_read_fields(read_csv(fn, opt), series, opt)
 
@@ -922,6 +972,8 @@ def get_graphs(specs, opt):
     if type(opt.every)==float: opt.every = timedelta(seconds=opt.every)
     if type(opt.after)==str: opt.after = datetime_parse(opt.after)
     if type(opt.before)==str: opt.before = datetime_parse(opt.before)
+    opt.after = t2f(opt.after)
+    opt.before = t2f(opt.before)
 
     # parse specs, group them by file and parse type
     series = [] # all
