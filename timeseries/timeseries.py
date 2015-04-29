@@ -972,8 +972,8 @@ def get_graphs(specs, opt):
     if type(opt.every)==float: opt.every = timedelta(seconds=opt.every)
     if type(opt.after)==str: opt.after = datetime_parse(opt.after)
     if type(opt.before)==str: opt.before = datetime_parse(opt.before)
-    opt.after = t2f(opt.after)
-    opt.before = t2f(opt.before)
+    if type(opt.after)==datetime: opt.after = t2f(opt.after)
+    if type(opt.before)==datetime: opt.before = t2f(opt.before)
 
     # parse specs, group them by file and parse type
     series = [] # all

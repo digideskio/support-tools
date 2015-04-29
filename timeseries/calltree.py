@@ -256,9 +256,9 @@ class node:
             child.pre_graph()
 
 def bucket_time(t):
-    s0 = (t - opt.t0).total_seconds()
+    s0 = t - opt.t0
     s1 = s0 // opt.buckets * opt.buckets
-    return t + timedelta(0, s1-s0)
+    return t + (s1-s0)
 
 def just_filter(pattern):
     def f(stack):
@@ -280,12 +280,22 @@ def hide_filter(arg):
         stack[:] = s.split(stack_sep)
     return f
 
+#
+# maintain times internally relative to t0
+#
+
+def f2t(f):
+    return t0 + timedelta(seconds=f)
+
+def t2f(t):
+    return (t-t0).total_seconds()
+
 def get_time(t):
     t = dateutil.parser.parse(t)
     if not t.tzinfo:
         tz = datetime(*time.gmtime()[:6]) - datetime(*time.localtime()[:6])
         t = pytz.utc.localize(t+tz)
-    return t
+    return t2f(t)
 
 #
 # read folded stacks
@@ -303,7 +313,8 @@ def read_folded(filters):
     state_field = None
     times = set()
 
-    # xxx use relative floats for times internally instead of dates
+    # start time for fp time values as specified in .folded file
+    # we provide an arbitrary default value in case start isn't specified
     start = dateutil.parser.parse('2000-01-01T00:00:00Z')
 
     for line in sys.stdin:
@@ -325,8 +336,8 @@ def read_folded(filters):
                 elif n=='stack': stack_field = i
                 elif n=='state': state_field = i
         else:
-            t = float(fields[time_field])
-            t = start + timedelta(0, t)
+            t = float(fields[time_field]) # relative to start
+            t += (start-t0).total_seconds() # now relative to t0
             if t>=opt.after and t<opt.before:
                 count = float(fields[metric_field])
                 state = fields[state_field] if state_field is not None else ''
@@ -453,15 +464,6 @@ def main():
     if not opt.html:
         opt.graph_width = 0
 
-    def datetime_parse(t):
-        t = dateutil.parser.parse(t)
-        if not t.tzinfo:
-            t = pytz.utc.localize(t+opt.tz)
-        return t
-    
-    opt.after = get_time(opt.after)
-    opt.before = get_time(opt.before)
-
     if opt.threads:
         opt.threads = set(opt.threads)
 
@@ -476,9 +478,19 @@ def main():
     opt.name = 'threads'
     opt.fmt = '%.2f'
 
+    # import timeseries if we are generating graphs
+    # we will maintain times internally relative to t0
+    global timeseries, t0
     if opt.series or opt.graph_width:
-        global timeseries
         import timeseries
+        t0 = timeseries.t0
+    else:
+        timeseries = None
+        t0 = dateutil.parser.parse('2000-01-01T00:00:00Z')
+
+    # parse and adjust opt.after,before
+    opt.after = get_time(opt.after)
+    opt.before = get_time(opt.before)
 
     # read stuff
     root = read_folded(filters)
@@ -487,11 +499,11 @@ def main():
     # bucketize times
     if opt.buckets:
         i = 0
-        t0 = min(opt.times)
-        t1 = max(opt.times)
+        b0 = min(opt.times)
+        b1 = max(opt.times)
         opt.times = []
-        for i in range(int((t1-t0).total_seconds() / opt.buckets) + 1):
-            opt.times.append(t0 + timedelta(0, i*opt.buckets))
+        for i in range(int((b1-b0) / opt.buckets) + 1):
+            opt.times.append(b0 + i*opt.buckets)
 
     # canonical times
     opt.times = sorted(set(opt.times))
@@ -511,7 +523,7 @@ def main():
     root.prt()
     html_foot()
 
-    msg('start:', opt.tmin)
-    msg('finish:', opt.tmax)
+    msg('start:', f2t(opt.tmin))
+    msg('finish:', f2t(opt.tmax))
 
 main()
