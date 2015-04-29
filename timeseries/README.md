@@ -121,6 +121,20 @@ The initial view will be restricted to the most important (level 1) statisics; y
   ss.log. This includes information about operation rates, locking,
   queues, network utilization, storage entine internals, and so on.
 
+* **Replica set status.** While running the workload, collect an
+  rs.status() timeseries as follows, substituting an appropriate
+  value for sampling interval $delay (in floating point seconds):
+
+        mongo --eval "while(true) {print(JSON.stringify(rs.status())); sleep($delay*1000)}" >rs.log &
+
+  Then visualize the output rs.log as by adding the following
+  timeseries.py command line argument:
+
+        rs:rs.log
+
+  This will enable all metrics whose names start with "rs" from the file
+  rs.log. This includes information about replica state and replica lag.
+
 * **Collection stats.** If your investigation focuses around a
   particular collection, you can collect timeseries data for that
   collection as follows, substituting appropriate values for db $db,
@@ -160,6 +174,20 @@ The initial view will be restricted to the most important (level 1) statisics; y
   This will enable all metrics whose names start with "sysmon" from
   the file sysmon.log, which includes information such as CPU and disk
   utilization statistics.
+
+
+* **Iostat.** While it has some disadvantages, it can be simpler to
+  use iostat rather than the custom script sysmon.py. Be sure to
+  include timestamps with the -t option, and use the -k option to
+  ensure that data rates are given in kB/s:
+
+        iostat -k -t -x $delay >iostat.log &
+
+  Since iostat timestamps don't have a timezone, you will need to supply
+  that when you visualize the data, for example using the following
+  timeseries.py command-line argument if the timestamps are EDT:
+
+        'iostat(tz=-4):iostat.log'
 
 
 * **Stack trace samples.** For some deeper investigations tack trace
