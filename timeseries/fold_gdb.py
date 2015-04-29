@@ -51,8 +51,10 @@ def read_gdb(f):
 
     plevel = '^#([0-9]+) +'
     paddr = '(?:0x[0-9a-f]+ in )?'
-    pfunc = '((?:[^)]|\)[^ ])*)'
-    pargs = '((?: ?\(.*\) ?)+ *)'
+    pfunc = '((?:[^(]|\(anonymous namespace\))+)'
+    pargs = '.*?'
+    #pfunc = '((?:[^)]|\)[^ ])*)'
+    #pargs = '((?: ?\(.*\) ?)+ *)'
     pfile = '(?:at (.*):([0-9]+))? ?(?:from (.*)|)?\n$'
     pat = plevel + paddr + pfunc + pargs + pfile
     pat = re.compile(pat)
@@ -88,7 +90,8 @@ def read_gdb(f):
             if not m:
                 msg('not matched:', repr(line))
             else:
-                level, func, args, at_file, at_ln, from_file = m.groups()
+                #level, func, args, at_file, at_ln, from_file = m.groups()
+                level, func, at_file, at_ln, from_file = m.groups()
                 func = func.strip()
                 func = simplify(func)
                 if at_ln:
