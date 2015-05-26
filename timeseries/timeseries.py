@@ -303,6 +303,9 @@ class Series:
         # reference point for computing relative times
         self.t0 = None
 
+        # allow for per-series every
+        self.every = self.get('every', opt.every) if opt else None
+
     def get(self, *args):
         return get(self.descriptor, *args)
 
@@ -589,8 +592,8 @@ class parse_time:
         # subset or range of times
         if time < opt.after or time >= opt.before:
             return None
-        elif opt.every:
-            if time - opt.last_time < opt.every:
+        elif s.every:
+            if time - opt.last_time < s.every:
                 return None
             else:
                 opt.last_time = time
@@ -773,7 +776,7 @@ def series_process_json(fn, series, opt):
             for fname in pnode:
                 # convert time here so we don't do it multiple times for each series that uses it
                 if fname=='time':
-                    value = pt.parse_time(jnode, opt, None)
+                    value = pt.parse_time(jnode, opt, pnode[fname][0])
                 else:
                     value = jnode
                 if value is not None:
@@ -968,8 +971,7 @@ def get_graphs(specs, opt):
 
     if not hasattr(opt, 'after') or not opt.after: opt.after = pytz.utc.localize(datetime.min)
     if not hasattr(opt, 'before') or not opt.before: opt.before = pytz.utc.localize(datetime.max)
-    if not hasattr(opt, 'every'): opt.every = None
-    if type(opt.every)==float: opt.every = timedelta(seconds=opt.every)
+    if not hasattr(opt, 'every'): opt.every = 0
     if type(opt.after)==str: opt.after = datetime_parse(opt.after)
     if type(opt.before)==str: opt.before = datetime_parse(opt.before)
     if type(opt.after)==datetime: opt.after = t2f(opt.after)
@@ -988,7 +990,7 @@ def get_graphs(specs, opt):
 
     # process by file according to parse_type
     for fn, parse_type in sorted(fns):
-        opt.last_time = pytz.utc.localize(datetime.min)
+        opt.last_time = - float('inf')
         read_func = globals()['series_read_' + parse_type]
         read_func(fn, fns[(fn,parse_type)], opt)
         
@@ -1394,7 +1396,7 @@ def main():
     p.add_argument('--duration', type=float, default=None)
     p.add_argument('--after')
     p.add_argument('--before')
-    p.add_argument('--every', type=float)
+    p.add_argument('--every', type=float, default=0)
     p.add_argument('--relative', action='store_true')
     p.add_argument('--list', action='store_true')
     p.add_argument('--level', type=int, default=1)
@@ -2777,3 +2779,5 @@ ss(['wiredTiger', 'uri'], level=99)
 
 if __name__ == '__main__':
     main()
+else:
+    opt = None
