@@ -12,6 +12,21 @@ stat_fields = {
     'swap': ['in', 'out'],
 }
 
+mem_fields = {
+    'MemTotal:': 'memtotal',
+    'MemFree:': 'memfree',
+    'Buffers:': 'buffers',
+    'Cached:': 'cached',
+    'SwapCached:': 'swapcached',
+    'Active:': 'active',
+    'Inactive:': 'inactive',
+    'Active(anon):': 'active anon',
+    'Inactive(anon):': 'inactive anon',
+    'Active(file):': 'active file',
+    'Inactive(file):': 'inactive file',
+    'Dirty:': 'dirty',
+}
+
 disk_fields = [
     'reads',
     'reads_merged',
@@ -54,6 +69,12 @@ while True:
         elif len(line)==2:
             nvs.append((line[0], line[1]))
     nvs.append(('cpus', str(cpus)))
+
+    # memory
+    for line in open('/proc/meminfo'):
+        line = line.split()
+        if line[0] in mem_fields:
+            nvs.append((mem_fields[line[0]], line[1]))
 
     # disk
     if first:

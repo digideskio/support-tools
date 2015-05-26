@@ -2318,6 +2318,20 @@ stat('processes')
 stat('running')
 stat('procs_blocked')
 
+stat('memtotal', scale=1024)
+stat('memfree', scale=1024)
+stat('buffers', scale=1024)
+stat('cached', scale=1024)
+stat('swapcached', scale=1024)
+stat('active', scale=1024)
+stat('inactive', scale=1024)
+stat('active anon', scale=1024)
+stat('inactive anon', scale=1024)
+stat('active file', scale=1024)
+stat('inactive file', scale=1024)
+stat('dirty', scale=1024)
+
+
 def sysmon_disk(which, desc, **kwargs):
     if not 'rate' in kwargs: kwargs['rate'] = True
     descriptor(
