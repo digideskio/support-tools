@@ -99,7 +99,9 @@ def recIRC
         ret = nil
         incomingAddress = nil
         if msg.include? 'PRIVMSG'
-          arr = msg.split
+          # Flowdoc uses a special format for conversations.  Kill the conversation portion so we can see the underlying command.
+          arr = msg.sub(/\[.*\] \<\< /,'').split
+
           body = arr[3..-1].join(' ').gsub(/\\r\\n/, '')
           body.gsub!(/^:/,'')
           incomingAddress = arr[2].chomp
