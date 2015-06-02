@@ -112,7 +112,7 @@ def recIRC
           # Note that if a user manually enters a message that looks like a conversation it won't be modified by the bridge.
           # This is a limitation of the bridge and a good reason to stop using it as soon as possible.
           # Kill the conversation portion so we can see the underlying command.
-          arr = msg.sub(/:\[.*\] << /,'').split
+          arr = msg.sub(/:\[[^(<<)]*\] << /,'').split
           body = arr[3..-1].join(' ').gsub(/\\r\\n/, '')
           body.gsub!(/^:/,'')
           incomingAddress = arr[2].chomp
