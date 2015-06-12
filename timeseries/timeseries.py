@@ -785,8 +785,10 @@ def series_process_json(fn, series, opt):
 
     # process lines
     while True:
-        try: jnode = yield
-        except StopIteration: break
+        try:
+            jnode = yield
+        except GeneratorExit:
+            break
         time = None
         result = collections.defaultdict(dict)
         match(ptree, jnode, result)
@@ -899,29 +901,20 @@ def series_process_re(series, opt):
 
 #
 # transfer(src, *dst) pulls data from src and pushes it to each *dst
-# as a convenience we
-#     init each dst with .next
-#     wrap it in a genrator that catches StopIteration so dst does not need to
+# as a convenience we init each dst with .next
 #
 
 def init_dst(d):
-    def wrap():
-        d.next()
-        while True:
-            try:
-                x = yield
-                d.send(x)
-            except StopIteration:
-                pass
-    w = wrap()
-    w.next()
-    return w
+    d.next()
+    return d
 
 def transfer(src, *dst):
     ds = [init_dst(d) for d in dst]
     for x in src:
         for d in ds:
             d.send(x)
+    for d in ds:
+        d.close()
 
 #
 # each series_read_* routine processes and generates graphs from a file of a given type
@@ -2136,7 +2129,6 @@ def series_read_ftdc(fn, series, opt):
 
     #dst = [series_process_json(fn, series, opt), series_process_rs(series, opt)]
     #transfer(read_json(fn, opt), *dst)
-
 
 #
 #
