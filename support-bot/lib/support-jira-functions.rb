@@ -586,6 +586,7 @@ def doQueueRead(db)
 end
 
 def checkForFinalized(db)
+logOut "checkForFinalized run"
   db.collection("reviews").find({"done" => { "$ne" => true}, "marked_fin" => { "$ne" => true}}).each do |issue|
     begin
       unless @autoCompleteFails.include? issue["key"]
@@ -594,7 +595,8 @@ def checkForFinalized(db)
         lastComment = ir["jira"]["fields"]["comment"]['comments'][-1]
         # Confirm that there is a comment on the issue
         unless lastComment == nil
-          if (!lastComment.has_key? "visibility") && (!['1','3'].include? status)
+          #States: 1=open, 3=In Progress, 4=Reopened
+          if (!lastComment.has_key? "visibility") && (!['1','3','4'].include? status)
             logOut "auto finalizing #{issue["key"]}", 1
             @chatRequests.push("#{@defaultXMPPRoom} XMPP FIN #{issue["key"]} Auto:pushed")
             #@chatRequests.push("#{@supportIRCChan} IRC FIN #{issue["key"]} Auto:pushed")
