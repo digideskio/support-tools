@@ -4,7 +4,6 @@
 module.exports = (robot) ->
     robot.hear /\bCS-(\d+)/i, (msg) ->
         msg.envelope.newMessage = true
-        msg.send "#{msg.message.user.name} is sharing https://jira.mongodb.org/browse/CS-#{msg.match[1]}"
         msg.send "#{msg.message.user.name} is sharing [CS-#{msg.match[1]}](https://jira.mongodb.org/browse/CS-#{msg.match[1]})"
 
     robot.hear /\bCDRIVER-(\d+)/i, (msg) ->
