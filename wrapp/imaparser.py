@@ -7,6 +7,7 @@ import pymongo
 import re
 import sys
 # import socket
+import time
 import wrapp
 
 
@@ -47,8 +48,8 @@ class imaparser():
             self.mongo = mongo
 
         # Initialize dbs and collections
-        self.db_support = self.mongo.db_support
-        self.coll_aps = self.db_support.aps
+        self.db_support = self.mongo.support
+        self.coll_aps = self.db_support.alphapages
 
         self.imap_uri = self.args.get('imap_uri')
         self.imap_username = self.args.get('imap_username')
@@ -191,28 +192,53 @@ class imaparser():
 
         # Is this an Alphapage?
         if sender.lower() == "mongo@beanmix.com" and\
-                re.search(r'Alphapage message', subject):
+                re.search('^Alphapage message', subject):
             res = self.process_ap(text)
+            if not res['ok']:
+                return res
+            doc = res['payload']
+            coll = self.coll_aps
+            title = "Alphapage message: %s from %s" % (doc['caller'],
+                                                       doc['company'])
+
         # Did a CS customer file an issue in a non-CS project?
         elif sender.lower() == "info@10gen.com" and\
-                re.search(r'Issues filed by CS customers in non-CS projects',
+                re.search('^Issues filed by CS customers in non-CS projects',
                           subject):
             res = self.process_misfiled(text)
+            if not res['ok']:
+                return res
+            doc = res['payload']
+            coll = None
+            title = "Misfiled ticket: %s from %s" % (doc['reporter'],
+                                                     doc['group'])
         else:
-            res = {'ok': True, 'payload': False}
-        return res
+            return {'ok': True, 'payload': False}
+
+        # save it to the db
+        if coll is not None:
+            try:
+                coll.insert(doc)
+            except pymongo.errors.PyMongoError as e:
+                self.logger.exception(e)
+
+        # push to wrapp if configured
+        if wrapp is not None:
+            self.wrapp.notify(title, text)
+        return {'ok': True, 'payload': True}
 
     def process_ap(self, text):
-        """ Parse out the various fields expected of an Alphapage message """
+        """ Parse out the various fields expected of an Alphapage message and
+        return a document """
         # self.logger.debug("process_ap(%s)", text)
         self.logger.debug("process_ap(text)")
         text = text.replace('\r', '|').replace('\n', '|').replace('`', '')
+        ap_doc = {}
 
         # this was a pain in the ass
         common_reg = '\|?%s:([^|]*)\|'
         fields = ['Existing Client', 'Caller', 'Company', 'Location', 'Phone',
                   'JIRA #', 'Priority', 'Work begun', 'Message']
-        ap_doc = {}
         for field in fields:
             m = re.search(common_reg % field, text)
             if m is None:
@@ -222,11 +248,11 @@ class imaparser():
 
         self.logger.info("Found Alphapage message!")
         self.logger.info(ap_doc)
-        self.wrapp.notify("Alphapage message: " + ap_doc['caller'] + " from " +
-                          ap_doc['company'], text)
-        return {'ok': True, 'payload': True}
+        return {'ok': True, 'payload': ap_doc}
 
     def process_misfiled(self, text):
+        """ Parse out the various fields expected of a misfiled CS message and
+        return a document """
         self.logger.debug("process_misfiled(%s)", text)
         misfiled_doc = {}
 
@@ -251,12 +277,9 @@ class imaparser():
             misfiled_doc['created'] = None
         else:
             misfiled_doc['created'] = m.group(1)
-
-        self.logger.info("Found misfiled ticket!")
+        self.logger.info("Found misfiled ticket message!")
         self.logger.info(misfiled_doc)
-        self.wrapp.notify("Misfiled ticket: " + misfiled_doc['reporter'] +
-                          " from " + misfiled_doc['group'], text)
-        return {'ok': True, 'payload': True}
+        return {'ok': True, 'payload': misfiled_doc}
 
 if __name__ == "__main__":
     desc = "An IMAP parser for APs"
@@ -277,6 +300,10 @@ if __name__ == "__main__":
         "--imap-password", metavar="IMAP_PASSWORD",
         help="specify the IMAP password"
     )
+    parser.add_config_argument(
+        "--timeout", metavar="SECONDS", default=30,
+        help="specify the timeout between checks (default=30)"
+    )
     # that below is in wrapp and temporary
     parser.add_config_argument(
         "--api-token", metavar="API_TOKEN", help="specify a Pushover api token"
@@ -292,7 +319,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     i = imaparser(args)
-    i.process_mailbox("inbox")
+    while True:
+        i.process_mailbox("inbox")
+        time.sleep(args.timeout)
     i.imap.close()
     i.imap.logout()
     sys.exit(0)
