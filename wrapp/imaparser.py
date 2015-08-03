@@ -61,15 +61,15 @@ class imaparser():
             self.logger.exception(e)
             raise Exception(e)
 
+        self.wrapp = wrapp.Wrapp(self.args, self.mongo)
+
+    def login(self):
         try:
             self.imap = imaplib.IMAP4_SSL(self.imap_uri)
         except Exception as e:
             self.logger.exception(e)
-            raise e
+            return {'ok': False, 'payload': e}
 
-        self.wrapp = wrapp.Wrapp(self.args, self.mongo)
-
-    def login(self):
         try:
             self.imap.login(self.imap_username, self.imap_password)
         except Exception as e:
