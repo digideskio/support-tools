@@ -61,19 +61,21 @@ class imaparser():
             self.logger.exception(e)
             raise Exception(e)
 
+        self.wrapp = wrapp.Wrapp(self.args, self.mongo)
+
+    def login(self):
         try:
             self.imap = imaplib.IMAP4_SSL(self.imap_uri)
         except Exception as e:
             self.logger.exception(e)
-            raise e
+            return {'ok': False, 'payload': e}
 
         try:
             self.imap.login(self.imap_username, self.imap_password)
         except Exception as e:
             self.logger.exception(e)
-            raise e
-
-        self.wrapp = wrapp.Wrapp(self.args, self.mongo)
+            return {'ok': False, 'payload': e}
+        return {'ok': True, 'payload': None}
 
     def process_mailbox(self, mailbox):
         """ Process the imap mailbox named mailbox and return a list of matching
@@ -320,6 +322,7 @@ if __name__ == "__main__":
 
     i = imaparser(args)
     while True:
+        i.login()
         i.process_mailbox("inbox")
         time.sleep(args.timeout)
     i.imap.close()
