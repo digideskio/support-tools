@@ -56,6 +56,7 @@ if( -Not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdent
 		}
 	}
 	else {
+		# Server 2003 ? (it is theoretically possible to install powershell there)
 		Write-Verbose "Wow, really?! You got powershell running on a pre-6 kernel.. I salute you sir, good job old chap!"
 		Write-Warning "System does not support UAC."
 	}
@@ -86,8 +87,8 @@ Function fingerprint {
 			os = "Windows";
 			shell = "powershell";
 			script = "mdiag";
-			version = "1.5.0";
-			revdate = "2015-02-27";
+			version = "1.5.1";
+			revdate = "2015-08-27";
 		}
 	}
 }
@@ -102,7 +103,7 @@ Function probe( $doc ) {
 	Write-Host "Gathering section [$($doc.name)]"
 
 	# for now, disabling range timestamps until needed by temporally ranging probes (for example, disk statistics over time)
-	#$startts = _jsondate # { $date: ISO-8601 }
+	#$startts = Get-Date
 	$cmdobj = _docmd $doc.cmd
 
 	if( !( $cmdobj.ok ) -and ( $null -ne $doc.alt ) ) {
@@ -139,6 +140,10 @@ Function _tojson_string( $v ) {
 	"`"{0}`"" -f $v
 }
 
+Function _tojson_date( $v ) {
+	"{{ `"`$date:`": `"{0}`" }}" -f $( _iso8601_string $v );
+}
+
 # following is used to JSON encode object outputs when ConvertTo-JSON (cmdlet) is not available
 Function _tojson_value( $indent, $obj ) {
 	if( $obj -eq $null ) {
@@ -152,12 +157,12 @@ Function _tojson_value( $indent, $obj ) {
 		switch ( $obj.GetType().Name ) {
 			"Hashtable" {
 				$ret = $( $obj.GetEnumerator() | ForEach-Object { "{0}`"{1}`": {2}," -f $indent, $_.Key, $( _tojson_value $( $indent + "`t" ) $_.Value ) } | Out-String )
-				"{{`n{0}`n{1}}}" -f $ret.Trim("`r`n,"), $indent
+				"{{`n{0}`n{1}}}" -f $ret.Trim("`r`n,"), $indent.Remove( $indent.Length - 1 )
 				break
 			}
 			"Object[]" {
 				$ret = $( $obj | ForEach-Object { "{0}{1}," -f $indent, $( _tojson_value $( $indent + "`t" ) $_ ) } | Out-String )
-				"[`n{0}`n{1}]" -f $ret.Trim("`r`n,"), $indent
+				"[`n{0}`n{1}]" -f $ret.Trim("`r`n,"), $indent.Remove( $indent.Length - 1 )
 				break
 			}
 			"String" {
@@ -169,10 +174,14 @@ Function _tojson_value( $indent, $obj ) {
 				$obj.ToString()
 				break
 			}
+			"DateTime" {
+				_tojson_date $obj
+				break
+			}
 			default {
 				if( $obj.GetType().IsClass ) {
 					$ret = $( $obj.psobject.properties.GetEnumerator() | ForEach-Object { "{0}`"{1}`": {2}," -f $indent, $_.Name, $( _tojson_value $( $indent + "`t" ) $_.Value ) } | Out-String )
-					"{{`n{0}`n{1}}}" -f $ret.Trim("`r`n,"), $indent
+					"{{`n{0}`n{1}}}" -f $ret.Trim("`r`n,"), $indent.Remove( $indent.Length - 1 )
 				}
 				else {
 					# dunno, just represent as simple as possible
@@ -187,12 +196,13 @@ Function _tojson_value( $indent, $obj ) {
 # emit to file the JSON encoding of supplied obj using whatever means is available
 #
 Function _tojson( $obj ) {
-	if( $json_available ) {
-		return ConvertTo-Json $obj;
-	}
-	else {
+	# TSPROJ-476 ConvertTo-JSON dies on some data eg: Get-NetFirewallRule | ConvertTo-Json = "The converted JSON string is in bad format."
+	#if( $json_available ) {
+	#	return ConvertTo-Json $obj;
+	#}
+	#else {
 		return _tojson_value "`t" $obj;
-	}
+	#}
 }
 
 # _emitdocument (internal)
@@ -204,12 +214,12 @@ Function _emitdocument( $section, $startts, $cmdobj ) {
 	$cmdobj.section = $section;
 
 	if( $startts -Eq $null ) {
-		$cmdobj.ts = _jsondate;
+		$cmdobj.ts = Get-Date;
 	}
 	else {
 		$cmdobj.ts = @{
 			start = $startts;
-			end = _jsondate;
+			end = Get-Date;
 		};
 	}
 
@@ -233,14 +243,26 @@ Function _emitdocument( $section, $startts, $cmdobj ) {
 	}
 }
 
-# _jsondate
-# get current timestamp in JSON compatible format
+# _iso8601_string
+# get current (or supplied) DateTime formatted as ISO-8601 localtime (with TZ indicator)
 #
-Function _jsondate {
+function _iso8601_string( [DateTime] $date ) {
+	# TSPROJ-386 timestamp formats
+	# turns out the "-s" format of windows is ISO-8601 with the TZ indicator stripped off (it's in localtime)
+	# so... we just need to append the TZ that was used in the conversion thusly:
+	if( !( $script:tzstring ) ) {
+		$tzo = [System.TimeZoneInfo]::Local.BaseUtcOffset;
+		$script:tzstring = "{0}{1}:{2:00}" -f @("+","")[$tzo.Hours -lt 0], $tzo.Hours, $tzo.Minutes
+	}
 	# ISO-8601
-	return @{ "`$date" = Get-Date -Format s; }
-	# Unix time
-	#return @{ "`$date" = [int64]( New-TimeSpan -Start @(Get-Date -Date "01/01/1970") -End (Get-Date).ToUniversalTime() ).TotalSeconds; }
+	$ds = $null;
+	if( $date -eq $null ) {
+		$ds = Get-Date -Format s;
+	}
+	else {
+		$ds = Get-Date -Format s -Date $date
+	}
+	return $ds + $script:tzstring;
 }
 
 Function _docmd {
@@ -288,7 +310,7 @@ Function _docmd {
 ###############
 # Script-scoped variables
 $script:isfirstdocument = $True
-$script:rundate = _jsondate
+$script:rundate = Get-Date
 
 ###############
 # Begin diag output
@@ -317,12 +339,13 @@ if( $json_available ) {
 	$focsv = " /FO CSV | ConvertFrom-CSV";
 }
 
-if( -not $json_available ) {
-	Write-Host -ForegroundColor Red -BackgroundColor Yellow " !!! ";
-	Write-Host -ForegroundColor Red -BackgroundColor Yellow " ConvertTo-Json cmdlet is not available ";
-	Write-Host -ForegroundColor Red -BackgroundColor Yellow " using internal converter instead ";
-	Write-Host -ForegroundColor Red -BackgroundColor Yellow " !!! ";
-}
+# not caring anymore
+#if( -not $json_available ) {
+#	Write-Host -ForegroundColor Red -BackgroundColor Yellow " !!! ";
+#	Write-Host -ForegroundColor Red -BackgroundColor Yellow " ConvertTo-Json cmdlet is not available ";
+#	Write-Host -ForegroundColor Red -BackgroundColor Yellow " using internal converter instead ";
+#	Write-Host -ForegroundColor Red -BackgroundColor Yellow " !!! ";
+#}
 
 fingerprint
 
