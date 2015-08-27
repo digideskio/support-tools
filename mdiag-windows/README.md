@@ -132,6 +132,19 @@ section | content type | description
 
 ### Changelog
 
+## 1.5.1
+
+ - Added command-line option -DoNotElevate to prevent the script from attempting to elevate to Administrative privilege
+ - Added command-line option -Verbose to print some extra diagnostic info to the shell running the script (largely for debugging)
+ - Changed "ts" field now only contains a single date for non-time-based probes (inline with mdiag *nix)
+ - Partial fix TSPROJ-386, JSON formatted dates:
+   + dates now indicate timezone information (correct ISO-8601 format)
+   + all DateTime object fields use the strict JSON date output format (some string command-line outputs still don't yet)
+ - Minor JSON layout tweaks (mainly fixing some incorrect indentation)
+ - Fixed TSPROJ-476, ConvertTo-JSON is no longer used even when available
+   + the startup check is still present because if ConvertTo-JSON is present so is ConvertFrom-CSV (same PS patch) and that cmdlet is handy (and works fine thus far)
+
+
 ## 1.5.0
  - Automatic Administrator elevation, script detects if not admin and tries to relaunch itself requesting promotion by UAC, will fallback to user-mode if denied
  - Removed erroneous use of start/end timestamps for scalar probes (all of them at the moment)
