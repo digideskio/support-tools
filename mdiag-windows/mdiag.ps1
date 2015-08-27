@@ -2,14 +2,74 @@
 # mdiag.ps1 - Windows Diagnostic Script for MongoDB
 
 param(
-	[Parameter(Mandatory=$true)]
-	[string] $jira_ticket_number
+	[string] $JiraTicketNumber,
+	[switch] $DoNotElevate,
+	[switch] $Verbose
 )
+
+if( $Verbose ) {
+	$VerbosePreference="Continue"
+}
+
+Write-Verbose "`$PSCommandPath: $PSCommandPath"
+
+# get a Jira ticket number if we don't already have one
+if( "" -Eq $JiraTicketNumber ) {
+	Write-Host ""
+	$JiraTicketNumber = Read-Host "Please provide a Jira ticket reference number"
+}
+
+Write-Verbose "`$JiraTicketNumber: $JiraTicketNumber"
+Write-Verbose "Checking permissions"
+
+# check if we are admin
+if( -Not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator") ) {
+	Write-Verbose "Script is not run with administrative user"
+
+	# see if we can elevate
+	if( $DoNotElevate ) {
+		# user expressly asked to avoid privilege elevation (or the script has already been here)
+		Write-Verbose "Instructed not to elevate or we're in a hall of mirrors.. aborting elevation"
+		Write-Warning "Not running as administrative user but instructed not to elevate. Some health checks may fail."
+	}
+	elseif( ( Get-WmiObject Win32_OperatingSystem | select BuildNumber ).BuildNumber -ge 6000 ) {
+		Write-Verbose "Found UAC-enabled system. Attempting to elevate ..."
+
+		# when elevating we need to twiddle the command-line a little to be more robust
+		$CommandLine = "powershell -ExecutionPolicy Unrestricted -File `"$PSCommandPath`" $JiraTicketNumber"
+
+		# do not attempt elevation again on relaunch, in case some bizarro world DC policy causes Runas to fake us out (because that would cause an infinite loop)
+		$CommandLine += " -DoNotElevate"
+
+		Write-Verbose "`$CommandLine: $CommandLine"
+
+		try {
+			Start-Process -FilePath PowerShell.exe -Verb Runas -ArgumentList "$CommandLine"
+			Write-Host ""
+			Write-Host "Script will run in a new window, please check there for further instructions."
+			Write-Host ""
+			break;
+			# shouldn't get here
+		}
+		catch {
+			Write-Warning "Elevation attempt by relaunch failed. Will continue without administrative privileges."
+		}
+	}
+	else {
+		# Server 2003 ? (it is theoretically possible to install powershell there)
+		Write-Verbose "Wow, really?! You got powershell running on a pre-6 kernel.. I salute you sir, good job old chap!"
+		Write-Warning "System does not support UAC."
+	}
+}
 
 $diagfile = Join-Path @([Environment]::GetFolderPath('Personal')) $("mdiag-" + $(hostname) + ".txt")
 
+Write-Verbose "`$diagfile: $diagfile"
+
 # check for ConvertTo-JSON
 $json_available = Get-Command "ConvertTo-Json" -errorAction SilentlyContinue -CommandType Cmdlet;
+
+Write-Verbose "`$json_available: $json_available"
 
 
 ##################
@@ -20,15 +80,15 @@ $json_available = Get-Command "ConvertTo-Json" -errorAction SilentlyContinue -Co
 #	interfaces there are not guaranteed to be constant between versions of this script.
 
 Function fingerprint {
-	_emitdocument "fingerprint" $(_jsondate) @{
+	_emitdocument "fingerprint" $null @{
 		command = $False;
 		ok = $True;
 		output = @{
 			os = "Windows";
 			shell = "powershell";
 			script = "mdiag";
-			version = "1.4.1";
-			revdate = "2015-01-06";
+			version = "1.5.1";
+			revdate = "2015-08-27";
 		}
 	}
 }
@@ -42,7 +102,8 @@ Function probe( $doc ) {
 
 	Write-Host "Gathering section [$($doc.name)]"
 
-	$startts = _jsondate # { $date: ISO-8601 }
+	# for now, disabling range timestamps until needed by temporally ranging probes (for example, disk statistics over time)
+	#$startts = Get-Date
 	$cmdobj = _docmd $doc.cmd
 
 	if( !( $cmdobj.ok ) -and ( $null -ne $doc.alt ) ) {
@@ -62,7 +123,7 @@ Function probe( $doc ) {
 		$cmdobj = $fbcobj;
 	}
 
-	_emitdocument $doc.name $startts $cmdobj
+	_emitdocument $doc.name $null $cmdobj
 
 	Write-Host "Finished with section [$($doc.name)]. Closing`n"
 }
@@ -79,6 +140,10 @@ Function _tojson_string( $v ) {
 	"`"{0}`"" -f $v
 }
 
+Function _tojson_date( $v ) {
+	"{{ `"`$date:`": `"{0}`" }}" -f $( _iso8601_string $v );
+}
+
 # following is used to JSON encode object outputs when ConvertTo-JSON (cmdlet) is not available
 Function _tojson_value( $indent, $obj ) {
 	if( $obj -eq $null ) {
@@ -92,12 +157,12 @@ Function _tojson_value( $indent, $obj ) {
 		switch ( $obj.GetType().Name ) {
 			"Hashtable" {
 				$ret = $( $obj.GetEnumerator() | ForEach-Object { "{0}`"{1}`": {2}," -f $indent, $_.Key, $( _tojson_value $( $indent + "`t" ) $_.Value ) } | Out-String )
-				"{{`n{0}`n{1}}}" -f $ret.Trim("`r`n,"), $indent
+				"{{`n{0}`n{1}}}" -f $ret.Trim("`r`n,"), $indent.Remove( $indent.Length - 1 )
 				break
 			}
 			"Object[]" {
 				$ret = $( $obj | ForEach-Object { "{0}{1}," -f $indent, $( _tojson_value $( $indent + "`t" ) $_ ) } | Out-String )
-				"[`n{0}`n{1}]" -f $ret.Trim("`r`n,"), $indent
+				"[`n{0}`n{1}]" -f $ret.Trim("`r`n,"), $indent.Remove( $indent.Length - 1 )
 				break
 			}
 			"String" {
@@ -109,10 +174,14 @@ Function _tojson_value( $indent, $obj ) {
 				$obj.ToString()
 				break
 			}
+			"DateTime" {
+				_tojson_date $obj
+				break
+			}
 			default {
 				if( $obj.GetType().IsClass ) {
 					$ret = $( $obj.psobject.properties.GetEnumerator() | ForEach-Object { "{0}`"{1}`": {2}," -f $indent, $_.Name, $( _tojson_value $( $indent + "`t" ) $_.Value ) } | Out-String )
-					"{{`n{0}`n{1}}}" -f $ret.Trim("`r`n,"), $indent
+					"{{`n{0}`n{1}}}" -f $ret.Trim("`r`n,"), $indent.Remove( $indent.Length - 1 )
 				}
 				else {
 					# dunno, just represent as simple as possible
@@ -123,24 +192,36 @@ Function _tojson_value( $indent, $obj ) {
 	}
 }
 
+# _tojson (internal)
+# emit to file the JSON encoding of supplied obj using whatever means is available
+#
 Function _tojson( $obj ) {
-	if( $json_available ) {
-		return ConvertTo-Json $obj;
-	}
-	else {
+	# TSPROJ-476 ConvertTo-JSON dies on some data eg: Get-NetFirewallRule | ConvertTo-Json = "The converted JSON string is in bad format."
+	#if( $json_available ) {
+	#	return ConvertTo-Json $obj;
+	#}
+	#else {
 		return _tojson_value "`t" $obj;
-	}
+	#}
 }
 
+# _emitdocument (internal)
+# re-format a probe document result into an output section document
+#
 Function _emitdocument( $section, $startts, $cmdobj ) {
-
-	$cmdobj.ref = $jira_ticket_number;
+	$cmdobj.ref = $JiraTicketNumber;
 	$cmdobj.run = $script:rundate;
 	$cmdobj.section = $section;
-	$cmdobj.ts = @{
-		start = $startts;
-		end = _jsondate;
-	};
+
+	if( $startts -Eq $null ) {
+		$cmdobj.ts = Get-Date;
+	}
+	else {
+		$cmdobj.ts = @{
+			start = $startts;
+			end = Get-Date;
+		};
+	}
 
 	# make an array of  documents
 	if( !( $isfirstdocument ) ) {
@@ -162,11 +243,26 @@ Function _emitdocument( $section, $startts, $cmdobj ) {
 	}
 }
 
-Function _jsondate {
+# _iso8601_string
+# get current (or supplied) DateTime formatted as ISO-8601 localtime (with TZ indicator)
+#
+function _iso8601_string( [DateTime] $date ) {
+	# TSPROJ-386 timestamp formats
+	# turns out the "-s" format of windows is ISO-8601 with the TZ indicator stripped off (it's in localtime)
+	# so... we just need to append the TZ that was used in the conversion thusly:
+	if( !( $script:tzstring ) ) {
+		$tzo = [System.TimeZoneInfo]::Local.BaseUtcOffset;
+		$script:tzstring = "{0}{1}:{2:00}" -f @("+","")[$tzo.Hours -lt 0], $tzo.Hours, $tzo.Minutes
+	}
 	# ISO-8601
-	return @{ "`$date" = Get-Date -Format s; }
-	# Unix time
-	#return @{ "`$date" = [int64]( New-TimeSpan -Start @(Get-Date -Date "01/01/1970") -End (Get-Date).ToUniversalTime() ).TotalSeconds; }
+	$ds = $null;
+	if( $date -eq $null ) {
+		$ds = Get-Date -Format s;
+	}
+	else {
+		$ds = Get-Date -Format s -Date $date
+	}
+	return $ds + $script:tzstring;
 }
 
 Function _docmd {
@@ -214,7 +310,7 @@ Function _docmd {
 ###############
 # Script-scoped variables
 $script:isfirstdocument = $True
-$script:rundate = _jsondate
+$script:rundate = Get-Date
 
 ###############
 # Begin diag output
@@ -243,12 +339,13 @@ if( $json_available ) {
 	$focsv = " /FO CSV | ConvertFrom-CSV";
 }
 
-if( -not $json_available ) {
-	Write-Host -ForegroundColor Red -BackgroundColor Yellow " !!! ";
-	Write-Host -ForegroundColor Red -BackgroundColor Yellow " ConvertTo-Json cmdlet is not available ";
-	Write-Host -ForegroundColor Red -BackgroundColor Yellow " using internal converter instead ";
-	Write-Host -ForegroundColor Red -BackgroundColor Yellow " !!! ";
-}
+# not caring anymore
+#if( -not $json_available ) {
+#	Write-Host -ForegroundColor Red -BackgroundColor Yellow " !!! ";
+#	Write-Host -ForegroundColor Red -BackgroundColor Yellow " ConvertTo-Json cmdlet is not available ";
+#	Write-Host -ForegroundColor Red -BackgroundColor Yellow " using internal converter instead ";
+#	Write-Host -ForegroundColor Red -BackgroundColor Yellow " !!! ";
+#}
 
 fingerprint
 
@@ -280,9 +377,17 @@ probe @{ name = "network-route";
 probe @{ name = "network-dns-cache";
 	cmd = "Get-DnsClientCache | Get-Unique | Select Entry,Name,Data,DataLength,Section,Status,TimeToLive,Type";
 }
+# TODO: this is a bit pants, but Get-NetTCPConnection doesn't have the PID so netstat provides better data
+$tcpcmd = "netstat -ano -p TCP";
+if( $json_available ) {
+	$tcpcmd += " | select -skip 3 | foreach {`$_.Substring(2) -replace `" {2,}`",`",`" } | ConvertFrom-Csv";
+}
+probe @{ name = "network-tcp-active";
+	cmd = $tcpcmd;
+}
 
 probe @{ name = "services";
-	cmd = "Get-Service | Where-Object {`$_.ServiceName -like '*Mongo*'}";
+	cmd = "Get-Service | Select D*,Se*,@{Name='Status';Expression={`$_.Status.ToString()}},R* -Exclude ServiceHandle";
 }
 
 probe @{ name = "firewall";
@@ -293,14 +398,13 @@ probe @{ name = "storage-disk";
 	cmd = "Get-Disk | Select PartitionStyle,ProvisioningType,OperationalStatus,HealthStatus,BusType,BootFromDisk,FirmwareVersion,FriendlyName,IsBoot,IsClustered,IsOffline,IsReadOnly,IsSystem,LogicalSectorSize,Manufacturer,Model,Number,NumberOfPartitions,Path,PhysicalSectorSize,SerialNumber,Size";
 	alt = "Get-WmiObject Win32_DiskDrive | Select SystemName,BytesPerSector,Caption,CompressionMethod,Description,DeviceID,InterfaceType,Manufacturer,MediaType,Model,Name,Partitions,PNPDeviceID,SCSIBus,SCSILogicalUnit,SCSIPort,SCSITargetId,SectorsPerTrack,SerialNumber,Signature,Size,Status,TotalCylinders,TotalHeads,TotalSectors,TotalTracks,TracksPerCylinder";
 }
-
 probe @{ name = "storage-volume";
 	cmd = "Get-Partition | Select OperationalStatus,Type,AccessPaths,DiskId,DiskNumber,DriveLetter,GptType,Guid,IsActive,IsBoot,IsHidden,IsOffline,IsReadOnly,IsShadowCopy,IsSystem,MbrType,NoDefaultDriveLetter,Offset,PartitionNumber,Size,TransitionState";
 	alt = "Get-WmiObject Win32_LogicalDisk | Select Compressed,Description,DeviceID,DriveType,FileSystem,FreeSpace,MediaType,Name,Size,SystemName,VolumeSerialNumber";
 }
 
 probe @{ name = "environment";
-	cmd = "Get-Childitem env: | Select Key,Value";
+	cmd = "Get-Childitem env: | ForEach-Object {`$j=@{}} {`$j.Add(`$_.Name,`$_.Value)} {`$j}";
 }
 
 probe @{ name = "user-list-local";
@@ -325,7 +429,7 @@ probe @{ name = "time-change";
 #
 Add-Content $diagfile "]`n"
 
-Write-Host "Finished. Please attach '$diagfile' to the support case $jira_ticket_number."
+Write-Host "Finished. Please attach '$diagfile' to the support case $JiraTicketNumber."
 
 Write-Host "Press any key to continue ..."
 $x = $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
