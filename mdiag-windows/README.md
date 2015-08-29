@@ -132,6 +132,14 @@ section | content type | description
 
 ### Changelog
 
+## 1.5.2
+
+ - Changed "services" section to reduce the spam:
+   + Fixed ServicesDependedOn to show the names of services rather than a description of the object involved (because that is seriously useless)
+   + Removed RequiredServices because it is an alias of ServicesDependedOn
+   + Removed DependentServices because it is the converse of ServicesDependedOn (so it can be resurrected from existing fields if really wanted)
+
+   
 ## 1.5.1
 
  - Added command-line option -DoNotElevate to prevent the script from attempting to elevate to Administrative privilege

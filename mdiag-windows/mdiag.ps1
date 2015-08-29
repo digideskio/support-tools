@@ -87,7 +87,7 @@ Function fingerprint {
 			os = "Windows";
 			shell = "powershell";
 			script = "mdiag";
-			version = "1.5.1";
+			version = "1.5.2";
 			revdate = "2015-08-27";
 		}
 	}
@@ -144,6 +144,26 @@ Function _tojson_date( $v ) {
 	"{{ `"`$date:`": `"{0}`" }}" -f $( _iso8601_string $v );
 }
 
+# _tojson_object
+# pipe in a stream of @{Name="",Value=*} for the properties of the object
+function _tojson_object( $indent ) {
+	$ret = $( $input | ForEach-Object { "{0}`t`"{1}`": {2}," -f $indent, $_.Name, $( _tojson_value $( $indent + "`t" ) $_.Value ) } | Out-String )
+	"{{`n{0}`n{1}}}" -f $ret.Trim("`r`n,"), $indent
+}
+
+# _tojson_object
+# pipe in a stream of objects for the elements of the array
+function _tojson_array( $indent ) {
+	if( @($input).Count -eq 0 ) {
+		"[]"
+	}
+	else {
+		$input.Reset()
+		$ret = $( $input | ForEach-Object { "{0}`t{1}," -f $indent, $( _tojson_value $( $indent + "`t" ) $_ ) } | Out-String )
+		"[`n{0}`n{1}]" -f $ret.Trim("`r`n,"), $indent
+	}
+}
+
 # following is used to JSON encode object outputs when ConvertTo-JSON (cmdlet) is not available
 Function _tojson_value( $indent, $obj ) {
 	if( $obj -eq $null ) {
@@ -151,37 +171,39 @@ Function _tojson_value( $indent, $obj ) {
 	}
 	elseif( $indent.Length -gt 4 ) {
 		# aborting recursion due to object depth; summarize the current object
-		_tojson_string $obj.ToString()
+		# if it's an array we put in the count, anything else ToString()
+		if( $obj.GetType().IsArray ) {
+			$obj.Length
+		}
+		else {
+			_tojson_string $obj.ToString()
+		}
+	}
+	elseif( $obj.GetType().IsArray ) {
+		$obj | _tojson_array( $indent )
 	}
 	else {
 		switch ( $obj.GetType().Name ) {
 			"Hashtable" {
-				$ret = $( $obj.GetEnumerator() | ForEach-Object { "{0}`"{1}`": {2}," -f $indent, $_.Key, $( _tojson_value $( $indent + "`t" ) $_.Value ) } | Out-String )
-				"{{`n{0}`n{1}}}" -f $ret.Trim("`r`n,"), $indent.Remove( $indent.Length - 1 )
-				break
-			}
-			"Object[]" {
-				$ret = $( $obj | ForEach-Object { "{0}{1}," -f $indent, $( _tojson_value $( $indent + "`t" ) $_ ) } | Out-String )
-				"[`n{0}`n{1}]" -f $ret.Trim("`r`n,"), $indent.Remove( $indent.Length - 1 )
+				$obj.GetEnumerator() | Select @{Name='Name';Expression={$_.Key}},Value | _tojson_object( $indent )
 				break
 			}
 			"String" {
 				_tojson_string $obj
 				break
 			}
-			{ "Int32","UInt32","Int64","UInt64","Boolean"  -contains $_ } {
-				# symbolic or integrals, write plainly
-				$obj.ToString()
-				break
-			}
 			"DateTime" {
 				_tojson_date $obj
 				break
 			}
+			{ "Int32","UInt32","Int64","UInt64","Boolean" -contains $_ } {
+				# symbolic or integrals, write plainly
+				$obj.ToString()
+				break
+			}
 			default {
 				if( $obj.GetType().IsClass ) {
-					$ret = $( $obj.psobject.properties.GetEnumerator() | ForEach-Object { "{0}`"{1}`": {2}," -f $indent, $_.Name, $( _tojson_value $( $indent + "`t" ) $_.Value ) } | Out-String )
-					"{{`n{0}`n{1}}}" -f $ret.Trim("`r`n,"), $indent.Remove( $indent.Length - 1 )
+					$obj.psobject.properties.GetEnumerator() | _tojson_object( $indent )
 				}
 				else {
 					# dunno, just represent as simple as possible
@@ -201,7 +223,7 @@ Function _tojson( $obj ) {
 	#	return ConvertTo-Json $obj;
 	#}
 	#else {
-		return _tojson_value "`t" $obj;
+		return _tojson_value "" $obj;
 	#}
 }
 
@@ -350,11 +372,21 @@ if( $json_available ) {
 fingerprint
 
 probe @{ name = "sysinfo";
+	# @todo: need to switch to this:
+	#cmd = "Get-WmiObject Win32_OperatingSystem";
 	cmd = $( "systeminfo{0}" -f $focsv );
 }
 
 probe @{ name = "is_admin";
 	cmd = "([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] 'Administrator')"
+}
+
+probe @{ name = "memory-virtual";
+	cmd = "Get-WmiObject Win32_PerfRawData_PerfOS_Memory | Select A*,Cache*,Commit*,Pool*"
+}
+
+probe @{ name = "memory-physical";
+	cmd = "Get-WmiObject Win32_PhysicalMemory | Select BankLabel,DeviceLocator,FormFactor,Capacity,Speed"
 }
 
 probe @{ name = "tasklist";
@@ -387,7 +419,7 @@ probe @{ name = "network-tcp-active";
 }
 
 probe @{ name = "services";
-	cmd = "Get-Service | Select D*,Se*,@{Name='Status';Expression={`$_.Status.ToString()}},R* -Exclude ServiceHandle";
+	cmd = "Get-Service | Select Di*,ServiceName,ServiceType,@{Name='Status';Expression={`$_.Status.ToString()}},@{Name='ServicesDependedOn';Expression={@(`$_.ServicesDependedOn.Name)}}";
 }
 
 probe @{ name = "firewall";
