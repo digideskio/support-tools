@@ -138,7 +138,10 @@ section | content type | description
    + Fixed ServicesDependedOn to show the names of services rather than a description of the object involved (because that is seriously useless)
    + Removed RequiredServices because it is an alias of ServicesDependedOn
    + Removed DependentServices because it is the converse of ServicesDependedOn (so it can be resurrected from existing fields if really wanted)
-
+ - Added "memory-virtual" probe to describe current virtual memory conditions of the OS
+ - Added "memory-physical" probe to describe the memory hardware in the host
+ - Fixed the interior check for CSV, was a vestigial check for JSON which happens to indicate (thus far) that CSV is also available
+   
    
 ## 1.5.1
 

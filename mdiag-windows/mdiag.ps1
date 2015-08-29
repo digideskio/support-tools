@@ -67,9 +67,9 @@ $diagfile = Join-Path @([Environment]::GetFolderPath('Personal')) $("mdiag-" + $
 Write-Verbose "`$diagfile: $diagfile"
 
 # check for ConvertTo-JSON
-$json_available = Get-Command "ConvertTo-Json" -errorAction SilentlyContinue -CommandType Cmdlet;
+$script:csv_available = Get-Command "ConvertFrom-Csv" -errorAction SilentlyContinue -CommandType Cmdlet;
 
-Write-Verbose "`$json_available: $json_available"
+Write-Verbose "`$script:csv_available: $csv_available"
 
 
 ##################
@@ -88,7 +88,7 @@ Function fingerprint {
 			shell = "powershell";
 			script = "mdiag";
 			version = "1.5.2";
-			revdate = "2015-08-27";
+			revdate = "2015-08-29";
 		}
 	}
 }
@@ -219,12 +219,8 @@ Function _tojson_value( $indent, $obj ) {
 #
 Function _tojson( $obj ) {
 	# TSPROJ-476 ConvertTo-JSON dies on some data eg: Get-NetFirewallRule | ConvertTo-Json = "The converted JSON string is in bad format."
-	#if( $json_available ) {
-	#	return ConvertTo-Json $obj;
-	#}
-	#else {
-		return _tojson_value "" $obj;
-	#}
+	# using internal only now, probably forever
+	return _tojson_value "" $obj;
 }
 
 # _emitdocument (internal)
@@ -357,17 +353,9 @@ $error.Clear();
 ##>
 
 $focsv = [string]::Empty;
-if( $json_available ) {
-	$focsv = " /FO CSV | ConvertFrom-CSV";
+if( $script:csv_available ) {
+	$focsv = " /FO CSV | ConvertFrom-Csv";
 }
-
-# not caring anymore
-#if( -not $json_available ) {
-#	Write-Host -ForegroundColor Red -BackgroundColor Yellow " !!! ";
-#	Write-Host -ForegroundColor Red -BackgroundColor Yellow " ConvertTo-Json cmdlet is not available ";
-#	Write-Host -ForegroundColor Red -BackgroundColor Yellow " using internal converter instead ";
-#	Write-Host -ForegroundColor Red -BackgroundColor Yellow " !!! ";
-#}
 
 fingerprint
 
@@ -409,9 +397,9 @@ probe @{ name = "network-route";
 probe @{ name = "network-dns-cache";
 	cmd = "Get-DnsClientCache | Get-Unique | Select Entry,Name,Data,DataLength,Section,Status,TimeToLive,Type";
 }
-# TODO: this is a bit pants, but Get-NetTCPConnection doesn't have the PID so netstat provides better data
+# @todo: this is a bit pants, but Get-NetTCPConnection doesn't have the PID so netstat provides better data
 $tcpcmd = "netstat -ano -p TCP";
-if( $json_available ) {
+if( $script:csv_available ) {
 	$tcpcmd += " | select -skip 3 | foreach {`$_.Substring(2) -replace `" {2,}`",`",`" } | ConvertFrom-Csv";
 }
 probe @{ name = "network-tcp-active";
