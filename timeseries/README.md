@@ -205,10 +205,10 @@ The initial view will be restricted to the most important (level 1) statisics; y
   project; for example:
 
         python fold_gdb.py <gdbmon.log | \
-            python callstack.py --graph-scale log >callstack.html
-        open -a 'Google Chrome' callstack.html
+            python calltree.py --graph-scale log >calltree.html
+        open -a 'Google Chrome' calltree.html
 
-  See [gdbmon](gdbmon.md) and [callstack](callstack.md) documentation for
+  See [gdbmon](gdbmon.md) and [calltree](calltree.md) documentation for
   more information. *Important:* when using gdb profiling you should
   use a stripped binary because gdb stops the process for several
   seconds on each sample to obtain line numbers if the binary is not
