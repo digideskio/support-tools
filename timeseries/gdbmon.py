@@ -11,7 +11,7 @@ import optparse
 import select
 
 
-print ' '.join(sys.argv), '(version 1.1)'
+print ' '.join(sys.argv), '(version 1.2)'
 sys.stdout.flush()
 
 parser = optparse.OptionParser()
@@ -43,12 +43,11 @@ def put(cmd):
 
 def get(response, show=False, timeout=None):
     dbg('GET', response)
-    while True:
+    expire = time.time() + timeout if timeout else float('inf')
+    while time.time() < expire:
         rlist, _, _ = select.select([gdb.stdout], [], [], timeout)
-        if not rlist:
-            t = datetime.datetime.utcnow()
-            print t.strftime('%FT%T.%f+0000: timeout waiting for'), response
-            return None
+        if not rlist: # timeout
+            break
         line = gdb.stdout.readline().strip()
         if line.startswith('^error'):
             msg('error from gdb:', line)
@@ -66,6 +65,12 @@ def get(response, show=False, timeout=None):
         else:
             dbg('GOT unexpected', line)
             pass
+
+    # timeout
+    t = datetime.datetime.utcnow()
+    print t.strftime('%FT%T.%f+0000: timeout waiting for'), response
+    return None
+
 
 def get_state():
     states = 'state:'
