@@ -151,6 +151,10 @@ def simplify_templates(func):
         
 class node:
 
+    count = 0
+    processed = 0
+    printed = 0
+
     def __init__(self):
         self.filters = []
         self.count = 0
@@ -158,6 +162,7 @@ class node:
         self.min_count = None
         self.max_count = None
         self.children = {}
+        node.count += 1
 
     def _add_func(self, func, t, count=1):
         if not opt.templates:
@@ -189,6 +194,10 @@ class node:
         return []
 
     def prt(self, pfx=''):
+
+        if node.printed>0 and node.printed%1000==0:
+            msg('printed %d nodes (%0.f%%)' % (node.printed, node.printed*100/node.count))
+        node.printed += 1
 
         # prune
         if len(pfx) > opt.max_depth:
@@ -232,6 +241,11 @@ class node:
 
     # compute opt.max_count to scale all graphs to max_count
     def pre_graph(self):
+
+        if node.processed>0 and node.processed%1000==0:
+            msg('processed %d nodes (%0.f%%)' % (node.processed, node.processed*100/node.count))
+        node.processed += 1
+
         for func in self.children:
             child = self.children[func]
             if opt.buckets:
@@ -298,6 +312,39 @@ def get_time(t):
     return t2f(t)
 
 #
+#
+#
+
+def progress(f, every=10000):
+
+    # start time
+    t = time.time()
+
+    # file size for % msgs
+    try:
+        f.seek(0, 2)
+        size = f.tell()
+        f.seek(0)
+    except Exception as e:
+        dbg('no size:', e)
+        size = None
+
+    # enumerate lines
+    for n, line in enumerate(f):
+        yield line
+        if n>0 and n%every==0:
+            s = 'processed %d lines' % n
+            if size:
+                s += ' (%d%%)' % (100.0*f.tell()/size)
+            msg(s)
+
+    # final stats
+    t = time.time() - t
+    dbg('%d lines, %.3f s, %d lines/s' % (n, t, n/t))
+
+
+
+#
 # read folded stacks
 #
 
@@ -317,7 +364,7 @@ def read_folded(filters):
     # we provide an arbitrary default value in case start isn't specified
     start = dateutil.parser.parse('2000-01-01T00:00:00Z')
 
-    for line in sys.stdin:
+    for line in progress(sys.stdin):
         line = line.strip()
         if not line: continue
         fields = line.split(';')
