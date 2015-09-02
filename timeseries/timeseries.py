@@ -369,6 +369,7 @@ class Series:
 
         # record the data
         if self.buckets:
+            tt = t
             s0 = t
             s1 = s0 // self.buckets * self.buckets
             t = s1
@@ -878,7 +879,6 @@ def series_process_re(series, opt):
         for chunk_re, chunk, chunk_groups in chunks:
             m = chunk_re.match(line)
             if m:
-                #dbg(m.groups())
                 for chunk_group, s_re in zip(chunk_groups, chunk):
                     def get_field(g):
                         try: return m.group(chunk_group+g+1) if type(g)==int else m.group(g)
@@ -2424,6 +2424,28 @@ def mongod(**kwargs):
     kwargs['parse_type'] = 're'
     descriptor(**kwargs)
 
+#mongod(
+#    name = 'mongod: connections currently open',
+#    re = '.*?([0-9]+) connections now open',
+#    level = 1
+#)
+
+mongod(
+    name = 'mongod connections opened per {bucket_size}s',
+    re = '.* connection (accepted from)',
+    bucket_op = 'count',
+    bucket_size = 1,    # size of buckets in seconds
+    level = 1
+)
+
+mongod(
+    name = 'mongod connections closed per {bucket_size}s',
+    re = '.* (end connection)',
+    bucket_op = 'count',
+    bucket_size = 1,    # size of buckets in seconds
+    level = 1
+)
+
 mongod(
     name = 'mongod: max logged op (ms) per {bucket_size}s',
     re = '.* (?:query:|command:|getmore) .* ([0-9]+)ms$',
@@ -2441,20 +2463,6 @@ mongod(
     level = 1
 )
 
-mongod(
-    name = 'mongod connections opened per {bucket_size}s',
-    re = '.* connections accepted from',
-    bucket_op = 'count',
-    bucket_size = 1,    # size of buckets in seconds
-    level = 1
-)
-
-mongod(
-    name = 'mongod: connections currently open',
-    re = '.*?([0-9]+) connections now open',
-    level = 1
-)
-
 # not working right it seems?
 #mongod(
 #    name = 'mongod queued queries longer than {queue_min_ms}ms',
@@ -2464,13 +2472,13 @@ mongod(
 #    level = 3
 #)
 
-mongod(
-    name = 'mongod: waiting to acquire lock per {bucket_size}s',
-    re = '.* has been waiting to acquire lock for more than (30) seconds',
-    bucket_op = 'count',
-    bucket_size = 1,  # size of buckets in seconds
-    level = 1
-)
+#mongod(
+#    name = 'mongod: waiting to acquire lock per {bucket_size}s',
+#    re = '.* has been waiting to acquire lock for more than (30) seconds',
+#    bucket_op = 'count',
+#    bucket_size = 1,  # size of buckets in seconds
+#    level = 1
+#)
 
 #
 # oplog, e.g.
