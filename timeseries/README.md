@@ -544,14 +544,14 @@ version of tcmalloc.
 
 * Build mongod to use system tcmalloc. 
 
-    scons -j 24 --use-system-tcmalloc --c++11=on mongod
+        scons -j 24 --use-system-tcmalloc --c++11=on mongod
 
 * Run mongod setting the HEAPPROFILE environment variable to specify a
   file path prefix for the periodic heap profile dumps. By default it
   will create a profile file whose name starts with $HEAPPROFILE for
   every 1 GB of memory allocated.
 
-    HEAPPROFILE=/tmp/heaprofile mongod ...
+        HEAPPROFILE=/tmp/heaprofile mongod ...
 
 * This will create a sequence of files $HEAPPROFILE.$nnnn.heap for
   sequentially increasing values of $nnnn. Each file contains
