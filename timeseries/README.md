@@ -523,3 +523,87 @@ Process
     fold_osx_heap.py
     fold_osx_malloc_history.py
 
+### Collecting and visualizing memory utilization call trees using tcmalloc HEAPPROFILE
+
+There is a built-in facility in tcmalloc for tracking memory
+allocations, recording who (that is, what stack trace) did the
+allocations. It substantially slows mongod execution, but collects
+very useful information for determining who is doing the memory
+allocations.
+
+The version of tcmalloc embedded in mongod does not support
+HEAPPROFILE, so it will be necessary to arrange to use a different
+version of tcmalloc.
+
+* Install tcmalloc and Google perftools. I installed the following packages on Ubuntu:
+
+    * libgoogle-perftools4
+    * libgoogle-perftools-dev
+    * google-perftools
+
+* Build mongod to use system tcmalloc. 
+
+    scons -j 24 --use-system-tcmalloc --c++11=on mongod
+
+* Run mongod setting the HEAPPROFILE environment variable to specify a
+  file path prefix for the periodic heap profile dumps. By default it
+  will create a profile file whose name starts with $HEAPPROFILE for
+  every 1 GB of memory allocated.
+
+    HEAPPROFILE=/tmp/heaprofile mongod ...
+
+* This will create a sequence of files $HEAPPROFILE.$nnnn.heap for
+  sequentially increasing values of $nnnn. Each file contains
+  information about the state of the heap at the time it was created,
+  including currently allocated memory, along with stack traces
+  recording who allocated the memory. On the machine where the
+  profiles were collected process the *.heap files in *.raw files
+  using the google-pprof tool that was installed along with
+  tcmalloc. This step resolves the addresses in the heap profile to
+  function names; it is important that it be run on the machine where
+  the profile was collected so that the addresses can be resolved
+  correctly, and that you give it the filename of the same mongod
+  binary that you ran above.
+
+    MONGOD_BINARY=$(which mongod)       # change this if you used a different mongod
+    for fn in $HEAPPROFILE.*.heap; do   # iterate over the files created above
+        if [[ ! -e $fn.raw ]]; then
+            google-pprof --raw $MONGOD_BINARY $fn >$fn.raw
+            touch -r $fn $fn.raw        # give the .raw file the same timestamp as the .heap file
+        fi
+    done
+
+* Now process the raw heap profiles generated above into "folded" form
+  for use by the calltree tool.
+
+    python fold_heapprofile_raw.py $HEAPPROFILE.*.raw >heapprofile.folded
+
+  This step can be done on any machine. For example, the .raw files
+  could be generated as above by a customer, who would then tar (to
+  preserve timestamps) the *.raw files and upload the archive; you
+  would then unpack it and do this and the following steps on those
+  *.raw files.
+
+* Finally visualize the folded output using the calltree tool:
+  
+    python calltree.py <heapprofile.folded >heapprofile.html && open heapprofile.html
+
+This will generate output such as the following. The sparkline graphs
+show the amount of memory allocated by each node of the calltree and
+its descendants that is still live (has not been freed), at each point
+in time, over the course of the run. You can get an idea of the
+magnitude by looking at the "max" number, which tells you the amount
+of memory that is represented by the highest point on the graph.
+
+In this example (from
+[SERVER-20248](https://jira.mongodb.org/browse/SERVER-20248)) we see
+that __checkpoint_apply and its descendants have allocated an ever
+increasing amount of memory, which reached 3029 MB at the higest
+point, which is at the end of the run in this example. Of that 2803 MB
+was allocated by __conn_dhandle_get. In other words, checkpoints were
+allocating and not freeing about 2.8 GB worth of dhandles over the
+course of the run.
+
+![ex-calltree-heapprofile](ex-calltree-heapprofile.png)
+
+
