@@ -566,18 +566,18 @@ version of tcmalloc.
   correctly, and that you give it the filename of the same mongod
   binary that you ran above.
 
-    MONGOD_BINARY=$(which mongod)       # change this if you used a different mongod
-    for fn in $HEAPPROFILE.*.heap; do   # iterate over the files created above
-        if [[ ! -e $fn.raw ]]; then
-            google-pprof --raw $MONGOD_BINARY $fn >$fn.raw
-            touch -r $fn $fn.raw        # give the .raw file the same timestamp as the .heap file
-        fi
-    done
+        MONGOD_BINARY=$(which mongod)       # change this if you used a different mongod
+        for fn in $HEAPPROFILE.*.heap; do   # iterate over the files created above
+            if [[ ! -e $fn.raw ]]; then
+                google-pprof --raw $MONGOD_BINARY $fn >$fn.raw
+                touch -r $fn $fn.raw        # give the .raw file the same timestamp as the .heap file
+            fi
+        done
 
 * Now process the raw heap profiles generated above into "folded" form
   for use by the calltree tool.
 
-    python fold_heapprofile_raw.py $HEAPPROFILE.*.raw >heapprofile.folded
+        python fold_heapprofile_raw.py $HEAPPROFILE.*.raw >heapprofile.folded
 
   This step can be done on any machine. For example, the .raw files
   could be generated as above by a customer, who would then tar (to
@@ -587,7 +587,7 @@ version of tcmalloc.
 
 * Finally visualize the folded output using the calltree tool:
   
-    python calltree.py <heapprofile.folded >heapprofile.html && open heapprofile.html
+        python calltree.py <heapprofile.folded >heapprofile.html && open heapprofile.html
 
 This will generate output such as the following. The sparkline graphs
 show the amount of memory allocated by each node of the calltree and
