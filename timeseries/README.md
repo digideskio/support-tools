@@ -72,7 +72,7 @@ follows. Adding descriptors for each new type is relatively easy.
 Here's a simple example to get started. Collect some data as follows:
 
     delay=1 # pick a number in seconds
-    mongo --eval "while(true) {print(JSON.stringify(db.serverStatus())); sleep(1000*$delay)}" >ss.log &
+    mongo --eval "while(true) {print(JSON.stringify(db.serverStatus({tcmalloc:true}))); sleep(1000*$delay)}" >ss.log &
     iostat -k -t -x $delay >iostat.log &
 
 When you have collected as much data as desired, terminate the data collection processes, for example
