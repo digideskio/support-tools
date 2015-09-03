@@ -524,6 +524,7 @@ Process
     fold_osx_malloc_history.py
 
 ### Collecting and visualizing memory utilization call trees using tcmalloc HEAPPROFILE
+<a name="heapprofile"></a>
 
 There is a built-in facility in tcmalloc for tracking memory
 allocations, recording who (that is, what stack trace) did the
