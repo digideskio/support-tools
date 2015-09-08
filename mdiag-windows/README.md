@@ -34,7 +34,7 @@ The easiest way to run the script is from the Run dialog (Win+R) type the follow
 powershell -ExecutionPolicy Unrestricted -File "<full-path-to-mdiag.ps1>" CS-XXXX
 ```
 
-The `Ctrl`+`Shift`+`Enter` combination causes the command to be run with elevated privileges. This may trigger a UAC dialog to which the user will need to click Yes.
+This may trigger a UAC dialog to which the user will need to click Yes. Although the script will still run if UAC elevation is denied, it may provide less output.
 
 As the script progresses it will fill a text file in the Documents folder of the current user. The file is named "mdiag-\<hostname\>.txt"
 
@@ -68,12 +68,8 @@ The JSON output is an array of documents. The first character in the file will a
 {
     "ref":  "CS-XXXX",
     "section":  "section-title",
-    "ts":  {
-        "$date":  "2014-11-03T16:34:53"
-           },
-    "run":  {
-                "$date":  "2014-11-03T16:34:53"
-            },
+    "ts": { "$date":  "2014-11-03T16:34:53" },
+    "run": { "$date":  "2014-11-03T16:34:53" },
     "output":  <output-document>,
     "ok":  true,
     "command":  <system-command-that-was-run>
@@ -114,6 +110,8 @@ section | content type | description
 `sysinfo` | Document | Key/value pairs describing the host system. The operating system and all applied patches are contained. A rough hardware overview, like CPU and memory are here also. This is a good section for getting an overall impression of a system without going into obscene detail (that comes later).
 `is_admin` | Boolean | Indicates if the execution context is an administrator. Note that a human administrator who launches the script from a Run dialog or by a regular shell will launch the script into a limited user environment (because Microsoft have painfully learned that people can't be trusted with matches). See instructions above for how to instruct Windows to execute the script in an elevated environment (which will trigger a UAC dialog).
 `tasklist` | Array of Document | Currently running processes. Basic information about each process is contained, including the executable that started it, the total CPU time it has consumed, memory statistics and many others.
+`memory-virtual` | Document | A list of key/value pairs describing a snapshot of the memory conditions of the operating system. Physical usage, page usage, committed, pageable, etc.
+`memory-physical` | Array of Document | One document per physical memory bank (or virtual devices that look the same) present in the hardware, with a basic description of the DIMM (or equivalent) that inhabits it.
 `network-adapter` | Array of Document | Physical network adapters (or virtual devices that look the same) with information about the status and abilities of the supported physical layers.
 `network-interface` | Array of Document | Protocol interface and associated status.
 `network-route` | Array of Document | Individual network route entries.
@@ -121,7 +119,8 @@ section | content type | description
 `services` | Array of Document | System services which contain the wildcard "mongo" somewhere in the name.
 `firewall` | Array of Document | Firewall rules that contain the wildcard "mongo" somewhere in the policy.
 `storage-disk` | Array of Document | Physical storage systems (or virtual devices that look the same) with information about the characteristics.
-`storage-volume` | Array of Document | Information about all partitions (mounted or not, simulated or physical) with information about the characteristics.
+`storage-partition` | Array of Document | Information about all disk partitions (formed into volumes or not) with information about the characteristics.
+`storage-volume` | Array of Document | Information about all mountable volumes (mounted or not, simulated or physical) with information about the characteristics.
 `environment` | Array of Document | Literal dump of the key/value pairs from the execution environment, containing all system variables.
 `user-list-local` | Array of Document | System descriptions of all local user accounts.
 `user-current` | Document | Detailed system descriptor of the current user.
@@ -135,14 +134,22 @@ section | content type | description
 ## 1.5.2
 
  - Changed "services" section to reduce the spam:
-   + Fixed ServicesDependedOn to show the names of services rather than a description of the object involved (because that is seriously useless)
+   + Fixed ServicesDependedOn to show the names of services rather than a description of the object involved (because that was seriously useless)
    + Removed RequiredServices because it is an alias of ServicesDependedOn
    + Removed DependentServices because it is the converse of ServicesDependedOn (so it can be resurrected from existing fields if really wanted)
+ - Changed console output to use Write-Progress instead of Write-Host, old messages are deprecated to Write-Verbose (use -Verbose option)
+ - Added millisecond indicator to all ISO dates, because it may be important for time-series
  - Added "memory-virtual" probe to describe current virtual memory conditions of the OS
- - Added "memory-physical" probe to describe the memory hardware in the host
+ - Added "memory-physical" probe to describe the memory hardware in the host (or virtual devices that are simulating hardware)
  - Fixed the interior check for CSV, was a vestigial check for JSON which happens to indicate (thus far) that CSV is also available
-   
-   
+ - Fixed "storage-volume" probe to actually be about storage rather than partitions
+ - Added "storage-partition" probe, contains the same output that "storage-volume" previously contained that is actually about partitions
+ - Fixed "storage-partition" (previously "storage-volume") occasionally had a nul byte embedded in the DriveLetter string, now correctly uses a null JSON field as needed
+ - Fixed all ISO dates field had a typo in the '$date:' (included the colon in the name) which meant it didn't match strict JSON dates used by MongoDB
+ - Output should now be verbatim mongoimport'able using -jsonArray
+ - Added "performance-counters" probe for testing, accessible by the command-line option -Experimental, is the first time-series probe, 60 samples @ 1 second intervals
+
+
 ## 1.5.1
 
  - Added command-line option -DoNotElevate to prevent the script from attempting to elevate to Administrative privilege

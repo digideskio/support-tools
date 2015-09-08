@@ -4,14 +4,29 @@
 param(
 	[string] $JiraTicketNumber,
 	[switch] $DoNotElevate,
-	[switch] $Verbose
+	[switch] $Verbose,
+	[switch] $Experimental
 )
+
+# this is the output field of the fingerprint probe
+Set-Variable FingerprintOutputDocument -option Constant @{
+	os = "Windows";
+	shell = "powershell";
+	script = "mdiag";
+	version = "1.5.2";
+	revdate = "2015-09-08";
+}
 
 if( $Verbose ) {
 	$VerbosePreference="Continue"
 }
 
 Write-Verbose "`$PSCommandPath: $PSCommandPath"
+Write-Verbose $FingerprintOutputDocument
+
+if( $Experimental ) {
+	Write-Verbose "Experimental probes are enabled"
+}
 
 # get a Jira ticket number if we don't already have one
 if( "" -Eq $JiraTicketNumber ) {
@@ -41,6 +56,14 @@ if( -Not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdent
 		# do not attempt elevation again on relaunch, in case some bizarro world DC policy causes Runas to fake us out (because that would cause an infinite loop)
 		$CommandLine += " -DoNotElevate"
 
+		if( $Verbose ) {
+			$CommandLine += " -Verbose"
+		}
+
+		if( $Experimental ) {
+			$CommandLine += " -Experimental"
+		}
+		
 		Write-Verbose "`$CommandLine: $CommandLine"
 
 		try {
@@ -79,53 +102,97 @@ Write-Verbose "`$script:csv_available: $csv_available"
 # Use these in the script portion below. Please don't directly call other functions; the
 #	interfaces there are not guaranteed to be constant between versions of this script.
 
-Function fingerprint {
-	_emitdocument "fingerprint" $null @{
-		command = $False;
-		ok = $True;
-		output = @{
-			os = "Windows";
-			shell = "powershell";
-			script = "mdiag";
-			version = "1.5.2";
-			revdate = "2015-08-29";
-		}
-	}
-}
-
 Function probe( $doc ) {
-	# $doc should be: @{ name = "section"; cmd = "invoke-cmd" ; alt = "alternative-invoke-cmd"; }
+	# $doc should be: @{
+	#  name = "section title";
+	#  cmd = "invoke-cmd";
+	#  alt = "alternative-invoke-cmd";
+	#  (opt) samples = number of times to run the command (default 1)
+	#  (opt) period = milliseconds between runs (default 1000), only applicable when samples > 1
+	# }
 
 	if( !( $doc.name ) -or !( $doc.cmd ) ) {
 		throw "assert: malformed section descriptor document, must have 'name' and 'cmd' members at least";
 	}
 
-	Write-Host "Gathering section [$($doc.name)]"
+	Write-Verbose "Gathering section [$($doc.name)]"
 
-	# for now, disabling range timestamps until needed by temporally ranging probes (for example, disk statistics over time)
-	#$startts = Get-Date
-	$cmdobj = _docmd $doc.cmd
+	# record startts if likely to be needed
+	$startts = $null
+	if( $doc.samples -gt 1 ) {
+		$startts = Get-Date
 
-	if( !( $cmdobj.ok ) -and ( $null -ne $doc.alt ) ) {
-		# preferred cmd failed and we have a fallback, so try that
-		Write-Host " | Preference attempt failed, but have a fallback to try..."
+		# determine sleep time
+		$period = @( 1000, $doc.period )[$doc.period -ne $null];
 
-		$fbcobj = _docmd $doc.alt
-
-		if( $fbcobj.ok ) {
-			Write-Host " | ... which succeeded!"
+		if( ( $period -gt 5000 ) -or ( $period -lt 100 ) ) {
+			# clamp
+			Write-Warning "probe period ($doc.name) outside range of 100 to 5000, defaulting to 1000";
+			$period = 1000;
 		}
 
-		$fbcobj.fallback_from = @{
-			command = $cmdobj.command;
-			error = $cmdobj.error;
-		}
-		$cmdobj = $fbcobj;
+		Write-Progress $doc.name -ParentId 1 -Status "sampling" -PercentComplete 0 -SecondsRemaining $( $period * $doc.samples / 1000 )
 	}
 
-	_emitdocument $doc.name $null $cmdobj
+	# run the probe once
+	$cmdobj = _docmd $doc.cmd
 
-	Write-Host "Finished with section [$($doc.name)]. Closing`n"
+	if( $cmdobj.ok ) {
+		# check to see if it should repeat
+		if( $doc.samples -gt 1 ) {
+			# reformat output member to an array - thank you microsoft for making this ludicrously difficult
+			$oco = $cmdobj.output;
+			$cmdobj.output = $null;
+
+			for( $j = 1 ; $j -lt $doc.samples ; $j++ ) {
+				Write-Progress $doc.name -ParentId 1 -Status "sampling" -PercentComplete $( $j * 100 / $doc.samples ) -SecondsRemaining $( $period * ( $doc.samples - $j ) / 1000 );
+				
+				# calculate burn time remaining before the start of the next run
+				$burn = ( $period * $j ) - ( $(Get-Date) - $startts ).TotalMilliseconds;
+				if( $burn -gt 0 ) {
+					# if this is less than zero, then the test takes longer than a period cycle
+					Sleep -m $burn
+				}
+				
+				# run the probe again
+				$coredux = _docmd $doc.cmd
+				
+				if( $cmdobj.output ) {
+					$cmdobj.output += ,$coredux.output;
+				}
+				else {
+					$cmdobj.output = @($oco,$coredux.output);
+				}
+			}
+			
+			Write-Progress $doc.name -ParentId 1 -Completed
+		}
+	}
+	else {
+		$startts = $null
+
+		if( $null -ne $doc.alt ) {
+			# preferred cmd failed and we have a fallback, so try that
+			# @todo: time-series is not really compatible with fallback yet
+			Write-Verbose " | Preference attempt failed, but have a fallback to try..."
+
+			$fbcobj = _docmd $doc.alt
+
+			if( $fbcobj.ok ) {
+				Write-Verbose " | ... which succeeded!"
+			}
+
+			$fbcobj.fallback_from = @{
+				command = $cmdobj.command;
+				error = $cmdobj.error;
+			}
+			$cmdobj = $fbcobj;
+		}
+	}
+
+	_emitdocument $doc.name $startts $cmdobj
+
+	Write-Verbose "Finished with section [$($doc.name)]. Closing`n"
 }
 
 ###############
@@ -140,8 +207,10 @@ Function _tojson_string( $v ) {
 	"`"{0}`"" -f $v
 }
 
+# _tojson_date
+# provide a JSON encoded date
 Function _tojson_date( $v ) {
-	"{{ `"`$date:`": `"{0}`" }}" -f $( _iso8601_string $v );
+	"{{ `"`$date`": `"{0}`" }}" -f $( _iso8601_string $v );
 }
 
 # _tojson_object
@@ -151,7 +220,7 @@ function _tojson_object( $indent ) {
 	"{{`n{0}`n{1}}}" -f $ret.Trim("`r`n,"), $indent
 }
 
-# _tojson_object
+# _tojson_array
 # pipe in a stream of objects for the elements of the array
 function _tojson_array( $indent ) {
 	if( @($input).Count -eq 0 ) {
@@ -196,7 +265,11 @@ Function _tojson_value( $indent, $obj ) {
 				_tojson_date $obj
 				break
 			}
-			{ "Int32","UInt32","Int64","UInt64","Boolean" -contains $_ } {
+			"Boolean" {
+				@('false','true')[$obj -eq $true]
+				break
+			}
+			{ "Int32","UInt32","Int64","UInt64" -contains $_ } {
 				# symbolic or integrals, write plainly
 				$obj.ToString()
 				break
@@ -246,7 +319,7 @@ Function _emitdocument( $section, $startts, $cmdobj ) {
 		Add-Content $diagfile ","
 	}
 
-	$script:isfirstdocument = $False
+	$script:isfirstdocument = $false
 
 	try {
 		Add-Content $diagfile $(_tojson $cmdobj)
@@ -254,7 +327,7 @@ Function _emitdocument( $section, $startts, $cmdobj ) {
 	catch {
 		$cmdobj.output = ""
 		$cmdobj.error = "output conversion to JSON failed"
-		$cmdobj.ok = $False
+		$cmdobj.ok = $false
 
 		# give it another shot without the output, just let it die if it still has an issue
 		Add-Content $diagfile $(_tojson $cmdobj)
@@ -272,15 +345,11 @@ function _iso8601_string( [DateTime] $date ) {
 		$tzo = [System.TimeZoneInfo]::Local.BaseUtcOffset;
 		$script:tzstring = "{0}{1}:{2:00}" -f @("+","")[$tzo.Hours -lt 0], $tzo.Hours, $tzo.Minutes
 	}
-	# ISO-8601
-	$ds = $null;
 	if( $date -eq $null ) {
-		$ds = Get-Date -Format s;
+		$date = Get-Date;
 	}
-	else {
-		$ds = Get-Date -Format s -Date $date
-	}
-	return $ds + $script:tzstring;
+	# ISO-8601
+	return "{0}.{1:000}{2}" -f $( Get-Date -Format s -Date $date ), $date.Millisecond, $script:tzstring;
 }
 
 Function _docmd {
@@ -290,7 +359,7 @@ Function _docmd {
 	# selecting only the first arg in the stream now due to possible mongoimport killers like ' " etc (which come out as \u00XX
 	$ret = @{ command = ("$args").Split("|")[0].Trim() }
 	$text = ""
-	$ok = $True;
+	$ok = $true;
 
 	Try {
 		#Write-Host "Trying to run command [$args]`n"
@@ -305,19 +374,19 @@ Function _docmd {
 		if( $preerrcount -ne $error.Length.Length ) {
 			# there was an error that Invoke-Expression desperately tried to hide
 			# yes, Invoke-Expression is really this broken - it is difficult to detect if the command had a problem
-			$ok = $False
+			$ok = $false
 			$ret.error = $error[0].Exception.Message	
 		}
 	}
 	Catch {
-		$ok = $False
+		$ok = $false
 		$ret.error = $error[0].Exception.Message
 	}
 
 	$simpleOk = $?
 
 	if( !$simpleOk ) {
-		$ok = $False;
+		$ok = $false;
 	}
 
 	$ret.ok = $ok
@@ -327,7 +396,7 @@ Function _docmd {
 
 ###############
 # Script-scoped variables
-$script:isfirstdocument = $True
+$script:isfirstdocument = $true
 $script:rundate = Get-Date
 
 ###############
@@ -357,44 +426,46 @@ if( $script:csv_available ) {
 	$focsv = " /FO CSV | ConvertFrom-Csv";
 }
 
-fingerprint
+_emitdocument "fingerprint" $null @{ command = $false; ok = $true; output = $FingerprintOutputDocument; }
 
-probe @{ name = "sysinfo";
+$probes = @();
+
+$probes +=, @{ name = "sysinfo";
 	# @todo: need to switch to this:
 	#cmd = "Get-WmiObject Win32_OperatingSystem";
 	cmd = $( "systeminfo{0}" -f $focsv );
 }
 
-probe @{ name = "is_admin";
+$probes +=, @{ name = "is_admin";
 	cmd = "([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] 'Administrator')"
 }
 
-probe @{ name = "memory-virtual";
+$probes +=, @{ name = "memory-virtual";
 	cmd = "Get-WmiObject Win32_PerfRawData_PerfOS_Memory | Select A*,Cache*,Commit*,Pool*"
 }
 
-probe @{ name = "memory-physical";
+$probes +=, @{ name = "memory-physical";
 	cmd = "Get-WmiObject Win32_PhysicalMemory | Select BankLabel,DeviceLocator,FormFactor,Capacity,Speed"
 }
 
-probe @{ name = "tasklist";
+$probes +=, @{ name = "tasklist";
 	cmd = "Get-Process | Select Name,Handles,VirtualMemorySize64,WorkingSet64,PagedMemorySize64,NonpagedSystemMemorySize64,PagedSystemMemorySize64,PrivateMemorySize64,Path,Company,CPU,FileVersion,ProductVersion,Description,Product,Id,PriorityClass,TotalProcessorTime,BasePriority,PeakWorkingSet64,PeakVirtualMemorySize64,StartTime,@{Name='Threads';Expression={`$_.Threads.Count}}";
 	alt = $( "tasklist{0}" -f $focsv );
 }
 
-probe @{ name = "network-adapter";
+$probes +=, @{ name = "network-adapter";
 	cmd = "Get-NetAdapter | Select ifIndex,ifAlias,ifDesc,ifName,DriverVersion,MacAddress,Status,LinkSpeed,MediaType,MediaConnectionState,DriverInformation,DriverFileName,NdisVersion,DeviceName,DriverName,DriverVersionString,MtuSize";
 	alt = "netsh wlan show interfaces";
 }
-probe @{ name = "network-interface";
+$probes +=, @{ name = "network-interface";
 	cmd = "Get-NetIPAddress | Select ifIndex,PrefixOrigin,SuffixOrigin,Type,AddressFamily,AddressState,Name,ProtocolIFType,IPv4Address,IPv6Address,IPVersionSupport,PrefixLength,SubnetMask,InterfaceAlias,PreferredLifetime,SkipAsSource,ValidLifetime";
 	alt = "ipconfig /all";
 }
-probe @{ name = "network-route";
+$probes +=, @{ name = "network-route";
 	cmd = "Get-NetRoute | Select DestinationPrefix,InterfaceAlias,InterfaceIndex,RouteMetric,TypeOfRoute";
 	alt = "route print";
 }
-probe @{ name = "network-dns-cache";
+$probes +=, @{ name = "network-dns-cache";
 	cmd = "Get-DnsClientCache | Get-Unique | Select Entry,Name,Data,DataLength,Section,Status,TimeToLive,Type";
 }
 # @todo: this is a bit pants, but Get-NetTCPConnection doesn't have the PID so netstat provides better data
@@ -402,46 +473,65 @@ $tcpcmd = "netstat -ano -p TCP";
 if( $script:csv_available ) {
 	$tcpcmd += " | select -skip 3 | foreach {`$_.Substring(2) -replace `" {2,}`",`",`" } | ConvertFrom-Csv";
 }
-probe @{ name = "network-tcp-active";
+$probes +=, @{ name = "network-tcp-active";
 	cmd = $tcpcmd;
 }
 
-probe @{ name = "services";
+$probes +=, @{ name = "services";
 	cmd = "Get-Service | Select Di*,ServiceName,ServiceType,@{Name='Status';Expression={`$_.Status.ToString()}},@{Name='ServicesDependedOn';Expression={@(`$_.ServicesDependedOn.Name)}}";
 }
 
-probe @{ name = "firewall";
+$probes +=, @{ name = "firewall";
 	cmd = "Get-NetFirewallRule | Where-Object {`$_.DisplayName -like '*mongo*'} | Select Name,DisplayName,Enabled,@{Name='Profile';Expression={`$_.Profile.ToString()}},@{Name='Direction';Expression={`$_.Direction.ToString()}},@{Name='Action';Expression={`$_.Action.ToString()}},@{Name='PolicyStoreSourceType';Expression={`$_.PolicyStoreSourceType.ToString()}}";
 }
 
-probe @{ name = "storage-disk";
+$probes +=, @{ name = "storage-disk";
 	cmd = "Get-Disk | Select PartitionStyle,ProvisioningType,OperationalStatus,HealthStatus,BusType,BootFromDisk,FirmwareVersion,FriendlyName,IsBoot,IsClustered,IsOffline,IsReadOnly,IsSystem,LogicalSectorSize,Manufacturer,Model,Number,NumberOfPartitions,Path,PhysicalSectorSize,SerialNumber,Size";
 	alt = "Get-WmiObject Win32_DiskDrive | Select SystemName,BytesPerSector,Caption,CompressionMethod,Description,DeviceID,InterfaceType,Manufacturer,MediaType,Model,Name,Partitions,PNPDeviceID,SCSIBus,SCSILogicalUnit,SCSIPort,SCSITargetId,SectorsPerTrack,SerialNumber,Signature,Size,Status,TotalCylinders,TotalHeads,TotalSectors,TotalTracks,TracksPerCylinder";
 }
-probe @{ name = "storage-volume";
-	cmd = "Get-Partition | Select OperationalStatus,Type,AccessPaths,DiskId,DiskNumber,DriveLetter,GptType,Guid,IsActive,IsBoot,IsHidden,IsOffline,IsReadOnly,IsShadowCopy,IsSystem,MbrType,NoDefaultDriveLetter,Offset,PartitionNumber,Size,TransitionState";
+$probes +=, @{ name = "storage-partition";
+	# DriverLetter is borked, need to detect the nul byte included in the length for non-mapped partitions (..yeah)
+	cmd = "Get-Partition | Select OperationalStatus,Type,AccessPaths,DiskId,DiskNumber,@{Name='DriveLetter';Expression={@(`$null,`$_.DriveLetter)[`$_.DriveLetter[0] -ge 'A']}},GptType,Guid,IsActive,IsBoot,IsHidden,IsOffline,IsReadOnly,IsShadowCopy,IsSystem,MbrType,NoDefaultDriveLetter,Offset,PartitionNumber,Size,TransitionState";
+	alt = "Get-WmiObject Win32_DiskPartition"
+}
+$probes +=, @{ name = "storage-volume";
+	cmd = "Get-Volume | Select * -Exclude P*,C*";
 	alt = "Get-WmiObject Win32_LogicalDisk | Select Compressed,Description,DeviceID,DriveType,FileSystem,FreeSpace,MediaType,Name,Size,SystemName,VolumeSerialNumber";
 }
 
-probe @{ name = "environment";
+$probes +=, @{ name = "environment";
 	cmd = "Get-Childitem env: | ForEach-Object {`$j=@{}} {`$j.Add(`$_.Name,`$_.Value)} {`$j}";
 }
 
-probe @{ name = "user-list-local";
+$probes +=, @{ name = "user-list-local";
 	cmd = "Get-WMIObject Win32_UserAccount | Where-Object {`$_.LocalAccount -eq `$true} | Select Caption,Name,Domain,Description,AccountType,Disabled,Lockout,SID,Status";
 }
-probe @{ name = "user-current";
+$probes +=, @{ name = "user-current";
 	cmd = "[System.Security.Principal.WindowsIdentity]::GetCurrent()";
 	alt = "whoami";
 }
 
-probe @{ name = "drivers";
+$probes +=, @{ name = "drivers";
 	cmd = "Get-WmiObject -Class Win32_SystemDriver | Where-Object -FilterScript {`$_.State -eq 'Running'} | Select Name,Status,Description";
 }
 
-probe @{ name = "time-change";
+$probes +=, @{ name = "time-change";
 	cmd = "Get-EventLog -LogName System -Source @('Microsoft-Windows-Kernel-General','Microsoft-Windows-Time-Service') | Select -first 10";
 }
+
+if( $Experimental ) {
+	$probes +=, @{ name = "performance-counters";
+		cmd = "Get-Counter | select -expandproperty CounterSamples";
+		samples = 60;
+	}
+}
+
+Write-Host "Beginning collection...";
+for( $j = 0 ; $j -lt $probes.Length ; $j++ ) {
+	Write-Progress "Gathering diagnostic information" -Id 1 -Status $( $probes[$j].name ) -PercentComplete $( $j * 100 / $probes.Length );
+	probe $probes[$j];
+}
+Write-Progress "Gathering diagnostic information" -Id 1 -Completed;
 
 ###############
 # Final
@@ -449,7 +539,9 @@ probe @{ name = "time-change";
 #
 Add-Content $diagfile "]`n"
 
-Write-Host "Finished. Please attach '$diagfile' to the support case $JiraTicketNumber."
-
+Write-Host "Finished."
+Write-Host ""
+Write-Host "Please attach '$diagfile' to the support case $JiraTicketNumber."
+Write-Host ""
 Write-Host "Press any key to continue ..."
 $x = $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
