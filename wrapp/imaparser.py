@@ -311,19 +311,19 @@ if __name__ == "__main__":
         "--api-token", metavar="API_TOKEN", help="specify a Pushover api token"
     )
     parser.add_config_argument(
-        "--pushover-host", metavar="PUSHOVER_HOST", default="api.pushover.net",
-        help="specify the Pushover host"
+        "--pushbullet-host", metavar="PUSHBULLET_HOST", default="api.pushbullet.com",
+        help="specify the Pushbullet host"
     )
     parser.add_config_argument(
-        "--pushover-port", metavar="PUSHOVER_PORT", default=443,
-        help="specify the Pushover port"
+        "--pushbullet-port", metavar="PUSHBULLET_PORT", default=443,
+        help="specify the Pushbullet port"
     )
     args = parser.parse_args()
 
     i = imaparser(args)
     while True:
         i.login()
-        i.process_mailbox("inbox")
+        i.process_mailbox("wrapp")
         time.sleep(args.timeout)
     i.imap.close()
     i.imap.logout()
