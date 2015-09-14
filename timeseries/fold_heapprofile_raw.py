@@ -12,6 +12,8 @@ print 'time;MB;stack'
 # each file
 for sample in sys.argv[1:]:
     
+    print >>sys.stderr, 'processing', sample
+
     # file time is sample time
     stat = os.stat(sample)
     t = stat.st_mtime
