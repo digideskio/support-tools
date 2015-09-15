@@ -2124,8 +2124,14 @@ def series_read_ftdc(fn, series, opt):
     ss = init_dst(series_process_json(fn, series, opt))
     rs = init_dst(series_process_rs(series, opt))
     for jnode in read_json(fn, opt):
-        ss.send(jnode['serverStatus'])
-        rs.send(jnode['replSetGetStatus'])
+        try:
+            ss.send(jnode['serverStatus'])
+        except KeyError:
+            pass
+        try:
+            rs.send(jnode['replSetGetStatus'])
+        except KeyError:
+            pass
 
     #dst = [series_process_json(fn, series, opt), series_process_rs(series, opt)]
     #transfer(read_json(fn, opt), *dst)
