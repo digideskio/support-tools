@@ -872,8 +872,14 @@ class CompressedBsonSource : public DataSource, public SampleSource {
     int fd;
     scoped_ptr<Decompress> decompress;
     SpaceStats space;
+    bool interim;
+    int chunks_read;
 
     virtual bool get_chunk(vector<char>& compressed) {
+
+        // only one sample in interim file
+        if (interim && chunks_read>0)
+            return false;
 
         // get next bson document
         while (true) {
@@ -883,6 +889,10 @@ class CompressedBsonSource : public DataSource, public SampleSource {
             int n = read(fd, (char*)&sz, sizeof(sz));
             if (n==0) return false;
             if (n<0) err("read");
+
+            // explicit 0-length sample
+            if (sz==0)
+                return false;
 
             // read rest of doc
             char buf[sz];
@@ -900,6 +910,7 @@ class CompressedBsonSource : public DataSource, public SampleSource {
                     " bindata len " << len << endl;
                 const int skip = sizeof(int); // skip uncompressed length header, we don't need it
                 compressed.insert(compressed.begin(), &data[skip], &data[len]);
+                chunks_read += 1;
                 return true;
             } else {
                 msg(2) << "skipping doc type " << chunk["type"] << endl;
@@ -916,6 +927,8 @@ public:
         fd = open(fn.c_str(), O_RDONLY);
         if (fd<0) err(fn);
         decompress.reset(new Decompress(this));
+        interim = ends_with(fn, "metrics.interim");
+        chunks_read = 0;
     }
 
     bool get_sample(BSONObj& sample) {
