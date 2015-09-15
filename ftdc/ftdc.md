@@ -45,6 +45,11 @@ Copy samples from source to sink.
    defines a simple container of compressed samples and is intended
    for testing purposes only.
 
+* Any source file not matching one of the descriptions above is
+  assumed to be an FTDC metrics file from the diagnostic.data
+  subdirectory of dbpath produced by the built-in FTDC facility of
+  mongod.
+
 **Sink may be one of:**
 
 * *.bson - a file containing a sequence of uncompressed samples as
