@@ -262,7 +262,7 @@ struct NOPACK {
 // matches - returns true if schema of curr matces ref
 //
 
-void extract_metrics(const BSONObj& ref, const BSONObj& curr, vector<METRIC>& metrics, bool& matches) {
+void extract_metrics(const BSONObj& ref, const BSONObj& curr, vector<METRIC>& metrics, bool& matches, string indent = "") {
 
     BSONObjIterator i_curr(curr);
     BSONObjIterator i_ref(ref);
@@ -271,12 +271,14 @@ void extract_metrics(const BSONObj& ref, const BSONObj& curr, vector<METRIC>& me
 
         // schema mismatch if curr is longer than ref
         if (matches && !i_ref.more()) {
-            msg(3) << "schema change: curr longer than ref";
+            msg(3) << "schema change: curr longer than ref" << endl;
             matches = false;
         }
 
         BSONElement e_curr = i_curr.next();
         BSONElement e_ref = matches? i_ref.next() : BSONElement();
+
+        msg(4) << "e_curr: " << indent << e_curr.fieldName() << endl;
 
         if (matches) {
 
@@ -325,7 +327,7 @@ void extract_metrics(const BSONObj& ref, const BSONObj& curr, vector<METRIC>& me
 
         case Object:
         case Array:
-            extract_metrics(matches? e_ref.Obj() : BSONObj(), e_curr.Obj(), metrics, matches);
+            extract_metrics(matches? e_ref.Obj() : BSONObj(), e_curr.Obj(), metrics, matches, indent + "    ");
             break;
 
         // strings and objectids are not captured in the delta samples
