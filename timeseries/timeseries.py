@@ -2062,36 +2062,53 @@ def series_process_rs(series, opt):
     # delegate to generic field processor
     p = init_dst(series_process_fields(series, opt))
 
+    # wait for a config with members
+    jnode = yield
+    while not 'members' in jnode:
+        jnode = yield
+
     # compute and send headers
     jnode = yield
     headers = ['time']
-    for m in jnode['members']:
-        name = m['name']
-        for s in ['state', 'lag']:
-            headers.append(name + ' ' + s)
+    if 'members' in jnode:
+        for m in jnode['members']:
+            name = m['name']
+            for s in ['state', 'lag']:
+                headers.append(name + ' ' + s)
     p.send(headers)
 
     while True:
 
         # next json doc
         jnode = yield
+        
+        # still a valid config?
+        if 'members' in jnode:
 
-        # compute primary_optime
-        primary_optime = None
-        for m in jnode['members']:
-            if m['stateStr'] == 'PRIMARY':
-                primary_optime = m['optime']['t']
-                break
+            # compute primary_optime
+            primary_optime = None
+            for m in jnode['members']:
+                if m['stateStr'] == 'PRIMARY':
+                    #primary_optime = m['optime']['t']
+                    # XXX until SERVER-20467 is fixed do this instead
+                    primary_optime = (dateutil.parser.parse(m['optimeDate']) - t0).total_seconds()
+                    break
 
-        # compute result fields
-        result = [jnode['date']]
-        for m in jnode['members']:
-            result.append(m['state'])
-            secondary_optime = m['optime']['t']
-            result.append(primary_optime-secondary_optime if secondary_optime else '')
+            # compute result fields
+            result = [jnode['date']]
+            for m in jnode['members']:
+                result.append(m['state'])
+                #secondary_optime = m['optime']['t']
+                # XXX until SERVER-20467 is fixed do this instead
+                secondary_optime = (dateutil.parser.parse(m['optimeDate']) - t0).total_seconds()
+                if primary_optime and secondary_optime > 1:
+                    result.append(primary_optime - secondary_optime)
+                else:
+                    result.append('')
 
         # send result to field processor
         p.send(result)
+
 
 def series_read_rs(fn, series, opt):
     transfer(read_json(fn, opt), series_process_rs(series, opt))
@@ -2124,14 +2141,10 @@ def series_read_ftdc(fn, series, opt):
     ss = init_dst(series_process_json(fn, series, opt))
     rs = init_dst(series_process_rs(series, opt))
     for jnode in read_json(fn, opt):
-        try:
+        if 'serverStatus' in jnode:
             ss.send(jnode['serverStatus'])
-        except KeyError:
-            pass
-        try:
+        if 'replSetGetStatus' in jnode:
             rs.send(jnode['replSetGetStatus'])
-        except KeyError:
-            pass
 
     #dst = [series_process_json(fn, series, opt), series_process_rs(series, opt)]
     #transfer(read_json(fn, opt), *dst)
