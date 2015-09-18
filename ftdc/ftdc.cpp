@@ -874,14 +874,9 @@ class CompressedBsonSource : public DataSource, public SampleSource {
     int fd;
     scoped_ptr<Decompress> decompress;
     SpaceStats space;
-    bool interim;
     int chunks_read;
 
     virtual bool get_chunk(vector<char>& compressed) {
-
-        // only one sample in interim file
-        if (interim && chunks_read>0)
-            return false;
 
         // get next bson document
         while (true) {
@@ -929,7 +924,6 @@ public:
         fd = open(fn.c_str(), O_RDONLY);
         if (fd<0) err(fn);
         decompress.reset(new Decompress(this));
-        interim = ends_with(fn, "metrics.interim");
         chunks_read = 0;
     }
 
