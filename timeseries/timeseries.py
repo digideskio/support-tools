@@ -2089,18 +2089,14 @@ def series_process_rs(series, opt):
             primary_optime = None
             for m in jnode['members']:
                 if m['stateStr'] == 'PRIMARY':
-                    #primary_optime = m['optime']['t']
-                    # XXX until SERVER-20467 is fixed do this instead
-                    primary_optime = (dateutil.parser.parse(m['optimeDate']) - t0).total_seconds()
+                    primary_optime = m['optime']['t']
                     break
 
             # compute result fields
             result = [jnode['date']]
             for m in jnode['members']:
                 result.append(m['state'])
-                #secondary_optime = m['optime']['t']
-                # XXX until SERVER-20467 is fixed do this instead
-                secondary_optime = (dateutil.parser.parse(m['optimeDate']) - t0).total_seconds()
+                secondary_optime = m['optime']['t']
                 if primary_optime and secondary_optime > 1:
                     result.append(primary_optime - secondary_optime)
                 else:
