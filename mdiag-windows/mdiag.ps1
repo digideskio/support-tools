@@ -87,8 +87,8 @@ Function fingerprint {
 			os = "Windows";
 			shell = "powershell";
 			script = "mdiag";
-			version = "1.5.1";
-			revdate = "2015-08-27";
+			version = "1.5.2";
+			revdate = "2015-09-18";
 		}
 	}
 }
@@ -141,7 +141,7 @@ Function _tojson_string( $v ) {
 }
 
 Function _tojson_date( $v ) {
-	"{{ `"`$date:`": `"{0}`" }}" -f $( _iso8601_string $v );
+	"{{ `"`$date`": `"{0}`" }}" -f $( _iso8601_string $v );
 }
 
 # following is used to JSON encode object outputs when ConvertTo-JSON (cmdlet) is not available
@@ -250,19 +250,17 @@ function _iso8601_string( [DateTime] $date ) {
 	# TSPROJ-386 timestamp formats
 	# turns out the "-s" format of windows is ISO-8601 with the TZ indicator stripped off (it's in localtime)
 	# so... we just need to append the TZ that was used in the conversion thusly:
+	if( $date -eq $null ) {
+		$date = Get-Date;
+	}
 	if( !( $script:tzstring ) ) {
-		$tzo = [System.TimeZoneInfo]::Local.BaseUtcOffset;
+		# [System.TimeZoneInfo]::Local.BaseUtcOffset; <- should use this "whenever possible" which is .NET 3.5+
+		# using the legacy method instead for maximum compatibility
+		$tzo = [System.TimeZone]::CurrentTimeZone.GetUtcOffset( $date );
 		$script:tzstring = "{0}{1}:{2:00}" -f @("+","")[$tzo.Hours -lt 0], $tzo.Hours, $tzo.Minutes
 	}
 	# ISO-8601
-	$ds = $null;
-	if( $date -eq $null ) {
-		$ds = Get-Date -Format s;
-	}
-	else {
-		$ds = Get-Date -Format s -Date $date
-	}
-	return $ds + $script:tzstring;
+	return "{0}.{1:000}{2}" -f $( Get-Date -Format s -Date $date ), $date.Millisecond, $script:tzstring;
 }
 
 Function _docmd {

@@ -34,7 +34,7 @@ The easiest way to run the script is from the Run dialog (Win+R) type the follow
 powershell -ExecutionPolicy Unrestricted -File "<full-path-to-mdiag.ps1>" CS-XXXX
 ```
 
-The `Ctrl`+`Shift`+`Enter` combination causes the command to be run with elevated privileges. This may trigger a UAC dialog to which the user will need to click Yes.
+This may trigger a UAC dialog to which the user will need to click Yes. Although the script will still run if UAC elevation is denied, it may provide less output.
 
 As the script progresses it will fill a text file in the Documents folder of the current user. The file is named "mdiag-\<hostname\>.txt"
 
@@ -68,12 +68,8 @@ The JSON output is an array of documents. The first character in the file will a
 {
     "ref":  "CS-XXXX",
     "section":  "section-title",
-    "ts":  {
-        "$date":  "2014-11-03T16:34:53"
-           },
-    "run":  {
-                "$date":  "2014-11-03T16:34:53"
-            },
+    "ts":  { "$date":  "2014-11-03T16:34:53.123+10:00" },
+    "run":  { "$date":  "2014-11-03T16:34:53.123+10:00" },
     "output":  <output-document>,
     "ok":  true,
     "command":  <system-command-that-was-run>
@@ -131,6 +127,14 @@ section | content type | description
 
 
 ### Changelog
+
+
+## 1.5.2
+
+ - Fixed crash caused by dependency on .NET 3.5 for time zone information (TSPROJ-386), script should be compliant back to .NET 2.0 again
+ - Fixed all ISO dates field, had a typo in the key "$date:" (included the colon in the name) which meant it didn't match strict JSON dates used by MongoDB
+ - Added millisecond indicator to all ISO dates, because it will be important for time-series
+
 
 ## 1.5.1
 
