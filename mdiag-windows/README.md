@@ -129,6 +129,23 @@ section | content type | description
 ### Changelog
 
 
+## 1.6.0
+
+ - Changed "services" section to reduce the spam:
+   + Fixed ServicesDependedOn to show the names of services rather than a description of the object involved (because that was seriously useless)
+   + Removed RequiredServices because it is an alias of ServicesDependedOn
+   + Removed DependentServices because it is the converse of ServicesDependedOn (so it can be resurrected from existing fields if really wanted)
+ - Changed console output to use Write-Progress instead of Write-Host, old messages are deprecated to Write-Verbose (use -Verbose option to bring these back)
+ - Added "memory-virtual" probe to describe current virtual memory conditions of the OS
+ - Added "memory-physical" probe to describe the memory hardware in the host (or virtual devices that are simulating hardware)
+ - Fixed the interior check for CSV, was a vestigial check for JSON which happens to indicate (thus far) that CSV is also available
+ - Fixed "storage-volume" probe to actually be about storage rather than partitions
+ - Added "storage-partition" probe, contains the same output that "storage-volume" previously contained that is actually about partitions
+ - Fixed "storage-partition" (previously "storage-volume") occasionally had a nul byte embedded in the DriveLetter string, now correctly uses a null JSON field as needed
+ - Output should now be verbatim mongoimport'able using -jsonArray
+ - Added "performance-counters" probe for testing, accessible by the command-line option -Experimental, is the first time-series probe, 60 samples @ 1 second intervals
+
+
 ## 1.5.2
 
  - Fixed crash caused by dependency on .NET 3.5 for time zone information (TSPROJ-386), script should be compliant back to .NET 2.0 again
