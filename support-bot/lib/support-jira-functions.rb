@@ -645,7 +645,7 @@ def checkNewProactive(db)
   time = Time.now
 
   #Compare the current List of issues to the old, update if needed
-  db.collection("issues").find({"jira.fields.issuetype.id" => "23"}).each do |issue|
+  db.collection("issues").find({"jira.fields.issuetype.name" => "Proactive"}).each do |issue|
     begin
       unless @proactiveAlertsSent.include? issue["jira"]["key"]
         comments = issue["jira"]["fields"]["comment"]["comments"]
