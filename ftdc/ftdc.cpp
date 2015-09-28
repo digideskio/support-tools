@@ -679,6 +679,9 @@ private:
         z.sgetn((char*)&n_deltas, sizeof(n_deltas));
         if (n_metrics != curr_metrics->size())
             msg(1) << n_metrics << " " << curr_metrics->size() << endl;
+        // XXX SERVER-20602
+        if (curr_metrics->size()==0)
+            n_metrics = 0;
         assert(n_metrics==curr_metrics->size());
 
         // report chunk stats
