@@ -921,17 +921,23 @@ def transfer(src, *dst):
 # typically implemented by gluing a source and a destination together using transfer(src, *dst)
 #
 
+# lines of text parsed using regexps
 def series_read_re(fn, series, opt):
-    transfer(read_lines(fn, opt), series_process_re(series, opt))
+    src = read_lines(fn, opt)
+    dst = series_process_re(series, opt)
+    transfer(src, dst)
 
+# json docs
 def series_read_json(fn, series, opt):
-    transfer(read_json(fn, opt), series_process_json(fn, series, opt))
-
-def series_read_fields(field_source, series, opt):
-    transfer(field_source, series_process_fields(series, opt))
+    src = read_json(fn, opt)
+    dst = series_process_json(fn, series, opt)
+    transfer(src, dst)
 
 def series_read_csv(fn, series, opt):
-    series_read_fields(read_csv(fn, opt), series, opt)
+    src = read_csv(fn, opt)
+    dst = series_process_fields(series, opt)
+    transfer(src, dst)
+    
 
 
 #
@@ -1704,10 +1710,10 @@ def ss(json_data, name=None, scale=1, rate=False, units=None, level=3, **kwargs)
         **kwargs
     )
 
-    # for parsing serverStatus section of ftdc
+    # for parsing serverStatus section of ftdc represented as json documents
     descriptor(
         file_type = 'json',
-        parse_type = 'ftdc',
+        parse_type = 'ftdc_json',
         name = 'ftdc ' + name,
         json_fields = {
             'data': json_data,
@@ -2119,7 +2125,7 @@ descriptor(
 
 descriptor(
     name = 'ftdc rs: {field_name}',
-    parse_type = 'ftdc',
+    parse_type = 'ftdc_json',
     file_type = 'json',
     field_name = '(?P<field_name>.*)',
     split_field = 'field_name'
@@ -2133,7 +2139,7 @@ descriptor(
 #     series_process_rs does special-case processing (e.g. replica lag) for replSetGetStatus
 #
 
-def series_read_ftdc(fn, series, opt):
+def series_read_ftdc_json(fn, series, opt):
     ss = init_dst(series_process_json(fn, series, opt))
     rs = init_dst(series_process_rs(series, opt))
     for jnode in read_json(fn, opt):
@@ -2550,7 +2556,7 @@ def wt(wt_cat, wt_name, rate=False, scale=1.0, level=3, **kwargs):
     # for parsing wt data in serverStatus section of ftdc output
     descriptor(
         file_type = 'json',
-        parse_type = 'ftdc',
+        parse_type = 'ftdc_json',
         json_fields = {
             'time': ['localTime'],
             'data': ['wiredTiger', wt_cat, wt_name],
