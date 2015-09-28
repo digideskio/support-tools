@@ -13,6 +13,9 @@ import re
 import sys
 import time
 import string
+import struct
+import mmap
+import zlib
 
 def elt(name, attrs={}):
     sys.stdout.write('<%s' % name)
@@ -268,6 +271,9 @@ class Series:
         # info for field-based file formats, like csv and rs
         self.field_name = self.get('field_name', None)
 
+        # info for dict-based file formats, like ftdc metrics
+        self.dict_fields = self.get('dict_fields', None)
+
         # special csv header processing
         self.process_headers = self.get('process_headers', lambda series, headers: headers)
 
@@ -492,7 +498,15 @@ def get_series(spec, spec_ord, opt):
         #return re.split('\W+', s.lower())
         return re.sub('[^a-zA-Z0-9]', ' ', s).lower().split()
 
+    def is_metrics(fn):
+        if os.path.isdir(fn):
+            return any(is_metrics(f) for f in os.listdir(fn))
+        else:
+            return os.path.basename(fn).startswith('metrics.')
+
     def detect(fn):
+        if is_metrics(fn):
+            return 'metrics'
         with open(fn) as f:
             for i in range(10):
                 try:
@@ -542,7 +556,11 @@ def get_series(spec, spec_ord, opt):
 # date parsing
 #
 
-t0 = dateutil.parser.parse('2000-01-01T00:00:00Z')
+# our t0 - internally times are represented as seconds since this time
+# we use the unix epoch time so that times that come to use in that format
+# are already in our internal format
+t0 = dateutil.parser.parse('1970-01-01T00:00:00Z')
+
 
 def f2t(f):
     return t0 + timedelta(seconds=f)
@@ -694,6 +712,7 @@ def fixup(j):
 
 
 
+################################################################################
 #
 # each read_* generator reads files of a given type
 # and yields a sequence of parsed data structures
@@ -721,11 +740,240 @@ def read_lines(fn, opt):
 
 
 #
+# 
+#
+
+int32 = struct.Struct('<i')
+uint32 = struct.Struct('<I')
+int64 = struct.Struct('<q')
+uint64 = struct.Struct('<Q')
+double = struct.Struct('<d')
+
+BSON = collections.OrderedDict
+
+def read_bson_doc(buf, at, ftdc=False):
+    doc = BSON()
+    doc_len = int32.unpack_from(buf, at)[0]
+    doc_end = at + doc_len
+    at += 4
+    while at < doc_end:
+        bson_type = ord(buf[at])
+        at += 1
+        name_end = buf.find('\0', at)
+        n = buf[at : name_end]
+        at = name_end + 1
+        if bson_type==0: # eoo
+            return doc, doc_len
+        elif bson_type==1: # double
+            v = int(double.unpack_from(buf, at)[0])
+            l = 8
+        elif bson_type==2: # string
+            l = uint32.unpack_from(buf, at)[0]
+            at += 4
+            v = buf[at : at+l-1] if not ftdc else None
+        elif bson_type==3 or bson_type==4: # array, subdoc
+            v, l = read_bson_doc(buf, at, ftdc)
+        elif bson_type==8: # bool
+            v = ord(buf[at])
+            l = 1
+        elif bson_type==5: # bindata
+            l = uint32.unpack_from(buf, at)[0]
+            at += 5 # length plus subtype
+            v = buf[at : at+l] if not ftdc else None
+        elif bson_type==7: # objectid
+            v = None # xxx always ignore for now
+            l = 12
+        elif bson_type==9: # datetime
+            v = int(uint64.unpack_from(buf, at)[0])
+            l = 8
+        elif bson_type==16: # int32
+            v = int(int32.unpack_from(buf, at)[0])
+            l = 4
+        elif bson_type==17: # timestamp
+            v = BSON()
+            v['t'] = int(uint32.unpack_from(buf, at)[0]) # seconds
+            v['i'] = int(uint32.unpack_from(buf, at+4)[0]) # increment
+            l = 8
+        elif bson_type==18: # int64
+            v = int(int64.unpack_from(buf, at)[0])
+            l = 8
+        else:
+            raise Exception('unknown type %d(%x) at %d(%x)' % (bson_type, bson_type, at, at))
+        if v != None:
+            doc[n] = v
+        at += l
+    assert(not 'eoo not found') # should have seen an eoo and returned
+
+
+class FTDC:
+
+    def read_chunk(self, chunk_doc, first_only=False):
+    
+        # map from metric names to list of values for each metric
+        # metric names are paths through the sample document
+        metrics = collections.OrderedDict()
+        metrics._id = chunk_doc['_id']
+    
+        # decompress chunk data field
+        data = chunk_doc['data']
+        data = data[4:] # skip uncompressed length, we don't need it
+        data = zlib.decompress(data)
+    
+        # read reference doc from chunk data, ignoring non-metric fields
+        ref_doc, ref_doc_len = read_bson_doc(data, 0, ftdc=True)
+    
+        # traverse the reference document and extract metric names
+        def extract_names(doc, n=''):
+            for k, v in doc.items():
+                nn = n + '.' + k if n else k
+                if type(v) == BSON:
+                    extract_names(v, nn)
+                else:
+                    metrics[nn] = [v]
+        extract_names(ref_doc)
+    
+        # stop here if we only want to see the first sample
+        if first_only:
+            return metrics
+    
+        # get nmetrics, ndeltas
+        nmetrics = uint32.unpack_from(data, ref_doc_len)[0]
+        ndeltas = uint32.unpack_from(data, ref_doc_len+4)[0]
+        at = ref_doc_len + 8
+        #assert(nmetrics==len(metrics))
+        if nmetrics != len(metrics):
+            msg('ignoring bad chunk: nmetrics=%d, len(metrics)=%d' % (nmetrics, len(metrics)))
+            return None
+    
+        # unpacks ftdc packed ints
+        def unpack(data, at):
+            res = 0
+            shift = 0
+            while True:
+                b = ord(data[at])
+                res |= (b&0x7F) << shift
+                at += 1
+                if not (b&0x80):
+                    if res > 0x7fffffffffffffff: # negative 64-bit value
+                        res = int(res-0x10000000000000000)
+                    return res, at
+                shift += 7
+    
+        # unpack, run-length, delta, transpose the metrics
+        nzeroes = 0
+        for metric_values in metrics.values():
+            value = metric_values[-1]
+            for n in xrange(ndeltas):
+                if nzeroes:
+                    delta = 0
+                    nzeroes -= 1
+                else:
+                    delta, at = unpack(data, at)
+                    if delta==0:
+                        nzeroes, at = unpack(data, at)
+                value += delta
+                metric_values.append(value)
+        assert(at==len(data))
+    
+        # our result
+        self.read_samples += ndeltas+1
+        return metrics
+
+
+    def read_file(self, fn):
+
+        f = open(fn)
+        buf = mmap.mmap(f.fileno(), 0, mmap.MAP_PRIVATE, mmap.PROT_READ)
+        at = 0
+
+        while at < len(buf):
+
+            # read doc
+            chunk_doc, chunk_doc_len = read_bson_doc(buf, at)
+            if chunk_doc['type']==1:
+                metrics = self.read_chunk(chunk_doc)
+                if metrics:
+                    yield metrics
+            at += chunk_doc_len
+
+            # progress
+            self.read_chunks += 1
+            self.read_bytes += chunk_doc_len
+            if self.read_chunks%10 == 0:
+                msg('%d chunks, %d samples, %d bytes (%.0f%%), %d bytes/sample' % \
+                    (self.read_chunks, self.read_samples, self.read_bytes, 
+                     100.0*self.read_bytes/self.total_bytes, self.read_bytes/self.read_samples))
+
+        # bson docs should exactly cover file
+        assert(at==len(buf))
+
+    def read(self):
+        for fn in self.fns:
+            for metrics in self.read_file(fn):
+                yield metrics
+
+    def dbg(self, show=False):
+        def pt(t):
+            return time.strftime('%Y-%m-%dT%H:%M:%S', time.gmtime(t/1000)) + ('.%03d' % (t%1000))
+        for metrics in self.read():
+            if show:
+                if 'serverStatus.localTime' in metrics:
+                    sslt = metrics['serverStatus.localTime']
+                    msg(metrics._id, pt(metrics._id), pt(sslt[0]), pt(sslt[-1]),
+                        'ds', len(sslt), 'ms', len(metrics))
+                else:
+                    #print 'no serverStatus.localTime'
+                    msg(metrics.keys())
+
+    def __init__(self, fn):
+
+        def is_ftdc_file(fn):
+            return os.path.basename(fn).startswith('metrics.')
+
+        # get list of files
+        if os.path.isdir(fn):
+            self.fns = [os.path.join(fn,f) for f in sorted(os.listdir(fn)) if is_ftdc_file(f)]
+        elif is_ftdc_file(fn):
+            self.fns = [fn]
+        else:
+            self.fns = []
+        if not self.fns:
+            raise Exception(fn + ' is not an ftdc file or directory')
+
+        # init stats for progress report
+        self.total_bytes = sum(os.path.getsize(fn) for fn in self.fns)
+        self.read_chunks = 0
+        self.read_samples = 0
+        self.read_bytes = 0
+
+
+################################################################################
+#
 # each series_process_* generator accepts data of a given type
 # and generates graphs from the data as determined by the series arg
 # useable as a dst for transfer(src, *dst)
 # 
 
+# process metrics dictionaries, each representing e.g a single chunk from an ftdc file
+# each dictionary maps a list of metric names, e.g. paths through a json metrics sample doc,
+# to a list of metric values
+def series_process_dict(series, opt):
+    while True:
+        try:
+            metrics = yield
+            getitem = metrics.__getitem__
+            setitem = metrics.__setitem__
+            for s in series:
+                data = s.dict_fields['data'] # e.g. 'serverStatus.uptime'
+                time = s.dict_fields['time'] # e.g. 'serverStatus.localTime'
+                if data in metrics:
+                    for t, d in zip(metrics[time], metrics[data]):
+                        # times come to us as ms, so convert to seconds here
+                        s.data_point(t/1000.0, d, getitem, setitem, opt)
+        except GeneratorExit:
+            break
+
+# process a sequence of json metric documents
 def series_process_json(fn, series, opt):
 
     # interior nodes
@@ -1691,9 +1939,9 @@ def ss(json_data, name=None, scale=1, rate=False, units=None, level=3, **kwargs)
     if not name:
         name = ' '.join(s for s in json_data[1:] if s!='floatApprox')
         name = 'ss ' + json_data[0] +  ': ' + name
-    if not units: units = desc_units(scale, rate)
-    if units: units = ' (' + units + ')'
-    name = name + units
+        if not units: units = desc_units(scale, rate)
+        if units: units = ' (' + units + ')'
+        name = name + units
 
     # for parsing direct serverStatus command output
     descriptor(
@@ -1725,11 +1973,26 @@ def ss(json_data, name=None, scale=1, rate=False, units=None, level=3, **kwargs)
         **kwargs
     )
 
+    # for parsing serverStatus section of ftdc represented as metrics dictionaries
+    descriptor(
+        file_type = 'metrics',
+        parse_type = 'ftdc_dict',
+        name = 'ftdc ' + name,
+        dict_fields = {
+            'data': 'serverStatus' + '.' + '.'.join(json_data),
+            'time': 'serverStatus.localTime'
+        },
+        scale = scale,
+        rate = rate,
+        level = level,
+        **kwargs
+    )
+
 def ss_opcounter(opcounter, **kwargs):
     ss(
         json_data = ['opcounters', opcounter],
         merge = 'ss_opcounters',
-        name = 'ss opcounters: ' + opcounter,
+        name = 'ss opcounters: ' + opcounter + ' (/s)',
         level = 1,
         rate = True,
         **kwargs
@@ -1737,7 +2000,7 @@ def ss_opcounter(opcounter, **kwargs):
     ss(
         json_data = ['opcountersRepl', opcounter],
         merge = 'ss_opcounters_repl',
-        name = 'ss opcounters repl: ' + opcounter,
+        name = 'ss opcounters repl: ' + opcounter + ' (/s)',
         level = 1,
         rate = True,
         **kwargs
@@ -1795,7 +2058,7 @@ ss(["backgroundFlushing", "last_ms"], level=9)
 ss(["backgroundFlushing", "total_ms"], level=9)
 ss(["connections", "available"], level=9)
 ss(["connections", "current"], level=1)
-ss(["connections", "totalCreated"], name="ss connections: created", level=3, rate=True)
+ss(["connections", "totalCreated"], name="ss connections: created (/s)", level=3, rate=True)
 ss(["cursors", "clientCursors_size"], level=9)
 ss(["cursors", "note"], level=99)
 ss(["cursors", "pinned"], level=9)
@@ -2150,6 +2413,13 @@ def series_read_ftdc_json(fn, series, opt):
 
     #dst = [series_process_json(fn, series, opt), series_process_rs(series, opt)]
     #transfer(read_json(fn, opt), *dst)
+
+def series_read_ftdc_dict(fn, series, opt):
+    src = FTDC(fn).read()
+    dst = series_process_dict(series, opt)
+    transfer(src, dst)
+    # XXXXXXXXXXXX rs stuff
+
 
 #
 #
@@ -2541,31 +2811,10 @@ def wt(wt_cat, wt_name, rate=False, scale=1.0, level=3, **kwargs):
     else:
         name = 'wt {}: {}{}'.format(wt_cat, wt_name, units)
 
-    # for parsing wt data in json format ss files
-    descriptor(
-        file_type = 'json',
-        parse_type = 'json',
-        json_fields = {
-            'time': ['localTime'],
-            'data': ['wiredTiger', wt_cat, wt_name],
-        },
-        name = 'ss ' + name,
-        **kwargs
-    )
+    # for parsing wt metrics as part of serverStatus output
+    ss(['wiredTiger', wt_cat, wt_name], 'ss ' + name, **kwargs)
 
-    # for parsing wt data in serverStatus section of ftdc output
-    descriptor(
-        file_type = 'json',
-        parse_type = 'ftdc_json',
-        json_fields = {
-            'time': ['localTime'],
-            'data': ['wiredTiger', wt_cat, wt_name],
-        },
-        name = 'ftdc ss ' + name,
-        **kwargs
-    )
-
-    # for parsing wt data in json re format wtstats files
+    # for parsing wt data in wtstats files
     descriptor(
         file_type = 'text',
         parse_type = 're',
