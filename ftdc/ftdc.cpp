@@ -1417,6 +1417,8 @@ int main(int argc, char* argv[]) {
         sink.reset(new LiveSink(sink_spec, chunk_size, chunk_update_size, do_reset));
     } else if (ends_with(sink_spec, ".ftdc") || sink_spec=="") {
         sink.reset((new CompressedFileSink(sink_spec, chunk_size)));
+    } else if (sink_spec=="null:") {
+        // no sink
     } else {
         err(string("unrecognized sink ") + sink_spec, false);
     }
@@ -1441,7 +1443,8 @@ int main(int argc, char* argv[]) {
         if (!source->get_sample(sample))
             break;
         get_sample_timer.stop();
-        sink->put_sample(sample);
+        if (sink)
+            sink->put_sample(sample);
         overall_timer.stop();
         if (delay)
             sleep(delay);
