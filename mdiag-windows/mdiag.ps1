@@ -87,8 +87,8 @@ Function fingerprint {
 			os = "Windows";
 			shell = "powershell";
 			script = "mdiag";
-			version = "1.5.2";
-			revdate = "2015-09-18";
+			version = "1.5.3";
+			revdate = "2015-09-29";
 		}
 	}
 }
@@ -169,7 +169,11 @@ Function _tojson_value( $indent, $obj ) {
 				_tojson_string $obj
 				break
 			}
-			{ "Int32","UInt32","Int64","UInt64","Boolean"  -contains $_ } {
+			"Boolean" {
+				@('false','true')[$obj -eq $true]
+				break
+			}
+			{ "Int32","UInt32","Int64","UInt64"  -contains $_ } {
 				# symbolic or integrals, write plainly
 				$obj.ToString()
 				break
@@ -385,7 +389,7 @@ probe @{ name = "network-tcp-active";
 }
 
 probe @{ name = "services";
-	cmd = "Get-Service | Select D*,Se*,@{Name='Status';Expression={`$_.Status.ToString()}},R* -Exclude ServiceHandle";
+	cmd = "Get-Service | Select Di*,ServiceName,ServiceType,@{Name='Status';Expression={`$_.Status.ToString()}},@{Name='ServicesDependedOn';Expression={@(`$_.ServicesDependedOn.Name)}}";
 }
 
 probe @{ name = "firewall";
