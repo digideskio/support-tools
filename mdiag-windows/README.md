@@ -132,6 +132,10 @@ section | content type | description
 ## 1.5.3
 
  - Fixed boolean capitalization to use JSON symbols true/false, previously output the literals True/False
+ - Fixed "services" section to contain all useful information (and reduce the spam):
+   + Fixed ServicesDependedOn to show the names of services rather than a description of the object involved (because that was seriously useless)
+   + Removed RequiredServices because it is an alias of ServicesDependedOn
+   + Removed DependentServices because it is the converse of ServicesDependedOn (so it can be resurrected from existing fields if really wanted)
 
  
 ## 1.5.2

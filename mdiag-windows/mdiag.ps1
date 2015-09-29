@@ -389,7 +389,7 @@ probe @{ name = "network-tcp-active";
 }
 
 probe @{ name = "services";
-	cmd = "Get-Service | Select D*,Se*,@{Name='Status';Expression={`$_.Status.ToString()}},R* -Exclude ServiceHandle";
+	cmd = "Get-Service | Select Di*,ServiceName,ServiceType,@{Name='Status';Expression={`$_.Status.ToString()}},@{Name='ServicesDependedOn';Expression={@(`$_.ServicesDependedOn.Name)}}";
 }
 
 probe @{ name = "firewall";
