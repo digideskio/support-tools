@@ -740,7 +740,11 @@ def read_lines(fn, opt):
 
 
 #
-# 
+# basic bson parser, to be extended as needed
+# has special handling for ftdc:
+#     returns numeric types as int64
+#     ignores non-metric fields
+# returns result as tree of OrderedDict, preserving order
 #
 
 int32 = struct.Struct('<i')
@@ -765,14 +769,18 @@ def read_bson_doc(buf, at, ftdc=False):
         if bson_type==0: # eoo
             return doc, doc_len
         elif bson_type==1: # double
-            v = int(double.unpack_from(buf, at)[0])
+            v = double.unpack_from(buf, at)[0]
+            if ftdc: v = int(v)
             l = 8
         elif bson_type==2: # string
             l = uint32.unpack_from(buf, at)[0]
             at += 4
             v = buf[at : at+l-1] if not ftdc else None
-        elif bson_type==3 or bson_type==4: # array, subdoc
+        elif bson_type==3: # subdoc
             v, l = read_bson_doc(buf, at, ftdc)
+        elif bson_type==4: # array
+            v, l = read_bson_doc(buf, at, ftdc)
+            if not ftdc: v = v.values() # return as array
         elif bson_type==8: # bool
             v = ord(buf[at])
             l = 1
@@ -784,10 +792,12 @@ def read_bson_doc(buf, at, ftdc=False):
             v = None # xxx always ignore for now
             l = 12
         elif bson_type==9: # datetime
-            v = int(uint64.unpack_from(buf, at)[0])
+            v = uint64.unpack_from(buf, at)[0]
+            v = int(v) if ftdc else v / 1000.0
             l = 8
         elif bson_type==16: # int32
-            v = int(int32.unpack_from(buf, at)[0])
+            v = int32.unpack_from(buf, at)[0]
+            if ftdc: v = int(v)
             l = 4
         elif bson_type==17: # timestamp
             v = BSON()
@@ -1166,7 +1176,7 @@ def transfer(src, *dst):
 
 #
 # each series_read_* routine processes and generates graphs from a file of a given type
-# typically implemented by gluing a source and a destination together using transfer(src, *dst)
+# typically implemented by glueing a source and a destination together using transfer(src, *dst)
 #
 
 # lines of text parsed using regexps
@@ -2415,10 +2425,11 @@ def series_read_ftdc_json(fn, series, opt):
     #transfer(read_json(fn, opt), *dst)
 
 def series_read_ftdc_dict(fn, series, opt):
+    #FTDC(fn).dbg(); return # for timing
     src = FTDC(fn).read()
     dst = series_process_dict(series, opt)
     transfer(src, dst)
-    # XXXXXXXXXXXX rs stuff
+    # TBD: implement rs lag computation
 
 
 #
