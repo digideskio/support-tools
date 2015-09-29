@@ -758,6 +758,7 @@ BSON = collections.OrderedDict
 def read_bson_doc(buf, at, ftdc=False):
     doc = BSON()
     doc_len = int32.unpack_from(buf, at)[0]
+    doc.bson_len = doc_len
     doc_end = at + doc_len
     at += 4
     while at < doc_end:
@@ -767,7 +768,7 @@ def read_bson_doc(buf, at, ftdc=False):
         n = buf[at : name_end]
         at = name_end + 1
         if bson_type==0: # eoo
-            return doc, doc_len
+            return doc
         elif bson_type==1: # double
             v = double.unpack_from(buf, at)[0]
             if ftdc: v = int(v)
@@ -777,9 +778,11 @@ def read_bson_doc(buf, at, ftdc=False):
             at += 4
             v = buf[at : at+l-1] if not ftdc else None
         elif bson_type==3: # subdoc
-            v, l = read_bson_doc(buf, at, ftdc)
+            v = read_bson_doc(buf, at, ftdc)
+            l = v.bson_len
         elif bson_type==4: # array
-            v, l = read_bson_doc(buf, at, ftdc)
+            v = read_bson_doc(buf, at, ftdc)
+            l = v.bson_len
             if not ftdc: v = v.values() # return as array
         elif bson_type==8: # bool
             v = ord(buf[at])
@@ -817,7 +820,7 @@ def read_bson_doc(buf, at, ftdc=False):
 
 class FTDC:
 
-    def read_chunk(self, chunk_doc, first_only=False):
+    def read_chunk(self, chunk_doc):
     
         # map from metric names to list of values for each metric
         # metric names are paths through the sample document
@@ -830,7 +833,7 @@ class FTDC:
         data = zlib.decompress(data)
     
         # read reference doc from chunk data, ignoring non-metric fields
-        ref_doc, ref_doc_len = read_bson_doc(data, 0, ftdc=True)
+        ref_doc = read_bson_doc(data, 0, ftdc=True)
     
         # traverse the reference document and extract metric names
         def extract_names(doc, n=''):
@@ -842,19 +845,34 @@ class FTDC:
                     metrics[nn] = [v]
         extract_names(ref_doc)
     
-        # stop here if we only want to see the first sample
-        if first_only:
-            return metrics
-    
         # get nmetrics, ndeltas
-        nmetrics = uint32.unpack_from(data, ref_doc_len)[0]
-        ndeltas = uint32.unpack_from(data, ref_doc_len+4)[0]
-        at = ref_doc_len + 8
+        nmetrics = uint32.unpack_from(data, ref_doc.bson_len)[0]
+        ndeltas = uint32.unpack_from(data, ref_doc.bson_len+4)[0]
+        at = ref_doc.bson_len + 8
         #assert(nmetrics==len(metrics))
         if nmetrics != len(metrics):
             msg('ignoring bad chunk: nmetrics=%d, len(metrics)=%d' % (nmetrics, len(metrics)))
             return None
+        self.read_samples += ndeltas+1
     
+        # overview mode returns a subset of the samples, aiming for each sample to represent
+        # the same number of bytes of compressed data,
+        # except that we return at least one sample for each chunk
+        if self.overview:
+            bytes = self.total_bytes / self.overview
+            if bytes==0:
+                every = 1
+            else:
+                max_samples = (self.read_bytes+chunk_doc.bson_len) / bytes - self.read_bytes / bytes
+                if max_samples==0:
+                    return metrics
+                elif max_samples==1:
+                    return metrics
+                else:
+                    every = max((ndeltas+1)/max_samples, 1)
+        else:
+            every = 1
+
         # unpacks ftdc packed ints
         def unpack(data, at):
             res = 0
@@ -873,7 +891,7 @@ class FTDC:
         nzeroes = 0
         for metric_values in metrics.values():
             value = metric_values[-1]
-            for n in xrange(ndeltas):
+            for n in xrange(1,ndeltas+1):
                 if nzeroes:
                     delta = 0
                     nzeroes -= 1
@@ -882,13 +900,20 @@ class FTDC:
                     if delta==0:
                         nzeroes, at = unpack(data, at)
                 value += delta
-                metric_values.append(value)
+                if n%every==0:
+                    metric_values.append(value)
         assert(at==len(data))
     
         # our result
-        self.read_samples += ndeltas+1
         return metrics
 
+
+    def report_progress(self):
+        msg('%d chunks, %d samples, %d bytes (%.0f%%), %d bytes/sample; %d samples out' % (
+            self.read_chunks, self.read_samples, self.read_bytes, 
+            100.0*self.read_bytes/self.total_bytes, self.read_bytes/self.read_samples,
+            self.out_samples
+        ))
 
     def read_file(self, fn):
 
@@ -899,20 +924,28 @@ class FTDC:
         while at < len(buf):
 
             # read doc
-            chunk_doc, chunk_doc_len = read_bson_doc(buf, at)
+            try:
+                chunk_doc = read_bson_doc(buf, at)
+            except Exception as e:
+                self.report_progress()
+                msg('stopping at bad bson doc (%s)' % e)
+                return
+
+            # decode the chunk, if any
             if chunk_doc['type']==1:
                 metrics = self.read_chunk(chunk_doc)
                 if metrics:
+                    out_samples = len(metrics.values()[0])
+                    self.out_samples += out_samples
+                    #msg('chunk at=%d len=%d out=%d' % (at, chunk_doc.bson_len, out_samples))
                     yield metrics
-            at += chunk_doc_len
+            at += chunk_doc.bson_len
 
             # progress
             self.read_chunks += 1
-            self.read_bytes += chunk_doc_len
-            if self.read_chunks%10 == 0:
-                msg('%d chunks, %d samples, %d bytes (%.0f%%), %d bytes/sample' % \
-                    (self.read_chunks, self.read_samples, self.read_bytes, 
-                     100.0*self.read_bytes/self.total_bytes, self.read_bytes/self.read_samples))
+            self.read_bytes += chunk_doc.bson_len
+            if self.read_chunks%10 == 0 or self.read_bytes == self.total_bytes:
+                self.report_progress()
 
         # bson docs should exactly cover file
         assert(at==len(buf))
@@ -935,7 +968,7 @@ class FTDC:
                     #print 'no serverStatus.localTime'
                     msg(metrics.keys())
 
-    def __init__(self, fn):
+    def __init__(self, fn, opt):
 
         def is_ftdc_file(fn):
             return os.path.basename(fn).startswith('metrics.')
@@ -955,6 +988,20 @@ class FTDC:
         self.read_chunks = 0
         self.read_samples = 0
         self.read_bytes = 0
+        self.out_samples = 0
+
+        # overview mode
+        # xxx need better heuristic?
+        # xxx note that this needs to take account of timespan filtering when that is implemented
+        if opt.overview=='heuristic':
+            self.overview = 10000 if self.total_bytes<10000000 else 1000
+            msg('limiting output to %d samples; use --overview none to override' % self.overview)
+        elif opt.overview=='none':
+            self.overview = None
+        else:
+            self.overview = int(opt.overview)
+
+
 
 
 ################################################################################
@@ -1660,6 +1707,7 @@ def main():
     p.add_argument('--bins', type=int, default=25)
     p.add_argument('--progress-every', type=int, default=10000)
     p.add_argument('--profile', action='store_true')
+    p.add_argument('--overview', default='heuristic')
 
     global opt
     opt = p.parse_args()
@@ -2426,7 +2474,7 @@ def series_read_ftdc_json(fn, series, opt):
 
 def series_read_ftdc_dict(fn, series, opt):
     #FTDC(fn).dbg(); return # for timing
-    src = FTDC(fn).read()
+    src = FTDC(fn, opt).read()
     dst = series_process_dict(series, opt)
     transfer(src, dst)
     # TBD: implement rs lag computation
