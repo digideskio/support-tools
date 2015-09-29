@@ -129,6 +129,11 @@ section | content type | description
 ### Changelog
 
 
+## 1.5.3
+
+ - Fixed boolean capitalization to use JSON symbols true/false, previously output the literals True/False
+
+ 
 ## 1.5.2
 
  - Fixed crash caused by dependency on .NET 3.5 for time zone information (TSPROJ-386), script should be compliant back to .NET 2.0 again
