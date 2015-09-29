@@ -28,7 +28,7 @@ if( $Verbose ) {
 }
 
 Write-Verbose "`$PSCommandPath: $PSCommandPath"
-Write-Verbose $FingerprintOutputDocument
+Write-Verbose "$( $FingerprintOutputDocument | Out-String )"
 
 if( $Experimental ) {
 	Write-Verbose "Experimental probes are enabled"
@@ -155,6 +155,7 @@ Function probe( $doc ) {
 				
 				# calculate burn time remaining before the start of the next run
 				$burn = ( $period * $j ) - ( $(Get-Date) - $startts ).TotalMilliseconds;
+				Write-Verbose "calculated burn $burn"
 				if( $burn -gt 0 ) {
 					# if this is less than zero, then the test takes longer than a period cycle
 					Sleep -m $burn
@@ -537,7 +538,8 @@ $probes +=, @{ name = "time-change";
 if( $Experimental ) {
 	$probes +=, @{ name = "performance-counters";
 		cmd = "Get-Counter | select -expandproperty CounterSamples";
-		samples = 60;
+		period = 2000;
+		samples = 30;
 	}
 }
 
