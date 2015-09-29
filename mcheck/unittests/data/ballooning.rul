@@ -1,0 +1,11 @@
+[
+	{
+		"id": "vm-0001",
+		"desc": "Should not use VMWare ballooning",
+		"log": "mdiag",
+		"section": "procinfo",
+		"example" : "vmware_balloon 7199 0 - Live 0xffffffffa0016000",
+		"match": "vmware_balloon.*Live",
+		"occurrence": "never"
+	}
+]

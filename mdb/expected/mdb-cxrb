@@ -1,5 +1,5 @@
 === mdb.py -cxrb testdb test.small
---- test.small first=0:2000 last=0:2000, ce=0:2000, cfn=-2:0, count=10
+00797cb8: namespace name=test.small first=0:2000 last=0:2000, ce=0:2000, cfn=-2:0
 0:2000: extent sig=41424344 loc=0:2000 next=-1:0 prev=-1:0 ns=test.small len=1e000(122880) first=0:20b0 last=0:12eb0
 0:20b0: record rlen=1e00(7680) end=3eb0 ext=2000 next=3eb0 prev=-1 blen=1de0(7648)
 20c4: _id: objectid 53 c3 d0 99 01 79 ab 0d 6c 5e 95 47 =2014-07-14T12:44:09Z

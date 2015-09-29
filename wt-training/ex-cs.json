@@ -1,0 +1,123 @@
+MongoDB shell version: 2.8.0-rc4
+connecting to: test
+{
+	"ns" : "test.c",
+	"count" : 1035466,
+	"size" : 1070584417,
+	"avgObjSize" : 1033,
+	"storageSize" : 772059136,
+	"nindexes" : 1,
+	"capped" : false,
+	"wiredTiger" : {
+		"uri" : "statistics:table:collection-2-560995070602193375",
+		"LSM" : {
+			"bloom filters in the LSM tree" : 0,
+			"bloom filter false positives" : 0,
+			"bloom filter hits" : 0,
+			"bloom filter misses" : 0,
+			"bloom filter pages evicted from cache" : 0,
+			"bloom filter pages read into cache" : 0,
+			"total size of bloom filters" : 0,
+			"sleep for LSM checkpoint throttle" : 0,
+			"chunks in the LSM tree" : 0,
+			"highest merge generation in the LSM tree" : 0,
+			"queries that could have benefited from a Bloom filter that did not exist" : 0,
+			"sleep for LSM merge throttle" : 0
+		},
+		"block-manager" : {
+			"file allocation unit size" : 4096,
+			"blocks allocated" : 37796,
+			"checkpoint size" : 0,
+			"allocations requiring file extension" : 37796,
+			"blocks freed" : 0,
+			"file magic number" : 120897,
+			"file major version number" : 1,
+			"minor version number" : 0,
+			"file bytes available for reuse" : 0,
+			"file size in bytes" : 772059136
+		},
+		"btree" : {
+			"column-store variable-size deleted values" : 0,
+			"column-store fixed-size leaf pages" : 0,
+			"column-store internal pages" : 0,
+			"column-store variable-size leaf pages" : 0,
+			"pages rewritten by compaction" : 0,
+			"number of key/value pairs" : 0,
+			"fixed-record size" : 0,
+			"maximum tree depth" : 4,
+			"maximum internal page item size" : 384,
+			"maximum internal page size" : 4096,
+			"maximum leaf page item size" : 3072,
+			"maximum leaf page size" : 32768,
+			"overflow pages" : 0,
+			"row-store internal pages" : 0,
+			"row-store leaf pages" : 0
+		},
+		"cache" : {
+			"bytes read into cache" : 23994,
+			"bytes written from cache" : 755159090,
+			"checkpoint blocked page eviction" : 0,
+			"unmodified pages evicted" : 0,
+			"modified pages evicted" : 104,
+			"data source pages selected for eviction unable to be evicted" : 0,
+			"hazard pointer blocked page eviction" : 0,
+			"internal pages evicted" : 95,
+			"in-memory page splits" : 11,
+			"overflow values cached in memory" : 0,
+			"pages read into cache" : 1,
+			"overflow pages read into cache" : 0,
+			"pages written from cache" : 37795
+		},
+		"compression" : {
+			"raw compression call failed, no additional data available" : 0,
+			"raw compression call failed, additional data available" : 0,
+			"raw compression call succeeded" : 0,
+			"compressed pages read" : 1,
+			"compressed pages written" : 37673,
+			"page written failed to compress" : 4,
+			"page written was too small to compress" : 119
+		},
+		"cursor" : {
+			"create calls" : 10,
+			"insert calls" : 1017345,
+			"bulk-loaded cursor-insert calls" : 0,
+			"cursor-insert key and value bytes inserted" : 1065783866,
+			"next calls" : 0,
+			"prev calls" : 1,
+			"remove calls" : 0,
+			"cursor-remove key bytes removed" : 0,
+			"reset calls" : 1031822,
+			"search calls" : 0,
+			"search near calls" : 0,
+			"update calls" : 0,
+			"cursor-update value bytes updated" : 0
+		},
+		"reconciliation" : {
+			"dictionary matches" : 0,
+			"internal page multi-block writes" : 1,
+			"leaf page multi-block writes" : 9,
+			"maximum blocks required for a page" : 4084,
+			"internal-page overflow keys" : 0,
+			"leaf-page overflow keys" : 0,
+			"overflow values written" : 0,
+			"pages deleted" : 0,
+			"page checksum matches" : 0,
+			"page reconciliation calls" : 105,
+			"page reconciliation calls for eviction" : 105,
+			"leaf page key bytes discarded using prefix compression" : 0,
+			"internal page key bytes discarded using suffix compression" : 37818
+		},
+		"session" : {
+			"object compaction" : 0,
+			"open cursor count" : 12
+		},
+		"transaction" : {
+			"update conflicts" : 0
+		}
+	},
+	"totalIndexSize" : 89743360,
+	"indexSizes" : {
+		"_id_" : 89743360
+	},
+	"ok" : 1
+}

@@ -1,55 +1,47 @@
-from groupreport_tests import GroupReportTests
+import grouptestdocument
+import pymongo
 
 
-class GroupReport:
-    def __init__(self, group):
-        """ Build a GroupReport from a row in euphonia.mmsgroupreports """
-        # TODO validate named fields to guarantee schema across reports
-        self.group = group
-        # Currently supported tests, not all tests in GroupReportTests
-        self.tests = {
-                        'EvenVotingNumberReplicaSets':'high',
-                        'LimitsStartupWarning':'medium',
-                        'Mongo22Idempotency':'high',
-                        'Mongo24DbhashCache':'high',
-                        'Mongo24InitialSync':'medium',
-                        'Mongo26':'low',
-                        'NMonitoringAgents':'low',
-                        'NumaStartupWarning':'medium',
-                        'StartupWarning':'low',
-                        'NumHostWithVotesMoreThanOne':'medium',
-                        'NumReplicaSetWithMoreThanOneArbiter':'low'
-                    }
-        self.testPriorityScores = {'low':2.0,'medium':4.0,'high':8.0}
-        self.verbose = False
+class GroupReport(grouptestdocument.GroupTestDocument):
+    def __init__(self, groupId, tag=None, *args, **kwargs):
+        self.tag = tag
+        self.mongo = kwargs['mongo']
 
-    def runAllTests(self):
-        res = {}
-        for test in self.tests:
-            res[test] = self.runTest(test)
-        return res
+        match = {'GroupId': groupId}
+        # If tag not specified get the latest entry by _id
+        if tag is not None:
+            match['tag'] = tag
 
-    def runTest(self, test):
-        if test in self.tests:
-            fname = "test" + test
-            if fname in dir(GroupReportTests):
-                f = GroupReportTests.__dict__[fname]
-                if self.verbose:
-                    print "Testing " + test + "..."
-                r = f(self.group)
-                if self.verbose:
-                    if r:
-                        print "Passed!"
-                    else:
-                        print "Failed!"
-                return r
-            else:
-                raise Exception(fname + " not defined")
-        else:
-            raise Exception(test + " not defined")
+        try:
+            self.doc = next(self.mongo.euphonia.mmsgroupreports.find(match).
+                            sort('_id', -1).limit(1), None)
+        except pymongo.errors.PyMongoError as e:
+            raise e
+
+        from groupreport_tests import GroupReportTests
+        grouptestdocument.GroupTestDocument.__init__(
+            self, groupId=groupId,
+            mongo=self.mongo,
+            src='mmsgroupreports',
+            testsLibrary=GroupReportTests)
+
+    def groupName(self):
+        return self.doc['GroupName']
+
+    def isCsCustomer(self):
+        return self.doc['IsCsCustomer']
+
+    def next(self):
+        # TODO
+        pass
+
+    def prev(self):
+        # TODO
+        pass
 
     # This is our schema. There are many like it but this one we're stuck with
     # :(
+    # TODO update or do away with this
     fields = ['GroupId', 'GroupName', 'LastActiveAgentTime',
               'NumActiveMongos', 'NumTotalHosts', 'NumActiveAgent',
               'NumInactiveHost', 'NumActiveHost',
@@ -69,4 +61,6 @@ class GroupReport:
               'LastName', 'IsCsCustomer', 'NumHostWithMoreThanOneVote',
               'IsBackupSetupStarted', 'NumEvenNumberReplicaSet',
               'NumActiveHostWithRlimitsStartupWarning',
-              'NumActiveHostWithNumaStartupWarning']
+              'NumActiveHostWithNumaStartupWarning',
+              'MonitoringAgentVersion',
+              'BackupAgentVersion']

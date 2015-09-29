@@ -100,7 +100,20 @@ def recIRC
         incomingAddress = nil
         if msg.include? 'PRIVMSG'
           arr = msg.split
-          body = arr[3..-1].join(' ').gsub(/\\r\\n/, '')
+          # Flowdock uses a special format for conversations that are bridged to IRC: [original message] << reply message.
+          # examples: 
+          # initial comment
+          # [initial comment] << second comment in ceonversation
+          # [initial comment] << third comment in conversation
+          # Note there is no escape mechanism, but << will be URL-encoded on the conversation reply.
+          # Note2 if a use type a message that 
+          # [conversation that has brackets]
+          # [[conversation that has brackets]] << reply to bracket conversation
+          #
+          # Note that if a user manually enters a message that looks like a conversation it won't be modified by the bridge.
+          # This is a limitation of the bridge and a good reason to stop using it as soon as possible.
+          # Kill the conversation portion so we can see the underlying command.
+          body = arr[3..-1].join(' ').gsub(/\\r\\n/, '').sub(/:\[[^(<<)]*\] << /,'')
           body.gsub!(/^:/,'')
           incomingAddress = arr[2].chomp
           username = arr[0].split('!')[0].sub!(/:/,'')

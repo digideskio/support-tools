@@ -14,15 +14,17 @@ def respondToChat(msg, username = nil, protocol = 'XMPP', room = "nil")
         response = "Currently the bot supports the following commands:\n"
         response+= "#!GREET - Have the bot greet you\n"
         response+= "#!LIST - List the items active in the bot queue\n"
-        response+= "#!IGNORE <case> - Stop SLA Nags on this case\n"
-        response+= "#!ACTIVE <case> - Start SLA Nags on this case again\n"
-        response+= "#!LIST IGNORED - List the cases the bot is ignoring\n"
         response+= "#!REVIEW <case> [@reviewer(s)] - Add a nag for a review of a case and optionally supply reviewers\n"
         response+= "#!LGTM <case> - State that the response on a case is good (visible under #!LIST)\n"
         response+= "#!NEEDSWORK <case> - State that the response on a case is in need of work (visible under #!LIST)\n"
+        response+= "#!LOOKING <case> - State that you are looking at the review of a given Case\n"
+        response+= "#!UNLOOKING <case> - State that you are no longer looking at the review of a given Case\n"
+        response+= "#!REFRESH <case> - Request ticket to be re-reviewed (after some feedback or #!NEEDSWORK)\n"
         response+= "#!FIN <case> - Mark a case as reviewed\n"
         response+= "#!FTS - Do the FTS email lookup (time consuming)\n"
-        response+= "#!INVITE <email> Invite user to support-bot channel\n"
+        response+= "#!INVITE <email> - Invite user to support-bot channel\n"
+        response+= "#!UPTIME - Uptime in seconds\n"
+        response+= "#!SYN - Request acknowledgment to see if the bot is alive\n"
       when 'I'
         if array.join(' ').chomp.upcase == 'REQUEST THE HIGHEST OF FIVES'
           response = "/me gives #{username} the highest fives"
@@ -49,6 +51,10 @@ def respondToChat(msg, username = nil, protocol = 'XMPP', room = "nil")
         @chatRequests.push("#{room} #{protocol} IGNORE #{array.join(' ').upcase}")
       when '#!ACTIVE'
         @chatRequests.push("#{@defaultXMPPRoom} #{protocol} ACTIVE #{array.join(' ').upcase}")
+      when '#!REBOOT'
+        @botReboot = true
+        logOut "reboot called for by user #{username}"
+        response = "Will do, please wait 10 seconds and try a #!LIST"
       when '#!LIST'
         if array.empty?
           @chatRequests.push("#{room} #{protocol} LIST")
@@ -63,7 +69,13 @@ def respondToChat(msg, username = nil, protocol = 'XMPP', room = "nil")
         @chatRequests.push("#{@defaultXMPPRoom} #{protocol} FIN #{array[0].upcase} #{username} #{array[1..-1].join(' ')}")
       when '#!LGTM'
         @chatRequests.push("#{@defaultXMPPRoom} #{protocol} LGTM #{array[0].upcase} #{username} #{array[1..-1].join(' ')}")
-      when '#!NEEDSWORK'
+      when '#!LOOKING'
+        @chatRequests.push("#{@defaultXMPPRoom} #{protocol} LOOKING #{array[0].upcase} #{username} #{array[1..-1].join(' ')}")
+      when '#!REFRESH'
+        @chatRequests.push("#{@defaultXMPPRoom} #{protocol} REFRESH #{array[0].upcase} #{username} #{array[1..-1].join(' ')}")
+      when '#!NOTLOOKING','#!UNLOOKING','#!NOT-LOOKING'
+        @chatRequests.push("#{@defaultXMPPRoom} #{protocol} NOTLOOKING #{array[0].upcase} #{username} #{array[1..-1].join(' ')}")
+      when '#!NEEDSWORK','#!NW'
         @chatRequests.push("#{@defaultXMPPRoom} #{protocol} NEEDSWORK #{array[0].upcase} #{username} #{array[1..-1].join(' ')}")
       when '#!PLAYTESTSOUND'
         @chatRequests.push('nil SOUNDCHECK')

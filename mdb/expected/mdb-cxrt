@@ -1,5 +1,5 @@
 === mdb.py -cxrt testdb test.small.$_id_
---- test.small.$_id_ first=0:22000 last=0:22000, ce=0:22000, cfn=-2:0, count=1
+001d5290: namespace name=test.small.$_id_ first=0:22000 last=0:22000, ce=0:22000, cfn=-2:0
 0:22000: extent sig=41424344 loc=0:22000 next=-1:0 prev=-1:0 ns=test.small.$_id_ len=9000(36864) first=0:23000 last=0:23000
 0:23000: record rlen=2000(8192) end=25000 ext=22000 next=-1 prev=-1 blen=fffffffe(4294967294)
 23010: btree parent=0:-2 next=0:-2 flags=1 empty=1eb8(7864) top=82(130) n=a(10)

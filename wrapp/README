@@ -1,0 +1,4 @@
+This is the Weekend Responder APPlication suite. Currently only alerting part is implemented, which uses Pushover and consists of two services:
+- subscription service (subcribe_service.py)
+- mail reader/parser service (mail_reader.py)
+  - notification module (push_notify.py)

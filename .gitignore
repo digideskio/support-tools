@@ -53,3 +53,6 @@ driver-samples/java/*.jar
 
 */projectFilesBackup/*
 
+# Config failes #
+#################
+*.cfg

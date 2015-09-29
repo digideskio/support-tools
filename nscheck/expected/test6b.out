@@ -1,0 +1,77 @@
+=== make sure test.z got inserted
+{
+	"ns" : "test.z",
+	"count" : 1,
+	"size" : 24,
+	"avgObjSize" : 24,
+	"storageSize" : 4096,
+	"numExtents" : 1,
+	"nindexes" : 1,
+	"lastExtentSize" : 4096,
+	"paddingFactor" : 1,
+	"systemFlags" : 1,
+	"userFlags" : 0,
+	"totalIndexSize" : 8176,
+	"indexSizes" : {
+		"_id_" : 8176
+	},
+	"ok" : 1
+}
+
+=== repair damage
+checking db/test.ns
+006afd24: namespace name=test.c  OK
+006b30a8: namespace name=xyz  BAD NAME - REPAIRED
+006b331c: namespace name=xyz  BAD NAME - REPAIRED
+006b3590: namespace name=xyz  BAD NAME - REPAIRED
+006b3804: namespace name=xyz  BAD NAME - REPAIRED
+006b3a78: namespace name=xyz  BAD NAME - REPAIRED
+006b3cec: namespace name=xyz  BAD NAME - REPAIRED
+006b3f60: namespace name=xyz  BAD NAME - REPAIRED
+006b41d4: namespace name=test.z  OK
+009773a4: namespace name=test.z.$_id_  OK
+00b57460: namespace name=test.c.$_id_  OK
+00b8e024: namespace name=test.system.indexes  OK
+00c8888c: namespace name=test.system.namespaces  OK
+7 errors were detected and repaired
+db/test.ns has been repaired; old file has been saved as db/test.ns.backup
+
+
+=== test.c and test.z should be accessible
+{
+	"ns" : "test.c",
+	"count" : 1,
+	"size" : 48,
+	"avgObjSize" : 48,
+	"storageSize" : 8192,
+	"numExtents" : 1,
+	"nindexes" : 1,
+	"lastExtentSize" : 8192,
+	"paddingFactor" : 1,
+	"systemFlags" : 1,
+	"userFlags" : 1,
+	"totalIndexSize" : 8176,
+	"indexSizes" : {
+		"_id_" : 8176
+	},
+	"ok" : 1
+}
+{
+	"ns" : "test.z",
+	"count" : 1,
+	"size" : 24,
+	"avgObjSize" : 24,
+	"storageSize" : 4096,
+	"numExtents" : 1,
+	"nindexes" : 1,
+	"lastExtentSize" : 4096,
+	"paddingFactor" : 1,
+	"systemFlags" : 1,
+	"userFlags" : 0,
+	"totalIndexSize" : 8176,
+	"indexSizes" : {
+		"_id_" : 8176
+	},
+	"ok" : 1
+}
+

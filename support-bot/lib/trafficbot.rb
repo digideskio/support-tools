@@ -25,7 +25,8 @@ if mode == 'api'
   @jiraquery = 'filter = "Commercial Support, Unassigned, Needs 10gen Response"'
 else
   require_relative 'support-jira-functions.rb'
-  @jiraquery = {"jira.fields.project.key" => { "$in" => ["CS", "PARTNER", "SUPPORT", "MMSSUPPORT"] }, "jira.fields.assignee" => nil, "jira.fields.status.id" => {"$nin" => [ "5", "6", "10007", "10006" ]}, "jira.fields.issuetype.id" => {"$ne" => "23"} }
+  #@jiraquery = {"jira.fields.project.key" => { "$in" => ["CS", "PARTNER", "SUPPORT", "MMSSUPPORT"] }, "jira.fields.assignee" => nil, "jira.fields.status.id" => {"$nin" => [ "5", "6", "10007", "10006" ]}, "jira.fields.issuetype.id" => {"$ne" => "23"} }
+  @jiraquery = {"jira.fields.project.key" => { "$in" => ["CS", "PARTNER", "SUPPORT", "MMSSUPPORT"] }, "jira.fields.issuetype.id" => {"$ne" => "23"} }
 end
 
 #Global Top Level variables
@@ -90,7 +91,7 @@ options = {
 @issues = {}
 
 #Time of each check is tracked
-@lastChecked = Time.now
+@lastChecked = BSON::ObjectId.from_time(Time.now-1)
 
 #List of items we have failed to auto complete
 @autoCompleteFails = []
@@ -118,6 +119,7 @@ if @soundOnlyMode == false
 else
   logOut 'Running in sound only mode'
 end
+@botReboot = false
 jthr = Thread.new { mainJiraThread(client) }
 logThr = Thread.new { loggingThread() }
 xmppThr = Thread.new { recXMPP() }
@@ -142,6 +144,14 @@ while true
   if jthr.status == 'aborting' || jthr.status == nil
     logOut 'JiraThread died, re-forking'
     jthr = Thread.new { mainJiraThread(client) }
+  else
+    if @botReboot
+      Thread.kill(jthr)
+      client = Mongo::MongoClient.from_uri(@dbURI,@dbConnOpts).db('support')
+      jthr = Thread.new { mainJiraThread(client) }
+      @botReboot = false
+      logOut "Just rebooted the Jira thread at user request"
+    end
   end
   if logThr.status == 'aborting' || logThr.status == nil
     logOut 'Logger Thread died, re-forking'

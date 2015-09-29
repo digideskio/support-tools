@@ -1,0 +1,9 @@
+[
+	{
+		"id": "os-0001",
+		"desc": "OS description",
+		"log": "mdiag",
+		"section": "distro",
+		"match": "(.*\\srelease\\s.*)"
+	}
+]
