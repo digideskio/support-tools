@@ -849,10 +849,11 @@ class FTDC:
         nmetrics = uint32.unpack_from(data, ref_doc.bson_len)[0]
         ndeltas = uint32.unpack_from(data, ref_doc.bson_len+4)[0]
         at = ref_doc.bson_len + 8
-        #assert(nmetrics==len(metrics))
         if nmetrics != len(metrics):
+            # xxx remove when SERVER-20602 is fixed
             msg('ignoring bad chunk: nmetrics=%d, len(metrics)=%d' % (nmetrics, len(metrics)))
             return None
+        #assert(nmetrics==len(metrics))
         self.read_samples += ndeltas+1
     
         # overview mode returns a subset of the samples, aiming for each sample to represent
@@ -950,10 +951,53 @@ class FTDC:
         # bson docs should exactly cover file
         assert(at==len(buf))
 
+    # read a file, yielding a sequence of chunks
+    # this does minimal actual work since it mmaps the files
+    # and only needs to read a few bytes for each chunk to construct
+    # the chunk bson document, consisting largely of pointers into the file
+    def read_file(self, fn):
+
+        # open file
+        f = open(fn)
+        buf = mmap.mmap(f.fileno(), 0, mmap.MAP_PRIVATE, mmap.PROT_READ)
+        at = 0
+
+        # traverse the file
+        while at < len(buf):
+
+            # read doc
+            try:
+                chunk_doc = read_bson_doc(buf, at)
+                at += chunk_doc.bson_len
+                yield chunk_doc
+            except Exception as e:
+                msg('stopping at bad bson doc (%s)' % e)
+                return
+
+        # bson docs should exactly cover file
+        assert(at==len(buf))
+
+
+    # reads the chunks specified by the parameters to __init__
+    # yields a sequence of metrics dictionaries
     def read(self):
-        for fn in self.fns:
-            for metrics in self.read_file(fn):
+
+        # we already filtered self.filtered_chunk_docs by type and time range
+        for chunk_doc in self.filtered_chunk_docs:
+
+            # read the chunk
+            metrics = self.read_chunk(chunk_doc)
+            if metrics:
+                out_samples = len(metrics.values()[0])
+                self.out_samples += out_samples
+                #msg('chunk at=%d len=%d out=%d' % (at, chunk_doc.bson_len, out_samples))
                 yield metrics
+    
+            # progress
+            self.read_chunks += 1
+            self.read_bytes += chunk_doc.bson_len
+            if self.read_chunks%10 == 0 or self.read_bytes == self.total_bytes:
+                self.report_progress()
 
     def dbg(self, show=False):
         def pt(t):
@@ -970,29 +1014,51 @@ class FTDC:
 
     def __init__(self, fn, opt):
 
-        def is_ftdc_file(fn):
-            return os.path.basename(fn).startswith('metrics.')
+        # metrics files start with 'metrics.'
+        is_ftdc_file = lambda fn: os.path.basename(fn).startswith('metrics.')
 
-        # get list of files
+        # get list of metrics files
         if os.path.isdir(fn):
-            self.fns = [os.path.join(fn,f) for f in sorted(os.listdir(fn)) if is_ftdc_file(f)]
+            fns = [os.path.join(fn,f) for f in sorted(os.listdir(fn)) if is_ftdc_file(f)]
         elif is_ftdc_file(fn):
-            self.fns = [fn]
+            fns = [fn]
         else:
-            self.fns = []
-        if not self.fns:
+            fns = []
+        if not fns:
             raise Exception(fn + ' is not an ftdc file or directory')
 
+        # load chunks, keeping type 1 metric chunks
+        # per comment with read_file this does minimal actual work
+        chunk_docs = []
+        for fn in fns:
+            for chunk_doc in self.read_file(fn):
+                if chunk_doc['type']==1:
+                    chunk_docs.append(chunk_doc)
+
+        # compute time ranges for each chunk using _id timestamp
+        for i in range(len(chunk_docs)):
+            t = chunk_docs[i]['_id']
+            fudge = -300 # xxx _id is end instead of start; remove when SERVER-20582 is fixed
+            chunk_docs[i].start_time = t + fudge
+            if i>0:
+                chunk_docs[i-1].end_time = t
+        chunk_docs[-1].end_time = float('inf') # don't know end time; will filter last chunk later
+
+        # roughly filter by timespan using _id timestamp as extracted above
+        # fine filtering will be done in series_process_dict
+        in_range = lambda c: c.start_time <= opt.before and c.end_time >= opt.after
+        self.filtered_chunk_docs = [c for c in chunk_docs if in_range(c)]
+
         # init stats for progress report
-        self.total_bytes = sum(os.path.getsize(fn) for fn in self.fns)
+        self.total_bytes = sum(c.bson_len for c in self.filtered_chunk_docs)
         self.read_chunks = 0
         self.read_samples = 0
         self.read_bytes = 0
         self.out_samples = 0
 
-        # overview mode
-        # xxx need better heuristic?
-        # xxx note that this needs to take account of timespan filtering when that is implemented
+        # compute number of output samples desired for overview mode
+        # uses time-filtered data sizes so resolution automatically increases for smaller timespans
+        # xxx need better heuristic that avoids step function?
         if opt.overview=='heuristic':
             self.overview = 10000 if self.total_bytes<10000000 else 1000
             msg('limiting output to %d samples; use --overview none to override' % self.overview)
@@ -1025,8 +1091,9 @@ def series_process_dict(series, opt):
                 time = s.dict_fields['time'] # e.g. 'serverStatus.localTime'
                 if data in metrics:
                     for t, d in zip(metrics[time], metrics[data]):
-                        # times come to us as ms, so convert to seconds here
-                        s.data_point(t/1000.0, d, getitem, setitem, opt)
+                        t = t / 1000.0 # times come to us as ms, so convert to seconds here
+                        if t>=opt.after and t<=opt.before:
+                            s.data_point(t, d, getitem, setitem, opt)
         except GeneratorExit:
             break
 
