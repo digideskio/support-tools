@@ -1081,6 +1081,11 @@ class FTDC:
 # each dictionary maps a list of metric names, e.g. paths through a json metrics sample doc,
 # to a list of metric values
 def series_process_dict(series, opt):
+
+    # to track metrics present in the data but not processed by any series
+    unrecognized = set()
+
+    # process all metrics that we are sent
     while True:
         try:
             metrics = yield
@@ -1094,8 +1099,19 @@ def series_process_dict(series, opt):
                         t = t / 1000.0 # times come to us as ms, so convert to seconds here
                         if t>=opt.after and t<=opt.before:
                             s.data_point(t, d, getitem, setitem, opt)
+            unrecognized.update(metrics.keys())
         except GeneratorExit:
             break
+
+    # compute and print unrecognized metrics
+    for s in series:
+        unrecognized.discard(s.dict_fields['data'])
+        unrecognized.discard(s.dict_fields['time'])
+    unrecognized = sorted(u for u in unrecognized if u.startswith('serverStatus.'))
+    if unrecognized:
+        msg('unrecognized metrics:')
+        for u in unrecognized:
+            msg('   ', u)
 
 # process a sequence of json metric documents
 def series_process_json(fn, series, opt):
