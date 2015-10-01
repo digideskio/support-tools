@@ -1104,10 +1104,15 @@ def series_process_dict(series, opt):
             break
 
     # compute and print unrecognized metrics
+    ignore = re.compile(
+        '^serverStatus.(repl|start|end)|'
+        '^local.oplog.rs|'
+        '^replSetGetStatus|slot_closure_rate'
+    )
     for s in series:
         unrecognized.discard(s.dict_fields['data'])
         unrecognized.discard(s.dict_fields['time'])
-    unrecognized = sorted(u for u in unrecognized if u.startswith('serverStatus.'))
+    unrecognized = sorted(u for u in unrecognized if not ignore.match(u))
     if unrecognized:
         msg('unrecognized metrics:')
         for u in unrecognized:
@@ -3070,23 +3075,29 @@ wt('cache', 'eviction server unable to reach eviction goal', rate='delta')
 wt('cache', 'eviction worker thread evicting pages', rate=True)
 wt('cache', 'failed eviction of pages that exceeded the in-memory maximum', rate=True)
 wt('cache', 'hazard pointer blocked page eviction', rate=True)
+wt('cache', 'in-memory page passed criteria to be split', rate=True)
 wt('cache', 'in-memory page splits', rate=True) # CHECK
 wt('cache', 'internal pages evicted', rate=True)
+wt('cache', 'lookaside table insert calls', rate=True)
+wt('cache', 'lookaside table remove calls', rate=True)
 wt('cache', 'maximum bytes configured', scale=MB)
 wt('cache', 'maximum page size at eviction', scale=MB) # CHECK rc5
 wt('cache', 'modified pages evicted', rate=True)
 wt('cache', 'overflow pages read into cache', rate=True)
 wt('cache', 'overflow values cached in memory')
 wt('cache', 'page split during eviction deepened the tree', rate=True)
+wt('cache', 'page written requiring lookaside records', rate=True)
 wt('cache', 'pages currently held in the cache')
 wt('cache', 'pages evicted because they exceeded the in-memory maximum', rate=True)
 wt('cache', 'pages evicted because they had chains of deleted items', rate=True) # CHECK rc5
 wt('cache', 'pages evicted by application threads', rate=True) # CHECK
+wt('cache', 'pages read into cache requiring lookaside entries', rate=True)
 wt('cache', 'pages read into cache', merge = 'wt_cache_pages_cache', rate=True)
 wt('cache', 'pages selected for eviction unable to be evicted', rate=True)
 wt('cache', 'pages split during eviction', rate=True)
 wt('cache', 'pages walked for eviction', rate=True)
 wt('cache', 'pages written from cache', merge = 'wt_cache_pages_cache', rate=True)
+wt('cache', 'pages written requiring in-memory restoration', rate=True)
 wt('cache', 'percentage overhead')
 wt('cache', 'tracked bytes belonging to internal pages in the cache', scale=MB)
 wt('cache', 'tracked bytes belonging to leaf pages in the cache', scale=MB)
@@ -3118,6 +3129,7 @@ wt('cursor', 'cursor next calls', rate=True)
 wt('cursor', 'cursor prev calls', rate=True)
 wt('cursor', 'cursor remove calls', rate=True, level=2)
 wt('cursor', 'cursor reset calls', rate=True)
+wt('cursor', 'cursor restarted searches', rate=True)
 wt('cursor', 'cursor search calls', rate=True, level=2)
 wt('cursor', 'cursor search near calls', rate=True, level=3)
 wt('cursor', 'cursor update calls', rate=True, level=2)
@@ -3143,15 +3155,18 @@ wt('data-handle', 'connection sweeps', rate=True) # CHECK
 wt('data-handle', 'connection time-of-death sets', rate=True) # CHECK
 wt('data-handle', 'session dhandles swept', rate=True)
 wt('data-handle', 'session sweep attempts', rate=True)
+wt('log', 'busy returns attempting to switch slots', rate=True)
 wt('log', 'consolidated slot closures', rate=True, set_field='slot_closure_rate')
 wt('log', 'consolidated slot join races', rate=True)
 wt('log', 'consolidated slot join transitions', rate=True)
 wt('log', 'consolidated slot joins', rate=True)
 wt('log', 'consolidated slot joins', rate=True, name='joins per closure', scale_field='slot_closure_rate')
+wt('log', 'consolidated slot unbuffered writes', rate=True)
 wt('log', 'failed to find a slot large enough for record', rate=True)
 wt('log', 'log buffer size increases', rate=True)
 wt('log', 'log bytes of payload data', scale=MB, rate=True)
 wt('log', 'log bytes written', scale=MB, rate=True, level=2)
+wt('log', 'log flush operations', rate=True)
 wt('log', 'log read operations', rate=True)
 wt('log', 'log records compressed', rate=True) # CHECK
 wt('log', 'log records not compressed', rate=True) # CHECK
@@ -3166,6 +3181,7 @@ wt('log', 'log write operations', rate=True)
 wt('log', 'logging bytes consolidated', scale=MB, rate=True)
 wt('log', 'maximum log file size', scale=MB)
 wt('log', 'number of pre-allocated log files to create') # CHECK
+wt('log', 'pre-allocated log files not ready and missed', rate=True)
 wt('log', 'pre-allocated log files prepared', rate=True) # CHECK
 wt('log', 'pre-allocated log files used', rate=True) # CHECK
 wt('log', 'record size exceeded maximum', rate=True)
@@ -3174,6 +3190,7 @@ wt('log', 'slots selected for switching that were unavailable', rate=True)
 wt('log', 'total in-memory size of compressed records', scale=MB) # CHECK
 wt('log', 'total log buffer size', scale=MB)
 wt('log', 'total size of compressed records', scale=MB) # CHECK
+wt('log', 'written slots coalesced', rate=True)
 wt('log', 'yields waiting for previous log file close', rate=True)
 wt('reconciliation', 'dictionary matches', rate=True)
 wt('reconciliation', 'internal page key bytes discarded using suffix compression', scale=MB)
@@ -3209,6 +3226,7 @@ wt('transaction', 'transaction checkpoints', rate='delta')
 wt('transaction', 'transaction failures due to cache overflow', rate=True)
 wt('transaction', 'transaction range of IDs currently pinned by a checkpoint')
 wt('transaction', 'transaction range of IDs currently pinned')
+wt('transaction', 'transaction sync calls', rate=True)
 wt('transaction', 'transactions committed', rate=True, level=2)
 wt('transaction', 'transactions rolled back', rate=True, level=2)
 wt('transaction', 'update conflicts', rate=True, level=2)
