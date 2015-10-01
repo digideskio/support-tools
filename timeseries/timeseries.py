@@ -2256,6 +2256,9 @@ ss(["mem", "resident"], units="MB")
 ss(["mem", "supported"], level=99)
 ss(["mem", "virtual"], units="MB", level=1)
 
+# don't know what this is
+ss(["metrics", "commands", "<UNKNOWN>"], rate=True, level=4)
+
 # XXX make these auto-split instead of listing explicitly
 def ss_command(command, level=4):
     ss(["metrics", "commands", command, "total"], rate=True, level=level)
@@ -2264,15 +2267,22 @@ def ss_command(command, level=4):
 ss_command("collStats")
 ss_command("count")
 ss_command("createIndexes")
+ss_command("currentOp")
 ss_command("drop")
+ss_command("fsyncUnlock")
+ss_command("getMore")
 ss_command("getnonce")
 ss_command("insert")
 ss_command("isMaster")
+ss_command("killCursors")
+ss_command("killOp")
+ss_command("mapreduce.shardedfinish")
 ss_command("ping")
+ss_command("replSetDeclareElectionWinner")
+ss_command("replSetRequestVotes")
 ss_command("serverStatus")
 ss_command("update")
 ss_command("whatsmyuri")
-ss_command('<UNKNOWN>')
 ss_command('_getUserCacheGeneration')
 ss_command('_isSelf')
 ss_command('_mergeAuthzCollections')
