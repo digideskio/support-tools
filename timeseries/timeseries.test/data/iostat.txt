@@ -1,0 +1,36 @@
+Linux 3.13.0-32-generic (ubuntu)        12/06/2014      _x86_64_        (6 CPU)
+
+12/06/2014 06:00:24 AM
+avg-cpu:  %user   %nice %system %iowait  %steal   %idle
+           100    0.00    0.29    0.00    0.00   99.58
+
+Device:         rrqm/s   wrqm/s     r/s     w/s    rkB/s    wkB/s avgrq-sz avgqu-sz   await r_await w_await  svctm  %util
+sda               0.02     1.46    0.11    1.31     2.19    88.09   127.38     0.00    3.09    1.14    3.24   0.26   0.04
+sdb               0.02     1.46    0.11    1.31     2.19    88.09   127.38     0.00    3.09    1.14    3.24   0.26   0.04
+
+12/06/2014 06:00:26 AM
+avg-cpu:  %user   %nice %system %iowait  %steal   %idle
+           0.08   100   0.08    0.00    0.00   99.83
+
+Device:         rrqm/s   wrqm/s     r/s     w/s    rkB/s    wkB/s avgrq-sz avgqu-sz   await r_await w_await  svctm  %util
+sda               0.00     0.00    0.00    0.00     0.00     0.00     0.00     0.00    0.00    0.00    0.00   0.00   0.00
+sdb               0.02     1.46    0.11    1.31     2.19    88.09   127.38     0.00    3.09    1.14    3.24   0.26   0.04
+
+12/06/2014 06:00:28 AM
+avg-cpu:  %user   %nice %system %iowait  %steal   %idle
+           0.00    0.00   100    0.00    0.00   99.83
+
+Device:         rrqm/s   wrqm/s     r/s     w/s    rkB/s    wkB/s avgrq-sz avgqu-sz   await r_await w_await  svctm  %util
+sda               0.00     0.00    0.00    0.00     0.00     0.00     0.00     0.00    0.00    0.00    0.00   0.00   0.00
+sdb               0.02     1.46    0.11    1.31     2.19    88.09   127.38     0.00    3.09    1.14    3.24   0.26   0.04
+
+12/06/2014 06:00:30 AM
+avg-cpu:  %user   %nice %system %iowait  %steal   %idle
+           0.00    0.00    0.17    100   0.00   99.83
+
+Device:         rrqm/s   wrqm/s     r/s     w/s    rkB/s    wkB/s avgrq-sz avgqu-sz   await r_await w_await  svctm  %util
+sda               0.00     0.00    0.00    0.00     0.00     0.00     0.00     0.00    0.00    0.00    0.00   0.00   0.00
+sdb               0.02     1.46    0.11    1.31     2.19    88.09   127.38     0.00    3.09    1.14    3.24   0.26   0.04
+
+12/06/2014 06:00:32 AM
+           0.00    0.00    0.17    0   100   99.83

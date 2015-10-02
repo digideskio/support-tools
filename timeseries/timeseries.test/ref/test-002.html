@@ -1,0 +1,330 @@
+<html><head><meta charset="utf-8"><style>
+    table, tr, td {
+        padding: 0;
+        margin: 0;
+        border-spacing:0;
+    }
+    .curve {
+        fill: none;
+        stroke: black;
+        stroke-width: 1;
+        vector-effect: non-scaling-stroke;
+    }
+    .shaded {
+        fill: rgb(230,230,230);
+        stroke: rgb(230,230,230);
+        stroke-width: 1;
+        vector-effect: non-scaling-stroke;
+    }
+    .shaded-hot {
+        fill: rgb(250,220,220);
+        stroke: rgb(240,220,220);
+    }
+    .shaded-cold {
+        fill: rgb(200,220,240);
+        stroke: rgb(230,230,230);
+    }
+    .tick {
+        stroke: rgba(0,0,0,0.08);
+        stroke-width: 1;
+        vector-effect: non-scaling-stroke;
+    }
+
+    .cursor {
+        stroke: rgba(0,0,255,.4);
+        stroke-width: 1;
+        vector-effect: non-scaling-stroke;
+    }
+    .deleter {
+        fill: blue;
+    }
+    .letter {
+        font-size: 85%
+    }
+    .data {
+        padding-left: 0.5em
+    }
+
+    body, table {
+        font-family: sans-serif;
+        font-size: 10pt;
+    }
+    .data {
+        text-align: right;
+    }
+    .row-number {
+        padding-right: 2em;
+        text-align: right;
+    }
+    .name {
+        text-align: left;
+    }
+    .graph {
+        padding-left: 0em;
+        padding-right: 0em;
+    }
+    .head {
+        font-weight: bold;
+    }
+    .selected {
+        background: rgb(240,245,255)
+    }
+</style><script>
+
+    function event_x(e) {
+        var evt = window.event
+        return (evt.pageX - e.offsetLeft - e.offsetParent.offsetLeft) / e.offsetWidth
+    }
+  
+    var svg_ns = "http://www.w3.org/2000/svg"
+  
+    function set_attrs(e, attrs) {
+        for (a in attrs)
+            e.setAttribute(a, attrs[a])
+    }
+  
+    function elt(ns, name, attrs) {
+        var e = document.createElementNS(ns, name)
+        set_attrs(e, attrs)
+        return e
+    }
+  
+    function del_id(id) {
+        var e = document.getElementById(id)
+    }
+  
+    function move(e) {
+        var x = event_x(e)
+        set_attrs(document.getElementById('lll'), {x1:x, x2:x})
+    }
+  
+    function out(e) {
+        set_attrs(document.getElementById('lll'), {x1:-1, x2:-1})
+    }
+  
+    var width = 30;
+  
+    function add(e) {
+        var x = event_x(e)
+        var cursor = elt(svg_ns, "line",
+            {x1:x, x2:x, y1:0, y2:1, class:"cursor"})
+        var deleter = elt(svg_ns, "circle",
+            {cx:(x*100)+'%', cy:'50%', r:0.3, class:"deleter", onclick:"del(this)"})
+        var letter = elt(svg_ns, "text",
+            {x:(x*100)+'%', y:'80%', 'text-anchor':'middle', 'class':'letter'})
+        document.getElementById("cursors").appendChild(cursor)
+        document.getElementById("deleters").appendChild(deleter)
+        document.getElementById("letters").appendChild(letter)
+        deleter.related = [deleter, cursor, letter]
+        re_letter()
+    }
+  
+    function del(deleter) {
+        for (var i in deleter.related) {
+            e = deleter.related[i]
+            e.parentNode.removeChild(e)
+        }
+        re_letter()
+    }
+
+    function pos(e) {
+        return Number(e.getAttribute('x').replace('%',''))
+    }
+
+    function re_letter() {
+        console.log('re_letter')
+        ls = []
+        letters = document.getElementById("letters")
+        for (var i=0; i<letters.children.length; i++) {
+            child = letters.children[i]
+            if (child.classList.contains('letter')) {
+                console.log(child.getAttribute('x') + ' ' + child.innerHTML)
+                ls.push(child)
+            }
+        }
+        ls = ls.sort(function(a,b) {return pos(a)-pos(b)})
+        for (var i in ls)
+            ls[i].innerHTML = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijlkmnopqrstuvwxyz'[i]
+    }
+
+
+    var selected = undefined
+    var last_selected = undefined
+
+    function _desel() {
+        if (selected)
+            selected.classList.remove('selected')
+    }
+
+    function _sel(s) {
+        if (selected) {
+            last_selected = selected
+            selected.classList.add('selected')
+            for (var p=selected, y=0; p && p.tagName!='BODY'; p=p.offsetParent)
+                y += p.offsetTop
+            var h = selected.offsetHeight
+            if (window.pageYOffset + window.innerHeight < y + h)
+                selected.scrollIntoView(false)
+            else if (y < window.pageYOffset)
+                selected.scrollIntoView(true)
+        }
+    }
+
+    function sel(e) {
+        _desel()
+        if (selected!=e) {
+            selected = e
+            _sel()
+        } else {
+            selected = undefined
+        }
+    }
+
+    function re_number() {
+        n = 0
+        row = document.getElementById("table").firstChild.firstChild    
+        while (row) {
+            td = row.firstChild
+            while (td && !td.classList.contains("row-number"))
+                td = td.nextSibling            
+            if (!td)
+                return
+            if (!td.classList.contains("head")) {
+                td.innerHTML = n
+                n += 1
+            }
+            row = row.nextSibling
+        }
+    }
+
+    function set_level(c) {
+        _desel()
+        c = String(c)
+        row = document.getElementById("table").firstChild.firstChild    
+        while (row) {
+            row_level = row.getAttribute('_level')
+            if (row_level <= c) {
+                row.style.display = ''
+            } else {
+                row.style.display = 'none'
+            }
+            row = row.nextSibling
+        }
+        document.getElementById("current_level").innerHTML = c
+        selected = next_visible(selected)
+        
+    }
+
+    function initial_level(c) {
+        if (!document.getElementById("current_level").innerHTML)
+            set_level(c)
+    }
+
+    function next_visible(row) {
+        while (row && row.style.display=='none')
+            row = row.nextSibling
+        return row            
+    }
+
+    function prev_visible(row) {
+        while (row!=first_row && row.style.display=='none')
+            row = row.previousSibling
+        return row            
+    }
+
+    function key() {
+        var evt = window.event
+        var c = String.fromCharCode(evt.charCode)
+        first_row = document.getElementById("table").firstChild.firstChild
+        while (first_row && !first_row.classList.contains('row'))
+            first_row = first_row.nextSibling
+        first_row = next_visible(first_row)
+        if (!last_selected) {
+            for (var r = first_row; r && !selected; r = r.nextSibling) {
+                if (r.classList.contains('selected'))
+                   selected = r
+            }
+            last_selected = selected
+        }
+        if (!last_selected)       
+            last_selected = first_row
+        if (c=='s') {
+            if (confirm('Save?')) {
+                req = new XMLHttpRequest()
+                req.open('PUT', '')
+                req.send(document)
+                alert('Saved')
+            }
+        } else if (c=='') {
+            if (!selected)
+                selected = last_selected
+            else {
+                var s = next_visible(selected.nextSibling)
+                if (s) {
+                    _desel()
+                    selected = s
+                }
+            }
+        } else if (c=='') {
+            if (!selected)
+                selected = last_selected
+            else if (selected != first_row) {
+                selected.classList.remove('selected')
+                selected = prev_visible(selected.previousSibling)
+            }
+        } else if (c=='n') {
+            if (selected) {
+                next = next_visible(selected.nextSibling)
+                if (next) {
+                    parent = selected.parentNode
+                    parent.removeChild(selected)
+                    parent.insertBefore(selected, next.nextSibling)
+                    re_number()
+                }
+            }
+        } else if (c=='p') {
+            if (selected) {
+                if (selected!=first_row) {
+                    prev = prev_visible(selected.previousSibling)
+                    parent = selected.parentNode
+                    parent.removeChild(selected)
+                    parent.insertBefore(selected, prev)
+                    re_number()
+                }
+            }
+        } else if (c=='N') {
+            if (selected) {
+                s = next_visible(selected.nextSibling)
+                if (s) {
+                    parent = selected.parentNode
+                    parent.removeChild(selected)
+                    parent.insertBefore(selected, null)
+                    sel(s)
+                    re_number()
+                }
+            }
+        } else if (c=='P') {
+            if (selected && selected != first_row) {
+                s = prev_visible(selected.previousSibling)
+                parent = selected.parentNode
+                parent.removeChild(selected)
+                parent.insertBefore(selected, first_row)
+                sel(s)
+                re_number()
+            }
+        } else if ('1'<=c && c<='9') {
+            set_level(c)
+        }
+        _sel(selected)
+    }    
+
+    function toggle_help() {
+        e = document.getElementById('help')
+        if (e.style.display == 'none') {
+            e.style.display = 'block'
+        } else {
+            e.style.display = 'none'
+        }
+    }
+
+</script></head><body onkeypress="key()" onload="initial_level(9)"><div onclick="toggle_help()">1-9 to choose detail level; current level: <span id="current_level"></span><br/>click to toggle more help<div id="help" style="display:none">click on a graph to put down a cursor line<br/>click on a blue disk to delete a cursor<br/>click on a name to select a row<br/>^N select the next row <br/>^P select the previous row <br/>n move the selected row down <br/>p move the selected row up <br/>N move the selected row to the bottom <br/>P move the selected row to the top</div></div></br><table id="table" style="position:relative;"><tr><td class="head data">avg</td><td class="head data">max</td><td><svg height="100%" id="cursors" onclick="add(this)" onmousemove="move(this)" onmouseout="out(this)" preserveAspectRatio="none" style="position:absolute; background:none" viewBox="0 0 1 1" width="30em"><line class="cursor" id="lll" x1="-1" x2="-1" y1="0" y2="1"></svg><div style="position:relative; z-index:1000; background:white; margin-bottom:0.3em"><svg height="1em" id="letters" width="30em"></svg><br/><svg height="0.8em" id="deleters" viewBox="0 0 30 0.8" width="30em"></svg></div><div style="height: 1.1em; position:relative; width:30em"><span align="center" style="left:-45.125em; position:absolute; width:100em"><span align="center" style="font-size:80%">02:00:25</span></span><span align="center" style="left:-36.6875em; position:absolute; width:100em"><span align="center" style="font-size:80%">02:00:27</span></span><span align="center" style="left:-28.25em; position:absolute; width:100em"><span align="center" style="font-size:80%">02:00:30</span></span></div></td><td class="head desc">name</td></tr><tr _level="0" class="row" onclick="sel(this)"><td class="data">20.032</td><td class="data">100.000</td><td class="graph"><svg height="1.8em" viewBox="0 0 30 1.8" width="30em"><polyline class="curve" points="1.5,0.18 8.25,1.61885 15,1.62 21.75,1.62 28.5,1.62" style="stroke:rgb(50,102,204)"></polyline><polyline class="curve" points="1.5,1.61582 8.25,1.61885 15,0.18 21.75,1.61755 28.5,1.61755" style="stroke:rgb(220,57,24)"></polyline><polyline class="curve" points="1.5,1.62 8.25,1.62 15,1.62 21.75,0.18 28.5,1.62" style="stroke:rgb(253,153,39)"></polyline><polyline class="curve" points="1.5,1.62 8.25,0.18 15,1.62 21.75,1.62 28.5,1.62" style="stroke:rgb(20,150,24)"></polyline><polyline class="curve" points="1.5,1.62 8.25,1.62 15,1.62 21.75,1.62 28.5,0.18" style="stroke:rgb(153,20,153)"></polyline><line class="tick" x1="4.875" x2="4.875" y1="0" y2="1.8"></line><line class="tick" x1="13.3125" x2="13.3125" y1="0" y2="1.8"></line><line class="tick" x1="21.75" x2="21.75" y1="0" y2="1.8"></line></svg></td><td class="name">iostat cpu: <span style="color:rgb(50,102,204)"> user</span><span style="color:rgb(220,57,24)"> system</span><span style="color:rgb(253,153,39)"> iowait</span><span style="color:rgb(20,150,24)"> nice</span><span style="color:rgb(153,20,153)"> steal</span> (%)</td></tr><tr _level="3" class="row" onclick="sel(this)"><td class="data">99.780</td><td class="data">99.830</td><td class="graph"><svg height="1.8em" viewBox="0 0 30 1.8" width="30em"><polygon class="shaded" points="1.5,1.62 1.5,0.186048 8.25,0.182448 15,0.182448 21.75,0.182448 28.5,0.182448 28.5,1.62"></polygon><polyline class="curve" points="1.5,0.186048 8.25,0.182448 15,0.182448 21.75,0.182448 28.5,0.182448" style="stroke:black"></polyline><line class="tick" x1="4.875" x2="4.875" y1="0" y2="1.8"></line><line class="tick" x1="13.3125" x2="13.3125" y1="0" y2="1.8"></line><line class="tick" x1="21.75" x2="21.75" y1="0" y2="1.8"></line></svg></td><td class="name">iostat cpu: idle (%)</td></tr><tr _level="3" class="row" onclick="sel(this)"><td class="data">0.185</td><td class="data">1.460</td><td class="graph"><svg height="1.8em" viewBox="0 0 30 1.8" width="30em"><polyline class="curve" points="1.5,1.60027 8.25,1.62 15,1.62 21.75,1.62" style="stroke:rgb(50,102,204)"></polyline><polyline class="curve" points="1.5,0.18 8.25,1.62 15,1.62 21.75,1.62" style="stroke:rgb(220,57,24)"></polyline><line class="tick" x1="4.875" x2="4.875" y1="0" y2="1.8"></line><line class="tick" x1="13.3125" x2="13.3125" y1="0" y2="1.8"></line><line class="tick" x1="21.75" x2="21.75" y1="0" y2="1.8"></line></svg></td><td class="name">iostat disk: sda <span style="color:rgb(50,102,204)"> read</span><span style="color:rgb(220,57,24)"> write</span> requests merged (/s)</td></tr><tr _level="3" class="row" onclick="sel(this)"><td class="data">0.178</td><td class="data">1.310</td><td class="graph"><svg height="1.8em" viewBox="0 0 30 1.8" width="30em"><polyline class="curve" points="1.5,1.51151 8.25,1.62 15,1.62 21.75,1.62" style="stroke:rgb(50,102,204)"></polyline><polyline class="curve" points="1.5,0.327945 8.25,1.62 15,1.62 21.75,1.62" style="stroke:rgb(220,57,24)"></polyline><line class="tick" x1="4.875" x2="4.875" y1="0" y2="1.8"></line><line class="tick" x1="13.3125" x2="13.3125" y1="0" y2="1.8"></line><line class="tick" x1="21.75" x2="21.75" y1="0" y2="1.8"></line></svg></td><td class="name">iostat disk: sda <span style="color:rgb(50,102,204)"> read</span><span style="color:rgb(220,57,24)"> write</span> requests issued (/s)</td></tr><tr _level="1" class="row" onclick="sel(this)"><td class="data">0.011</td><td class="data">0.086</td><td class="graph"><svg height="1.8em" viewBox="0 0 30 1.8" width="30em"><polyline class="curve" points="1.5,1.5842 8.25,1.62 15,1.62 21.75,1.62" style="stroke:rgb(50,102,204)"></polyline><polyline class="curve" points="1.5,0.18 8.25,1.62 15,1.62 21.75,1.62" style="stroke:rgb(220,57,24)"></polyline><line class="tick" x1="4.875" x2="4.875" y1="0" y2="1.8"></line><line class="tick" x1="13.3125" x2="13.3125" y1="0" y2="1.8"></line><line class="tick" x1="21.75" x2="21.75" y1="0" y2="1.8"></line></svg></td><td class="name">iostat disk: sda bytes <span style="color:rgb(50,102,204)"> read</span><span style="color:rgb(220,57,24)"> written</span> (MB/s)</td></tr><tr _level="3" class="row" onclick="sel(this)"><td class="data">31.845</td><td class="data">127.380</td><td class="graph"><svg height="1.8em" viewBox="0 0 30 1.8" width="30em"><polygon class="shaded" points="1.5,1.62 1.5,0.18 8.25,1.62 15,1.62 21.75,1.62 21.75,1.62"></polygon><polyline class="curve" points="1.5,0.18 8.25,1.62 15,1.62 21.75,1.62" style="stroke:black"></polyline><line class="tick" x1="4.875" x2="4.875" y1="0" y2="1.8"></line><line class="tick" x1="13.3125" x2="13.3125" y1="0" y2="1.8"></line><line class="tick" x1="21.75" x2="21.75" y1="0" y2="1.8"></line></svg></td><td class="name">iostat disk: sda average request size (sectors)</td></tr><tr _level="3" class="row" onclick="sel(this)"><td class="data">0.772</td><td class="data">3.090</td><td class="graph"><svg height="1.8em" viewBox="0 0 30 1.8" width="30em"><polygon class="shaded" points="1.5,1.62 1.5,0.18 8.25,1.62 15,1.62 21.75,1.62 21.75,1.62"></polygon><polyline class="curve" points="1.5,0.18 8.25,1.62 15,1.62 21.75,1.62" style="stroke:black"></polyline><line class="tick" x1="4.875" x2="4.875" y1="0" y2="1.8"></line><line class="tick" x1="13.3125" x2="13.3125" y1="0" y2="1.8"></line><line class="tick" x1="21.75" x2="21.75" y1="0" y2="1.8"></line></svg></td><td class="name">iostat disk: sda average wait time (ms)</td></tr><tr _level="1" class="row" onclick="sel(this)"><td class="data">0.010</td><td class="data">0.040</td><td class="graph"><svg height="1.8em" viewBox="0 0 30 1.8" width="30em"><polygon class="shaded" points="1.5,1.62 1.5,1.61942 8.25,1.62 15,1.62 21.75,1.62 21.75,1.62"></polygon><polyline class="curve" points="1.5,1.61942 8.25,1.62 15,1.62 21.75,1.62" style="stroke:black"></polyline><line class="tick" x1="4.875" x2="4.875" y1="0" y2="1.8"></line><line class="tick" x1="13.3125" x2="13.3125" y1="0" y2="1.8"></line><line class="tick" x1="21.75" x2="21.75" y1="0" y2="1.8"></line></svg></td><td class="name">iostat disk: sda average utilization (%)</td></tr><tr _level="3" class="row" onclick="sel(this)"><td class="data">0.740</td><td class="data">1.460</td><td class="graph"><svg height="1.8em" viewBox="0 0 30 1.8" width="30em"><polyline class="curve" points="1.5,1.60027 8.25,1.60027 15,1.60027 21.75,1.60027" style="stroke:rgb(50,102,204)"></polyline><polyline class="curve" points="1.5,0.18 8.25,0.18 15,0.18 21.75,0.18" style="stroke:rgb(220,57,24)"></polyline><line class="tick" x1="4.875" x2="4.875" y1="0" y2="1.8"></line><line class="tick" x1="13.3125" x2="13.3125" y1="0" y2="1.8"></line><line class="tick" x1="21.75" x2="21.75" y1="0" y2="1.8"></line></svg></td><td class="name">iostat disk: sdb <span style="color:rgb(50,102,204)"> read</span><span style="color:rgb(220,57,24)"> write</span> requests merged (/s)</td></tr><tr _level="3" class="row" onclick="sel(this)"><td class="data">0.710</td><td class="data">1.310</td><td class="graph"><svg height="1.8em" viewBox="0 0 30 1.8" width="30em"><polyline class="curve" points="1.5,1.51151 8.25,1.51151 15,1.51151 21.75,1.51151" style="stroke:rgb(50,102,204)"></polyline><polyline class="curve" points="1.5,0.327945 8.25,0.327945 15,0.327945 21.75,0.327945" style="stroke:rgb(220,57,24)"></polyline><line class="tick" x1="4.875" x2="4.875" y1="0" y2="1.8"></line><line class="tick" x1="13.3125" x2="13.3125" y1="0" y2="1.8"></line><line class="tick" x1="21.75" x2="21.75" y1="0" y2="1.8"></line></svg></td><td class="name">iostat disk: sdb <span style="color:rgb(50,102,204)"> read</span><span style="color:rgb(220,57,24)"> write</span> requests issued (/s)</td></tr><tr _level="1" class="row" onclick="sel(this)"><td class="data">0.044</td><td class="data">0.086</td><td class="graph"><svg height="1.8em" viewBox="0 0 30 1.8" width="30em"><polyline class="curve" points="1.5,1.5842 8.25,1.5842 15,1.5842 21.75,1.5842" style="stroke:rgb(50,102,204)"></polyline><polyline class="curve" points="1.5,0.18 8.25,0.18 15,0.18 21.75,0.18" style="stroke:rgb(220,57,24)"></polyline><line class="tick" x1="4.875" x2="4.875" y1="0" y2="1.8"></line><line class="tick" x1="13.3125" x2="13.3125" y1="0" y2="1.8"></line><line class="tick" x1="21.75" x2="21.75" y1="0" y2="1.8"></line></svg></td><td class="name">iostat disk: sdb bytes <span style="color:rgb(50,102,204)"> read</span><span style="color:rgb(220,57,24)"> written</span> (MB/s)</td></tr><tr _level="3" class="row" onclick="sel(this)"><td class="data">127.380</td><td class="data">127.380</td><td class="graph"><svg height="1.8em" viewBox="0 0 30 1.8" width="30em"><polygon class="shaded" points="1.5,1.62 1.5,0.18 8.25,0.18 15,0.18 21.75,0.18 21.75,1.62"></polygon><polyline class="curve" points="1.5,0.18 8.25,0.18 15,0.18 21.75,0.18" style="stroke:black"></polyline><line class="tick" x1="4.875" x2="4.875" y1="0" y2="1.8"></line><line class="tick" x1="13.3125" x2="13.3125" y1="0" y2="1.8"></line><line class="tick" x1="21.75" x2="21.75" y1="0" y2="1.8"></line></svg></td><td class="name">iostat disk: sdb average request size (sectors)</td></tr><tr _level="3" class="row" onclick="sel(this)"><td class="data">3.090</td><td class="data">3.090</td><td class="graph"><svg height="1.8em" viewBox="0 0 30 1.8" width="30em"><polygon class="shaded" points="1.5,1.62 1.5,0.18 8.25,0.18 15,0.18 21.75,0.18 21.75,1.62"></polygon><polyline class="curve" points="1.5,0.18 8.25,0.18 15,0.18 21.75,0.18" style="stroke:black"></polyline><line class="tick" x1="4.875" x2="4.875" y1="0" y2="1.8"></line><line class="tick" x1="13.3125" x2="13.3125" y1="0" y2="1.8"></line><line class="tick" x1="21.75" x2="21.75" y1="0" y2="1.8"></line></svg></td><td class="name">iostat disk: sdb average wait time (ms)</td></tr><tr _level="1" class="row" onclick="sel(this)"><td class="data">0.040</td><td class="data">0.040</td><td class="graph"><svg height="1.8em" viewBox="0 0 30 1.8" width="30em"><polygon class="shaded" points="1.5,1.62 1.5,1.61942 8.25,1.61942 15,1.61942 21.75,1.61942 21.75,1.62"></polygon><polyline class="curve" points="1.5,1.61942 8.25,1.61942 15,1.61942 21.75,1.61942" style="stroke:black"></polyline><line class="tick" x1="4.875" x2="4.875" y1="0" y2="1.8"></line><line class="tick" x1="13.3125" x2="13.3125" y1="0" y2="1.8"></line><line class="tick" x1="21.75" x2="21.75" y1="0" y2="1.8"></line></svg></td><td class="name">iostat disk: sdb average utilization (%)</td></tr></table></body></html>

@@ -1,0 +1,330 @@
+<html><head><meta charset="utf-8"><style>
+    table, tr, td {
+        padding: 0;
+        margin: 0;
+        border-spacing:0;
+    }
+    .curve {
+        fill: none;
+        stroke: black;
+        stroke-width: 1;
+        vector-effect: non-scaling-stroke;
+    }
+    .shaded {
+        fill: rgb(230,230,230);
+        stroke: rgb(230,230,230);
+        stroke-width: 1;
+        vector-effect: non-scaling-stroke;
+    }
+    .shaded-hot {
+        fill: rgb(250,220,220);
+        stroke: rgb(240,220,220);
+    }
+    .shaded-cold {
+        fill: rgb(200,220,240);
+        stroke: rgb(230,230,230);
+    }
+    .tick {
+        stroke: rgba(0,0,0,0.08);
+        stroke-width: 1;
+        vector-effect: non-scaling-stroke;
+    }
+
+    .cursor {
+        stroke: rgba(0,0,255,.4);
+        stroke-width: 1;
+        vector-effect: non-scaling-stroke;
+    }
+    .deleter {
+        fill: blue;
+    }
+    .letter {
+        font-size: 85%
+    }
+    .data {
+        padding-left: 0.5em
+    }
+
+    body, table {
+        font-family: sans-serif;
+        font-size: 10pt;
+    }
+    .data {
+        text-align: right;
+    }
+    .row-number {
+        padding-right: 2em;
+        text-align: right;
+    }
+    .name {
+        text-align: left;
+    }
+    .graph {
+        padding-left: 0em;
+        padding-right: 0em;
+    }
+    .head {
+        font-weight: bold;
+    }
+    .selected {
+        background: rgb(240,245,255)
+    }
+</style><script>
+
+    function event_x(e) {
+        var evt = window.event
+        return (evt.pageX - e.offsetLeft - e.offsetParent.offsetLeft) / e.offsetWidth
+    }
+  
+    var svg_ns = "http://www.w3.org/2000/svg"
+  
+    function set_attrs(e, attrs) {
+        for (a in attrs)
+            e.setAttribute(a, attrs[a])
+    }
+  
+    function elt(ns, name, attrs) {
+        var e = document.createElementNS(ns, name)
+        set_attrs(e, attrs)
+        return e
+    }
+  
+    function del_id(id) {
+        var e = document.getElementById(id)
+    }
+  
+    function move(e) {
+        var x = event_x(e)
+        set_attrs(document.getElementById('lll'), {x1:x, x2:x})
+    }
+  
+    function out(e) {
+        set_attrs(document.getElementById('lll'), {x1:-1, x2:-1})
+    }
+  
+    var width = 30;
+  
+    function add(e) {
+        var x = event_x(e)
+        var cursor = elt(svg_ns, "line",
+            {x1:x, x2:x, y1:0, y2:1, class:"cursor"})
+        var deleter = elt(svg_ns, "circle",
+            {cx:(x*100)+'%', cy:'50%', r:0.3, class:"deleter", onclick:"del(this)"})
+        var letter = elt(svg_ns, "text",
+            {x:(x*100)+'%', y:'80%', 'text-anchor':'middle', 'class':'letter'})
+        document.getElementById("cursors").appendChild(cursor)
+        document.getElementById("deleters").appendChild(deleter)
+        document.getElementById("letters").appendChild(letter)
+        deleter.related = [deleter, cursor, letter]
+        re_letter()
+    }
+  
+    function del(deleter) {
+        for (var i in deleter.related) {
+            e = deleter.related[i]
+            e.parentNode.removeChild(e)
+        }
+        re_letter()
+    }
+
+    function pos(e) {
+        return Number(e.getAttribute('x').replace('%',''))
+    }
+
+    function re_letter() {
+        console.log('re_letter')
+        ls = []
+        letters = document.getElementById("letters")
+        for (var i=0; i<letters.children.length; i++) {
+            child = letters.children[i]
+            if (child.classList.contains('letter')) {
+                console.log(child.getAttribute('x') + ' ' + child.innerHTML)
+                ls.push(child)
+            }
+        }
+        ls = ls.sort(function(a,b) {return pos(a)-pos(b)})
+        for (var i in ls)
+            ls[i].innerHTML = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijlkmnopqrstuvwxyz'[i]
+    }
+
+
+    var selected = undefined
+    var last_selected = undefined
+
+    function _desel() {
+        if (selected)
+            selected.classList.remove('selected')
+    }
+
+    function _sel(s) {
+        if (selected) {
+            last_selected = selected
+            selected.classList.add('selected')
+            for (var p=selected, y=0; p && p.tagName!='BODY'; p=p.offsetParent)
+                y += p.offsetTop
+            var h = selected.offsetHeight
+            if (window.pageYOffset + window.innerHeight < y + h)
+                selected.scrollIntoView(false)
+            else if (y < window.pageYOffset)
+                selected.scrollIntoView(true)
+        }
+    }
+
+    function sel(e) {
+        _desel()
+        if (selected!=e) {
+            selected = e
+            _sel()
+        } else {
+            selected = undefined
+        }
+    }
+
+    function re_number() {
+        n = 0
+        row = document.getElementById("table").firstChild.firstChild    
+        while (row) {
+            td = row.firstChild
+            while (td && !td.classList.contains("row-number"))
+                td = td.nextSibling            
+            if (!td)
+                return
+            if (!td.classList.contains("head")) {
+                td.innerHTML = n
+                n += 1
+            }
+            row = row.nextSibling
+        }
+    }
+
+    function set_level(c) {
+        _desel()
+        c = String(c)
+        row = document.getElementById("table").firstChild.firstChild    
+        while (row) {
+            row_level = row.getAttribute('_level')
+            if (row_level <= c) {
+                row.style.display = ''
+            } else {
+                row.style.display = 'none'
+            }
+            row = row.nextSibling
+        }
+        document.getElementById("current_level").innerHTML = c
+        selected = next_visible(selected)
+        
+    }
+
+    function initial_level(c) {
+        if (!document.getElementById("current_level").innerHTML)
+            set_level(c)
+    }
+
+    function next_visible(row) {
+        while (row && row.style.display=='none')
+            row = row.nextSibling
+        return row            
+    }
+
+    function prev_visible(row) {
+        while (row!=first_row && row.style.display=='none')
+            row = row.previousSibling
+        return row            
+    }
+
+    function key() {
+        var evt = window.event
+        var c = String.fromCharCode(evt.charCode)
+        first_row = document.getElementById("table").firstChild.firstChild
+        while (first_row && !first_row.classList.contains('row'))
+            first_row = first_row.nextSibling
+        first_row = next_visible(first_row)
+        if (!last_selected) {
+            for (var r = first_row; r && !selected; r = r.nextSibling) {
+                if (r.classList.contains('selected'))
+                   selected = r
+            }
+            last_selected = selected
+        }
+        if (!last_selected)       
+            last_selected = first_row
+        if (c=='s') {
+            if (confirm('Save?')) {
+                req = new XMLHttpRequest()
+                req.open('PUT', '')
+                req.send(document)
+                alert('Saved')
+            }
+        } else if (c=='') {
+            if (!selected)
+                selected = last_selected
+            else {
+                var s = next_visible(selected.nextSibling)
+                if (s) {
+                    _desel()
+                    selected = s
+                }
+            }
+        } else if (c=='') {
+            if (!selected)
+                selected = last_selected
+            else if (selected != first_row) {
+                selected.classList.remove('selected')
+                selected = prev_visible(selected.previousSibling)
+            }
+        } else if (c=='n') {
+            if (selected) {
+                next = next_visible(selected.nextSibling)
+                if (next) {
+                    parent = selected.parentNode
+                    parent.removeChild(selected)
+                    parent.insertBefore(selected, next.nextSibling)
+                    re_number()
+                }
+            }
+        } else if (c=='p') {
+            if (selected) {
+                if (selected!=first_row) {
+                    prev = prev_visible(selected.previousSibling)
+                    parent = selected.parentNode
+                    parent.removeChild(selected)
+                    parent.insertBefore(selected, prev)
+                    re_number()
+                }
+            }
+        } else if (c=='N') {
+            if (selected) {
+                s = next_visible(selected.nextSibling)
+                if (s) {
+                    parent = selected.parentNode
+                    parent.removeChild(selected)
+                    parent.insertBefore(selected, null)
+                    sel(s)
+                    re_number()
+                }
+            }
+        } else if (c=='P') {
+            if (selected && selected != first_row) {
+                s = prev_visible(selected.previousSibling)
+                parent = selected.parentNode
+                parent.removeChild(selected)
+                parent.insertBefore(selected, first_row)
+                sel(s)
+                re_number()
+            }
+        } else if ('1'<=c && c<='9') {
+            set_level(c)
+        }
+        _sel(selected)
+    }    
+
+    function toggle_help() {
+        e = document.getElementById('help')
+        if (e.style.display == 'none') {
+            e.style.display = 'block'
+        } else {
+            e.style.display = 'none'
+        }
+    }
+
+</script></head><body onkeypress="key()" onload="initial_level(1)"><div onclick="toggle_help()">1-9 to choose detail level; current level: <span id="current_level"></span><br/>click to toggle more help<div id="help" style="display:none">click on a graph to put down a cursor line<br/>click on a blue disk to delete a cursor<br/>click on a name to select a row<br/>^N select the next row <br/>^P select the previous row <br/>n move the selected row down <br/>p move the selected row up <br/>N move the selected row to the bottom <br/>P move the selected row to the top</div></div></br><table id="table" style="position:relative;"><tr><td class="head data">avg</td><td class="head data">max</td><td><svg height="100%" id="cursors" onclick="add(this)" onmousemove="move(this)" onmouseout="out(this)" preserveAspectRatio="none" style="position:absolute; background:none" viewBox="0 0 1 1" width="30em"><line class="cursor" id="lll" x1="-1" x2="-1" y1="0" y2="1"></svg><div style="position:relative; z-index:1000; background:white; margin-bottom:0.3em"><svg height="1em" id="letters" width="30em"></svg><br/><svg height="0.8em" id="deleters" viewBox="0 0 30 0.8" width="30em"></svg></div><div style="height: 1.1em; position:relative; width:30em"><span align="center" style="left:-44.7176627783em; position:absolute; width:100em"><span align="center" style="font-size:80%">14:05:00</span></span><span align="center" style="left:-39.0992176025em; position:absolute; width:100em"><span align="center" style="font-size:80%">14:05:05</span></span><span align="center" style="left:-33.4807724266em; position:absolute; width:100em"><span align="center" style="font-size:80%">14:05:10</span></span><span align="center" style="left:-27.8623272507em; position:absolute; width:100em"><span align="center" style="font-size:80%">14:05:15</span></span><span align="center" style="left:-22.2438820748em; position:absolute; width:100em"><span align="center" style="font-size:80%">14:05:20</span></span></div></td><td class="head desc">name</td></tr><tr _level="0" class="row" onclick="sel(this)"><td class="data">1.000</td><td class="data">1.000</td><td class="graph"><svg height="1.8em" viewBox="0 0 30 1.8" width="30em"><polygon class="shaded" points="1.5,1.62 1.5,0.18 2.62481,0.18 3.74963,0.18 4.87444,0.18 5.99925,0.18 7.12519,0.18 8.24888,0.18 9.37594,0.18 10.5007,0.18 11.6267,0.18 12.7515,0.18 13.8763,0.18 15.0011,0.18 16.1259,0.18 17.2507,0.18 18.3744,0.18 19.4993,0.18 20.6241,0.18 21.7489,0.18 22.8737,0.18 23.9985,0.18 25.1256,0.18 26.2504,0.18 27.3752,0.18 28.5,0.18 28.5,1.62"></polygon><polyline class="curve" points="1.5,0.18 2.62481,0.18 3.74963,0.18 4.87444,0.18 5.99925,0.18 7.12519,0.18 8.24888,0.18 9.37594,0.18 10.5007,0.18 11.6267,0.18 12.7515,0.18 13.8763,0.18 15.0011,0.18 16.1259,0.18 17.2507,0.18 18.3744,0.18 19.4993,0.18 20.6241,0.18 21.7489,0.18 22.8737,0.18 23.9985,0.18 25.1256,0.18 26.2504,0.18 27.3752,0.18 28.5,0.18" style="stroke:black"></polyline><line class="tick" x1="5.28233722167" x2="5.28233722167" y1="0" y2="1.8"></line><line class="tick" x1="10.9007823975" x2="10.9007823975" y1="0" y2="1.8"></line><line class="tick" x1="16.5192275734" x2="16.5192275734" y1="0" y2="1.8"></line><line class="tick" x1="22.1376727493" x2="22.1376727493" y1="0" y2="1.8"></line><line class="tick" x1="27.7561179252" x2="27.7561179252" y1="0" y2="1.8"></line></svg></td><td class="name">rs: localhost:27017 state</td></tr><tr _level="0" class="row" onclick="sel(this)"><td class="data">14.320</td><td class="data">26.000</td><td class="graph"><svg height="1.8em" viewBox="0 0 30 1.8" width="30em"><polygon class="shaded" points="1.5,1.62 1.5,1.28769 2.62481,1.23231 3.74963,1.39846 4.87444,1.34308 5.99925,1.28769 7.12519,1.23231 8.24888,1.17692 9.37594,1.12154 10.5007,1.06615 11.6267,1.01077 12.7515,0.955385 13.8763,0.9 15.0011,0.844615 16.1259,0.789231 17.2507,0.733846 18.3744,0.678462 19.4993,0.623077 20.6241,0.567692 21.7489,0.512308 22.8737,0.456923 23.9985,0.401538 25.1256,0.346154 26.2504,0.290769 27.3752,0.235385 28.5,0.18 28.5,1.62"></polygon><polyline class="curve" points="1.5,1.28769 2.62481,1.23231 3.74963,1.39846 4.87444,1.34308 5.99925,1.28769 7.12519,1.23231 8.24888,1.17692 9.37594,1.12154 10.5007,1.06615 11.6267,1.01077 12.7515,0.955385 13.8763,0.9 15.0011,0.844615 16.1259,0.789231 17.2507,0.733846 18.3744,0.678462 19.4993,0.623077 20.6241,0.567692 21.7489,0.512308 22.8737,0.456923 23.9985,0.401538 25.1256,0.346154 26.2504,0.290769 27.3752,0.235385 28.5,0.18" style="stroke:black"></polyline><line class="tick" x1="5.28233722167" x2="5.28233722167" y1="0" y2="1.8"></line><line class="tick" x1="10.9007823975" x2="10.9007823975" y1="0" y2="1.8"></line><line class="tick" x1="16.5192275734" x2="16.5192275734" y1="0" y2="1.8"></line><line class="tick" x1="22.1376727493" x2="22.1376727493" y1="0" y2="1.8"></line><line class="tick" x1="27.7561179252" x2="27.7561179252" y1="0" y2="1.8"></line></svg></td><td class="name">rs: localhost:27117 lag</td></tr><tr _level="0" class="row" onclick="sel(this)"><td class="data">2.920</td><td class="data">3.000</td><td class="graph"><svg height="1.8em" viewBox="0 0 30 1.8" width="30em"><polygon class="shaded" points="1.5,1.62 1.5,0.66 2.62481,0.66 3.74963,0.18 4.87444,0.18 5.99925,0.18 7.12519,0.18 8.24888,0.18 9.37594,0.18 10.5007,0.18 11.6267,0.18 12.7515,0.18 13.8763,0.18 15.0011,0.18 16.1259,0.18 17.2507,0.18 18.3744,0.18 19.4993,0.18 20.6241,0.18 21.7489,0.18 22.8737,0.18 23.9985,0.18 25.1256,0.18 26.2504,0.18 27.3752,0.18 28.5,0.18 28.5,1.62"></polygon><polyline class="curve" points="1.5,0.66 2.62481,0.66 3.74963,0.18 4.87444,0.18 5.99925,0.18 7.12519,0.18 8.24888,0.18 9.37594,0.18 10.5007,0.18 11.6267,0.18 12.7515,0.18 13.8763,0.18 15.0011,0.18 16.1259,0.18 17.2507,0.18 18.3744,0.18 19.4993,0.18 20.6241,0.18 21.7489,0.18 22.8737,0.18 23.9985,0.18 25.1256,0.18 26.2504,0.18 27.3752,0.18 28.5,0.18" style="stroke:black"></polyline><line class="tick" x1="5.28233722167" x2="5.28233722167" y1="0" y2="1.8"></line><line class="tick" x1="10.9007823975" x2="10.9007823975" y1="0" y2="1.8"></line><line class="tick" x1="16.5192275734" x2="16.5192275734" y1="0" y2="1.8"></line><line class="tick" x1="22.1376727493" x2="22.1376727493" y1="0" y2="1.8"></line><line class="tick" x1="27.7561179252" x2="27.7561179252" y1="0" y2="1.8"></line></svg></td><td class="name">rs: localhost:27117 state</td></tr></table></body></html>
