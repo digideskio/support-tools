@@ -158,31 +158,3 @@ def progress(fn, opt):
     util.dbg('%s: %d lines, %.3f s, %d lines/s' % (fn, n, t, n/t))
 
 
-#
-# html helpers
-#
-
-def elt(name, attrs={}):
-    sys.stdout.write('<%s' % name)
-    for a in sorted(attrs):
-        sys.stdout.write(' %s="%s"' % (a, attrs[a]))
-    sys.stdout.write('>')
-
-def eltend(name, attrs={}, *content):
-    elt(name, attrs)
-    put(*content)
-    end(name)
-
-def end(name):
-    sys.stdout.write('</' + name + '>')
-
-def put(*content):
-    for s in content:
-        sys.stdout.write(s)
-
-def td(cls, *content):
-    elt('td', {'class':cls})
-    if content:
-        put(*content)
-        end('td')
-

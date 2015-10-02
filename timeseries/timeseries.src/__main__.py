@@ -1,6 +1,6 @@
 import argparse
 
-import html
+import flow
 
 #
 #
@@ -30,6 +30,7 @@ if __name__ == '__main__':
     p.add_argument('--progress-every', type=int, default=10000)
     p.add_argument('--profile', action='store_true')
     p.add_argument('--overview', default='heuristic')
+    p.add_argument('--server', action='store_true')
     opt = p.parse_args()
 
     if opt.profile:
@@ -37,10 +38,10 @@ if __name__ == '__main__':
         import pyinstrument, codecs, locale
         p = pyinstrument.Profiler()
         p.start()
-        html.main(opt)
+        flow.main(opt)
         p.stop()
         out = codecs.getwriter('UTF-8')(sys.stderr)
         out.write(p.output_text(unicode=True, color=True))
     else:
-        html.main(opt)
+        flow.main(opt)
 

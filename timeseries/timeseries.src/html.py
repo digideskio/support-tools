@@ -5,6 +5,7 @@ import os
 import pkgutil
 import pytz
 
+import flow
 import graphing
 import process
 import util
@@ -94,21 +95,21 @@ def _get_graphs(specs, opt):
 
 def cursors_html(width, tmin, tmax, ticks):
 
-    util.elt('svg', {
+    flow.elt('svg', {
         'id':'cursors', 'width':'%dem'%width, 'height':'100%', 'viewBox':'0 0 1 1',
         'preserveAspectRatio':'none', 'style':'position:absolute; background:none',
         'onmousemove':'move(this)', 'onmouseout':'out(this)',  'onclick':'add(this)'
     })
-    util.elt('line', {'id':'lll', 'class':'cursor', 'x1':-1, 'y1':0, 'x2':-1, 'y2':1})
-    util.end('svg')
+    flow.elt('line', {'id':'lll', 'class':'cursor', 'x1':-1, 'y1':0, 'x2':-1, 'y2':1})
+    flow.end('svg')
 
-    util.elt('div', {'style':'position:relative; z-index:1000; background:white; margin-bottom:0.3em'})
-    util.eltend('svg', {'id':'letters', 'width':'%dem'%width, 'height':'1em'})
+    flow.elt('div', {'style':'position:relative; z-index:1000; background:white; margin-bottom:0.3em'})
+    flow.eltend('svg', {'id':'letters', 'width':'%dem'%width, 'height':'1em'})
     h = 0.8
     viewBox = '0 0 %g %g' % (width, h)
-    util.put('<br/>')
-    util.eltend('svg', {'id':'deleters', 'width':'%gem'%width, 'height':'%gem'%h, 'viewBox':viewBox}),
-    util.end('div')
+    flow.put('<br/>')
+    flow.eltend('svg', {'id':'deleters', 'width':'%gem'%width, 'height':'%gem'%h, 'viewBox':viewBox}),
+    flow.end('div')
 
     graphing.labels(tmin, tmax, width, ticks, [util.f2t(t).strftime('%H:%M:%S') for t in ticks])
 
@@ -118,7 +119,7 @@ def cursors_html(width, tmin, tmax, ticks):
 #
 #
 
-def main(opt):
+def page(opt):
 
     # just list?
     if opt.list:
@@ -184,39 +185,39 @@ def main(opt):
             ticks=ticks, shaded=len(data)==1, bins=opt.bins
         )
 
-    util.elt('html')
-    util.elt('head')
-    util.elt('meta', {'charset':'utf-8'})
-    util.elt('style')
-    util.put(graphing_css)
-    util.put(cursors_css)
-    util.put(html_css)
-    util.end('style')
-    util.elt('script')
-    util.put(cursors_js % opt.width)
-    util.put(html_js)
-    util.end('script')
-    util.end('head')
-    util.elt('body', {'onkeypress':'key()', 'onload':'initial_level(%d)'%opt.level})
+    flow.elt('html')
+    flow.elt('head')
+    flow.elt('meta', {'charset':'utf-8'})
+    flow.elt('style')
+    flow.put(graphing_css)
+    flow.put(cursors_css)
+    flow.put(html_css)
+    flow.end('style')
+    flow.elt('script')
+    flow.put(cursors_js % opt.width)
+    flow.put(html_js)
+    flow.end('script')
+    flow.end('head')
+    flow.elt('body', {'onkeypress':'key()', 'onload':'initial_level(%d)'%opt.level})
 
-    util.elt('div', {'onclick':'toggle_help()'})
-    util.put('1-9 to choose detail level; current level: <span id="current_level"></span><br/>')
-    util.put('click to toggle more help')
-    util.eltend('div', {'id':'help', 'style':'display:none'}, _help)
-    util.end('div')
-    util.put('</br>')
+    flow.elt('div', {'onclick':'toggle_help()'})
+    flow.put('1-9 to choose detail level; current level: <span id="current_level"></span><br/>')
+    flow.put('click to toggle more help')
+    flow.eltend('div', {'id':'help', 'style':'display:none'}, _help)
+    flow.end('div')
+    flow.put('</br>')
 
-    util.elt('table', {'id':'table', 'style':'position:relative;'})
-    util.elt('tr')
-    util.td('head data', 'avg')
-    util.td('head data', 'max')
-    util.elt('td')
+    flow.elt('table', {'id':'table', 'style':'position:relative;'})
+    flow.elt('tr')
+    flow.td('head data', 'avg')
+    flow.td('head data', 'max')
+    flow.elt('td')
     cursors_html(opt.width, tmin, tmax, ticks)
-    util.end('td')
+    flow.end('td')
     if opt.number_rows:
-        util.td('head row-number', 'row')
-    util.td('head desc', 'name')
-    util.end('tr')
+        flow.td('head row-number', 'row')
+    flow.td('head desc', 'name')
+    flow.end('tr')
 
     colors = ['rgb(50,102,204)','rgb(220,57,24)','rgb(253,153,39)','rgb(20,150,24)',
               'rgb(153,20,153)', 'rgb(200,200,200)']
@@ -225,16 +226,16 @@ def main(opt):
         return colors[i] if i <len(colors) else 'black'
 
     def name_td(g):
-        util.td('name')
+        flow.td('name')
         pfx = os.path.commonprefix([s.name for s in g])
         sfx = os.path.commonprefix([s.name[::-1] for s in g])[::-1]
-        util.put(pfx)
+        flow.put(pfx)
         if sfx != pfx:
             for i,s in enumerate(g):
                 mid = ' ' + s.name[len(pfx):len(s.name)-len(sfx)]
-                util.eltend('span', {'style':'color:%s' % color(i)}, mid)
-            util.put(sfx)
-        util.end('td')
+                flow.eltend('span', {'style':'color:%s' % color(i)}, mid)
+            flow.put(sfx)
+        flow.end('td')
 
     row = 0
     for graph in sorted(graphs, key=lambda g: g[0].key):
@@ -246,43 +247,43 @@ def main(opt):
         display_ymax = max(s.display_ymax for s in graph)
         if ylen:
             if ymax!=0 or ymin!=0 or opt.show_zero:
-                util.elt('tr', {'onclick':'sel(this)', 'class':'row', '_level':graph[0].level})
-                util.td('data', '{:,.3f}'.format(float(ysum)/ylen))
-                util.td('data', '{:,.3f}'.format(ymax))
-                util.td('graph')
+                flow.elt('tr', {'onclick':'sel(this)', 'class':'row', '_level':graph[0].level})
+                flow.td('data', '{:,.3f}'.format(float(ysum)/ylen))
+                flow.td('data', '{:,.3f}'.format(ymax))
+                flow.td('graph')
                 graph_color = lambda graph, i: color(i) if len(graph)>1 else 'black'
                 data = [(s.ts, s.ys, graph_color(graph,i)) for i,s in enumerate(graph)]
                 _graph(data, display_ymax)
-                util.end('td')
+                flow.end('td')
                 if opt.number_rows:
-                    util.td('row-number', str(row))
+                    flow.td('row-number', str(row))
                     row += 1
                 name_td(graph)
-                util.end('tr')
+                flow.end('tr')
             else:
                 util.dbg('skipping uniformly zero data for', graph[0].get('name'), 'in', graph[0].fn)
                 for s in graph:
                     spec_zero[s.spec] += 1
         elif opt.show_empty:
-            util.elt('tr', {'onclick':'sel(this)', 'class':'row', '_level':graph[0].level})
-            util.td('data', 'n/a')
-            util.td('data', 'n/a')
-            util.td('graph')
+            flow.elt('tr', {'onclick':'sel(this)', 'class':'row', '_level':graph[0].level})
+            flow.td('data', 'n/a')
+            flow.td('data', 'n/a')
+            flow.td('graph')
             _graph()
-            util.end('td')
+            flow.end('td')
             if opt.number_rows:
-                util.td('row-number', str(row))
+                flow.td('row-number', str(row))
                 row += 1
             name_td(graph)
-            util.end('tr')
+            flow.end('tr')
         else:
             util.dbg('no data for', graph[0].get('name'), 'in', graph[0].fn)
             for s in graph:
                 spec_empty[s.spec] += 1
 
-    util.end('table')
-    util.end('body')
-    util.end('html')
+    flow.end('table')
+    flow.end('body')
+    flow.end('html')
 
     for spec in opt.specs:
         util.msg('spec', repr(spec), 'matched:', spec_matches[spec],

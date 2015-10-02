@@ -9,6 +9,7 @@ import string
 import time
 
 import descriptors
+import flow
 import util
 
 
@@ -27,7 +28,7 @@ def html_graph(
     bins=0
 ):
 
-    util.elt('svg', {
+    flow.elt('svg', {
         'width':'%gem' % width,
         'height':'%gem' % height,
         'viewBox':'%g %g %g %g' % (0, 0, width, height)
@@ -68,8 +69,8 @@ def html_graph(
                 points = left + ' ' + line + ' ' + right
                 cls = 'shaded'
                 if type(shaded)==str: cls += ' ' + shaded
-                util.eltend('polygon', {'points':points, 'class':cls})
-            util.eltend('polyline', {'points':line, 'class':'curve', 'style':'stroke:%s'%color})
+                flow.eltend('polygon', {'points':points, 'class':cls})
+            flow.eltend('polyline', {'points':line, 'class':'curve', 'style':'stroke:%s'%color})
 
         else:
 
@@ -88,10 +89,10 @@ def html_graph(
                 left = '%g,%g' % (xmin, gy(0))
                 right = '%g,%g' % (xmax, gy(0))
                 points = right + ' ' + line + ' ' + left
-                util.eltend('polygon', {'points':points, 'class':'shaded'})
+                flow.eltend('polygon', {'points':points, 'class':'shaded'})
             line += ' ' + ' '.join(r'%g,%g' % (gx(bt(i)), gy(ymaxs[i])) for i in bis)
             style = 'stroke:%s; fill:%s; stroke-width:0.7' % (color, color)
-            util.eltend('polyline', {'points':line, 'class':'curve', 'style':style})
+            flow.eltend('polyline', {'points':line, 'class':'curve', 'style':style})
 
 
     if data and ticks:
@@ -99,20 +100,20 @@ def html_graph(
             ticks = [tmin + (tmax-tmin)*i/ticks for i in range(ticks+1)]
         for t in ticks:
             x = gx(dt(t))
-            util.eltend('line', {'x1':x, 'x2':x, 'y1':0, 'y2':height, 'class':'tick'})
+            flow.eltend('line', {'x1':x, 'x2':x, 'y1':0, 'y2':height, 'class':'tick'})
 
-    util.end('svg')
+    flow.end('svg')
 
 def labels(tmin, tmax, width, ts, labels):
-    util.elt('div', {'style':'height: 1.1em; position:relative; width:%gem' % width})
+    flow.elt('div', {'style':'height: 1.1em; position:relative; width:%gem' % width})
     tspan = tmax - tmin
     gx = lambda t: (t-tmin) / tspan * (width-2*xpad) + xpad
     for t, label in zip(ts, labels):
         style = 'left:{x}em; position:absolute; width:100em'.format(x=gx(t)-50)
-        util.elt('span', {'align':'center', 'style':style})
-        util.eltend('span', {'align':'center', 'style':'font-size:80%'}, label)
-        util.end('span')
-    util.end('div')
+        flow.elt('span', {'align':'center', 'style':style})
+        flow.eltend('span', {'align':'center', 'style':'font-size:80%'}, label)
+        flow.end('span')
+    flow.end('div')
 
 
 #
