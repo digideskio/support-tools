@@ -93,7 +93,7 @@ function test-014 {
 }
 
 function test-015 {
-    fn=data/diagnostic.data/metrics.2015-10-02T10-46-20Z-00000
+    fn=data/diagnostic.data
     run-timeseries --after 2015-10-02T12:33Z --before 2015-10-02T12:36Z ftdc:$fn
 }
 
