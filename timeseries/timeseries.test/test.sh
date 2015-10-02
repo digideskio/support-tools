@@ -92,6 +92,11 @@ function test-014 {
     run-timeseries 'ftdc:data/diagnostic.data' --level 9 --overview 100
 }
 
+function test-015 {
+    fn=data/diagnostic.data/metrics.2015-10-02T10-46-20Z-00000
+    run-timeseries --after 2015-10-02T12:33Z --before 2015-10-02T12:36Z ftdc:$fn
+}
+
 
 function compare-html {
 
@@ -167,6 +172,7 @@ function run-tests {
     run-test test-012
     run-test test-013
     run-test test-014
+    run-test test-015
 }
 
 function zip-source {
