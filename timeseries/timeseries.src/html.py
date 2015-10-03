@@ -1,3 +1,4 @@
+import base64
 import collections
 import datetime as dt
 import math
@@ -20,6 +21,7 @@ html_js = pkgutil.get_data("__main__", "html.js")
 graphing_css = pkgutil.get_data("__main__", "graphing.css")
 cursors_css = pkgutil.get_data("__main__", "cursors.css")
 cursors_js = pkgutil.get_data("__main__", "cursors.js")
+leaf = base64.b64encode(pkgutil.get_data("__main__", "leaf.png"))
 
 _help = '''
 click on a graph to put down a cursor line
@@ -188,6 +190,7 @@ def page(opt):
     flow.elt('html')
     flow.elt('head')
     flow.elt('meta', {'charset':'utf-8'})
+    flow.eltend('link', {'rel':'icon', 'type':'image/png', 'href':'data:image/png;base64,' + leaf})
     flow.elt('style')
     flow.put(graphing_css)
     flow.put(cursors_css)
