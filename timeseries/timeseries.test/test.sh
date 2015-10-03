@@ -4,7 +4,7 @@ function @echo {
 }
 
 function run-timeseries {
-    @echo ../timeseries.py "${@}"
+    @echo time ../timeseries.py "${@}"
 }
 
 function test-001 {
@@ -84,17 +84,34 @@ function test-012 {
     run-timeseries 'ftdc:data/ss-wt-repl-600.json'
 }
 
+
+# basic test of an entire diagnostic.data directory
+# size is large enough to invoke default overview limit of 1000
 function test-013 {
     run-timeseries 'ftdc:data/diagnostic.data' --level 9
 }
 
+# entire directory with an overview small enough to go to 1 sample per chunk overview
 function test-014 {
     run-timeseries 'ftdc:data/diagnostic.data' --level 9 --overview 100
 }
 
+# small time range
 function test-015 {
     fn=data/diagnostic.data
     run-timeseries --after 2015-10-02T12:33Z --before 2015-10-02T12:36Z ftdc:$fn
+}
+
+# interim file
+function test-016 {
+    fn=data/diagnostic.data/metrics.interim
+    run-timeseries ftdc:$fn
+}
+
+# single file
+function test-017 {
+    fn=data/diagnostic.data/metrics.2015-10-02T10-46-20Z-00000
+    run-timeseries ftdc:$fn
 }
 
 
@@ -146,6 +163,8 @@ function run-test {
 
     test=$1
 
+    echo === $test
+
     if $test >/tmp/$test.html && compare-html ref/$test.html /tmp/$test.html; then
         echo $test PASS
     else
@@ -173,6 +192,8 @@ function run-tests {
     run-test test-013
     run-test test-014
     run-test test-015
+    run-test test-016
+    run-test test-017
 }
 
 function zip-source {
