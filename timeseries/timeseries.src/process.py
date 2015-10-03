@@ -56,7 +56,7 @@ def read_lines(fn, opt):
     return util.progress(fn, opt)
 
 def read_metrics(fn, opt):
-    return ftdc.FTDC(fn, opt).read()
+    return ftdc.read(fn, opt)
 
 
 
