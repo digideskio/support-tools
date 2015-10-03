@@ -1,6 +1,8 @@
 import BaseHTTPServer
-import html
+import pkgutil
 import sys
+
+import html
 import util
 
 
@@ -39,12 +41,16 @@ def td(cls, *content):
 class Handler(BaseHTTPServer.BaseHTTPRequestHandler):
 
     def do_GET(self):
-        self.send_response(200)
-        self.send_header("Content-type", "text/html")
-        self.end_headers()
-        global out
-        out = self.wfile
-        html.page(self.server.opt)
+        if self.path=='/':
+            self.send_response(200)
+            self.send_header("Content-type", "text/html")
+            self.end_headers()
+            global out
+            out = self.wfile
+            html.page(self.server.opt)
+        else:
+            util.msg(self.path, 'NOT FOUND')
+            self.send_resonse(404)
 
 
 #
