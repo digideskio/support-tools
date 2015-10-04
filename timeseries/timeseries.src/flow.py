@@ -1,6 +1,7 @@
 import BaseHTTPServer
 import pkgutil
 import sys
+import urlparse
 
 import html
 import util
@@ -40,17 +41,29 @@ def td(cls, *content):
 
 class Handler(BaseHTTPServer.BaseHTTPRequestHandler):
 
+    def prepare(self):
+        self.send_response(200)
+        self.send_header("Content-type", "text/html")
+        self.end_headers()
+        global out
+        out = self.wfile
+
     def do_GET(self):
         if self.path=='/':
-            self.send_response(200)
-            self.send_header("Content-type", "text/html")
-            self.end_headers()
-            global out
-            out = self.wfile
+            self.prepare()
             html.page(self.server.opt)
         else:
             util.msg(self.path, 'NOT FOUND')
             self.send_resonse(404)
+
+    def do_POST(self):
+        util.msg('POST', self.path)
+        if self.path=='/zoom':
+            l = int(self.headers.getheader('content-length', 0))
+            req = urlparse.parse_qs(self.rfile.read(l))
+            self.prepare()
+            self.server.opt = html.zoom(self.server.opt, req['start'][0], req['end'][0])
+            
 
 
 #

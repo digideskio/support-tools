@@ -33,6 +33,8 @@ n move the selected row down
 p move the selected row up 
 N move the selected row to the bottom 
 P move the selected row to the top 
+z to zoom in
+Z to zoom out
 '''.strip().replace('\n', '<br/>')
 
 
@@ -137,9 +139,9 @@ def page(opt):
         util.msg('no series specified')
         return
     try:
-        tmin = min(s.tmin for g in graphs for s in g if s.tmin)
-        tmax = max(s.tmax for g in graphs for s in g if s.tmax)
-        tspan = tmax - tmin
+        opt.tmin = min(s.tmin for g in graphs for s in g if s.tmin)
+        opt.tmax = max(s.tmax for g in graphs for s in g if s.tmax)
+        tspan = opt.tmax - opt.tmin
     except ValueError:
         util.msg('no data found')
         return
@@ -152,13 +154,13 @@ def page(opt):
     spec_empty = collections.defaultdict(int)
     spec_zero = collections.defaultdict(int)
 
-    util.msg('start:', util.f2t(tmin))
-    util.msg('finish:', util.f2t(tmax))
+    util.msg('start:', util.f2t(opt.tmin))
+    util.msg('finish:', util.f2t(opt.tmax))
 
 
-    util.msg('duration:', util.f2t(tmax) - util.f2t(tmin))
+    util.msg('duration:', util.f2t(opt.tmax) - util.f2t(opt.tmin))
     if opt.duration: # in seconds
-        tmax = tmin + timedelta(0, opt.duration)
+        opt.tmax = opt.tmin + timedelta(0, opt.duration)
 
     # compute ticks
     ranges = [1, 2.5, 5, 10, 15, 20, 30, 60] # seconds
@@ -171,17 +173,17 @@ def page(opt):
         if tickdelta<r:
             tickdelta = r
             break
-    tickmin = math.ceil(tmin/tickdelta) * tickdelta
+    tickmin = math.ceil(opt.tmin/tickdelta) * tickdelta
     ticks = []
     for i in range(nticks+1):
         t = tickmin + i * tickdelta
-        if t > tmax: break
+        if t > opt.tmax: break
         ticks.append(t)
 
     def _graph(data=[], ymax=None):
         graphing.html_graph(
             data=data,
-            tmin=tmin, tmax=tmax, width=opt.width,
+            tmin=opt.tmin, tmax=opt.tmax, width=opt.width,
             ymin=0, ymax=ymax, height=opt.height,
             #ticks=ticks, shaded=not opt.no_shade and len(data)==1)
             ticks=ticks, shaded=len(data)==1, bins=opt.bins
@@ -197,8 +199,8 @@ def page(opt):
     flow.put(html_css)
     flow.end('style')
     flow.elt('script')
-    flow.put(cursors_js % opt.width)
     flow.put(html_js)
+    flow.put(cursors_js)
     flow.end('script')
     flow.end('head')
     flow.elt('body', {'onkeypress':'key()', 'onload':'initial_level(%d)'%opt.level})
@@ -215,7 +217,7 @@ def page(opt):
     flow.td('head data', 'avg')
     flow.td('head data', 'max')
     flow.elt('td')
-    cursors_html(opt.width, tmin, tmax, ticks)
+    cursors_html(opt.width, opt.tmin, opt.tmax, ticks)
     flow.end('td')
     if opt.number_rows:
         flow.td('head row-number', 'row')
@@ -293,4 +295,17 @@ def page(opt):
             'zero:', spec_zero[spec], 'empty:', spec_empty[spec])
 
 
+def zoom(opt, start, end):
+    def gt(t):
+        if t=='all':
+            return None
+        else:
+            if t=='end': t = opt.tmax
+            elif t=='start': t = opt.tmin
+            else: t = float(t)
+            return graphing.time_for(t, opt.width, opt.tmin, opt.tmax)
+    opt.after = gt(start)
+    opt.before = gt(end)
+    page(opt)
+    return opt
 

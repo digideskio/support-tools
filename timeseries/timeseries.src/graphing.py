@@ -115,6 +115,10 @@ def labels(tmin, tmax, width, ts, labels):
         flow.end('span')
     flow.end('div')
 
+# x is a relative position (0-1) within the graphing area, which includes xpad on either side
+# compute the corresponding time on the graph, given tmin and tmax for the graph itself
+def time_for(x, width, tmin, tmax):
+    return tmin + ((x * (width + 2*xpad) - xpad) / width) * (tmax - tmin)
 
 #
 #

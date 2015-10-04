@@ -105,6 +105,10 @@ function key() {
             req.send(document)
             alert('Saved')
         }
+    } else if (c=='z') {
+        zoom()
+    } else if (c=='Z') {
+        zoom_all()
     } else if (c=='') {
         if (!selected)
             selected = last_selected
@@ -175,5 +179,21 @@ function toggle_help() {
     } else {
         e.style.display = 'none'
     }
+}
+
+//
+// post a list of variables to a url
+//
+function post(url, vars) {
+    form = document.createElement("form");
+    form.action = url;
+    form.method = "post";
+    for (v in vars) {
+        e = document.createElement("input");
+        e.name = v
+        e.value = vars[v]
+        form.appendChild(e)
+    }
+    form.submit()
 }
 
