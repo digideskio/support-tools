@@ -33,6 +33,8 @@ n move the selected row down
 p move the selected row up 
 N move the selected row to the bottom 
 P move the selected row to the top 
+1-9 to change detail level
+o to change overview subsampling
 z to zoom in
 Z to zoom out
 '''.strip().replace('\n', '<br/>')
@@ -115,7 +117,16 @@ def cursors_html(width, tmin, tmax, ticks):
     flow.eltend('svg', {'id':'deleters', 'width':'%gem'%width, 'height':'%gem'%h, 'viewBox':viewBox}),
     flow.end('div')
 
-    graphing.labels(tmin, tmax, width, ticks, [util.f2t(t).strftime('%H:%M:%S') for t in ticks])
+    # add the time axis labels
+    labels = []
+    last_d = None
+    for t in ticks:
+        t = util.f2t(t)
+        d = t.strftime('%y-%m-%d')
+        label = d if d != last_d else ''
+        last_d = d
+        labels.append(label + t.strftime('<br/>%H:%M:%S'))
+    graphing.labels(tmin, tmax, width, 2, ticks, labels)
 
 
 
@@ -128,6 +139,10 @@ in_progress = False
 def progress(msg):
     if in_progress:
         flow.put(msg + '<br/>')
+
+def advise(msg):
+    advice.append(msg)
+
 
 #
 # generate a page
@@ -142,6 +157,9 @@ def page(opt, server=False):
             d.update(desc)
             util.msg(get(d, 'name'))
         return
+
+    global advice
+    advice = ['current detail level is <span id="current_level"></span> (hit 1-9 to change)']
 
     # start the page before reading the data so we can emit progress messages
     flow.elt('html')
@@ -186,11 +204,11 @@ def page(opt, server=False):
 
     # help message at the top
     flow.elt('div', {'onclick':'toggle_help()'})
-    flow.put('1-9 to choose detail level; current level: <span id="current_level"></span><br/>')
-    flow.put('click to toggle more help')
+    flow.put('<b>click here for help</b></br>')
     flow.eltend('div', {'id':'help', 'style':'display:none'}, _help)
     flow.end('div')
-    flow.put('</br>')
+    flow.put('<br/>'.join(advice))
+    flow.put('<br/><br/>')
 
     # compute stats
     spec_matches = collections.defaultdict(int)
@@ -225,15 +243,25 @@ def page(opt, server=False):
 
     # table of graphs
     flow.elt('table', {'id':'table', 'style':'position:relative;'})
+
+    # this row holds cursor heads, cursor letters, and time labels
     flow.elt('tr')
-    flow.td('head data', 'avg')
-    flow.td('head data', 'max')
+    flow.eltend('td')
+    flow.eltend('td')
     flow.elt('td')
     cursors_html(opt.width, opt.tmin, opt.tmax, ticks)
     flow.end('td')
+    flow.end('tr')
+
+    # this row holds data column heads (min, max, name)
+    flow.elt('tr')
+    flow.td('head data', 'avg')
+    flow.td('head data', 'max')
+    flow.eltend('td')
     if opt.number_rows:
         flow.td('head row-number', 'row')
     flow.td('head desc', 'name')
+    flow.td('')
     flow.end('tr')
 
     # function to emit a graph
@@ -265,7 +293,7 @@ def page(opt, server=False):
             flow.put(sfx)
         flow.end('td')
 
-    # output each graph
+    # output each graph as a table row
     row = 0
     for graph in sorted(graphs, key=lambda g: g[0].key):
         graph.sort(key=lambda s: s.key)

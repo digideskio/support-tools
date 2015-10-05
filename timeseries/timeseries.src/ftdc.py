@@ -345,12 +345,16 @@ def read(fn, opt):
         read_bytes += len(chunk)
         read_samples += chunk.nsamples
         if read_chunks%10==0 or read_bytes==total_bytes:
-            msg =  '%d chunks, %d samples, %d bytes (%.0f%%), %d bytes/sample; %d samples used' % (
+            msg = '%d chunks, %d samples, %d bytes (%.0f%%), %d bytes/sample; %d samples used' % (
                 read_chunks, read_samples, read_bytes, 100.0*read_bytes/total_bytes,
                 read_bytes/read_samples, used_samples
             )
             util.msg(msg)
             html.progress(msg)
+
+    html.advise('showing ~%d of ~%d samples (hit o to change, or use z to zoom in)' % (
+        used_samples, read_samples
+    ))
 
 
 def dbg(fn, opt):

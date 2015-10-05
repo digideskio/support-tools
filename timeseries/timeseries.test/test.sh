@@ -141,18 +141,26 @@ function compare-html {
     echo ref hash: $ref_hash
     echo act hash: $act_hash
 
+    function ask {
+        if [[ ! -n $DONT_ASK ]]; then
+            osascript -e "tell App \"Terminal\" to display dialog \"$*\""
+        else
+            return 0
+        fi
+    }
+
     # compare hashes
     if [[ $ref_hash != $act_hash ]]; then
 
         # hashes not equal; use Preview to do visual comparison
         open /tmp/$o-{ref,act}-full.png
-        osascript -e 'tell App "Terminal" to display dialog "Looks good?"'
+        ask "Looks good?"
         if [[ $? == 1 ]]; then
             return -1
         fi
 
         # user said was ok; ask if we should update the reference html
-        osascript -e 'tell App "Terminal" to display dialog "Update reference html?"'
+        ask "Update reference html?"
         if [[ $? == 0 ]]; then
             @echo cp $act $ref
         fi

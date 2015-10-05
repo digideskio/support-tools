@@ -104,14 +104,14 @@ def html_graph(
 
     flow.end('svg')
 
-def labels(tmin, tmax, width, ts, labels):
-    flow.elt('div', {'style':'height: 1.1em; position:relative; width:%gem' % width})
+def labels(tmin, tmax, width, height, ts, labels):
+    flow.elt('div', {'style':'height: %fem; position:relative; width:%gem' % (height,width)})
     tspan = tmax - tmin
     gx = lambda t: (t-tmin) / tspan * (width-2*xpad) + xpad
     for t, label in zip(ts, labels):
         style = 'left:{x}em; position:absolute; width:100em'.format(x=gx(t)-50)
         flow.elt('span', {'align':'center', 'style':style})
-        flow.eltend('span', {'align':'center', 'style':'font-size:80%'}, label)
+        flow.eltend('div', {'align':'center', 'style':'font-size:80%'}, label)
         flow.end('span')
     flow.end('div')
 
