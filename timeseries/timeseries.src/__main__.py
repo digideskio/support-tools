@@ -31,6 +31,8 @@ if __name__ == '__main__':
     p.add_argument('--profile', action='store_true')
     p.add_argument('--overview', default='heuristic')
     p.add_argument('--server', action='store_true')
+    p.add_argument('--browser', action='store_true')
+    p.add_argument('--port', type=int, default=8888)
     opt = p.parse_args()
 
     if opt.profile:

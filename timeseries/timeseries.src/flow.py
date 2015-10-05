@@ -1,5 +1,6 @@
 import BaseHTTPServer
 import pkgutil
+import subprocess
 import sys
 import urlparse
 
@@ -72,11 +73,30 @@ class Handler(BaseHTTPServer.BaseHTTPRequestHandler):
 
 def main(opt):
 
+    url = 'http://localhost:%d' % opt.port
+
+    if opt.browser:
+
+        opt.server = True
+        cmd = None
+
+        if sys.platform=='darwin':
+            cmd = 'sleep 1; open -a "Google Chrome" %s' % url
+        elif sys.platform=='linux2':
+            cmd = 'sleep 1; google-chrome %s &' % url
+
+        if cmd:
+            rc = subprocess.call(cmd, shell=True)
+            if rc != 0:
+                util.msg('can\'t open browser; is Google Chrome installed?')
+        else:
+            util.msg('don\'t know how to open a browser on your platform')
+
+
     if opt.server:
-        port = 8888
-        httpd = BaseHTTPServer.HTTPServer(('', port), Handler)
+        httpd = BaseHTTPServer.HTTPServer(('', opt.port), Handler)
         httpd.opt = opt
-        util.msg('listening')
+        util.msg('listening for a browser request for %s' % url)
         httpd.serve_forever()
     else:
         global out
