@@ -4,6 +4,7 @@ import datetime as dt
 import pytz
 import time
 
+import html
 import util
 
 #
@@ -65,7 +66,7 @@ class parse_time:
             except:
                 pass
         if not self._parse_time:
-            #msg('using slow timestamp parsing')
+            #util.msg('using slow timestamp parsing')
             self._parse_time = self._parse_time_slow
 
     def parse_time(self, time, opt, s):
@@ -144,14 +145,15 @@ def progress(fn, opt):
             size = None
 
         # enumerate lines
-        msg('reading', fn)
+        util.msg('reading', fn)
         for n, line in enumerate(f):
             yield line
             if n>0 and n%opt.progress_every==0:
                 s = '%s: processed %d lines' % (fn, n)
                 if size:
                     s += ' (%d%%)' % (100.0*f.tell()/size)
-                msg(s)
+                util.msg(s)
+                html.progress(s)
 
     # final stats
     t = time.time() - t
