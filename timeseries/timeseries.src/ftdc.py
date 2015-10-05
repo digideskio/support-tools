@@ -1,4 +1,5 @@
 import collections
+import html
 import itertools
 import math
 import mmap
@@ -344,11 +345,13 @@ def read(fn, opt):
         read_bytes += len(chunk)
         read_samples += chunk.nsamples
         if read_chunks%10==0 or read_bytes==total_bytes:
-            util.msg(
-                '%d chunks, %d samples, %d bytes (%.0f%%), %d bytes/sample; %d samples used' % (
-                    read_chunks, read_samples, read_bytes, 100.0*read_bytes/total_bytes,
-                    read_bytes/read_samples, used_samples
-            ))
+            msg =  '%d chunks, %d samples, %d bytes (%.0f%%), %d bytes/sample; %d samples used' % (
+                read_chunks, read_samples, read_bytes, 100.0*read_bytes/total_bytes,
+                read_bytes/read_samples, used_samples
+            )
+            util.msg(msg)
+            html.progress(msg)
+
 
 def dbg(fn, opt):
     def pt(t):

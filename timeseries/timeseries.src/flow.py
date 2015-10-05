@@ -51,7 +51,7 @@ class Handler(BaseHTTPServer.BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path=='/':
             self.prepare()
-            html.page(self.server.opt)
+            html.page(self.server.opt, server=True)
         else:
             util.msg(self.path, 'NOT FOUND')
             self.send_resonse(404)
@@ -81,4 +81,4 @@ def main(opt):
     else:
         global out
         out = sys.stdout
-        html.page(opt)
+        html.page(opt, server=False)

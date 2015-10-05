@@ -169,7 +169,7 @@ function run-test {
         echo $test PASS
     else
         echo $test FAIL
-        exit
+        exit -1
     fi
 }
 

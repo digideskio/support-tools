@@ -120,10 +120,20 @@ def cursors_html(width, tmin, tmax, ticks):
 
 
 #
-#
+# manage progress messages
 #
 
-def page(opt):
+in_progress = False
+
+def progress(msg):
+    if in_progress:
+        flow.put(msg + '<br/>')
+
+#
+# generate a page
+#
+
+def page(opt, server=False):
 
     # just list?
     if opt.list:
@@ -133,7 +143,28 @@ def page(opt):
             util.msg(get(d, 'name'))
         return
 
-    # get our graphs
+    # start the page before reading the data so we can emit progress messages
+    flow.elt('html')
+    flow.elt('head')
+    flow.elt('meta', {'charset':'utf-8'})
+    flow.eltend('link', {'rel':'icon', 'type':'image/png', 'href':'data:image/png;base64,' + leaf})
+    flow.elt('style')
+    flow.put(graphing_css)
+    flow.put(cursors_css)
+    flow.put(html_css)
+    flow.end('style')
+    flow.elt('script')
+    flow.put(html_js)
+    flow.put(cursors_js)
+    flow.end('script')
+    flow.end('head')
+    flow.elt('body', {'onkeypress':'key()', 'onload':'initial_level(%d)'%opt.level})
+    if server:
+        flow.elt('div', {'id':'progress'})
+        global in_progress
+        in_progress = True
+
+    # get our graphs, reading the data
     graphs = _get_graphs(opt.specs, opt)
     if not graphs:
         util.msg('no series specified')
@@ -146,18 +177,30 @@ def page(opt):
         util.msg('no data found')
         return
 
-    # stats
+    # having read the data, now close off progress messages before generating the rest of the page
+    if in_progress:
+        in_progress = False
+        flow.end('div') # id=progress
+        flow.eltend('script', {},
+                    'document.getElementById("progress").setAttribute("hidden","true")')
+
+    # help message at the top
+    flow.elt('div', {'onclick':'toggle_help()'})
+    flow.put('1-9 to choose detail level; current level: <span id="current_level"></span><br/>')
+    flow.put('click to toggle more help')
+    flow.eltend('div', {'id':'help', 'style':'display:none'}, _help)
+    flow.end('div')
+    flow.put('</br>')
+
+    # compute stats
     spec_matches = collections.defaultdict(int)
     for graph in graphs:
         for series in graph:
             spec_matches[series.spec] += 1
     spec_empty = collections.defaultdict(int)
     spec_zero = collections.defaultdict(int)
-
     util.msg('start:', util.f2t(opt.tmin))
     util.msg('finish:', util.f2t(opt.tmax))
-
-
     util.msg('duration:', util.f2t(opt.tmax) - util.f2t(opt.tmin))
     if opt.duration: # in seconds
         opt.tmax = opt.tmin + timedelta(0, opt.duration)
@@ -180,38 +223,7 @@ def page(opt):
         if t > opt.tmax: break
         ticks.append(t)
 
-    def _graph(data=[], ymax=None):
-        graphing.html_graph(
-            data=data,
-            tmin=opt.tmin, tmax=opt.tmax, width=opt.width,
-            ymin=0, ymax=ymax, height=opt.height,
-            #ticks=ticks, shaded=not opt.no_shade and len(data)==1)
-            ticks=ticks, shaded=len(data)==1, bins=opt.bins
-        )
-
-    flow.elt('html')
-    flow.elt('head')
-    flow.elt('meta', {'charset':'utf-8'})
-    flow.eltend('link', {'rel':'icon', 'type':'image/png', 'href':'data:image/png;base64,' + leaf})
-    flow.elt('style')
-    flow.put(graphing_css)
-    flow.put(cursors_css)
-    flow.put(html_css)
-    flow.end('style')
-    flow.elt('script')
-    flow.put(html_js)
-    flow.put(cursors_js)
-    flow.end('script')
-    flow.end('head')
-    flow.elt('body', {'onkeypress':'key()', 'onload':'initial_level(%d)'%opt.level})
-
-    flow.elt('div', {'onclick':'toggle_help()'})
-    flow.put('1-9 to choose detail level; current level: <span id="current_level"></span><br/>')
-    flow.put('click to toggle more help')
-    flow.eltend('div', {'id':'help', 'style':'display:none'}, _help)
-    flow.end('div')
-    flow.put('</br>')
-
+    # table of graphs
     flow.elt('table', {'id':'table', 'style':'position:relative;'})
     flow.elt('tr')
     flow.td('head data', 'avg')
@@ -224,12 +236,23 @@ def page(opt):
     flow.td('head desc', 'name')
     flow.end('tr')
 
+    # function to emit a graph
+    def emit_graph(data=[], ymax=None):
+        graphing.html_graph(
+            data=data,
+            tmin=opt.tmin, tmax=opt.tmax, width=opt.width,
+            ymin=0, ymax=ymax, height=opt.height,
+            #ticks=ticks, shaded=not opt.no_shade and len(data)==1)
+            ticks=ticks, shaded=len(data)==1, bins=opt.bins
+        )
+
+    # colors for merged graphs
     colors = ['rgb(50,102,204)','rgb(220,57,24)','rgb(253,153,39)','rgb(20,150,24)',
               'rgb(153,20,153)', 'rgb(200,200,200)']
-
     def color(i):
         return colors[i] if i <len(colors) else 'black'
 
+    # format graph name, factoring out common prefixes and common suffixes for merged graphs
     def name_td(g):
         flow.td('name')
         pfx = os.path.commonprefix([s.name for s in g])
@@ -242,6 +265,7 @@ def page(opt):
             flow.put(sfx)
         flow.end('td')
 
+    # output each graph
     row = 0
     for graph in sorted(graphs, key=lambda g: g[0].key):
         graph.sort(key=lambda s: s.key)
@@ -258,7 +282,7 @@ def page(opt):
                 flow.td('graph')
                 graph_color = lambda graph, i: color(i) if len(graph)>1 else 'black'
                 data = [(s.ts, s.ys, graph_color(graph,i)) for i,s in enumerate(graph)]
-                _graph(data, display_ymax)
+                emit_graph(data, display_ymax)
                 flow.end('td')
                 if opt.number_rows:
                     flow.td('row-number', str(row))
@@ -274,7 +298,7 @@ def page(opt):
             flow.td('data', 'n/a')
             flow.td('data', 'n/a')
             flow.td('graph')
-            _graph()
+            emit_graph()
             flow.end('td')
             if opt.number_rows:
                 flow.td('row-number', str(row))
@@ -286,6 +310,7 @@ def page(opt):
             for s in graph:
                 spec_empty[s.spec] += 1
 
+    # close it out
     flow.end('table')
     flow.end('body')
     flow.end('html')
@@ -306,6 +331,6 @@ def zoom(opt, start, end):
             return graphing.time_for(t, opt.width, opt.tmin, opt.tmax)
     opt.after = gt(start)
     opt.before = gt(end)
-    page(opt)
+    page(opt, server=True)
     return opt
 
