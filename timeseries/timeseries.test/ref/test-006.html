@@ -181,12 +181,9 @@ function key() {
     if (!last_selected)       
         last_selected = first_row
     if (c=='s') {
-        if (confirm('Save?')) {
-            req = new XMLHttpRequest()
-            req.open('PUT', '')
-            req.send(document)
-            alert('Saved')
-        }
+        fn = prompt('Save to file:', 'timeseries.html')
+        if (fn)
+            post_noreload('/save', {fn: fn})
     } else if (c=='z') {
         zoom()
     } else if (c=='Z') {
@@ -263,9 +260,7 @@ function toggle_help() {
     }
 }
 
-//
-// post a list of variables to a url
-//
+// post a list of variables to a url and load the response as a new page
 function post(url, vars) {
     form = document.createElement("form");
     form.action = url;
@@ -277,6 +272,20 @@ function post(url, vars) {
         form.appendChild(e)
     }
     form.submit()
+}
+
+// post a list of variables to a url but do not load the response as a new page
+function post_noreload(url, vars) {
+    req = new XMLHttpRequest()
+    req.open('POST', url)
+    req.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+    data = ''
+    for (v in vars) {
+        if (data)
+            data += '&'
+        data += v + '=' + encodeURIComponent(vars[v])
+    }
+    req.send(data)
 }
 
 // x position of current event as a proportion (0-1) of the width of the containing element
@@ -409,4 +418,4 @@ function zoom_all() {
     if (confirm('Zoom out to show all data?'))
         post('/zoom', {start: 'all', end: 'all'})
 }
-</script></head><body onkeypress="key()" onload="initial_level(1)"><div onclick="toggle_help()"><b>click here for help</b></br><div id="help" style="display:none">click on a graph to put down a cursor line<br/>click on a blue disk to delete a cursor<br/>click on a name to select a row<br/>^N select the next row <br/>^P select the previous row <br/>n move the selected row down <br/>p move the selected row up <br/>N move the selected row to the bottom <br/>P move the selected row to the top <br/>1-9 to change detail level<br/>o to change overview subsampling<br/>z to zoom in<br/>Z to zoom out</div></div>current detail level is <span id="current_level"></span> (hit 1-9 to change)<br/><br/><table id="table" style="position:relative;"><tr><td></td><td></td><td><svg height="100%" id="cursors" onclick="add(this)" onmousemove="move(this)" onmouseout="out(this)" preserveAspectRatio="none" style="position:absolute; background:none" viewBox="0 0 1 1" width="30em"><line class="cursor" id="lll" x1="-1" x2="-1" y1="0" y2="1"></svg><div style="position:relative; z-index:1000; background:white; margin-bottom:0.3em"><svg height="1em" id="letters" width="30em"></svg><br/><svg height="0.8em" id="deleters" viewBox="0 0 30 0.8" width="30em"></svg></div><div style="height: 2.000000em; position:relative; width:30em"><span align="center" style="left:-48.5em; position:absolute; width:100em"><div align="center" style="font-size:80%">15-10-05<br/>06:11:00</div></span><span align="center" style="left:-41.75em; position:absolute; width:100em"><div align="center" style="font-size:80%"><br/>06:11:30</div></span><span align="center" style="left:-35.0em; position:absolute; width:100em"><div align="center" style="font-size:80%"><br/>06:12:00</div></span><span align="center" style="left:-28.25em; position:absolute; width:100em"><div align="center" style="font-size:80%"><br/>06:12:30</div></span><span align="center" style="left:-21.5em; position:absolute; width:100em"><div align="center" style="font-size:80%"><br/>06:13:00</div></span></div></td></tr><tr><td class="head data">avg</td><td class="head data">max</td><td></td><td class="head desc">name</td><td class=""></tr><tr _level="0" class="row" onclick="sel(this)"><td class="data">1.333</td><td class="data">3.000</td><td class="graph"><svg height="1.8em" viewBox="0 0 30 1.8" width="30em"><polygon class="shaded" points="1.5,1.62 1.5,1.62 15,1.14 28.5,0.18 28.5,1.62"></polygon><polyline class="curve" points="1.5,1.62 15,1.14 28.5,0.18" style="stroke:black"></polyline><line class="tick" x1="1.5" x2="1.5" y1="0" y2="1.8"></line><line class="tick" x1="8.25" x2="8.25" y1="0" y2="1.8"></line><line class="tick" x1="15.0" x2="15.0" y1="0" y2="1.8"></line><line class="tick" x1="21.75" x2="21.75" y1="0" y2="1.8"></line><line class="tick" x1="28.5" x2="28.5" y1="0" y2="1.8"></line></svg></td><td class="name">csv test-006: value1</td></tr><tr _level="0" class="row" onclick="sel(this)"><td class="data">5.000</td><td class="data">6.000</td><td class="graph"><svg height="1.8em" viewBox="0 0 30 1.8" width="30em"><polygon class="shaded" points="1.5,1.62 1.5,0.42 15,0.18 28.5,0.66 28.5,1.62"></polygon><polyline class="curve" points="1.5,0.42 15,0.18 28.5,0.66" style="stroke:black"></polyline><line class="tick" x1="1.5" x2="1.5" y1="0" y2="1.8"></line><line class="tick" x1="8.25" x2="8.25" y1="0" y2="1.8"></line><line class="tick" x1="15.0" x2="15.0" y1="0" y2="1.8"></line><line class="tick" x1="21.75" x2="21.75" y1="0" y2="1.8"></line><line class="tick" x1="28.5" x2="28.5" y1="0" y2="1.8"></line></svg></td><td class="name">csv test-006: value2</td></tr></table></body></html>
+</script></head><body onkeypress="key()" onload="initial_level(1)"><div onclick="toggle_help()"><b>click here for help</b></br><div id="help" style="display:none">click on a graph to put down a cursor line<br/>click on a blue disk to delete a cursor<br/>click on a name to select a row<br/>^N select the next row <br/>^P select the previous row <br/>n move the selected row down <br/>p move the selected row up <br/>N move the selected row to the bottom <br/>P move the selected row to the top <br/>1-9 to change detail level<br/><br/></div></div>current detail level is <span id="current_level"></span> (hit 1-9 to change)<br/><br/><table id="table" style="position:relative;"><tr><td></td><td></td><td><svg height="100%" id="cursors" onclick="add(this)" onmousemove="move(this)" onmouseout="out(this)" preserveAspectRatio="none" style="position:absolute; background:none" viewBox="0 0 1 1" width="30em"><line class="cursor" id="lll" x1="-1" x2="-1" y1="0" y2="1"></svg><div style="position:relative; z-index:1000; background:white; margin-bottom:0.3em"><svg height="1em" id="letters" width="30em"></svg><br/><svg height="0.8em" id="deleters" viewBox="0 0 30 0.8" width="30em"></svg></div><div style="height: 2.000000em; position:relative; width:30em"><span align="center" style="left:-48.5em; position:absolute; width:100em"><div align="center" style="font-size:80%">15-10-06<br/>06:11:00</div></span><span align="center" style="left:-41.75em; position:absolute; width:100em"><div align="center" style="font-size:80%"><br/>06:11:30</div></span><span align="center" style="left:-35.0em; position:absolute; width:100em"><div align="center" style="font-size:80%"><br/>06:12:00</div></span><span align="center" style="left:-28.25em; position:absolute; width:100em"><div align="center" style="font-size:80%"><br/>06:12:30</div></span><span align="center" style="left:-21.5em; position:absolute; width:100em"><div align="center" style="font-size:80%"><br/>06:13:00</div></span></div></td></tr><tr><td class="head data">avg</td><td class="head data">max</td><td></td><td class="head desc">name</td><td class=""></tr><tr _level="0" class="row" onclick="sel(this)"><td class="data">1.333</td><td class="data">3.000</td><td class="graph"><svg height="1.8em" viewBox="0 0 30 1.8" width="30em"><polygon class="shaded" points="1.5,1.62 1.5,1.62 15,1.14 28.5,0.18 28.5,1.62"></polygon><polyline class="curve" points="1.5,1.62 15,1.14 28.5,0.18" style="stroke:black"></polyline><line class="tick" x1="1.5" x2="1.5" y1="0" y2="1.8"></line><line class="tick" x1="8.25" x2="8.25" y1="0" y2="1.8"></line><line class="tick" x1="15.0" x2="15.0" y1="0" y2="1.8"></line><line class="tick" x1="21.75" x2="21.75" y1="0" y2="1.8"></line><line class="tick" x1="28.5" x2="28.5" y1="0" y2="1.8"></line></svg></td><td class="name">csv test-006: value1</td></tr><tr _level="0" class="row" onclick="sel(this)"><td class="data">5.000</td><td class="data">6.000</td><td class="graph"><svg height="1.8em" viewBox="0 0 30 1.8" width="30em"><polygon class="shaded" points="1.5,1.62 1.5,0.42 15,0.18 28.5,0.66 28.5,1.62"></polygon><polyline class="curve" points="1.5,0.42 15,0.18 28.5,0.66" style="stroke:black"></polyline><line class="tick" x1="1.5" x2="1.5" y1="0" y2="1.8"></line><line class="tick" x1="8.25" x2="8.25" y1="0" y2="1.8"></line><line class="tick" x1="15.0" x2="15.0" y1="0" y2="1.8"></line><line class="tick" x1="21.75" x2="21.75" y1="0" y2="1.8"></line><line class="tick" x1="28.5" x2="28.5" y1="0" y2="1.8"></line></svg></td><td class="name">csv test-006: value2</td></tr></table></body></html>

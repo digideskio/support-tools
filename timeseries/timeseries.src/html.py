@@ -165,6 +165,10 @@ def page(opt, server=False):
     global advice
     advice = ['current detail level is <span id="current_level"></span> (hit 1-9 to change)']
 
+    # support for save in server mode
+    if server:
+        flow.start_save()
+
     # start the page before reading the data so we can emit progress messages
     flow.elt('html')
     flow.elt('head')

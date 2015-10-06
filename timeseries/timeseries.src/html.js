@@ -99,12 +99,9 @@ function key() {
     if (!last_selected)       
         last_selected = first_row
     if (c=='s') {
-        if (confirm('Save?')) {
-            req = new XMLHttpRequest()
-            req.open('PUT', '')
-            req.send(document)
-            alert('Saved')
-        }
+        fn = prompt('Save to file:', 'timeseries.html')
+        if (fn)
+            post_noreload('/save', {fn: fn})
     } else if (c=='z') {
         zoom()
     } else if (c=='Z') {
@@ -181,9 +178,7 @@ function toggle_help() {
     }
 }
 
-//
-// post a list of variables to a url
-//
+// post a list of variables to a url and load the response as a new page
 function post(url, vars) {
     form = document.createElement("form");
     form.action = url;
@@ -195,5 +190,19 @@ function post(url, vars) {
         form.appendChild(e)
     }
     form.submit()
+}
+
+// post a list of variables to a url but do not load the response as a new page
+function post_noreload(url, vars) {
+    req = new XMLHttpRequest()
+    req.open('POST', url)
+    req.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+    data = ''
+    for (v in vars) {
+        if (data)
+            data += '&'
+        data += v + '=' + encodeURIComponent(vars[v])
+    }
+    req.send(data)
 }
 

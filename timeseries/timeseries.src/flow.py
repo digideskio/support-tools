@@ -12,11 +12,19 @@ import util
 # html helpers
 #
 
+saved = None
+
+def put(*content):
+    for s in content:
+        out.write(s)
+        if saved != None:
+            saved.append(s)
+
 def elt(name, attrs={}):
-    out.write('<%s' % name)
+    put('<%s' % name)
     for a in sorted(attrs):
-        out.write(' %s="%s"' % (a, attrs[a]))
-    out.write('>')
+        put(' %s="%s"' % (a, attrs[a]))
+    put('>')
 
 def eltend(name, attrs={}, *content):
     elt(name, attrs)
@@ -24,17 +32,21 @@ def eltend(name, attrs={}, *content):
     end(name)
 
 def end(name):
-    out.write('</' + name + '>')
-
-def put(*content):
-    for s in content:
-        out.write(s)
+    put('</' + name + '>')
 
 def td(cls, *content):
     elt('td', {'class':cls})
     if content:
         put(*content)
         end('td')
+
+def start_save():
+    global saved
+    saved = []
+
+def get_save():
+    return ''.join(saved)
+
 
 #
 #
@@ -61,11 +73,16 @@ class Handler(BaseHTTPServer.BaseHTTPRequestHandler):
         util.msg('POST', self.path)
         if self.path=='/zoom':
             l = int(self.headers.getheader('content-length', 0))
-            req = urlparse.parse_qs(self.rfile.read(l))
+            data = self.rfile.read(l)
+            req = urlparse.parse_qs(data)
             self.prepare()
             self.server.opt = html.zoom(self.server.opt, req['start'][0], req['end'][0])
-            
-
+        elif self.path=='/save':
+            l = int(self.headers.getheader('content-length', 0))
+            req = urlparse.parse_qs(self.rfile.read(l))
+            fn = req['fn'][0]
+            open(fn, 'w').write(get_save())
+            util.msg('saved to', fn)
 
 #
 #
