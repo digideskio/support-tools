@@ -55,7 +55,7 @@ class Handler(BaseHTTPServer.BaseHTTPRequestHandler):
             html.page(self.server.opt, server=True)
         else:
             util.msg(self.path, 'NOT FOUND')
-            self.send_resonse(404)
+            self.send_response(404)
 
     def do_POST(self):
         util.msg('POST', self.path)
