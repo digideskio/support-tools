@@ -23,7 +23,7 @@ cursors_css = pkgutil.get_data("__main__", "cursors.css")
 cursors_js = pkgutil.get_data("__main__", "cursors.js")
 leaf = base64.b64encode(pkgutil.get_data("__main__", "leaf.png"))
 
-_help = '''
+help_all = '''
 click on a graph to put down a cursor line
 click on a blue disk to delete a cursor
 click on a name to select a row
@@ -34,10 +34,14 @@ p move the selected row up
 N move the selected row to the bottom 
 P move the selected row to the top 
 1-9 to change detail level
+'''.strip().replace('\n', '<br/>') + '<br/>';
+
+help_server = '''
 o to change overview subsampling
 z to zoom in
 Z to zoom out
-'''.strip().replace('\n', '<br/>')
+s to save
+'''.strip().replace('\n', '<br/>') + '<br/>';
 
 
 #
@@ -205,7 +209,12 @@ def page(opt, server=False):
     # help message at the top
     flow.elt('div', {'onclick':'toggle_help()'})
     flow.put('<b>click here for help</b></br>')
-    flow.eltend('div', {'id':'help', 'style':'display:none'}, _help)
+    flow.elt('div', {'id':'help', 'style':'display:none'})
+    flow.put(help_all)
+    if server:
+        flow.put(help_server)
+    flow.put('<br/>')
+    flow.end('div')
     flow.end('div')
     flow.put('<br/>'.join(advice))
     flow.put('<br/><br/>')
