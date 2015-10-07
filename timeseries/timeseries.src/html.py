@@ -135,17 +135,22 @@ def cursors_html(width, tmin, tmax, ticks):
 
 
 #
-# manage progress messages
+# manage progress messages, advice, title
 #
 
 in_progress = False
+title = []
 
 def progress(msg):
     if in_progress:
         flow.put(msg + '<br/>')
+    util.msg(msg)
 
 def advise(msg):
     advice.append(msg)
+
+def add_title(fn):
+    title.append(os.path.basename(fn))
 
 
 #
@@ -192,6 +197,10 @@ def page(opt, server=False):
 
     # get our graphs, reading the data
     graphs = _get_graphs(opt.specs, opt)
+
+    # set page title
+    flow.eltend('script', {}, 'document.title="%s"' % ', '.join(title))
+    
     if not graphs:
         util.msg('no series specified')
         return

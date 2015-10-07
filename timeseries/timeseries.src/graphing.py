@@ -10,6 +10,7 @@ import time
 
 import descriptors
 import flow
+import html
 import util
 
 
@@ -431,6 +432,7 @@ def get_series(spec, spec_ord, opt):
             params[name] = value
     fn = s.lstrip(':') # xxx canonicalize fn
     util.dbg(spec_name, params, fn)
+    html.add_title(fn)
 
     # ignore punctuation, 
     def words(s):
