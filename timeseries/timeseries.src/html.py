@@ -247,11 +247,12 @@ def page(opt, server=False):
         if tickdelta<r:
             tickdelta = r
             break
-    tickmin = math.ceil(opt.tmin/tickdelta) * tickdelta
+    slop = 0.1 # gives us ticks near beginning or end if those aren't perfectly second-aligned
+    tickmin = math.ceil((opt.tmin-slop)/tickdelta) * tickdelta
     ticks = []
     for i in range(nticks+1):
         t = tickmin + i * tickdelta
-        if t > opt.tmax: break
+        if t > opt.tmax+slop: break
         ticks.append(t)
 
     # table of graphs
