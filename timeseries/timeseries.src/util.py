@@ -152,7 +152,6 @@ def progress(fn, opt):
                 s = '%s: processed %d lines' % (fn, n)
                 if size:
                     s += ' (%d%%)' % (100.0*f.tell()/size)
-                util.msg(s)
                 html.progress(s)
 
     # final stats

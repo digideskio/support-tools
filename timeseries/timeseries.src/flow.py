@@ -13,6 +13,7 @@ import util
 #
 
 saved = None
+opened = []
 
 def put(*content):
     for s in content:
@@ -21,6 +22,7 @@ def put(*content):
             saved.append(s)
 
 def elt(name, attrs={}):
+    opened.append(name)
     put('<%s' % name)
     for a in sorted(attrs):
         put(' %s="%s"' % (a, attrs[a]))
@@ -32,7 +34,12 @@ def eltend(name, attrs={}, *content):
     end(name)
 
 def end(name):
+    assert(opened.pop()==name)
     put('</' + name + '>')
+
+def endall():
+    while opened:
+        end(opened[-1])
 
 def td(cls, *content):
     elt('td', {'class':cls})

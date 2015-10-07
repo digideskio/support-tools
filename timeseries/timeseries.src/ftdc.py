@@ -349,7 +349,6 @@ def read(fn, opt):
                 read_chunks, read_samples, read_bytes, 100.0*read_bytes/total_bytes,
                 read_bytes/read_samples, used_samples
             )
-            util.msg(msg)
             html.progress(msg)
 
     html.advise('showing ~%d of ~%d samples (hit o to change, or use z to zoom in)' % (

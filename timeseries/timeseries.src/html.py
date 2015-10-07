@@ -8,6 +8,7 @@ import pytz
 
 import flow
 import graphing
+import html
 import process
 import util
 
@@ -110,7 +111,7 @@ def cursors_html(width, tmin, tmax, ticks):
         'preserveAspectRatio':'none', 'style':'position:absolute; background:none',
         'onmousemove':'move(this)', 'onmouseout':'out(this)',  'onclick':'add(this)'
     })
-    flow.elt('line', {'id':'lll', 'class':'cursor', 'x1':-1, 'y1':0, 'x2':-1, 'y2':1})
+    flow.eltend('line', {'id':'lll', 'class':'cursor', 'x1':-1, 'y1':0, 'x2':-1, 'y2':1})
     flow.end('svg')
 
     flow.elt('div', {'style':'position:relative; z-index:1000; background:white; margin-bottom:0.3em'})
@@ -177,7 +178,7 @@ def page(opt, server=False):
     # start the page before reading the data so we can emit progress messages
     flow.elt('html')
     flow.elt('head')
-    flow.elt('meta', {'charset':'utf-8'})
+    flow.eltend('meta', {'charset':'utf-8'})
     flow.eltend('link', {'rel':'icon', 'type':'image/png', 'href':'data:image/png;base64,' + leaf})
     flow.elt('style')
     flow.put(graphing_css)
@@ -201,15 +202,18 @@ def page(opt, server=False):
     # set page title
     flow.eltend('script', {}, 'document.title="%s"' % ', '.join(title))
     
+    # handle some no-data edge cases
     if not graphs:
-        util.msg('no series specified')
+        html.progress('no series specified')
+        flow.endall()
         return
     try:
         opt.tmin = min(s.tmin for g in graphs for s in g if s.tmin)
         opt.tmax = max(s.tmax for g in graphs for s in g if s.tmax)
         tspan = opt.tmax - opt.tmin
     except ValueError:
-        util.msg('no data found')
+        html.progress('no data found')
+        flow.endall()
         return
 
     # having read the data, now close off progress messages before generating the rest of the page
@@ -284,7 +288,7 @@ def page(opt, server=False):
     if opt.number_rows:
         flow.td('head row-number', 'row')
     flow.td('head desc', 'name')
-    flow.td('')
+    flow.td('', ' ')
     flow.end('tr')
 
     # function to emit a graph
