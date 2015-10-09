@@ -77,10 +77,19 @@ def series_process_dict(series, opt):
 
     # process all metrics that we are sent
     while True:
+
         try:
+
+            # get our next input
             metrics = yield
-            getitem = metrics.__getitem__
-            setitem = metrics.__setitem__
+
+            # we don't support these (yet) so we don't support:
+            #     things that depend on set_field, like "joins per closure"
+            #     auto-splits (but there are none of these currently for ftdc)
+            getitem = None
+            setitem = None
+                
+            # send each series our data points
             for s in series:
                 data = s.dict_fields['data'] # e.g. 'serverStatus.uptime'
                 time = s.dict_fields['time'] # e.g. 'serverStatus.localTime'
@@ -89,7 +98,10 @@ def series_process_dict(series, opt):
                         t = t / 1000.0 # times come to us as ms, so convert to seconds here
                         if t>=opt.after and t<=opt.before:
                             s.data_point(t, d, getitem, setitem, opt)
+
+            # track what we have used
             unrecognized.update(metrics.keys())
+
         except GeneratorExit:
             break
 
