@@ -47,27 +47,26 @@ function re_number() {
     }
 }
 
-function set_level(c) {
+function set_level(level) {
     _desel()
-    c = String(c)
     row = document.getElementById("table").firstChild.firstChild    
     while (row) {
-        row_level = row.getAttribute('_level')
-        if (row_level <= c) {
+        row_level = Number(row.getAttribute('_level'))
+        if (row_level <= level) {
             row.style.display = ''
         } else {
             row.style.display = 'none'
         }
         row = row.nextSibling
     }
-    document.getElementById("current_level").innerHTML = c
+    document.getElementById("current_level").innerHTML = String(level)
     selected = next_visible(selected)
-    
+    model.level = level
 }
 
-function initial_level(c) {
-    if (!document.getElementById("current_level").innerHTML)
-        set_level(c)
+function initialize_model() {
+    set_level(model.level)
+    add_cursors_by_time(model.cursors)
 }
 
 function next_visible(row) {
@@ -101,7 +100,7 @@ function key() {
     if (c=='s') {
         fn = prompt('Save to file:', 'timeseries.html')
         if (fn)
-            post_noreload('/save', {fn: fn})
+            do_post_noreload('/save', {fn: fn})
     } else if (c=='z') {
         zoom()
     } else if (c=='Z') {
@@ -164,7 +163,7 @@ function key() {
             re_number()
         }
     } else if ('1'<=c && c<='9') {
-        set_level(c)
+        set_level(Number(c))
     }
     _sel(selected)
 }    
@@ -178,22 +177,32 @@ function toggle_help() {
     }
 }
 
-// post a list of variables to a url and load the response as a new page
-function post(url, vars) {
+function do_request(method, url, model) {
     form = document.createElement("form");
     form.action = url;
-    form.method = "post";
-    for (v in vars) {
+    form.method = method
+    items = ['after', 'before', 'level', 'cursors']
+    function one(n, v) {
         e = document.createElement("input");
-        e.name = v
-        e.value = vars[v]
+        e.name = n
+        e.value = v
         form.appendChild(e)
+    }
+    for (i in items) {
+        name = items[i]
+        value = model[name]
+        if (typeof(value)=='object') {
+            for (var v in value)
+                one(name, value[v])
+        } else {
+            one(name, value)
+        }
     }
     form.submit()
 }
 
 // post a list of variables to a url but do not load the response as a new page
-function post_noreload(url, vars) {
+function do_post_noreload(url, vars) {
     req = new XMLHttpRequest()
     req.open('POST', url)
     req.setRequestHeader("Content-type", "application/x-www-form-urlencoded");

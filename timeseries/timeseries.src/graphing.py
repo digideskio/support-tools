@@ -116,10 +116,12 @@ def labels(tmin, tmax, width, height, ts, labels):
         flow.end('span')
     flow.end('div')
 
-# x is a relative position (0-1) within the graphing area, which includes xpad on either side
-# compute the corresponding time on the graph, given tmin and tmax for the graph itself
-def time_for(x, width, tmin, tmax):
-    return tmin + ((x * (width + 2*xpad) - xpad) / width) * (tmax - tmin)
+# compute time corresponding to left and right edge of graphing area, which includes pad,
+# given tmin and tmax of the graph itself excluding padding
+# used by the browser to convert x positions into times, e.g. for zooming
+def get_time_bounds(opt):
+    opt.tleft = opt.tmin + (0 - xpad/opt.width) * (opt.tmax - opt.tmin)
+    opt.tright = opt.tmin + (1 + xpad/opt.width) * (opt.tmax - opt.tmin)
 
 #
 #

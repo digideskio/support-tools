@@ -1,12 +1,13 @@
 import argparse
 
+import descriptors
 import flow
 
 #
 #
 #
 
-if __name__ == '__main__':
+def main():
 
     p = argparse.ArgumentParser()
     p.add_argument('--dbg', '-d', action='store_true')
@@ -33,7 +34,16 @@ if __name__ == '__main__':
     p.add_argument('--server', action='store_true')
     p.add_argument('--browser', action='store_true')
     p.add_argument('--port', type=int, default=8888)
+    # might be useful: --cursors time,... 
     opt = p.parse_args()
+
+    # just list?
+    if opt.list:
+        for desc in sorted(descriptors, key=lambda desc: desc['name'].lower()):
+            d = collections.defaultdict(lambda: '...')
+            d.update(desc)
+            util.msg(get(d, 'name'))
+        return
 
     if opt.profile:
         # pip install -e git+https://github.com/joerick/pyinstrument.git#egg=pyinstrument
@@ -46,4 +56,7 @@ if __name__ == '__main__':
         out.write(p.output_text(unicode=True, color=True))
     else:
         flow.main(opt)
+
+if __name__ == '__main__':
+    main()
 

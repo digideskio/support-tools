@@ -1,6 +1,7 @@
 import base64
 import collections
 import datetime as dt
+import json
 import math
 import os
 import pkgutil
@@ -51,8 +52,8 @@ s to save
 
 def _get_graphs(specs, opt):
 
-    if not hasattr(opt, 'after') or not opt.after: opt.after = pytz.utc.localize(dt.datetime.min)
-    if not hasattr(opt, 'before') or not opt.before: opt.before = pytz.utc.localize(dt.datetime.max)
+    if not hasattr(opt, 'after') or not opt.after: opt.after = float('-inf')
+    if not hasattr(opt, 'before') or not opt.before: opt.before = float('inf')
     if not hasattr(opt, 'every'): opt.every = 0
     if type(opt.after)==str: opt.after = util.datetime_parse(opt.after)
     if type(opt.before)==str: opt.before = util.datetime_parse(opt.before)
@@ -109,7 +110,7 @@ def cursors_html(width, tmin, tmax, ticks):
     flow.elt('svg', {
         'id':'cursors', 'width':'%dem'%width, 'height':'100%', 'viewBox':'0 0 1 1',
         'preserveAspectRatio':'none', 'style':'position:absolute; background:none',
-        'onmousemove':'move(this)', 'onmouseout':'out(this)',  'onclick':'add(this)'
+        'onmousemove':'move(this)', 'onmouseout':'out(this)',  'onclick':'add_cursor_by_event(this)'
     })
     flow.eltend('line', {'id':'lll', 'class':'cursor', 'x1':-1, 'y1':0, 'x2':-1, 'y2':1})
     flow.end('svg')
@@ -160,14 +161,7 @@ def add_title(fn):
 
 def page(opt, server=False):
 
-    # just list?
-    if opt.list:
-        for desc in sorted(descriptors, key=lambda desc: desc['name'].lower()):
-            d = collections.defaultdict(lambda: '...')
-            d.update(desc)
-            util.msg(get(d, 'name'))
-        return
-
+    # state-dependent informational messages
     global advice
     advice = ['current detail level is <span id="current_level"></span> (hit 1-9 to change)']
 
@@ -190,7 +184,7 @@ def page(opt, server=False):
     flow.put(cursors_js)
     flow.end('script')
     flow.end('head')
-    flow.elt('body', {'onkeypress':'key()', 'onload':'initial_level(%d)'%opt.level})
+    flow.elt('body', {'onkeypress':'key()', 'onload':'initialize_model()'})
     if server:
         flow.elt('div', {'id':'progress'})
         global in_progress
@@ -222,6 +216,13 @@ def page(opt, server=False):
         flow.end('div') # id=progress
         flow.eltend('script', {},
                     'document.getElementById("progress").setAttribute("hidden","true")')
+
+    # provide browser with required client-side parameters
+    if not hasattr(opt, 'cursors'): opt.cursors = []
+    graphing.get_time_bounds(opt)
+    model_items = ['tleft', 'tright', 'cursors', 'level', 'before', 'after']
+    model = dict((n, getattr(opt, n)) for n in model_items)
+    flow.eltend('script', {}, 'model = %s' % json.dumps(model))
 
     # help message at the top
     flow.elt('div', {'onclick':'toggle_help()'})
@@ -375,17 +376,4 @@ def page(opt, server=False):
             'zero:', spec_zero[spec], 'empty:', spec_empty[spec])
 
 
-def zoom(opt, start, end):
-    def gt(t):
-        if t=='all':
-            return None
-        else:
-            if t=='end': t = opt.tmax
-            elif t=='start': t = opt.tmin
-            else: t = float(t)
-            return graphing.time_for(t, opt.width, opt.tmin, opt.tmax)
-    opt.after = gt(start)
-    opt.before = gt(end)
-    page(opt, server=True)
     return opt
-

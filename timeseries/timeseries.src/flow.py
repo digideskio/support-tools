@@ -68,32 +68,31 @@ class Handler(BaseHTTPServer.BaseHTTPRequestHandler):
         global out
         out = self.wfile
 
+    def param(self, name, q, convert):
+        if name in q:
+            setattr(self.server.opt, name, convert(q[name]))
+
     def do_GET(self):
-        if self.path=='/':
-            self.prepare()
-            html.page(self.server.opt, server=True)
-        else:
-            util.msg(self.path, 'NOT FOUND')
-            self.send_response(404)
+        self.prepare()
+        self.server.opt = html.page(self.server.opt, server=True)
 
     def do_POST(self):
         util.msg('POST', self.path)
         if self.path=='/zoom':
             l = int(self.headers.getheader('content-length', 0))
-            data = self.rfile.read(l)
-            req = urlparse.parse_qs(data)
-            self.prepare()
-            self.server.opt = html.zoom(self.server.opt, req['start'][0], req['end'][0])
+            q = urlparse.parse_qs(self.rfile.read(l))
+            self.param('after', q, lambda x: float(x[0]))
+            self.param('before', q, lambda x: float(x[0]))
+            self.param('cursors', q, lambda x: map(float, x))
+            self.param('level', q, lambda x: int(x[0]))
+            self.send_response(301) # redirect
+            self.send_header('Location', '/')
         elif self.path=='/save':
             l = int(self.headers.getheader('content-length', 0))
             req = urlparse.parse_qs(self.rfile.read(l))
             fn = req['fn'][0]
             open(fn, 'w').write(get_save())
             util.msg('saved to', fn)
-
-#
-#
-#
 
 def main(opt):
 
