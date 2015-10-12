@@ -14,6 +14,7 @@ import util
 
 saved = None
 opened = []
+out = sys.stdout
 
 def put(*content):
     for s in content:

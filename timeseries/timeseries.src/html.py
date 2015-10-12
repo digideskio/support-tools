@@ -18,12 +18,12 @@ import util
 # resources
 #
 
-html_css = pkgutil.get_data("__main__", "html.css")
-html_js = pkgutil.get_data("__main__", "html.js")
-graphing_css = pkgutil.get_data("__main__", "graphing.css")
-cursors_css = pkgutil.get_data("__main__", "cursors.css")
-cursors_js = pkgutil.get_data("__main__", "cursors.js")
-leaf = base64.b64encode(pkgutil.get_data("__main__", "leaf.png"))
+html_css = pkgutil.get_data(__name__, "html.css")
+html_js = pkgutil.get_data(__name__, "html.js")
+graphing_css = pkgutil.get_data(__name__, "graphing.css")
+cursors_css = pkgutil.get_data(__name__, "cursors.css")
+cursors_js = pkgutil.get_data(__name__, "cursors.js")
+leaf = base64.b64encode(pkgutil.get_data(__name__, "leaf.png"))
 
 help_all = '''
 click on a graph to put down a cursor line

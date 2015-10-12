@@ -116,7 +116,7 @@ function zoom() {
     }
 
     // allow user to override zoom range
-    prompt('Zoom range:', range)
+    range = prompt('Zoom range:', range)
 
     // get positions for requested zoom range
     range = range.split(/[^A-Za-z]/, 2)
