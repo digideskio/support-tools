@@ -70,7 +70,9 @@ class Handler(BaseHTTPServer.BaseHTTPRequestHandler):
 
     def param(self, name, q, convert):
         if name in q:
-            setattr(self.server.opt, name, convert(q[name]))
+            value = convert(q[name])
+            setattr(self.server.opt, name, value)
+            #util.msg(name, value)
 
     def do_GET(self):
         self.prepare()

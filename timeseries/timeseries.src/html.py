@@ -222,6 +222,7 @@ def page(opt, server=False):
     graphing.get_time_bounds(opt)
     model_items = ['tleft', 'tright', 'cursors', 'level', 'before', 'after']
     model = dict((n, getattr(opt, n)) for n in model_items)
+    #util.msg(model)
     flow.eltend('script', {}, 'model = %s' % json.dumps(model))
 
     # help message at the top

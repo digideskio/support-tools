@@ -89,6 +89,16 @@ def read_bson_doc(buf, at, ftdc=False):
     assert(not 'eoo not found') # should have seen an eoo and returned
 
 
+def print_bson_doc(doc, indent=''): 
+    for k, v in doc.items():
+        print indent + k,
+        if type(v)==BSON:
+            print
+            print_bson_doc(v, indent+'    ')
+        else:
+            print v
+        
+
 #
 # manage the lazy decoding of a chunk
 # state 0: chunk doc has been obtained; this is very fast as these are only pointers into the file
@@ -127,6 +137,7 @@ class Chunk:
     
         # read reference doc from chunk data, ignoring non-metric fields
         ref_doc = read_bson_doc(data, 0, ftdc=True)
+        #print_bson_doc(ref_doc)
     
         # traverse the reference document and extract metric names
         def extract_names(doc, n=''):
