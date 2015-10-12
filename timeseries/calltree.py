@@ -52,7 +52,7 @@ def put(*content):
     for s in content:
         sys.stdout.write(s)
 
-def html(s):
+def put_html(s):
     if opt.html:
         put(s)
 
@@ -113,15 +113,15 @@ def html_head():
     elt('head')
     elt('meta', {'charset':'utf-8'})
     elt('script')
-    html(html_script)
+    put_html(html_script)
     end('script')
     elt('style')
-    if opt.graph_width: html(timeseries.graph_style)
-    html(html_style)
+    if opt.graph_width: put_html(html.graphing_css)
+    put_html(html_style)
     end('style')
     end('head')
     elt('body')
-    html(html_help)
+    put_html(html_help)
     elt('pre')
 
 def html_foot():
@@ -226,7 +226,7 @@ class node:
             graph_child(func, child)
             put(pfx+p)
             elt('span', {'id':'t%d' % opt.html_id, 'onClick':'hide(%d)'% opt.html_id})
-            html(html_down)
+            put_html(html_down)
             end('span')
             elt('span', {'onClick':'hide_all(%d)' % opt.html_id})
             if opt.html:
@@ -416,7 +416,7 @@ def read_folded(filters):
 #
 
 def graph(ts=None, ys=None, ymin=None, ymax=None, shaded=True):
-    timeseries.html_graph(
+    graphing.html_graph(
         data=[(ts, ys, 'black')] if ts else [],
         tmin=opt.tmin, tmax=opt.tmax, width=opt.graph_width,
         ymin=ymin, ymax=ymax, height=1.1, ticks=opt.graph_ticks,
@@ -440,7 +440,7 @@ def read_series():
         opt.level = 0 # xxx get from cmd line instead?
         opt.progress_every = 1000 # xxx get from elsewhere?
         opt.relative = False
-        series = [graph[0] for graph in timeseries.get_graphs(opt.series, opt)]
+        series = [graph[0] for graph in graphing.get_graphs(opt.series, opt)]
         if not opt.tmin:
             opt.tmin = min(min(ts) for _, ts, _ in series)
             opt.tmax = max(max(ts) for _, ts, _ in series)
@@ -527,12 +527,14 @@ def main():
 
     # import timeseries if we are generating graphs
     # we will maintain times internally relative to t0
-    global timeseries, t0
+    global graphing, util, html, t0
     if opt.series or opt.graph_width:
-        import timeseries
-        t0 = timeseries.t0
+        sys.path.append('timeseries.src')
+        import util
+        import graphing
+        import html
+        t0 = util.t0
     else:
-        timeseries = None
         t0 = dateutil.parser.parse('2000-01-01T00:00:00Z')
 
     # parse and adjust opt.after,before
