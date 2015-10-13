@@ -22,14 +22,14 @@ xpad = 1.5
 ypad = 0.1
 
 def html_graph(
-    data=[],
+    ses, data=[],
     tmin=None, tmax=None, width=None,
     ymin=None, ymax=None, height=None,
     ticks=None, line_width=0.1, shaded=True,
     bins=0
 ):
 
-    flow.elt('svg', {
+    ses.elt('svg', {
         'width':'%gem' % width,
         'height':'%gem' % height,
         'viewBox':'%g %g %g %g' % (0, 0, width, height)
@@ -70,8 +70,8 @@ def html_graph(
                 points = left + ' ' + line + ' ' + right
                 cls = 'shaded'
                 if type(shaded)==str: cls += ' ' + shaded
-                flow.eltend('polygon', {'points':points, 'class':cls})
-            flow.eltend('polyline', {'points':line, 'class':'curve', 'style':'stroke:%s'%color})
+                ses.eltend('polygon', {'points':points, 'class':cls})
+            ses.eltend('polyline', {'points':line, 'class':'curve', 'style':'stroke:%s'%color})
 
         else:
 
@@ -90,10 +90,10 @@ def html_graph(
                 left = '%g,%g' % (xmin, gy(0))
                 right = '%g,%g' % (xmax, gy(0))
                 points = right + ' ' + line + ' ' + left
-                flow.eltend('polygon', {'points':points, 'class':'shaded'})
+                ses.eltend('polygon', {'points':points, 'class':'shaded'})
             line += ' ' + ' '.join(r'%g,%g' % (gx(bt(i)), gy(ymaxs[i])) for i in bis)
             style = 'stroke:%s; fill:%s; stroke-width:0.7' % (color, color)
-            flow.eltend('polyline', {'points':line, 'class':'curve', 'style':style})
+            ses.eltend('polyline', {'points':line, 'class':'curve', 'style':style})
 
 
     if data and ticks:
@@ -101,20 +101,20 @@ def html_graph(
             ticks = [tmin + (tmax-tmin)*i/ticks for i in range(ticks+1)]
         for t in ticks:
             x = gx(dt(t))
-            flow.eltend('line', {'x1':x, 'x2':x, 'y1':0, 'y2':height, 'class':'tick'})
+            ses.eltend('line', {'x1':x, 'x2':x, 'y1':0, 'y2':height, 'class':'tick'})
 
-    flow.end('svg')
+    ses.end('svg')
 
-def labels(tmin, tmax, width, height, ts, labels):
-    flow.elt('div', {'style':'height: %fem; position:relative; width:%gem' % (height,width)})
+def labels(ses, tmin, tmax, width, height, ts, labels):
+    ses.elt('div', {'style':'height: %fem; position:relative; width:%gem' % (height,width)})
     tspan = tmax - tmin
     gx = lambda t: (t-tmin) / tspan * (width-2*xpad) + xpad
     for t, label in zip(ts, labels):
         style = 'left:{x}em; position:absolute; width:100em'.format(x=gx(t)-50)
-        flow.elt('span', {'align':'center', 'style':style})
-        flow.eltend('div', {'align':'center', 'style':'font-size:80%'}, label)
-        flow.end('span')
-    flow.end('div')
+        ses.elt('span', {'align':'center', 'style':style})
+        ses.eltend('div', {'align':'center', 'style':'font-size:80%'}, label)
+        ses.end('span')
+    ses.end('div')
 
 # compute time corresponding to left and right edge of graphing area, which includes pad,
 # given tmin and tmax of the graph itself excluding padding
@@ -400,7 +400,7 @@ class Series:
         for s in self.split_series.values():
             s.finish()
 
-def get_series(spec, spec_ord, opt):
+def get_series(ses, spec, spec_ord):
 
     # parse helper
     def split(s, expect, err, full):
@@ -434,7 +434,7 @@ def get_series(spec, spec_ord, opt):
             params[name] = value
     fn = s.lstrip(':') # xxx canonicalize fn
     util.dbg(spec_name, params, fn)
-    html.add_title(fn)
+    ses.add_title(fn)
 
     # ignore punctuation, 
     def words(s):
@@ -486,7 +486,7 @@ def get_series(spec, spec_ord, opt):
         scored[score].append(desc)
     best_score = sorted(scored.keys())[-1]
     best_descs = scored[best_score] if best_score != (0,0,0,0) else []
-    series = [Series(spec, desc, params, fn, spec_ord, tag, opt) for desc in best_descs]
+    series = [Series(spec, desc, params, fn, spec_ord, tag, ses.opt) for desc in best_descs]
 
     # no match?
     if not series:

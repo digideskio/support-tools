@@ -127,7 +127,7 @@ class parse_time:
 # read lines from file, printing progress messages
 #
 
-def progress(fn, opt):
+def progress(ses, fn, opt):
 
     # start time
     t = time.time()
@@ -152,7 +152,7 @@ def progress(fn, opt):
                 s = '%s: processed %d lines' % (fn, n)
                 if size:
                     s += ' (%d%%)' % (100.0*f.tell()/size)
-                html.progress(s)
+                ses.progress(s)
 
     # final stats
     t = time.time() - t

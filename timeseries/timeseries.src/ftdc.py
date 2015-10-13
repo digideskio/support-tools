@@ -284,7 +284,7 @@ class File:
 # yields a sequence of metrics dictionaries
 #
 
-def read(fn, opt):
+def read(ses, fn, opt):
 
     # metrics files start with 'metrics.'
     is_ftdc_file = lambda fn: os.path.basename(fn).startswith('metrics.')
@@ -360,9 +360,9 @@ def read(fn, opt):
                 read_chunks, read_samples, read_bytes, 100.0*read_bytes/total_bytes,
                 read_bytes/read_samples, used_samples
             )
-            html.progress(msg)
+            ses.progress(msg)
 
-    html.advise('showing ~%d of ~%d samples (hit o to change, or use z to zoom in)' % (
+    ses.advise('showing ~%d of ~%d samples (hit o to change, or use z to zoom in)' % (
         used_samples, read_samples
     ))
 

@@ -4,7 +4,9 @@ import subprocess
 import sys
 import urlparse
 
+import flow
 import html
+import os
 import util
 
 
@@ -12,48 +14,65 @@ import util
 # html helpers
 #
 
-saved = None
-opened = []
-out = sys.stdout
+class Ses:
 
-def put(*content):
-    for s in content:
-        out.write(s)
-        if saved != None:
-            saved.append(s)
+    def __init__(self):
+        self.saved = None
+        self.opened = []
+        self.out = sys.stdout
+        self.in_progress = False
+        self.title = []
+        self.advice = []
 
-def elt(name, attrs={}):
-    opened.append(name)
-    put('<%s' % name)
-    for a in sorted(attrs):
-        put(' %s="%s"' % (a, attrs[a]))
-    put('>')
+    def put(self, *content):
+        for s in content:
+            self.out.write(s)
+            if self.saved != None:
+                self.saved.append(s)
+    
+    def elt(self, name, attrs={}):
+        self.opened.append(name)
+        self.put('<%s' % name)
+        for a in sorted(attrs):
+            self.put(' %s="%s"' % (a, attrs[a]))
+        self.put('>')
+    
+    def eltend(self, name, attrs={}, *content):
+        self.elt(name, attrs)
+        self.put(*content)
+        self.end(name)
+    
+    def end(self, name):
+        assert(self.opened.pop()==name)
+        self.put('</' + name + '>')
+    
+    def endall(self, ):
+        while self.opened:
+            self.end(self.opened[-1])
+    
+    def td(self, cls, *content):
+        self.elt('td', {'class':cls})
+        if content:
+            self.put(*content)
+            self.end('td')
+    
+    def start_save(self):
+        self.saved = []
+    
+    def get_save(self):
+        return ''.join(self.saved)
 
-def eltend(name, attrs={}, *content):
-    elt(name, attrs)
-    put(*content)
-    end(name)
+    def progress(self, msg):
+        if self.in_progress:
+            self.put(msg + '<br/>')
+        util.msg(msg)
+    
+    def advise(self, msg):
+        self.advice.append(msg)
+    
+    def add_title(self, fn):
+        self.title.append(os.path.basename(fn))
 
-def end(name):
-    assert(opened.pop()==name)
-    put('</' + name + '>')
-
-def endall():
-    while opened:
-        end(opened[-1])
-
-def td(cls, *content):
-    elt('td', {'class':cls})
-    if content:
-        put(*content)
-        end('td')
-
-def start_save():
-    global saved
-    saved = []
-
-def get_save():
-    return ''.join(saved)
 
 
 #
@@ -66,18 +85,17 @@ class Handler(BaseHTTPServer.BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-type", "text/html")
         self.end_headers()
-        global out
-        out = self.wfile
+        self.server.ses.out = self.wfile
 
     def param(self, name, q, convert):
         if name in q:
             value = convert(q[name])
-            setattr(self.server.opt, name, value)
+            setattr(self.server.ses.opt, name, value)
             #util.msg(name, value)
 
     def do_GET(self):
         self.prepare()
-        self.server.opt = html.page(self.server.opt, server=True)
+        html.page(self.server.ses, server=True)
 
     def do_POST(self):
         util.msg('POST', self.path)
@@ -120,11 +138,14 @@ def main(opt):
 
 
     if opt.server:
+        ses = flow.Ses()
+        ses.opt = opt
         httpd = BaseHTTPServer.HTTPServer(('', opt.port), Handler)
-        httpd.opt = opt
+        httpd.ses = ses
         util.msg('listening for a browser request for %s' % url)
         httpd.serve_forever()
     else:
-        global out
-        out = sys.stdout
-        html.page(opt, server=False)
+        ses = flow.Ses()
+        ses.out = sys.stdout
+        ses.opt = opt
+        html.page(ses, server=False)

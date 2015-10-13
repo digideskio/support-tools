@@ -50,7 +50,9 @@ s to save
 #
 #
 
-def _get_graphs(specs, opt):
+def _get_graphs(ses, specs):
+
+    opt = ses.opt
 
     if not hasattr(opt, 'after') or not opt.after: opt.after = float('-inf')
     if not hasattr(opt, 'before') or not opt.before: opt.before = float('inf')
@@ -64,18 +66,20 @@ def _get_graphs(specs, opt):
     series = [] # all
     fns = collections.defaultdict(list) # grouped by fn
     for spec_ord, spec in enumerate(specs):
-        try:
-            for s in graphing.get_series(spec, spec_ord, opt):
+        # xxxxxxxxxxx
+        #try:
+            for s in graphing.get_series(ses, spec, spec_ord):
                 fns[(s.fn,s.parse_type)].append(s) # xxx canonicalize filename
                 series.append(s)
-        except Exception as e:
-            util.msg(e)
+        # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+        #except Exception as e:
+        #    util.msg(e)
 
     # process by file according to parse_type
     for fn, parse_type in sorted(fns):
         opt.last_time = - float('inf')
         read_func = process.__dict__['series_read_' + parse_type]
-        read_func(fn, fns[(fn,parse_type)], opt)
+        read_func(ses, fn, fns[(fn,parse_type)], opt)
         
     # finish each series
     for s in series:
@@ -105,23 +109,23 @@ def _get_graphs(specs, opt):
 # cursors
 #
 
-def cursors_html(width, tmin, tmax, ticks):
+def cursors_html(ses, width, tmin, tmax, ticks):
 
-    flow.elt('svg', {
+    ses.elt('svg', {
         'id':'cursors', 'width':'%dem'%width, 'height':'100%', 'viewBox':'0 0 1 1',
         'preserveAspectRatio':'none', 'style':'position:absolute; background:none',
         'onmousemove':'move(this)', 'onmouseout':'out(this)',  'onclick':'add_cursor_by_event(this)'
     })
-    flow.eltend('line', {'id':'lll', 'class':'cursor', 'x1':-1, 'y1':0, 'x2':-1, 'y2':1})
-    flow.end('svg')
+    ses.eltend('line', {'id':'lll', 'class':'cursor', 'x1':-1, 'y1':0, 'x2':-1, 'y2':1})
+    ses.end('svg')
 
-    flow.elt('div', {'style':'position:relative; z-index:1000; background:white; margin-bottom:0.3em'})
-    flow.eltend('svg', {'id':'letters', 'width':'%dem'%width, 'height':'1em'})
+    ses.elt('div', {'style':'position:relative; z-index:1000; background:white; margin-bottom:0.3em'})
+    ses.eltend('svg', {'id':'letters', 'width':'%dem'%width, 'height':'1em'})
     h = 0.8
     viewBox = '0 0 %g %g' % (width, h)
-    flow.put('<br/>')
-    flow.eltend('svg', {'id':'deleters', 'width':'%gem'%width, 'height':'%gem'%h, 'viewBox':viewBox}),
-    flow.end('div')
+    ses.put('<br/>')
+    ses.eltend('svg', {'id':'deleters', 'width':'%gem'%width, 'height':'%gem'%h, 'viewBox':viewBox}),
+    ses.end('div')
 
     # add the time axis labels
     labels = []
@@ -132,89 +136,69 @@ def cursors_html(width, tmin, tmax, ticks):
         label = d if d != last_d else ''
         last_d = d
         labels.append(label + t.strftime('<br/>%H:%M:%S'))
-    graphing.labels(tmin, tmax, width, 2, ticks, labels)
-
-
-
-#
-# manage progress messages, advice, title
-#
-
-in_progress = False
-title = []
-
-def progress(msg):
-    if in_progress:
-        flow.put(msg + '<br/>')
-    util.msg(msg)
-
-def advise(msg):
-    advice.append(msg)
-
-def add_title(fn):
-    title.append(os.path.basename(fn))
+    graphing.labels(ses, tmin, tmax, width, 2, ticks, labels)
 
 
 #
 # generate a page
 #
 
-def page(opt, server=False):
+def page(ses, server=False):
+
+    opt = ses.opt
 
     # state-dependent informational messages
-    global advice
-    advice = ['current detail level is <span id="current_level"></span> (hit 1-9 to change)']
+    ses.advice = ['current detail level is <span id="current_level"></span> (hit 1-9 to change)']
 
     # support for save in server mode
     if server:
-        flow.start_save()
+        ses.start_save()
 
     # start the page before reading the data so we can emit progress messages
-    flow.elt('html')
-    flow.elt('head')
-    flow.eltend('meta', {'charset':'utf-8'})
-    flow.eltend('link', {'rel':'icon', 'type':'image/png', 'href':'data:image/png;base64,' + leaf})
-    flow.elt('style')
-    flow.put(graphing_css)
-    flow.put(cursors_css)
-    flow.put(html_css)
-    flow.end('style')
-    flow.elt('script')
-    flow.put(html_js)
-    flow.put(cursors_js)
-    flow.end('script')
-    flow.end('head')
-    flow.elt('body', {'onkeypress':'key()', 'onload':'initialize_model()'})
+    ses.elt('html')
+    ses.elt('head')
+    ses.eltend('meta', {'charset':'utf-8'})
+    ses.eltend('link', {'rel':'icon', 'type':'image/png', 'href':'data:image/png;base64,' + leaf})
+    ses.elt('style')
+    ses.put(graphing_css)
+    ses.put(cursors_css)
+    ses.put(html_css)
+    ses.end('style')
+    ses.elt('script')
+    ses.put(html_js)
+    ses.put(cursors_js)
+    ses.end('script')
+    ses.end('head')
+    ses.elt('body', {'onkeypress':'key()', 'onload':'initialize_model()'})
     if server:
-        flow.elt('div', {'id':'progress'})
-        global in_progress
-        in_progress = True
+        ses.elt('div', {'id':'progress'})
+        ses.in_progress = True
 
     # get our graphs, reading the data
-    graphs = _get_graphs(opt.specs, opt)
+    graphs = _get_graphs(ses, ses.opt.specs)
 
     # set page title
-    flow.eltend('script', {}, 'document.title="%s"' % ', '.join(title))
+    ses.eltend('script', {}, 'document.title="%s"' % ', '.join(ses.title))
     
     # handle some no-data edge cases
     if not graphs:
-        html.progress('no series specified')
-        flow.endall()
+        ses.progress('no series specified')
+        ses.endall()
         return
     try:
         opt.tmin = min(s.tmin for g in graphs for s in g if s.tmin)
         opt.tmax = max(s.tmax for g in graphs for s in g if s.tmax)
         tspan = opt.tmax - opt.tmin
     except ValueError:
-        html.progress('no data found')
-        flow.endall()
+        ses.progress('no data found')
+        ses.endall()
         return
 
     # having read the data, now close off progress messages before generating the rest of the page
-    if in_progress:
-        in_progress = False
-        flow.end('div') # id=progress
-        flow.eltend('script', {},
+    if ses.in_progress:
+        ses.in_progress = False
+        ses.end('div') # id=progress
+        ses.eltend('script', {},
                     'document.getElementById("progress").setAttribute("hidden","true")')
 
     # provide browser with required client-side parameters
@@ -223,20 +207,20 @@ def page(opt, server=False):
     model_items = ['tleft', 'tright', 'cursors', 'level', 'before', 'after']
     model = dict((n, getattr(opt, n)) for n in model_items)
     #util.msg(model)
-    flow.eltend('script', {}, 'model = %s' % json.dumps(model))
+    ses.eltend('script', {}, 'model = %s' % json.dumps(model))
 
     # help message at the top
-    flow.elt('div', {'onclick':'toggle_help()'})
-    flow.put('<b>click here for help</b></br>')
-    flow.elt('div', {'id':'help', 'style':'display:none'})
-    flow.put(help_all)
+    ses.elt('div', {'onclick':'toggle_help()'})
+    ses.put('<b>click here for help</b></br>')
+    ses.elt('div', {'id':'help', 'style':'display:none'})
+    ses.put(help_all)
     if server:
-        flow.put(help_server)
-    flow.put('<br/>')
-    flow.end('div')
-    flow.end('div')
-    flow.put('<br/>'.join(advice))
-    flow.put('<br/><br/>')
+        ses.put(help_server)
+    ses.put('<br/>')
+    ses.end('div')
+    ses.end('div')
+    ses.put('<br/>'.join(ses.advice))
+    ses.put('<br/><br/>')
 
     # compute stats
     spec_matches = collections.defaultdict(int)
@@ -271,32 +255,32 @@ def page(opt, server=False):
         ticks.append(t)
 
     # table of graphs
-    flow.elt('table', {'id':'table', 'style':'position:relative;'})
+    ses.elt('table', {'id':'table', 'style':'position:relative;'})
 
     # this row holds cursor heads, cursor letters, and time labels
-    flow.elt('tr')
-    flow.eltend('td')
-    flow.eltend('td')
-    flow.elt('td')
-    cursors_html(opt.width, opt.tmin, opt.tmax, ticks)
-    flow.end('td')
-    flow.end('tr')
+    ses.elt('tr')
+    ses.eltend('td')
+    ses.eltend('td')
+    ses.elt('td')
+    cursors_html(ses, opt.width, opt.tmin, opt.tmax, ticks)
+    ses.end('td')
+    ses.end('tr')
 
     # this row holds data column heads (min, max, name)
-    flow.elt('tr')
-    flow.td('head data', 'avg')
-    flow.td('head data', 'max')
-    flow.eltend('td')
+    ses.elt('tr')
+    ses.td('head data', 'avg')
+    ses.td('head data', 'max')
+    ses.eltend('td')
     if opt.number_rows:
-        flow.td('head row-number', 'row')
-    flow.td('head desc', 'name')
-    flow.td('', ' ')
-    flow.end('tr')
+        ses.td('head row-number', 'row')
+    ses.td('head desc', 'name')
+    ses.td('', ' ')
+    ses.end('tr')
 
     # function to emit a graph
     def emit_graph(data=[], ymax=None):
         graphing.html_graph(
-            data=data,
+            ses, data=data,
             tmin=opt.tmin, tmax=opt.tmax, width=opt.width,
             ymin=0, ymax=ymax, height=opt.height,
             #ticks=ticks, shaded=not opt.no_shade and len(data)==1)
@@ -311,16 +295,16 @@ def page(opt, server=False):
 
     # format graph name, factoring out common prefixes and common suffixes for merged graphs
     def name_td(g):
-        flow.td('name')
+        ses.td('name')
         pfx = os.path.commonprefix([s.name for s in g])
         sfx = os.path.commonprefix([s.name[::-1] for s in g])[::-1]
-        flow.put(pfx)
+        ses.put(pfx)
         if sfx != pfx:
             for i,s in enumerate(g):
                 mid = ' ' + s.name[len(pfx):len(s.name)-len(sfx)]
-                flow.eltend('span', {'style':'color:%s' % color(i)}, mid)
-            flow.put(sfx)
-        flow.end('td')
+                ses.eltend('span', {'style':'color:%s' % color(i)}, mid)
+            ses.put(sfx)
+        ses.end('td')
 
     # output each graph as a table row
     row = 0
@@ -333,48 +317,46 @@ def page(opt, server=False):
         display_ymax = max(s.display_ymax for s in graph)
         if ylen:
             if ymax!=0 or ymin!=0 or opt.show_zero:
-                flow.elt('tr', {'onclick':'sel(this)', 'class':'row', '_level':graph[0].level})
-                flow.td('data', '{:,.3f}'.format(float(ysum)/ylen))
-                flow.td('data', '{:,.3f}'.format(ymax))
-                flow.td('graph')
+                ses.elt('tr', {'onclick':'sel(this)', 'class':'row', '_level':graph[0].level})
+                ses.td('data', '{:,.3f}'.format(float(ysum)/ylen))
+                ses.td('data', '{:,.3f}'.format(ymax))
+                ses.td('graph')
                 graph_color = lambda graph, i: color(i) if len(graph)>1 else 'black'
                 data = [(s.ts, s.ys, graph_color(graph,i)) for i,s in enumerate(graph)]
                 emit_graph(data, display_ymax)
-                flow.end('td')
+                ses.end('td')
                 if opt.number_rows:
-                    flow.td('row-number', str(row))
+                    ses.td('row-number', str(row))
                     row += 1
                 name_td(graph)
-                flow.end('tr')
+                ses.end('tr')
             else:
                 util.dbg('skipping uniformly zero data for', graph[0].get('name'), 'in', graph[0].fn)
                 for s in graph:
                     spec_zero[s.spec] += 1
         elif opt.show_empty:
-            flow.elt('tr', {'onclick':'sel(this)', 'class':'row', '_level':graph[0].level})
-            flow.td('data', 'n/a')
-            flow.td('data', 'n/a')
-            flow.td('graph')
+            ses.elt('tr', {'onclick':'sel(this)', 'class':'row', '_level':graph[0].level})
+            ses.td('data', 'n/a')
+            ses.td('data', 'n/a')
+            ses.td('graph')
             emit_graph()
-            flow.end('td')
+            ses.end('td')
             if opt.number_rows:
-                flow.td('row-number', str(row))
+                ses.td('row-number', str(row))
                 row += 1
             name_td(graph)
-            flow.end('tr')
+            ses.end('tr')
         else:
             util.dbg('no data for', graph[0].get('name'), 'in', graph[0].fn)
             for s in graph:
                 spec_empty[s.spec] += 1
 
     # close it out
-    flow.end('table')
-    flow.end('body')
-    flow.end('html')
+    ses.end('table')
+    ses.end('body')
+    ses.end('html')
 
     for spec in opt.specs:
         util.msg('spec', repr(spec), 'matched:', spec_matches[spec],
             'zero:', spec_zero[spec], 'empty:', spec_empty[spec])
 
-
-    return opt

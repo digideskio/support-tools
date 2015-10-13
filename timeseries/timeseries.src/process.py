@@ -13,8 +13,8 @@ import util
 # useable as a src for transfer(src, *dst)
 #
 
-def read_csv(fn, opt):
-    for line in util.progress(fn, opt):
+def read_csv(ses, fn, opt):
+    for line in util.progress(ses, fn, opt):
         yield [s.strip(' \n"') for s in line.split(',')]
 
 
@@ -41,8 +41,8 @@ def json_fixup(j):
             
 
 
-def read_json(fn, opt):
-    for line in util.progress(fn, opt):
+def read_json(ses, fn, opt):
+    for line in util.progress(ses, fn, opt):
         if line.startswith('{'):
             try:
                 jnode = json.loads(line)
@@ -52,11 +52,11 @@ def read_json(fn, opt):
                 util.msg('ignoring bad line', e)
 
 
-def read_lines(fn, opt):
-    return util.progress(fn, opt)
+def read_lines(ses, fn, opt):
+    return util.progress(ses, fn, opt)
 
-def read_metrics(fn, opt):
-    return ftdc.read(fn, opt)
+def read_metrics(ses, fn, opt):
+    return ftdc.read(ses, fn, opt)
 
 
 
@@ -379,24 +379,24 @@ def transfer(src, *dst):
 #
 
 # lines of text parsed using regexps
-def series_read_re(fn, series, opt):
-    src = read_lines(fn, opt)
+def series_read_re(ses, fn, series, opt):
+    src = read_lines(ses, fn, opt)
     dst = series_process_re(series, opt)
     transfer(src, dst)
 
 # json docs
-def series_read_json(fn, series, opt):
-    src = read_json(fn, opt)
+def series_read_json(ses, fn, series, opt):
+    src = read_json(ses, fn, opt)
     dst = series_process_json(fn, series, opt)
     transfer(src, dst)
 
-def series_read_csv(fn, series, opt):
-    src = read_csv(fn, opt)
+def series_read_csv(ses, fn, series, opt):
+    src = read_csv(ses, fn, opt)
     dst = series_process_fields(series, opt)
     transfer(src, dst)
     
-def series_read_rs(fn, series, opt):
-    transfer(read_json(fn, opt), series_process_rs(series, opt))
+def series_read_rs(ses, fn, series, opt):
+    transfer(read_json(ses, fn, opt), series_process_rs(series, opt))
 
 
 #
@@ -406,10 +406,10 @@ def series_read_rs(fn, series, opt):
 #     series_process_rs does special-case processing (e.g. replica lag) for replSetGetStatus
 #
 
-def series_read_ftdc_json(fn, series, opt):
+def series_read_ftdc_json(ses, fn, series, opt):
     ss = init_dst(series_process_json(fn, series, opt))
     rs = init_dst(series_process_rs(series, opt))
-    for jnode in read_json(fn, opt):
+    for jnode in read_json(ses, fn, opt):
         if 'serverStatus' in jnode:
             ss.send(jnode['serverStatus'])
         if 'replSetGetStatus' in jnode:
@@ -418,9 +418,9 @@ def series_read_ftdc_json(fn, series, opt):
     #dst = [series_process_json(fn, series, opt), series_process_rs(series, opt)]
     #transfer(read_json(fn, opt), *dst)
 
-def series_read_ftdc_dict(fn, series, opt):
+def series_read_ftdc_dict(ses, fn, series, opt):
     #FTDC(fn).dbg(); return # for timing
-    src = read_metrics(fn, opt)
+    src = read_metrics(ses, fn, opt)
     dst = series_process_dict(series, opt)
     transfer(src, dst)
     # TBD: implement rs lag computation
