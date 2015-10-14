@@ -1,12 +1,18 @@
 import BaseHTTPServer
+import json
+import os
+import pipes
 import pkgutil
+import shlex
 import subprocess
 import sys
+import uuid
+import urllib
 import urlparse
 
+import __main__
 import flow
 import html
-import os
 import util
 
 
@@ -16,13 +22,20 @@ import util
 
 class Ses:
 
-    def __init__(self):
+    sessions = {}
+
+    def __init__(self, opt, path=None):
         self.saved = None
         self.opened = []
         self.out = sys.stdout
         self.in_progress = False
         self.title = []
         self.advice = []
+        self.opt = opt
+        if not path:
+            path = '/%d' % len(Ses.sessions)
+        self.path = path
+        Ses.sessions[self.path] = self
 
     def put(self, *content):
         for s in content:
@@ -81,33 +94,38 @@ class Ses:
 
 class Handler(BaseHTTPServer.BaseHTTPRequestHandler):
 
-    def prepare(self):
+    def prepare(self, ses):
         self.send_response(200)
         self.send_header("Content-type", "text/html")
         self.end_headers()
-        self.server.ses.out = self.wfile
-
-    def param(self, name, q, convert):
-        if name in q:
-            value = convert(q[name])
-            setattr(self.server.ses.opt, name, value)
-            #util.msg(name, value)
+        ses.out = self.wfile
 
     def do_GET(self):
-        self.prepare()
-        html.page(self.server.ses, server=True)
+        _, _, path, _, query, _ = urlparse.urlparse(self.path)
+        if path=='/open':
+            query = urlparse.parse_qs(query)
+            args = shlex.split(query['args'][0])
+            opt = __main__.get_opt(args)
+            ses = Ses(opt) # new session
+            self.send_response(302) # temporary redirect
+            self.send_header('Location', ses.path)
+        elif path in Ses.sessions:
+            ses = Ses.sessions[path]
+            self.prepare(ses)
+            html.page(ses, server=True)
+        else:
+            self.send_response(404) # not found
 
     def do_POST(self):
         util.msg('POST', self.path)
-        if self.path=='/zoom':
+        if self.path.endswith('/model'):
+            path = self.path[:-len('/model')] # strip off /model to get session path
+            ses = Ses.sessions[path]
             l = int(self.headers.getheader('content-length', 0))
-            q = urlparse.parse_qs(self.rfile.read(l))
-            self.param('after', q, lambda x: float(x[0]))
-            self.param('before', q, lambda x: float(x[0]))
-            self.param('cursors', q, lambda x: map(float, x))
-            self.param('level', q, lambda x: int(x[0]))
-            self.send_response(301) # redirect
-            self.send_header('Location', '/')
+            data = self.rfile.read(l)
+            js = json.loads(data)
+            for name in js:
+                setattr(ses.opt, name, js[name])
         elif self.path=='/save':
             l = int(self.headers.getheader('content-length', 0))
             req = urlparse.parse_qs(self.rfile.read(l))
@@ -115,37 +133,45 @@ class Handler(BaseHTTPServer.BaseHTTPRequestHandler):
             open(fn, 'w').write(get_save())
             util.msg('saved to', fn)
 
+def browser(url, delay=0):
+
+    # what os?
+    if sys.platform=='darwin':
+        cmd = 'sleep 1; open -a "Google Chrome" "%s"' % url
+    elif sys.platform=='linux2':
+        cmd = 'sleep 1; google-chrome "%s" &' % url
+
+    # launch it
+    if cmd:
+        rc = subprocess.call(cmd, shell=True)
+        if rc != 0:
+            util.msg('can\'t open browser; is Google Chrome installed?')
+    else:
+        util.msg('don\'t know how to open a browser on your platform')
+
+
 def main(opt):
 
     url = 'http://localhost:%d' % opt.port
-
     if opt.browser:
-
+        browser(url, delay=1)
         opt.server = True
         cmd = None
 
-        if sys.platform=='darwin':
-            cmd = 'sleep 1; open -a "Google Chrome" %s' % url
-        elif sys.platform=='linux2':
-            cmd = 'sleep 1; google-chrome %s &' % url
-
-        if cmd:
-            rc = subprocess.call(cmd, shell=True)
-            if rc != 0:
-                util.msg('can\'t open browser; is Google Chrome installed?')
-        else:
-            util.msg('don\'t know how to open a browser on your platform')
-
-
     if opt.server:
-        ses = flow.Ses()
-        ses.opt = opt
+        ses = flow.Ses(opt, '/')
         httpd = BaseHTTPServer.HTTPServer(('', opt.port), Handler)
-        httpd.ses = ses
+        httpd.ses = ses # default session - xxx bad idea?
         util.msg('listening for a browser request for %s' % url)
         httpd.serve_forever()
+    elif opt.connect:
+        args = ' '.join(pipes.quote(s) for s in sys.argv[1:])
+        args = urllib.urlencode({'args': args})
+        util.msg('xxx oc', opt.connect)
+        url = opt.connect + '/open?' + args
+        util.msg('xxx', url)
+        browser(url)
     else:
-        ses = flow.Ses()
+        ses = flow.Ses(opt)
         ses.out = sys.stdout
-        ses.opt = opt
         html.page(ses, server=False)

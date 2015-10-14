@@ -36,6 +36,7 @@ function add_cursor_by_event(evt) {
     var x = event_x(evt)
     _add_cursor(x)
     update_cursors()
+    do_post('model', model)
 }
 
 // add a cursor at time t
@@ -51,13 +52,13 @@ function _add_cursor(x) {
         x1:x, x2:x, y1:0, y2:1, class:"cursor"
     })
     var deleter = elt(svg_ns, "circle", {
-        cx:(x*100)+'%', cy:'50%', r:0.3, class:"deleter", onclick:"del_cursor(this)"
+        cx:(x*100)+'%', cy:'50%', r:0.3, class:"deleter", onclick:"del_cursor_event(this)"
     })
     var letter = elt(svg_ns, "text", {
         x:(x*100)+'%', y:'80%', 'text-anchor':'middle', 'class':'letter'
     })
     cursor = {line: line, deleter: deleter, letter: letter, t: x2t(x), x: x}
-    cursor.toString = function() {return String(this.t)} // serialize for sending to server
+    cursor.toJSON = function() {return this.t} // serialize for sending to server
     line.cursor = cursor
     deleter.cursor = cursor
     letter.cursor = cursor
@@ -67,13 +68,14 @@ function _add_cursor(x) {
     update_cursors()
 }
 
-function del_cursor(deleter) {
+function del_cursor_event(deleter) {
     cursor = deleter.cursor;
     ['line', 'deleter', 'letter'].forEach(function(n){
         e = cursor[n]
         e.parentNode.removeChild(e)
     })
     update_cursors()
+    do_post('model', model)    
 }
 
 function update_cursors() {
@@ -121,8 +123,8 @@ function zoom() {
     // get positions for requested zoom range
     range = range.split(/[^A-Za-z]/, 2)
     function get_time(spec, attr) {
+        var t = null
         if (spec.length==1) {
-            var t = undefined
             for (var j in cs) {
                 if (cs[j].letter.innerHTML==spec) {
                     t = cs[j].t
@@ -133,18 +135,18 @@ function zoom() {
                 alert('No such cursor: ' + c)
                 return
             }
-            model[attr] = t
         }
+        model[attr] = t
     }
     get_time(range[0], 'after')
     get_time(range[1], 'before')
-    do_request('post', '/zoom', model)
+    do_post('model', model, function(){window.location.reload(true)})
 }
 
 function zoom_all() {
     if (confirm('Zoom out to show all data?')) {
-        model.after = '-inf'
-        model.before = 'inf'
-        do_request('post', '/zoom', model)
+        model.after = null
+        model.before = null
+        do_post('model', model, function(){window.location.reload(true)})
     }
 }

@@ -100,7 +100,7 @@ function key() {
     if (c=='s') {
         fn = prompt('Save to file:', 'timeseries.html')
         if (fn)
-            do_post_noreload('/save', {fn: fn})
+            do_post('save', {fn: fn})
     } else if (c=='z') {
         zoom()
     } else if (c=='Z') {
@@ -164,6 +164,7 @@ function key() {
         }
     } else if ('1'<=c && c<='9') {
         set_level(Number(c))
+        do_post('model', model)
     }
     _sel(selected)
 }    
@@ -177,6 +178,7 @@ function toggle_help() {
     }
 }
 
+// not used?
 function do_request(method, url, model) {
     form = document.createElement("form");
     form.action = url;
@@ -201,17 +203,30 @@ function do_request(method, url, model) {
     form.submit()
 }
 
-// post a list of variables to a url but do not load the response as a new page
-function do_post_noreload(url, vars) {
+// post variables (e.g. model) to url, then perform a function (e.g reload)
+function do_post(url, vars, done) {
+
+    // xxx general enough?
+    url = window.location + '/' + url
+
+    // create request
     req = new XMLHttpRequest()
     req.open('POST', url)
-    req.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-    data = ''
-    for (v in vars) {
-        if (data)
-            data += '&'
-        data += v + '=' + encodeURIComponent(vars[v])
+    req.setRequestHeader("Content-type", "application/json");
+
+    // execute done() when finished
+    if (done) {
+        req.onreadystatechange = function() {
+            if (req.readyState==4)
+                done()
+        }
     }
-    req.send(data)
+
+    // serialize as JSON and send
+    function replacer(key, value) {
+        return value!=null && typeof(value)=='object' && 'toJSON' in value? value.toJSON() : value
+    }
+    json = JSON.stringify(vars, replacer)
+    req.send(json)
 }
 

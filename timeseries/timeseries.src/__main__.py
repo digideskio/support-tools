@@ -1,4 +1,5 @@
 import argparse
+import sys
 
 import descriptors
 import flow
@@ -7,7 +8,7 @@ import flow
 #
 #
 
-def main():
+def get_opt(args=sys.argv[1:]):
 
     p = argparse.ArgumentParser()
     p.add_argument('--dbg', '-d', action='store_true')
@@ -34,8 +35,14 @@ def main():
     p.add_argument('--server', action='store_true')
     p.add_argument('--browser', action='store_true')
     p.add_argument('--port', type=int, default=8888)
+    p.add_argument('--connect', type=str)
     # might be useful: --cursors time,... 
-    opt = p.parse_args()
+    return p.parse_args(args)
+
+
+def main():
+
+    opt = get_opt()
 
     # just list?
     if opt.list:
