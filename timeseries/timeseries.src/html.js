@@ -165,9 +165,29 @@ function key() {
     } else if ('1'<=c && c<='9') {
         set_level(Number(c))
         do_post('model', model)
+    } else if (c=='o') {
+        var p = 'Open new view in current window. Use timeseries command-line syntax to specify:'
+        specs = prompt(p, model.spec_cmdline)
+        url = '/open?args=' + encodeURI(specs)
+        window.location.href = url
+    } else if (c=='O') {
+        var p = 'Open new view in a new window. Use timeseries command-line syntax to specify:'
+        specs = prompt(p, model.spec_cmdline)
+        url = '/open?args=' + encodeURI(specs)
+        url = absoluteURL(url)
+        window.open(url)
     }
     _sel(selected)
 }    
+
+
+
+// hack to get absolute url from relative
+function absoluteURL(url) {
+    var a = document.createElement('a');
+    a.href = url;
+    return a.href;
+}
 
 function toggle_help() {
     e = document.getElementById('help')

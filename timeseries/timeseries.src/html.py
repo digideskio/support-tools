@@ -4,6 +4,7 @@ import datetime as dt
 import json
 import math
 import os
+import pipes
 import pkgutil
 import pytz
 
@@ -39,7 +40,8 @@ P move the selected row to the top
 '''.strip().replace('\n', '<br/>') + '<br/>';
 
 help_server = '''
-o to change overview subsampling
+o to open new view in current window
+O to open new view in new window
 z to zoom in
 Z to zoom out
 s to save
@@ -50,9 +52,10 @@ s to save
 #
 #
 
-def _get_graphs(ses, specs):
+def _get_graphs(ses):
 
     opt = ses.opt
+    specs = opt.specs
 
     if not hasattr(opt, 'after') or not opt.after: opt.after = float('-inf')
     if not hasattr(opt, 'before') or not opt.before: opt.before = float('inf')
@@ -175,7 +178,7 @@ def page(ses, server=False):
         ses.in_progress = True
 
     # get our graphs, reading the data
-    graphs = _get_graphs(ses, ses.opt.specs)
+    graphs = _get_graphs(ses)
 
     # set page title
     ses.eltend('script', {}, 'document.title="%s"' % ', '.join(ses.title))
@@ -201,11 +204,31 @@ def page(ses, server=False):
         ses.eltend('script', {},
                     'document.getElementById("progress").setAttribute("hidden","true")')
 
+    # compute stats
+    spec_matches = collections.defaultdict(int)
+    for graph in graphs:
+        for series in graph:
+            spec_matches[series.spec] += 1
+    spec_empty = collections.defaultdict(int)
+    spec_zero = collections.defaultdict(int)
+
+    # show times
+    if opt.duration: # in seconds
+        opt.tmax = opt.tmin + timedelta(0, opt.duration)
+    start_time = util.f2t(opt.tmin).strftime('%Y-%m-%d %H:%M:%SZ')
+    finish_time = util.f2t(opt.tmax).strftime('%Y-%m-%d %H:%M:%SZ')
+    ses.advise('start: %s, finish: %s, duration: %s' % (
+        start_time, finish_time, util.f2t(opt.tmax) - util.f2t(opt.tmin)
+    ))
+    
     # provide browser with required client-side parameters
     if not hasattr(opt, 'cursors'): opt.cursors = []
     graphing.get_time_bounds(opt)
     model_items = ['tleft', 'tright', 'cursors', 'level', 'before', 'after']
     model = dict((n, getattr(opt, n)) for n in model_items)
+    spec_cmdline = ' '.join(pipes.quote(s) for s in opt.specs)
+    model['spec_cmdline'] = spec_cmdline
+    ses.advise('viewing ' + spec_cmdline + ' (use o or O to change)')
     #util.msg(model)
     ses.eltend('script', {}, 'model = %s' % json.dumps(model))
 
@@ -221,19 +244,6 @@ def page(ses, server=False):
     ses.end('div')
     ses.put('<br/>'.join(ses.advice))
     ses.put('<br/><br/>')
-
-    # compute stats
-    spec_matches = collections.defaultdict(int)
-    for graph in graphs:
-        for series in graph:
-            spec_matches[series.spec] += 1
-    spec_empty = collections.defaultdict(int)
-    spec_zero = collections.defaultdict(int)
-    util.msg('start:', util.f2t(opt.tmin))
-    util.msg('finish:', util.f2t(opt.tmax))
-    util.msg('duration:', util.f2t(opt.tmax) - util.f2t(opt.tmin))
-    if opt.duration: # in seconds
-        opt.tmax = opt.tmin + timedelta(0, opt.duration)
 
     # compute ticks
     ranges = [1, 2.5, 5, 10, 15, 20, 30, 60] # seconds

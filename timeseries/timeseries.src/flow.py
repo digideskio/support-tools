@@ -101,6 +101,7 @@ class Handler(BaseHTTPServer.BaseHTTPRequestHandler):
         ses.out = self.wfile
 
     def do_GET(self):
+        util.msg('GET', self.path)
         _, _, path, _, query, _ = urlparse.urlparse(self.path)
         if path=='/open':
             query = urlparse.parse_qs(query)
@@ -167,9 +168,7 @@ def main(opt):
     elif opt.connect:
         args = ' '.join(pipes.quote(s) for s in sys.argv[1:])
         args = urllib.urlencode({'args': args})
-        util.msg('xxx oc', opt.connect)
         url = opt.connect + '/open?' + args
-        util.msg('xxx', url)
         browser(url)
     else:
         ses = flow.Ses(opt)

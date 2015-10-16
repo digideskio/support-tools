@@ -362,9 +362,11 @@ def read(ses, fn, opt):
             )
             ses.progress(msg)
 
-    ses.advise('showing ~%d of ~%d samples (hit o to change, or use z to zoom in)' % (
-        used_samples, read_samples
-    ))
+    if used_samples != read_samples:
+        s = 'displaying overview of ~%d of ~%d samples in selected time range (use z to zoom in)'
+        ses.advise(s % (used_samples, read_samples))
+    else:
+        ses.advise('displaying all ~%d samples in selected time range' % used_samples)
 
 
 def dbg(fn, opt):
