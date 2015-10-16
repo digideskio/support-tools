@@ -1094,9 +1094,9 @@ wt('data-handle', 'connection candidate referenced', rate=True) # CHECK
 wt('data-handle', 'connection data handles currently active')
 wt('data-handle', 'connection dhandles swept', rate=True) # CHECK
 wt('data-handle', 'connection sweep candidate became referenced')
-wt('data-handle', 'connection sweep dhandles closed')
-wt('data-handle', 'connection sweep dhandles removed from hash list')
-wt('data-handle', 'connection sweep time-of-death sets')
+wt('data-handle', 'connection sweep dhandles closed', rate=True)
+wt('data-handle', 'connection sweep dhandles removed from hash list', rate=True)
+wt('data-handle', 'connection sweep time-of-death sets',rate=True)
 wt('data-handle', 'connection sweeps', rate=True) # CHECK
 wt('data-handle', 'connection time-of-death sets', rate=True) # CHECK
 wt('data-handle', 'session dhandles swept', rate=True)
