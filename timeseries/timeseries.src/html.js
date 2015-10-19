@@ -168,14 +168,18 @@ function key() {
     } else if (c=='o') {
         var p = 'Open new view in current window. Use timeseries command-line syntax to specify:'
         specs = prompt(p, model.spec_cmdline)
-        url = '/open?args=' + encodeURI(specs)
-        window.location.href = url
+        if (specs) {
+            url = '/open?args=' + encodeURI(specs)
+            window.location.href = url
+        }
     } else if (c=='O') {
         var p = 'Open new view in a new window. Use timeseries command-line syntax to specify:'
         specs = prompt(p, model.spec_cmdline)
-        url = '/open?args=' + encodeURI(specs)
-        url = absoluteURL(url)
-        window.open(url)
+        if (specs) {
+            url = '/open?args=' + encodeURI(specs)
+            url = absoluteURL(url)
+            window.open(url)
+        }
     }
     _sel(selected)
 }    
