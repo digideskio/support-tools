@@ -153,17 +153,24 @@ def browser(url, delay=0):
 
 def main(opt):
 
-    url = 'http://localhost:%d' % opt.port
     if opt.browser:
-        browser(url, delay=1)
         opt.server = True
-        cmd = None
 
     if opt.server:
-        ses = flow.Ses(opt, '/')
-        httpd = BaseHTTPServer.HTTPServer(('', opt.port), Handler)
-        httpd.ses = ses # default session - xxx bad idea?
+        httpd = None
+        for opt.port in range(opt.port, opt.port+100):
+            try:
+                httpd = BaseHTTPServer.HTTPServer(('', opt.port), Handler)
+                break
+            except Exception as e:
+                util.msg('can\'t open port %d: %s' % (opt.port, e))
+        if not httpd:
+            raise e
+        httpd.ses = flow.Ses(opt, '/') # default session - xxx bad idea?
+        url = 'http://localhost:%d' % opt.port
         util.msg('listening for a browser request for %s' % url)
+        if opt.browser:
+            browser(url)
         httpd.serve_forever()
     elif opt.connect:
         args = ' '.join(pipes.quote(s) for s in sys.argv[1:])
