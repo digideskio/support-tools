@@ -7,6 +7,7 @@ import os
 import pipes
 import pkgutil
 import pytz
+import traceback
 
 import flow
 import graphing
@@ -178,7 +179,12 @@ def page(ses, server=False):
         ses.in_progress = True
 
     # get our graphs, reading the data
-    graphs = _get_graphs(ses)
+    try:
+        graphs = _get_graphs(ses)
+    except Exception as e:
+        ses.progress(str(e))
+        traceback.print_exc()
+        graphs = None
 
     # set page title
     ses.eltend('script', {}, 'document.title="%s"' % ', '.join(ses.title))

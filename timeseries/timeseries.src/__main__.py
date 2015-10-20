@@ -1,5 +1,6 @@
 import argparse
 import sys
+import traceback
 
 import descriptors
 import flow
@@ -65,5 +66,7 @@ def main():
         flow.main(opt)
 
 if __name__ == '__main__':
-    main()
-
+    try:
+        main()
+    except:
+        traceback.print_exc()

@@ -223,6 +223,6 @@ function main {
     run-tests
 }
 
-main
+if [[ -n $* ]]; then $*; else main; fi
 
 
