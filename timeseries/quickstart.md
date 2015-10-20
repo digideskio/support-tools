@@ -64,8 +64,18 @@ To zoom in to a specific time range, place one or more cursors, then hit z; you 
 * z to zoom in
 * Z to zoom out
 
-You can open new views, either in the current window or a new window. You specify the view in the dialog as you would on the command line, including options such as "--no-merges".
+You can open new views, either in the current window or a new window. You specify the view in the dialog as you would on the command line, including options such as "--no-merges". Multiple views maintain their own state, so for example you can have different views on the same data zoomed in to different time ranges.
 * o to open new view in current window
 * O to open new view in new window
+
+### Viewing live data
+
+You can specify a $dbpath/diagnostic.data for a live mongod instance to see updated statistics in semi-real time. The timeseries tool uses a combination of caching and lazy decompression of the ftdc data to make this reasonably efficient.
+
+Coming soon: at the moment you have to manually hit the browser refresh button to see updated data, and you will see the view disrupted as it refreshes. I expect to make the graph refresh happen in the background so that the screen update itself appears instantaneous, and introduce a "live" mode that automatically refreshes the data from a live system at e.g. 10-second intervals.
+
+
+
+
 
 
