@@ -1,5 +1,5 @@
 import collections
-import datetime as dt
+import datetime
 import dateutil
 import json
 import math
@@ -9,8 +9,6 @@ import string
 import time
 
 import descriptors
-import flow
-import html
 import util
 
 
@@ -22,7 +20,7 @@ xpad = 1.5
 ypad = 0.1
 
 def html_graph(
-    ses, data=[],
+    ses, data,
     tmin=None, tmax=None, width=None,
     ymin=None, ymax=None, height=None,
     ticks=None, line_width=0.1, shaded=True,
@@ -105,7 +103,7 @@ def html_graph(
 
     ses.end('svg')
 
-def labels(ses, tmin, tmax, width, height, ts, labels):
+def get_labels(ses, tmin, tmax, width, height, ts, labels):
     ses.elt('div', {'style':'height: %fem; position:relative; width:%gem' % (height,width)})
     tspan = tmax - tmin
     gx = lambda t: (t-tmin) / tspan * (width-2*xpad) + xpad
@@ -127,7 +125,7 @@ def get_time_bounds(opt):
 #
 #
 
-REQUIRED = []
+REQUIRED = 'REQUIRED'
 fmtr = string.Formatter()
 
 def get(descriptor, n, default=REQUIRED):
@@ -135,7 +133,7 @@ def get(descriptor, n, default=REQUIRED):
     if v is REQUIRED:
         raise Exception('missing required parameter '+repr(n)+' in '+descriptor['name'])
     try:
-        if (type(v)==str or type(v)==unicode):
+        if type(v)==str or type(v)==unicode:
             v = fmtr.vformat(str(v), (), descriptor)
         elif type(v)==list:
             v = [fmtr.vformat(str(s), (), descriptor) for s in v] # xxx recursive? dict?
@@ -154,6 +152,10 @@ class Series:
         self.tag = tag
         self.opt = opt
         self.key = (tag, descriptor['_ord'], spec_ord)
+        self.tmin = self.tmax = self.ymin = self.ymax = self.ysum = None
+        self.ts = None
+        self.name = None
+        self.split_all = None
 
         # make fn avaialbe for formatting
         self.fn = fn
@@ -222,9 +224,9 @@ class Series:
         # timezone offset
         tz = self.get('tz', None)
         if tz==None:
-            self.tz = dt.datetime(*time.gmtime()[:6]) - dt.datetime(*time.localtime()[:6])
+            self.tz = datetime.datetime(*time.gmtime()[:6])-datetime.datetime(*time.localtime()[:6])
         else:
-            self.tz = dt.timedelta(hours=float(tz))
+            self.tz = datetime.timedelta(hours=float(tz))
 
         # default datetime instance for incomplete timestamps
         default_date = self.get('default_date', None)
@@ -269,7 +271,7 @@ class Series:
         for s in self.split_series.values():
             s.get_graphs(graphs, ygroups, opt)
 
-    def _data_point(self, t, d, get_field, set_field):
+    def data_point_after_splits(self, t, d, get_field, set_field):
 
         # may not have data in case of a count, so just use 0
         try:
@@ -317,14 +319,13 @@ class Series:
 
         # record the data
         if self.buckets:
-            tt = t
             s0 = t
             s1 = s0 // self.buckets * self.buckets
             t = s1
             self.ys[t] = self.op(self.ys, t, d)
         elif self.queue:
             if d>self.queue_min_ms:
-                ms = dt.timedelta(0, d/1000.0)
+                ms = datetime.timedelta(0, d/1000.0)
                 self.queue_times.append((t-ms,+1))
                 self.queue_times.append((t,-1))
         else:
@@ -359,7 +360,7 @@ class Series:
         if opt.relative:
             if self.t0 is None:
                 self.t0 = t
-            t = t0 + (t - self.t0)
+            t = util.t0 + (t - self.t0)
         if self.split_field:
             if type(self.split_field)==str:
                 split_key = get_field(self.split_field)
@@ -368,7 +369,7 @@ class Series:
             s = self.get_split(split_key)
         else:
             s = self
-        return s._data_point(t, d, get_field, set_field)
+        return s.data_point_after_splits(t, d, get_field, set_field)
 
 
     def finish(self):
@@ -451,13 +452,12 @@ def get_series(ses, spec, spec_ord):
         if is_metrics(fn):
             return 'metrics'
         with open(fn) as f:
-            for i in range(10):
+            for _ in range(10):
                 try:
                     json.loads(f.next())
                     return 'json'
                 except Exception as e:
                     util.dbg(e)
-                    pass
         return 'text'
 
     file_type = detect(fn)

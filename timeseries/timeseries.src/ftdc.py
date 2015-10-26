@@ -1,10 +1,9 @@
 import collections
-import html
-import itertools
 import math
 import mmap
 import os
 import struct
+import time
 import zlib
 
 import util
@@ -90,6 +89,7 @@ def read_bson_doc(buf, at, ftdc=False):
 
 
 def print_bson_doc(doc, indent=''): 
+    # pylint: disable=print-statement
     for k, v in doc.items():
         print indent + k,
         if type(v)==BSON:
@@ -114,6 +114,11 @@ class Chunk:
         self._id = chunk_doc['_id']
         self._len = chunk_doc.bson_len
         self.state = 0 # 0: nothing read; 1: read ref doc and metadata; 2: read all incl deltas
+        self.metrics = None
+        self.nsamples = 0
+        self.nmetrics = 0
+        self.ndeltas = 0
+        self.data = None
 
     def __len__(self):
         return self._len
@@ -143,7 +148,7 @@ class Chunk:
         def extract_names(doc, n=''):
             for k, v in doc.items():
                 nn = n + '.' + k if n else k
-                if type(v) == BSON:
+                if type(v)==BSON:
                     extract_names(v, nn)
                 else:
                     self.metrics[nn] = [v]
@@ -157,7 +162,7 @@ class Chunk:
         if self.nmetrics != len(self.metrics):
             # xxx remove when SERVER-20602 is fixed
             util.msg('ignoring bad chunk: nmetrics=%d, len(metrics)=%d' % (
-                self.nmetrics, len(metrics)))
+                self.nmetrics, len(self.metrics)))
             return None
         #assert(self.nmetrics==len(metrics))
 
@@ -202,7 +207,7 @@ class Chunk:
         nzeroes = 0
         for metric_values in self.metrics.values():
             value = metric_values[-1]
-            for n in xrange(self.ndeltas):
+            for _ in xrange(self.ndeltas):
                 if nzeroes:
                     delta = 0
                     nzeroes -= 1
@@ -369,10 +374,10 @@ def read(ses, fn, opt):
         ses.advise('displaying all ~%d samples in selected time range' % used_samples)
 
 
-def dbg(fn, opt):
+def dbg(fn, opt, show=True):
     def pt(t):
         return time.strftime('%Y-%m-%dT%H:%M:%S', time.gmtime(t/1000)) + ('.%03d' % (t%1000))
-    for metrics in read(fn, opt):
+    for metrics in read(None, fn, opt):
         if show:
             if 'serverStatus.localTime' in metrics:
                 sslt = metrics['serverStatus.localTime']

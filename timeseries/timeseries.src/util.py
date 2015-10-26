@@ -2,17 +2,19 @@ import sys
 import dateutil.parser
 import datetime as dt
 import pytz
+import re
 import time
 
-import html
 import util
 
 #
 # messages
 #
 
+do_dbg = False
+
 def dbg(*ss):
-    if __name__=='__main__' and opt.dbg:
+    if __name__=='__main__' and do_dbg:
         sys.stderr.write(' '.join(str(s) for s in ss) + '\n')
 
 def msg(*ss):
@@ -25,8 +27,9 @@ def msg(*ss):
 
 def datetime_parse(t):
     t = dateutil.parser.parse(t)
-    if not t.tzinfo:
-        t = t.replace(tzinfo=dateutil.tz.tzlocal())
+    # xxx default timezone?
+    #if not t.tzinfo:
+    #    t = t.replace(tzinfo=dateutil.tz.tzlocal())
     return t
 
 # our t0 - internally times are represented as seconds since this time
@@ -49,6 +52,9 @@ class parse_time:
 
     def __init__(self):
         self._parse_time = None
+        self.gs = None
+        self.pat = None
+        self.tzo = None
 
     def _find_time(self, time):
         for pat, gs in parse_time.patterns:
@@ -73,12 +79,20 @@ class parse_time:
         if not self._parse_time:
             self._find_time(time)
             time = self._parse_time(time, opt, s)
-            global t0
-            t0 = t0.astimezone(time.tzinfo)
+            # xxx default timezone?
+            #global t0
+            #t0 = t0.astimezone(time.tzinfo)
         else:
             time = self._parse_time(time, opt, s)
 
         # convert to internal fp repr
+        if time.tzinfo==None:
+            if s.tz==None:
+                msg = "no timezone for %s; specify timezone, e.g., iostat(tz=-5):iostat.log" % time
+                raise Exception(msg)
+            else:
+                tzinfo = dateutil.tz.tzoffset('xxx', s.tz.total_seconds())
+                time = time.replace(tzinfo=tzinfo)
         time = util.t2f(time)
     
         # subset or range of times
@@ -112,12 +126,13 @@ class parse_time:
             util.dbg(e)
             time = dt.datetime.fromtimestamp(int(time), pytz.utc)
     
+        # xxx default timezone?
         # supply tz if missing
-        if not time.tzinfo:
-            if s:
-                time = pytz.utc.localize(time-s.tz)
-            else:
-                raise Exception('require non-naive timestamps')
+        #if not time.tzinfo:
+        #    if s:
+        #        time = pytz.utc.localize(time-s.tz)
+        #    else:
+        #        raise Exception('require non-naive timestamps')
 
         return time
 

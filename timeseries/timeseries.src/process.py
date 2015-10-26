@@ -187,7 +187,6 @@ def series_process_json(fn, series, opt):
             jnode = yield
         except GeneratorExit:
             break
-        time = None
         result = collections.defaultdict(dict)
         match(ptree, jnode, result)
         set_fields = {}
@@ -198,7 +197,7 @@ def series_process_json(fn, series, opt):
                 getitem = fields.__getitem__
                 setitem = set_fields.__setitem__
                 s.data_point(fields['time'], fields['data'], getitem, setitem, opt)
-            except KeyError as e:
+            except KeyError:
                 pass
 
     # report on unmatched json paths

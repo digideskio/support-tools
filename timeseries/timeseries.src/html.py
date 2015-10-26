@@ -6,12 +6,9 @@ import math
 import os
 import pipes
 import pkgutil
-import pytz
 import traceback
 
-import flow
 import graphing
-import html
 import process
 import util
 
@@ -38,7 +35,7 @@ p move the selected row up
 N move the selected row to the bottom 
 P move the selected row to the top 
 1-9 to change detail level
-'''.strip().replace('\n', '<br/>') + '<br/>';
+'''.strip().replace('\n', '<br/>') + '<br/>'
 
 help_server = '''
 o to open new view in current window
@@ -46,7 +43,7 @@ O to open new view in new window
 z to zoom in
 Z to zoom out
 s to save
-'''.strip().replace('\n', '<br/>') + '<br/>';
+'''.strip().replace('\n', '<br/>') + '<br/>'
 
 
 #
@@ -70,20 +67,22 @@ def _get_graphs(ses):
     series = [] # all
     fns = collections.defaultdict(list) # grouped by fn
     for spec_ord, spec in enumerate(specs):
-        # xxxxxxxxxxx
-        #try:
+        try:
             for s in graphing.get_series(ses, spec, spec_ord):
                 fns[(s.fn,s.parse_type)].append(s) # xxx canonicalize filename
                 series.append(s)
-        # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-        #except Exception as e:
-        #    util.msg(e)
+        except Exception as e:
+            util.msg(e)
 
     # process by file according to parse_type
     for fn, parse_type in sorted(fns):
         opt.last_time = - float('inf')
         read_func = process.__dict__['series_read_' + parse_type]
-        read_func(ses, fn, fns[(fn,parse_type)], opt)
+        try:
+            read_func(ses, fn, fns[(fn,parse_type)], opt)
+        except Exception as e:
+            msg = 'error processing %s: %s' % (fn, e)
+            raise Exception(msg)
         
     # finish each series
     for s in series:
@@ -128,7 +127,7 @@ def cursors_html(ses, width, tmin, tmax, ticks):
     h = 0.8
     viewBox = '0 0 %g %g' % (width, h)
     ses.put('<br/>')
-    ses.eltend('svg', {'id':'deleters', 'width':'%gem'%width, 'height':'%gem'%h, 'viewBox':viewBox}),
+    ses.eltend('svg', {'id':'deleters', 'width':'%gem'%width, 'height':'%gem'%h, 'viewBox':viewBox})
     ses.end('div')
 
     # add the time axis labels
@@ -140,7 +139,7 @@ def cursors_html(ses, width, tmin, tmax, ticks):
         label = d if d != last_d else ''
         last_d = d
         labels.append(label + t.strftime('<br/>%H:%M:%S'))
-    graphing.labels(ses, tmin, tmax, width, 2, ticks, labels)
+    graphing.get_labels(ses, tmin, tmax, width, 2, ticks, labels)
 
 
 #
@@ -220,7 +219,7 @@ def page(ses, server=False):
 
     # show times
     if opt.duration: # in seconds
-        opt.tmax = opt.tmin + timedelta(0, opt.duration)
+        opt.tmax = opt.tmin + dt.timedelta(0, opt.duration)
     start_time = util.f2t(opt.tmin).strftime('%Y-%m-%d %H:%M:%SZ')
     finish_time = util.f2t(opt.tmax).strftime('%Y-%m-%d %H:%M:%SZ')
     ses.advise('start: %s, finish: %s, duration: %s' % (
@@ -294,7 +293,7 @@ def page(ses, server=False):
     ses.end('tr')
 
     # function to emit a graph
-    def emit_graph(data=[], ymax=None):
+    def emit_graph(data, ymax=None):
         graphing.html_graph(
             ses, data=data,
             tmin=opt.tmin, tmax=opt.tmax, width=opt.width,
@@ -355,7 +354,7 @@ def page(ses, server=False):
             ses.td('data', 'n/a')
             ses.td('data', 'n/a')
             ses.td('graph')
-            emit_graph()
+            emit_graph([])
             ses.end('td')
             if opt.number_rows:
                 ses.td('row-number', str(row))

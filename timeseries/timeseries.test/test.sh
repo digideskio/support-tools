@@ -12,7 +12,7 @@ function test-001 {
 }
 
 function test-002 {
-    run-timeseries --level 9 iostat:data/iostat.txt
+    run-timeseries --level 9 'iostat(tz=0):data/iostat.txt'
 }
 
 # tz -8 b/c the data files are in naive local time,
@@ -219,6 +219,7 @@ function zip-source {
 }    
 
 function main {
+    pylint --output-format=parseable --disable=all --enable=E,F --reports=n ../timeseries.src/*.py || exit -1
     zip-source
     run-tests
 }

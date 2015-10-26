@@ -1,3 +1,9 @@
+import collections
+import datetime as dt
+
+import graphing
+import util
+
 ################################################################################
 #
 # built-in descriptors
@@ -23,6 +29,11 @@ def descriptor(**desc):
     descriptors.append(desc)
     descriptor_ord += 1
 
+def list_descriptors():
+    for desc in sorted(descriptors, key=lambda desc: desc['name'].lower()):
+        d = collections.defaultdict(lambda: '...')
+        d.update(desc)
+        util.msg(graphing.get(d, 'name'))
 
 #
 # generic grep descriptor
@@ -60,7 +71,7 @@ descriptor(
 
 def win_headers(series, headers):
     tz = headers[0].split('(')[3].strip(')')
-    tz = timedelta(hours = -float(tz)/60)
+    tz = dt.timedelta(hours = -float(tz)/60)
     for s in series:
         s.tz = tz
     return [' '.join(h.split('\\')[3:]) for h in headers]

@@ -2,16 +2,13 @@ import BaseHTTPServer
 import json
 import os
 import pipes
-import pkgutil
 import shlex
 import subprocess
 import sys
-import uuid
 import urllib
 import urlparse
 
 import __main__
-import flow
 import html
 import util
 
@@ -43,14 +40,15 @@ class Ses:
             if self.saved != None:
                 self.saved.append(s)
     
-    def elt(self, name, attrs={}):
+    def elt(self, name, attrs=None):
         self.opened.append(name)
         self.put('<%s' % name)
-        for a in sorted(attrs):
-            self.put(' %s="%s"' % (a, attrs[a]))
+        if attrs:
+            for a in sorted(attrs):
+                self.put(' %s="%s"' % (a, attrs[a]))
         self.put('>')
     
-    def eltend(self, name, attrs={}, *content):
+    def eltend(self, name, attrs=None, *content):
         self.elt(name, attrs)
         self.put(*content)
         self.end(name)
@@ -131,10 +129,10 @@ class Handler(BaseHTTPServer.BaseHTTPRequestHandler):
             l = int(self.headers.getheader('content-length', 0))
             req = urlparse.parse_qs(self.rfile.read(l))
             fn = req['fn'][0]
-            open(fn, 'w').write(get_save())
+            open(fn, 'w').write(ses.get_save())
             util.msg('saved to', fn)
 
-def browser(url, delay=0):
+def browser(url):
 
     # what os?
     if sys.platform=='darwin':
@@ -166,7 +164,7 @@ def main(opt):
                 util.msg('can\'t open port %d: %s' % (opt.port, e))
         if not httpd:
             raise e
-        httpd.ses = flow.Ses(opt, '/') # default session - xxx bad idea?
+        httpd.ses = Ses(opt, '/') # default session - xxx bad idea?
         url = 'http://localhost:%d' % opt.port
         util.msg('listening for a browser request for %s' % url)
         if opt.browser:
@@ -178,6 +176,6 @@ def main(opt):
         url = opt.connect + '/open?' + args
         browser(url)
     else:
-        ses = flow.Ses(opt)
+        ses = Ses(opt)
         ses.out = sys.stdout
         html.page(ses, server=False)

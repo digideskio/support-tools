@@ -4,6 +4,7 @@ import traceback
 
 import descriptors
 import flow
+import util
 
 #
 #
@@ -44,18 +45,18 @@ def get_opt(args=sys.argv[1:]):
 def main():
 
     opt = get_opt()
+    if opt.dbg:
+        util.do_dbg = True
 
     # just list?
     if opt.list:
-        for desc in sorted(descriptors, key=lambda desc: desc['name'].lower()):
-            d = collections.defaultdict(lambda: '...')
-            d.update(desc)
-            util.msg(get(d, 'name'))
+        descriptors.list_descriptors()
         return
 
     if opt.profile:
         # pip install -e git+https://github.com/joerick/pyinstrument.git#egg=pyinstrument
-        import pyinstrument, codecs, locale
+        # pylint: disable=import-error
+        import pyinstrument, codecs
         p = pyinstrument.Profiler()
         p.start()
         flow.main(opt)
