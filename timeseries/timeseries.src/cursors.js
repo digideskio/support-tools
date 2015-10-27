@@ -36,7 +36,7 @@ function add_cursor_by_event(evt) {
     var x = event_x(evt)
     _add_cursor(x)
     update_cursors()
-    do_post('model', model)
+    do_post('model', top.model)
 }
 
 // add a cursor at time t
@@ -75,7 +75,7 @@ function del_cursor_event(deleter) {
         e.parentNode.removeChild(e)
     })
     update_cursors()
-    do_post('model', model)    
+    do_post('model', top.model)
 }
 
 function update_cursors() {
@@ -86,7 +86,7 @@ function update_cursors() {
     cursors.sort(function(a,b) {return a.x-b.x})
     for (var i=0; i<cursors.length; i++)
         cursors[i].letter.innerHTML = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijlkmnopqrstuvwxyz'[i]
-    model.cursors = cursors
+    top.model.cursors = cursors
 }
 
 // position of an element on the graph; units are %
@@ -97,17 +97,17 @@ function pos(e) {
 // x is a relative position (0-1) within the graphing area, which includes xpad on either side
 // compute the corresponding time on the graph, given tleft and tright supplied by server
 function x2t(x) {
-    return model.tleft * (1-x) + model.tright * x
+    return top.model.tleft * (1-x) + top.model.tright * x
 }
 
 function t2x(t) {
-    return (t-model.tleft) / (model.tright-model.tleft)
+    return (t-top.model.tleft) / (top.model.tright-top.model.tleft)
 }
 
 function zoom() {
 
     // construct default zoom range using first and last cursor
-    cs = model.cursors
+    cs = top.model.cursors
     if (cs.length==0) {
         alert('First select a zoom range by clicking on the graph to place one or more cursors')
         return
@@ -136,17 +136,17 @@ function zoom() {
                 return
             }
         }
-        model[attr] = t
+        top.model[attr] = t
     }
     get_time(range[0], 'after')
     get_time(range[1], 'before')
-    do_post('model', model, function(){window.location.reload(true)})
+    do_post('model', top.model, load_content)
 }
 
 function zoom_all() {
     if (confirm('Zoom out to show all data?')) {
-        model.after = null
-        model.before = null
-        do_post('model', model, function(){window.location.reload(true)})
+        top.model.after = null
+        top.model.before = null
+        do_post('model', top.model, load_content)
     }
 }

@@ -61,12 +61,12 @@ function set_level(level) {
     }
     document.getElementById("current_level").innerHTML = String(level)
     selected = next_visible(selected)
-    model.level = level
+    top.model.level = level
 }
 
 function initialize_model() {
-    set_level(model.level)
-    add_cursors_by_time(model.cursors)
+    set_level(top.model.level)
+    add_cursors_by_time(top.model.cursors)
 }
 
 function next_visible(row) {
@@ -164,17 +164,19 @@ function key() {
         }
     } else if ('1'<=c && c<='9') {
         set_level(Number(c))
-        do_post('model', model)
+        do_post('model', top.model)
     } else if (c=='o') {
         var p = 'Open new view in current window. Use timeseries command-line syntax to specify:'
-        specs = prompt(p, model.spec_cmdline)
+        specs = prompt(p, top.model.spec_cmdline)
         if (specs) {
-            url = '/open?args=' + encodeURI(specs)
-            window.location.href = url
+            //url = '/open?args=' + encodeURI(specs)
+            url = '?args=' + encodeURI(specs)
+            //window.location.href = url
+            load_content(url)
         }
     } else if (c=='O') {
         var p = 'Open new view in a new window. Use timeseries command-line syntax to specify:'
-        specs = prompt(p, model.spec_cmdline)
+        specs = prompt(p, top.model.spec_cmdline)
         if (specs) {
             url = '/open?args=' + encodeURI(specs)
             url = absoluteURL(url)
@@ -231,7 +233,7 @@ function do_request(method, url, model) {
 function do_post(url, vars, done) {
 
     // xxx general enough?
-    url = window.location + '/' + url
+    url = top.location + '/' + url
 
     // create request
     req = new XMLHttpRequest()
@@ -254,3 +256,32 @@ function do_post(url, vars, done) {
     req.send(json)
 }
 
+function load_content(args) {
+    console.log('load_content()')
+    frameset = top.document.getElementById('frameset')
+    if (!frameset.loading)
+        frameset.loading = 0
+    frameset.loading = 1 - frameset.loading
+    frameset.rows = frameset.loading==0? '0%, 90%, 10%' : '90%, 0%, 10%'
+    frameset.setAttribute('border', '1')
+    progress = top.document.getElementById('progress')
+    progress.innerHTML = ''
+    progress.src = top.document.location + '/progress' + (args? args : '')
+}
+
+function loaded_progress() {
+    console.log('loaded_progress()')
+    frameset = top.document.getElementById('frameset')
+    contents = top.document.getElementsByName('content')
+    contents[frameset.loading].src = top.document.location + '/content'
+}
+
+function loaded_content() {
+    console.log('loaded_content()')
+    initialize_model()
+    frameset = top.document.getElementById('frameset')
+    frameset.rows = frameset.loading==0? '100%, 0%, 0%' : '0%, 100%, 0%' 
+    frameset.setAttribute('border', '0')
+    contents = top.document.getElementsByName('content')
+    contents[frameset.loading].focus()
+}

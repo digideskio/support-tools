@@ -146,76 +146,88 @@ def cursors_html(ses, width, tmin, tmax, ticks):
 # generate a page
 #
 
+def _head(ses):
+    ses.elt('html')
+    ses.elt('head')
+    ses.eltend('meta', {'charset':'utf-8'})
+    ses.eltend('link', {'rel':'icon', 'type':'image/png', 'href':'data:image/png;base64,' + leaf})
+    ses.eltend('style', {}, graphing_css, cursors_css, html_css)
+    ses.eltend('script', {}, html_js, cursors_js)
+    ses.end('head')
+
+def container(ses):
+    _head(ses)
+    ses.elt('frameset', {
+        'id': 'frameset',
+        'rows': '90%, 0%, 10%',
+        'border': 0,
+        'onload': 'load_content()'
+    })
+    ses.eltend('frame', {'name': 'content', 'frameborder': 0})
+    ses.eltend('frame', {'name': 'content', 'frameborder': 0})
+    ses.eltend('frame', {'id': 'progress'})
+    ses.endall()
+    
+def load(ses):
+
+    # start page
+    ses.advice = []
+    _head(ses)
+    ses.elt('body', {'onload': 'loaded_progress()'})
+
+    # get our graphs, reading the data
+    try:
+        ses.graphs = _get_graphs(ses)
+        ses.progress('loading page...')
+    except Exception as e:
+        ses.progress(str(e))
+        traceback.print_exc()
+        ses.graphs = None
+
+    ses.endall()
+
+
 def page(ses, server=False):
 
     opt = ses.opt
-
-    # state-dependent informational messages
-    ses.advice = ['current detail level is <span id="current_level"></span> (hit 1-9 to change)']
 
     # support for save in server mode
     if server:
         ses.start_save()
 
-    # start the page before reading the data so we can emit progress messages
-    ses.elt('html')
-    ses.elt('head')
-    ses.eltend('meta', {'charset':'utf-8'})
-    ses.eltend('link', {'rel':'icon', 'type':'image/png', 'href':'data:image/png;base64,' + leaf})
-    ses.elt('style')
-    ses.put(graphing_css)
-    ses.put(cursors_css)
-    ses.put(html_css)
-    ses.end('style')
-    ses.elt('script')
-    ses.put(html_js)
-    ses.put(cursors_js)
-    ses.end('script')
-    ses.end('head')
-    ses.elt('body', {'onkeypress':'key()', 'onload':'initialize_model()'})
-    if server:
-        ses.elt('div', {'id':'progress'})
-        ses.in_progress = True
+    # in server mode graphs were alread generated in the "progress" phase
+    if not server:
+        ses.graphs = _get_graphs(ses)
 
-    # get our graphs, reading the data
-    try:
-        graphs = _get_graphs(ses)
-    except Exception as e:
-        ses.progress(str(e))
-        traceback.print_exc()
-        graphs = None
-
-    # set page title
+    # start page
+    _head(ses)
     ses.eltend('script', {}, 'document.title="%s"' % ', '.join(ses.title))
+    ses.elt('body', {'onkeypress': 'key()', 'onload': 'loaded_content()'})
     
     # handle some no-data edge cases
-    if not graphs:
+    if not ses.graphs:
         ses.progress('no series specified')
         ses.endall()
         return
     try:
-        opt.tmin = min(s.tmin for g in graphs for s in g if s.tmin)
-        opt.tmax = max(s.tmax for g in graphs for s in g if s.tmax)
+        opt.tmin = min(s.tmin for g in ses.graphs for s in g if s.tmin)
+        opt.tmax = max(s.tmax for g in ses.graphs for s in g if s.tmax)
         tspan = opt.tmax - opt.tmin
     except ValueError:
         ses.progress('no data found')
         ses.endall()
         return
 
-    # having read the data, now close off progress messages before generating the rest of the page
-    if ses.in_progress:
-        ses.in_progress = False
-        ses.end('div') # id=progress
-        ses.eltend('script', {},
-                    'document.getElementById("progress").setAttribute("hidden","true")')
-
     # compute stats
     spec_matches = collections.defaultdict(int)
-    for graph in graphs:
+    for graph in ses.graphs:
         for series in graph:
             spec_matches[series.spec] += 1
     spec_empty = collections.defaultdict(int)
     spec_zero = collections.defaultdict(int)
+
+    # state-dependent informational message
+    ses.advise('current detail level is <span id="current_level"></span> (hit 1-9 to change)', 0)
 
     # show times
     if opt.duration: # in seconds
@@ -235,7 +247,7 @@ def page(ses, server=False):
     model['spec_cmdline'] = spec_cmdline
     ses.advise('viewing ' + spec_cmdline + ' (use o or O to change)')
     #util.msg(model)
-    ses.eltend('script', {}, 'model = %s' % json.dumps(model))
+    ses.eltend('script', {}, 'top.model = %s' % json.dumps(model))
 
     # help message at the top
     ses.elt('div', {'onclick':'toggle_help()'})
@@ -323,7 +335,7 @@ def page(ses, server=False):
 
     # output each graph as a table row
     row = 0
-    for graph in sorted(graphs, key=lambda g: g[0].key):
+    for graph in sorted(ses.graphs, key=lambda g: g[0].key):
         graph.sort(key=lambda s: s.key)
         ymin = min(s.ymin for s in graph)
         ymax = max(s.ymax for s in graph)
@@ -367,9 +379,7 @@ def page(ses, server=False):
                 spec_empty[s.spec] += 1
 
     # close it out
-    ses.end('table')
-    ses.end('body')
-    ses.end('html')
+    ses.endall()
 
     for spec in opt.specs:
         util.msg('spec', repr(spec), 'matched:', spec_matches[spec],
