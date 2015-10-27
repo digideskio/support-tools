@@ -2,7 +2,7 @@
 * timeseries - generic timeseries visualization tool
 
 ## SYNOPSIS
-* python timeseries.py [--width WIDTH] [--height HEIGHT] [--show-empty] [--show-zero] [--no-merges] [--number-rows] [--duration DURATION] [--after AFTER] [--before BEFORE] [--every EVERY] [--relative] [--level {1,2,3,4,5,6,7,8,9}] [--list] [--server] [--browser] [--port PORT] [--connect URL] what:where [what:where ...]
+* python timeseries.py [--width WIDTH] [--height HEIGHT] [--show-empty] [--show-zero] [--no-merges] [--number-rows] [--duration DURATION] [--after AFTER] [--before BEFORE] [--every EVERY] [--relative] [--level {1,2,3,4,5,6,7,8,9}] [--list] [--server] [--browser] [--port PORT] [--connect URL] [--live SECONDS] what:where [what:where ...]
 
 ## DESCRIPTION
 
@@ -22,6 +22,7 @@
 * --server: open in server mode, listening for connections on the specified PORT (default 8888)
 * --browser: open in server mode, and then open a browser window connecting to the server
 * --connect: open a browser and connect it to the specified server, opening a view as specified by the other command line options
+* --live: refresh view periodically at specified interval, specfied in seconds (default 0, which means no refresh)
 
 The data to plot is specified by additional arguments of the form what:where, where 
 * what specifies the metric to be extracted from the file, and

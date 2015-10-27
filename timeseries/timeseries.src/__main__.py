@@ -38,6 +38,7 @@ def get_opt(args=sys.argv[1:]):
     p.add_argument('--browser', action='store_true')
     p.add_argument('--port', type=int, default=8888)
     p.add_argument('--connect', type=str)
+    p.add_argument('--live', type=int, default=0)
     # might be useful: --cursors time,... 
     return p.parse_args(args)
 

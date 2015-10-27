@@ -60,11 +60,14 @@ The default detail level is the minimum, 1; detail level 4 contains most useful 
 
 ### Interactive features in browser/server mode only
 
-To zoom in to a specific time range, place one or more cursors, then hit z; you will be prompted for which cursor range to zoom into.
+To zoom in to a specific time range, place one or more cursors, then
+hit z; you will be prompted for which cursor range to zoom into.
+
 * z to zoom in
 * Z to zoom out
 
-You can open new views, either in the current window or a new window. 
+You can open new views, either in the current window or a new window.
+
 * o to open new view in current window
 * O to open new view in new window
 
@@ -75,6 +78,13 @@ empty and uniformly 0 graphs, don't show multiple metrics on a single
 graph, and so on.  Multiple views maintain their own state, so for
 example you can have different views on the same data zoomed in to
 different time ranges.
+
+You can enable periodic refresh for viewing live data. You will be
+prompted for a refresh interval in seconds. The default value of 10
+seconds corresponds the default mongod period for saving ftdc
+data. Specify 0 to disable live mode.
+
+* l to enable periodic refresh of live data
 
 ### Opening new views
 
@@ -89,9 +99,12 @@ As described above, there are two ways you can open new views:
 
 ### Viewing live data
 
-You can specify a $dbpath/diagnostic.data for a live mongod instance to see updated statistics in semi-real time. The timeseries tool uses a combination of caching and lazy decompression of the ftdc data to make this reasonably efficient.
-
-Coming soon: at the moment you have to manually hit the browser refresh button to see updated data, and you will see the view disrupted as it refreshes. I expect to make the graph refresh happen in the background so that the screen update itself appears instantaneous, and introduce a "live" mode that automatically refreshes the data from a live system at e.g. 10-second intervals.
+You can specify a $dbpath/diagnostic.data for a live mongod instance
+to see updated statistics in semi-real time. The timeseries tool uses
+a combination of caching and lazy decompression of the ftdc data to
+make this reasonably efficient. You can do this by manually refreshing
+the view using the browser refresh button, or you can enable live mode
+as described above to periodically refresh the view.
 
 
 

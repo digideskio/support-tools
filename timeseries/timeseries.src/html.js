@@ -182,6 +182,15 @@ function key() {
             url = absoluteURL(url)
             window.open(url)
         }
+    } else if (c=='l') {
+        default_live = top.model.live>0? top.model.live : 10
+        live = prompt('Refresh interval in seconds; 0 to disable:', default_live)
+        if (live) {
+            top.model.live = Number(live)
+            do_post('model', top.model)
+            if (top.model.live > 0)
+                load_content()
+        }
     }
     _sel(selected)
 }    
@@ -258,6 +267,8 @@ function do_post(url, vars, done) {
 
 function load_content(args) {
     console.log('load_content()')
+    if (top.live_timeout)
+        clearTimeout(top.live_timeout)
     frameset = top.document.getElementById('frameset')
     if (!frameset.loading)
         frameset.loading = 0
@@ -284,4 +295,8 @@ function loaded_content() {
     frameset.setAttribute('border', '0')
     contents = top.document.getElementsByName('content')
     contents[frameset.loading].focus()
+    console.log('top.model.live', top.model.live)
+    if (top.model.live > 0)
+        top.live_timeout = setTimeout(load_content, top.model.live*1000)
 }
+

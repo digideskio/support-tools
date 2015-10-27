@@ -241,7 +241,7 @@ def page(ses, server=False):
     # provide browser with required client-side parameters
     if not hasattr(opt, 'cursors'): opt.cursors = []
     graphing.get_time_bounds(opt)
-    model_items = ['tleft', 'tright', 'cursors', 'level', 'before', 'after']
+    model_items = ['tleft', 'tright', 'cursors', 'level', 'before', 'after', 'live']
     model = dict((n, getattr(opt, n)) for n in model_items)
     spec_cmdline = ' '.join(pipes.quote(s) for s in opt.specs)
     model['spec_cmdline'] = spec_cmdline
