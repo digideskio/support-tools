@@ -130,28 +130,5 @@ make this reasonably efficient. You can do this by manually refreshing
 the view using the browser refresh button, or you can enable live mode
 as described above to periodically refresh the view.
 
-### Overview subsampling
-
-The mongod ftdc facility can store several days worth of data at
-1-second resolution. This amount of data could be very slow to
-process, and would contain detail that could not be seen anyway when
-viewing the entire timeline. For faster processing of large amounts of
-data, the tool does subsampling: it shows roughly every nth
-sample.
-
-For the vast majority of statistics which are stored in the form of
-cumulative counters, this effectively averages those statistics over
-the subsample intervals. For example, if cumulative operations is
-sub-sampled once per minute, the rate that is computed and displayed
-will be the average rate over each minute. As you zoom in you will see
-detail at a finer and finer time resolution, until you reach a zoom
-level where all samples at 1-second intervals are being displayed. At
-that point you will be seeing rates averaged over 1-second intervals.
-
-
-
-
-
-
 
 
