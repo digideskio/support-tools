@@ -22,6 +22,7 @@ html_js = pkgutil.get_data(__name__, "html.js")
 graphing_css = pkgutil.get_data(__name__, "graphing.css")
 cursors_css = pkgutil.get_data(__name__, "cursors.css")
 cursors_js = pkgutil.get_data(__name__, "cursors.js")
+server_js = pkgutil.get_data(__name__, "server.js")
 leaf = base64.b64encode(pkgutil.get_data(__name__, "leaf.png"))
 
 help_all = '''
@@ -72,7 +73,8 @@ def _get_graphs(ses):
                 fns[(s.fn,s.parse_type)].append(s) # xxx canonicalize filename
                 series.append(s)
         except Exception as e:
-            util.msg(e)
+            # xxx should we raise exception and so abort, or carry on processing all we can?
+            raise Exception('error processing %s: %s' % (spec, e))
 
     # process by file according to parse_type
     for fn, parse_type in sorted(fns):
@@ -81,8 +83,8 @@ def _get_graphs(ses):
         try:
             read_func(ses, fn, fns[(fn,parse_type)], opt)
         except Exception as e:
-            msg = 'error processing %s: %s' % (fn, e)
-            raise Exception(msg)
+            # xxx should we raise exception and so abort, or carry on processing all we can?
+            raise Exception('error processing %s: %s' % (fn, e))
         
     # finish each series
     for s in series:
@@ -103,9 +105,51 @@ def _get_graphs(ses):
         for s in ygroup:
             s.display_ymax = max(s.display_ymax, ygroup_ymax)
 
-    # return the graphs
-    return graphs.values()
+    # our result
+    ses.graphs = graphs.values()
 
+    # finish if no data
+    if not ses.graphs:
+        ses.progress('no data found')
+        return
+
+    # duration parameter overrides tmax
+    if opt.duration: # in seconds
+        opt.tmax = opt.tmin + dt.timedelta(0, opt.duration)
+
+    # compute time ranges
+    opt.tmin = min(s.tmin for g in graphs.values() for s in g if s.tmin)
+    opt.tmax = max(s.tmax for g in graphs.values() for s in g if s.tmax)
+    opt.tspan = opt.tmax - opt.tmin
+
+    # compute left and right edges of graphing area
+    graphing.get_time_bounds(opt)
+
+    # show times
+    start_time = util.f2t(opt.tmin).strftime('%Y-%m-%d %H:%M:%SZ')
+    finish_time = util.f2t(opt.tmax).strftime('%Y-%m-%d %H:%M:%SZ')
+    ses.advise('start: %s, finish: %s, duration: %s' % (
+        start_time, finish_time, util.f2t(opt.tmax) - util.f2t(opt.tmin)
+    ))
+
+    # compute ticks
+    ranges = [1, 2.5, 5, 10, 15, 20, 30, 60] # seconds
+    ranges += [r*60 for r in ranges] # minutes
+    ranges += [r*3600 for r in 1, 2, 3, 4, 6, 8, 12, 24] # hours
+    nticks = int(opt.width / 5)
+    if nticks<1: nticks = 1
+    tickdelta = opt.tspan / nticks
+    for r in ranges:
+        if tickdelta<r:
+            tickdelta = r
+            break
+    slop = 0.1 # gives us ticks near beginning or end if those aren't perfectly second-aligned
+    tickmin = math.ceil((opt.tmin-slop)/tickdelta) * tickdelta
+    opt.ticks = []
+    for i in range(nticks+1):
+        t = tickmin + i * tickdelta
+        if t > opt.tmax+slop: break
+        opt.ticks.append(t)
 
 
 #
@@ -153,6 +197,8 @@ def _head(ses):
     ses.eltend('link', {'rel':'icon', 'type':'image/png', 'href':'data:image/png;base64,' + leaf})
     ses.eltend('style', {}, graphing_css, cursors_css, html_css)
     ses.eltend('script', {}, html_js, cursors_js)
+    if ses.server:
+        ses.eltend('script', {}, server_js)
     ses.end('head')
 
 def container(ses):
@@ -177,7 +223,7 @@ def load(ses):
 
     # get our graphs, reading the data
     try:
-        ses.graphs = _get_graphs(ses)
+        _get_graphs(ses)
         ses.progress('loading page...')
     except Exception as e:
         ses.progress(str(e))
@@ -187,34 +233,26 @@ def load(ses):
     ses.endall()
 
 
-def page(ses, server=False):
+def page(ses):
 
     opt = ses.opt
 
     # support for save in server mode
-    if server:
+    if ses.server:
         ses.start_save()
 
     # in server mode graphs were alread generated in the "progress" phase
-    if not server:
-        ses.graphs = _get_graphs(ses)
+    if not ses.server:
+        _get_graphs(ses)
 
     # start page
     _head(ses)
     ses.eltend('script', {}, 'document.title="%s"' % ', '.join(ses.title))
     ses.elt('body', {'onkeypress': 'key()', 'onload': 'loaded_content()'})
     
-    # handle some no-data edge cases
+    # no data - finish with empty page and return
     if not ses.graphs:
-        ses.progress('no series specified')
-        ses.endall()
-        return
-    try:
-        opt.tmin = min(s.tmin for g in ses.graphs for s in g if s.tmin)
-        opt.tmax = max(s.tmax for g in ses.graphs for s in g if s.tmax)
-        tspan = opt.tmax - opt.tmin
-    except ValueError:
-        ses.progress('no data found')
+        ses.put('NO DATA')
         ses.endall()
         return
 
@@ -226,60 +264,31 @@ def page(ses, server=False):
     spec_empty = collections.defaultdict(int)
     spec_zero = collections.defaultdict(int)
 
-    # state-dependent informational message
-    ses.advise('current detail level is <span id="current_level"></span> (hit 1-9 to change)', 0)
-
-    # show times
-    if opt.duration: # in seconds
-        opt.tmax = opt.tmin + dt.timedelta(0, opt.duration)
-    start_time = util.f2t(opt.tmin).strftime('%Y-%m-%d %H:%M:%SZ')
-    finish_time = util.f2t(opt.tmax).strftime('%Y-%m-%d %H:%M:%SZ')
-    ses.advise('start: %s, finish: %s, duration: %s' % (
-        start_time, finish_time, util.f2t(opt.tmax) - util.f2t(opt.tmin)
-    ))
-    
     # provide browser with required client-side parameters
     if not hasattr(opt, 'cursors'): opt.cursors = []
-    graphing.get_time_bounds(opt)
     model_items = ['tleft', 'tright', 'cursors', 'level', 'before', 'after', 'live']
-    model = dict((n, getattr(opt, n)) for n in model_items)
+    model = dict((n, getattr(opt, n)) for n in model_items if hasattr(opt, n))
     spec_cmdline = ' '.join(pipes.quote(s) for s in opt.specs)
     model['spec_cmdline'] = spec_cmdline
     ses.advise('viewing ' + spec_cmdline + ' (use o or O to change)')
     #util.msg(model)
     ses.eltend('script', {}, 'top.model = %s' % json.dumps(model))
 
+    # state-dependent informational message
+    ses.advise('current detail level is <span id="current_level"></span> (hit 1-9 to change)', 0)
+    
     # help message at the top
     ses.elt('div', {'onclick':'toggle_help()'})
     ses.put('<b>click here for help</b></br>')
     ses.elt('div', {'id':'help', 'style':'display:none'})
     ses.put(help_all)
-    if server:
+    if ses.server:
         ses.put(help_server)
     ses.put('<br/>')
     ses.end('div')
     ses.end('div')
     ses.put('<br/>'.join(ses.advice))
     ses.put('<br/><br/>')
-
-    # compute ticks
-    ranges = [1, 2.5, 5, 10, 15, 20, 30, 60] # seconds
-    ranges += [r*60 for r in ranges] # minutes
-    ranges += [r*3600 for r in 1, 2, 3, 4, 6, 8, 12, 24] # hours
-    nticks = int(opt.width / 5)
-    if nticks<1: nticks = 1
-    tickdelta = tspan / nticks
-    for r in ranges:
-        if tickdelta<r:
-            tickdelta = r
-            break
-    slop = 0.1 # gives us ticks near beginning or end if those aren't perfectly second-aligned
-    tickmin = math.ceil((opt.tmin-slop)/tickdelta) * tickdelta
-    ticks = []
-    for i in range(nticks+1):
-        t = tickmin + i * tickdelta
-        if t > opt.tmax+slop: break
-        ticks.append(t)
 
     # table of graphs
     ses.elt('table', {'id':'table', 'style':'position:relative;'})
@@ -289,7 +298,7 @@ def page(ses, server=False):
     ses.eltend('td')
     ses.eltend('td')
     ses.elt('td')
-    cursors_html(ses, opt.width, opt.tmin, opt.tmax, ticks)
+    cursors_html(ses, opt.width, opt.tmin, opt.tmax, opt.ticks)
     ses.end('td')
     ses.end('tr')
 
@@ -311,7 +320,7 @@ def page(ses, server=False):
             tmin=opt.tmin, tmax=opt.tmax, width=opt.width,
             ymin=0, ymax=ymax, height=opt.height,
             #ticks=ticks, shaded=not opt.no_shade and len(data)==1)
-            ticks=ticks, shaded=len(data)==1, bins=opt.bins
+            ticks=opt.ticks, shaded=len(data)==1, bins=opt.bins
         )
 
     # colors for merged graphs

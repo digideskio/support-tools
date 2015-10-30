@@ -150,7 +150,7 @@ class Handler(BaseHTTPServer.BaseHTTPRequestHandler):
             path = path.rsplit('/', 1)[0]
             ses = Ses.sessions[path]
             self.prepare(ses)
-            html.page(ses, server=True)
+            html.page(ses)
             
         # otherwise not found
         else:
@@ -225,4 +225,4 @@ def main(opt):
     else:
         ses = Ses(opt, server=False)
         ses.out = sys.stdout
-        html.page(ses, server=False)
+        html.page(ses)
