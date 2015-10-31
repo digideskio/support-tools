@@ -14,7 +14,7 @@ import util
 #
 
 def read_csv(ses, fn, opt):
-    for line in util.progress(ses, fn, opt):
+    for line in util.progress(ses, fn):
         yield [s.strip(' \n"') for s in line.split(',')]
 
 
@@ -42,7 +42,7 @@ def json_fixup(j):
 
 
 def read_json(ses, fn, opt):
-    for line in util.progress(ses, fn, opt):
+    for line in util.progress(ses, fn):
         if line.startswith('{'):
             try:
                 jnode = json.loads(line)
@@ -53,7 +53,7 @@ def read_json(ses, fn, opt):
 
 
 def read_lines(ses, fn, opt):
-    return util.progress(ses, fn, opt)
+    return util.progress(ses, fn)
 
 def read_metrics(ses, fn, opt):
     return ftdc.read(ses, fn, opt)

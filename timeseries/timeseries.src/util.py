@@ -142,10 +142,12 @@ class parse_time:
 # read lines from file, printing progress messages
 #
 
-def progress(ses, fn, opt):
+def progress(ses, fn, every=2.0):
 
-    # start time
-    t = time.time()
+    # start time, initial progress message
+    start_time = time.time()
+    last_report = start_time
+    ses.progress('reading %s' % fn)
 
     # enumerate lines
     with open(fn) as f:
@@ -163,14 +165,17 @@ def progress(ses, fn, opt):
         util.msg('reading', fn)
         for n, line in enumerate(f):
             yield line
-            if n>0 and n%opt.progress_every==0:
-                s = '%s: processed %d lines' % (fn, n)
-                if size:
-                    s += ' (%d%%)' % (100.0*f.tell()/size)
-                ses.progress(s)
+            if n>0 and n%100==0:
+                t = time.time()
+                if t-last_report >= every:
+                    s = '%s: processed %d lines' % (fn, n)
+                    if size:
+                        s += ' (%d%%)' % (100.0*f.tell()/size)
+                    ses.progress(s)
+                    last_report = t
 
     # final stats
-    t = time.time() - t
+    t = time.time() - start_time
     util.dbg('%s: %d lines, %.3f s, %d lines/s' % (fn, n, t, n/t))
 
 

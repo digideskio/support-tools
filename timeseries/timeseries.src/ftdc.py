@@ -291,6 +291,9 @@ class File:
 
 def read(ses, fn, opt):
 
+    # initial progress message
+    ses.progress('reading %s' % fn)
+
     # metrics files start with 'metrics.'
     is_ftdc_file = lambda fn: os.path.basename(fn).startswith('metrics.')
 

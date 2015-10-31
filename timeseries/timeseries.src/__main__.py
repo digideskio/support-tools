@@ -31,7 +31,6 @@ def get_opt(args=sys.argv[1:]):
     p.add_argument('--list', action='store_true')
     p.add_argument('--level', type=int, default=1)
     p.add_argument('--bins', type=int, default=25)
-    p.add_argument('--progress-every', type=int, default=10000)
     p.add_argument('--profile', action='store_true')
     p.add_argument('--overview', default='heuristic')
     p.add_argument('--server', action='store_true')
