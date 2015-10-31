@@ -79,6 +79,7 @@ function do_post(url, vars, done) {
 
 function load_content(args) {
     console.log('load_content()')
+    post_model()
     if (top.live_timeout)
         clearTimeout(top.live_timeout)
     frameset = top.document.getElementById('frameset')
@@ -163,3 +164,13 @@ function zoom_all() {
         do_post('model', top.model, load_content)
     }
 }
+
+function post_model() {
+    if (top.model) {
+        console.log('posting', top.model)
+        do_post('model', top.model)
+    } else {
+        console.log('no model, not posting')
+    }
+}
+        

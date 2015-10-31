@@ -31,8 +31,16 @@ function sel(e) {
 }
 
 function re_number() {
+    console.log('re_number()')
     n = 0
     row = document.getElementById("table").firstChild.firstChild    
+    top.model.row_order = []
+    while (row) {
+        _row = row.getAttribute('_row')
+        if (_row)
+            top.model.row_order.push(Number(_row))
+        row = row.nextSibling
+    }
     while (row) {
         td = row.firstChild
         while (td && !td.classList.contains("row-number"))
@@ -164,7 +172,6 @@ function key() {
         }
     } else if ('1'<=c && c<='9') {
         set_level(Number(c))
-        do_post('model', top.model)
     } else if (c=='o') {
         open_current(top.model.spec_cmdline)
     } else if (c=='O') {
@@ -174,7 +181,6 @@ function key() {
         live = prompt('Refresh interval in seconds; 0 to disable:', default_live)
         if (live) {
             top.model.live = Number(live)
-            do_post('model', top.model)
             if (top.model.live > 0)
                 load_content()
         }

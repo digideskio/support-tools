@@ -51,6 +51,10 @@ s to save
 #
 #
 
+# a graph is a list of series
+class Graph(list):
+    pass
+
 def _get_graphs(ses):
 
     opt = ses.opt
@@ -91,7 +95,7 @@ def _get_graphs(ses):
         s.finish()
 
     # get graphs taking into account splits and merges
-    graphs = collections.defaultdict(list)
+    graphs = collections.defaultdict(Graph)
     ygroups = collections.defaultdict(list)
     for s in sorted(series, key=lambda s: s.key):
         s.get_graphs(graphs, ygroups, opt)
@@ -342,35 +346,65 @@ def page(ses):
             ses.put(sfx)
         ses.end('td')
 
-    # output each graph as a table row
-    row = 0
+    # determine which graphs to show, suppressing empty and uniformly zero if desired
+    # emit placeholders (graph==None, generating empty tr) to facilitate maintaining order
+    rows = []
     for graph in sorted(ses.graphs, key=lambda g: g[0].key):
         graph.sort(key=lambda s: s.key)
-        ymin = min(s.ymin for s in graph)
-        ymax = max(s.ymax for s in graph)
-        ysum = sum(s.ysum for s in graph)
-        ylen = sum(len(s.ys) for s in graph)
-        display_ymax = max(s.display_ymax for s in graph)
-        if ylen:
-            if ymax!=0 or ymin!=0 or opt.show_zero:
-                ses.elt('tr', {'onclick':'sel(this)', 'class':'row', '_level':graph[0].level})
-                ses.td('data', '{:,.3f}'.format(float(ysum)/ylen))
-                ses.td('data', '{:,.3f}'.format(ymax))
-                ses.td('graph')
-                graph_color = lambda graph, i: color(i) if len(graph)>1 else 'black'
-                data = [(s.ts, s.ys, graph_color(graph,i)) for i,s in enumerate(graph)]
-                emit_graph(data, display_ymax)
-                ses.end('td')
-                if opt.number_rows:
-                    ses.td('row-number', str(row))
-                    row += 1
-                name_td(graph)
-                ses.end('tr')
+        graph.ymin = min(s.ymin for s in graph)
+        graph.ymax = max(s.ymax for s in graph)
+        graph.ysum = sum(s.ysum for s in graph)
+        graph.ylen = sum(len(s.ys) for s in graph)
+        graph.display_ymax = max(s.display_ymax for s in graph)
+        if graph.ylen:
+            if graph.ymax!=0 or graph.ymin!=0 or opt.show_zero:
+                rows.append(graph)
             else:
+                rows.append(None) # placeholder
                 util.dbg('skipping uniformly zero data for', graph[0].get('name'), 'in', graph[0].fn)
                 for s in graph:
                     spec_zero[s.spec] += 1
         elif opt.show_empty:
+            rows.append(graph)
+        else:
+            rows.append(None) # placeholder
+            util.dbg('no data for', graph[0].get('name'), 'in', graph[0].fn)
+            for s in graph:
+                spec_empty[s.spec] += 1
+
+    # emit html for graphs we are showing, in the requested order
+    if hasattr(opt,'row_order') and len(opt.row_order)==len(rows):
+        row_order = opt.row_order
+    else:
+        row_order = range(len(rows))    
+    for row in row_order:
+        graph = rows[row]
+        if graph==None: # placeholder
+            ses.eltend('tr', {
+                'class': 'row',
+                '_level': 1000,
+                '_row': row,
+            })
+        elif graph.ylen:
+            ses.elt('tr', {
+                'onclick': 'sel(this)',
+                'class': 'row',
+                '_level': graph[0].level,
+                '_row': row,
+            })
+            ses.td('data', '{:,.3f}'.format(float(graph.ysum)/graph.ylen))
+            ses.td('data', '{:,.3f}'.format(graph.ymax))
+            ses.td('graph')
+            graph_color = lambda graph, i: color(i) if len(graph)>1 else 'black'
+            data = [(s.ts, s.ys, graph_color(graph,i)) for i,s in enumerate(graph)]
+            emit_graph(data, graph.display_ymax)
+            ses.end('td')
+            if opt.number_rows:
+                ses.td('row-number', str(row))
+            row += 1
+            name_td(graph)
+            ses.end('tr')
+        else:
             ses.elt('tr', {'onclick':'sel(this)', 'class':'row', '_level':graph[0].level})
             ses.td('data', 'n/a')
             ses.td('data', 'n/a')
@@ -379,13 +413,8 @@ def page(ses):
             ses.end('td')
             if opt.number_rows:
                 ses.td('row-number', str(row))
-                row += 1
             name_td(graph)
             ses.end('tr')
-        else:
-            util.dbg('no data for', graph[0].get('name'), 'in', graph[0].fn)
-            for s in graph:
-                spec_empty[s.spec] += 1
 
     # close it out
     ses.endall()

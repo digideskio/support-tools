@@ -36,7 +36,6 @@ function add_cursor_by_event(evt) {
     var x = event_x(evt)
     _add_cursor(x)
     update_cursors()
-    do_post('model', top.model)
 }
 
 // add a cursor at time t
@@ -75,7 +74,6 @@ function del_cursor_event(deleter) {
         e.parentNode.removeChild(e)
     })
     update_cursors()
-    do_post('model', top.model)
 }
 
 function update_cursors() {
