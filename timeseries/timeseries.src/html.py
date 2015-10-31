@@ -270,7 +270,9 @@ def page(ses):
 
     # provide browser with required client-side parameters
     if not hasattr(opt, 'cursors'): opt.cursors = []
-    model_items = ['tleft', 'tright', 'cursors', 'level', 'before', 'after', 'live']
+    model_items = [
+        'tleft', 'tright', 'cursors', 'level', 'before', 'after', 'live', 'selected', 'scrollY',
+    ]
     model = dict((n, getattr(opt, n)) for n in model_items if hasattr(opt, n))
     spec_cmdline = ' '.join(pipes.quote(s) for s in opt.specs)
     model['spec_cmdline'] = spec_cmdline

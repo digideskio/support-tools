@@ -6,8 +6,17 @@ function _desel() {
         selected.classList.remove('selected')
 }
 
-function _sel(s) {
+// process change to selected
+function _sel() {
+
     if (selected) {
+
+        // record selected row
+        _row = selected.getAttribute('_row')
+        if (_row)
+            top.model.selected = Number(_row)
+
+        // compute last_selected
         last_selected = selected
         selected.classList.add('selected')
         for (var p=selected, y=0; p && p.tagName!='BODY'; p=p.offsetParent)
@@ -20,6 +29,7 @@ function _sel(s) {
     }
 }
 
+// select e, deselect current selection
 function sel(e) {
     _desel()
     if (selected!=e) {
@@ -27,6 +37,21 @@ function sel(e) {
         _sel()
     } else {
         selected = undefined
+    }
+}
+
+// set selected to the specified row
+function set_selected(_row) {
+    if (_row != undefined) {
+        row = document.getElementById("table").firstChild.firstChild    
+        while (row) {
+            if (_row==row.getAttribute('_row')) {
+                selected = row
+                _sel()
+                break
+            }
+            row = row.nextSibling
+        }
     }
 }
 
@@ -73,7 +98,11 @@ function set_level(level) {
 }
 
 function initialize_model() {
+    console.log('initializing', top.model)
     set_level(top.model.level)
+    set_selected(top.model.selected)
+    if (top.model.scrollY != undefined)
+        window.scrollTo(0, top.model.scrollY)
     add_cursors_by_time(top.model.cursors)
 }
 
@@ -90,8 +119,11 @@ function prev_visible(row) {
 }
 
 function key() {
+
     var evt = window.event
     var c = String.fromCharCode(evt.charCode)
+
+    // compute last_selected
     first_row = document.getElementById("table").firstChild.firstChild
     while (first_row && !first_row.classList.contains('row'))
         first_row = first_row.nextSibling
@@ -105,6 +137,7 @@ function key() {
     }
     if (!last_selected)       
         last_selected = first_row
+
     if (c=='s') {
         fn = prompt('Save to file:', 'timeseries.html')
         if (fn)
@@ -123,6 +156,7 @@ function key() {
                 selected = s
             }
         }
+        _sel()
     } else if (c=='') {
         if (!selected)
             selected = last_selected
@@ -130,6 +164,7 @@ function key() {
             selected.classList.remove('selected')
             selected = prev_visible(selected.previousSibling)
         }
+        _sel()
     } else if (c=='n') {
         if (selected) {
             next = next_visible(selected.nextSibling)
@@ -140,6 +175,7 @@ function key() {
                 re_number()
             }
         }
+        _sel()
     } else if (c=='p') {
         if (selected) {
             if (selected!=first_row) {
@@ -150,6 +186,7 @@ function key() {
                 re_number()
             }
         }
+        _sel()
     } else if (c=='N') {
         if (selected) {
             s = next_visible(selected.nextSibling)
@@ -161,6 +198,7 @@ function key() {
                 re_number()
             }
         }
+        _sel()
     } else if (c=='P') {
         if (selected && selected != first_row) {
             s = prev_visible(selected.previousSibling)
@@ -170,8 +208,10 @@ function key() {
             sel(s)
             re_number()
         }
+        _sel()
     } else if ('1'<=c && c<='9') {
         set_level(Number(c))
+        _sel()
     } else if (c=='o') {
         open_current(top.model.spec_cmdline)
     } else if (c=='O') {
@@ -185,7 +225,6 @@ function key() {
                 load_content()
         }
     }
-    _sel(selected)
 }    
 
 function toggle_help() {

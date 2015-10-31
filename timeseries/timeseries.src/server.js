@@ -168,6 +168,7 @@ function zoom_all() {
 function post_model() {
     if (top.model) {
         console.log('posting', top.model)
+        top.model.scrollY = window.scrollY
         do_post('model', top.model)
     } else {
         console.log('no model, not posting')
