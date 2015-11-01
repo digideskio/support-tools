@@ -158,7 +158,7 @@ function zoom_all() {
 
 function info() {
 
-    // construct default zoom range using first and last cursor
+    // default cursor is last one
     cs = top.model.cursors
     if (cs.length==0) {
         alert('First place a cursor by clicking on the graph')
@@ -166,17 +166,17 @@ function info() {
     }
     cursor = cs[cs.length-1].letter.innerHTML
 
-    // allow user to override zoom range
+    // allow user to specify cursor
     cursor = prompt('Info for cursor:', cursor)
 
-    // get positions for requested zoom range
+    // get time for requested cursor
     var t = cursor2t(cursor)
     if (t==undefined) {
         alert('No such cursor: ' + c)
         return
     }
 
-    // load info into info window
+    // load info for that time into info window
     url = top.location + '/info?t=' + t
     top.open(url, 'info')
 }

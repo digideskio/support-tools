@@ -102,6 +102,7 @@ function t2x(t) {
     return (t-top.model.tleft) / (top.model.tright-top.model.tleft)
 }
 
+// get time at cursor, specified by cursor letter
 function cursor2t(cursor) {
     var cs = top.model.cursors
     for (var j in cs)

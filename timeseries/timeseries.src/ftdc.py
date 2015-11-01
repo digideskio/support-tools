@@ -12,6 +12,7 @@ import util
 #
 # for efficient processing metric names are represented as a single string
 # consisting of the BSON path elements joined by SEP
+# use / instead of . because some metrics names include .
 #
 
 SEP = '/'
@@ -389,7 +390,7 @@ def read(ses, fn, opt, progress=True):
 #
 # get raw metrics at a specified time. bit of a hack:
 #   only includes metrics, does not include full reference doc
-#   metrics are not stored as bson document so we reconstruct one from the dotted metrics names
+#   metrics are not stored as bson document so we reconstruct one from the SEP-joined metrics names
 #   assumes 'serverStatus/localTime' exists
 #
 def info(ses, fn, t, prt=util.msg):
