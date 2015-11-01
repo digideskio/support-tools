@@ -222,7 +222,7 @@ function key() {
         if (live) {
             top.model.live = Number(live)
             if (top.model.live > 0)
-                load_content()
+                post_model_and_load_content()
         }
     } else if (c=='?') {
         info()

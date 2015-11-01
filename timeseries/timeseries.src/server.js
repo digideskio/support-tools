@@ -79,7 +79,6 @@ function do_post(url, vars, done) {
 
 function load_content(args) {
     console.log('load_content()')
-    post_model()
     if (top.live_timeout)
         clearTimeout(top.live_timeout)
     frameset = top.document.getElementById('frameset')
@@ -114,7 +113,7 @@ function loaded_content() {
     contents[frameset.loading].focus()
     console.log('top.model.live', top.model.live)
     if (top.model.live > 0)
-        top.live_timeout = setTimeout(load_content, top.model.live*1000)
+        top.live_timeout = setTimeout(post_model_and_load_content, top.model.live*1000)
 }
 
 
@@ -146,14 +145,14 @@ function zoom() {
     }
     get_time(range[0], 'after')
     get_time(range[1], 'before')
-    do_post('model', top.model, load_content)
+    post_model_and_load_content()
 }
 
 function zoom_all() {
     if (confirm('Zoom out to show all data?')) {
         top.model.after = null
         top.model.before = null
-        do_post('model', top.model, load_content)
+        post_model_and_load_content()
     }
 }
 
@@ -182,13 +181,16 @@ function info() {
     top.open(url, 'info')
 }
 
-function post_model() {
+function post_model_and_load_content() {
     if (top.model) {
         console.log('posting', top.model)
         top.model.scrollY = window.scrollY
-        do_post('model', top.model)
+        do_post('model', top.model, load_content)
     } else {
         console.log('no model, not posting')
+        load_content()
     }
 }
+
+
         
