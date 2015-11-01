@@ -50,7 +50,7 @@
 .data {
     padding-left: 0.5em
 }
-body, table {
+body, table, frameset, pre.info {
     font-family: sans-serif;
     font-size: 10pt;
 }
@@ -88,8 +88,17 @@ function _desel() {
         selected.classList.remove('selected')
 }
 
-function _sel(s) {
+// process change to selected
+function _sel() {
+
     if (selected) {
+
+        // record selected row
+        _row = selected.getAttribute('_row')
+        if (_row)
+            top.model.selected = Number(_row)
+
+        // compute last_selected
         last_selected = selected
         selected.classList.add('selected')
         for (var p=selected, y=0; p && p.tagName!='BODY'; p=p.offsetParent)
@@ -102,6 +111,7 @@ function _sel(s) {
     }
 }
 
+// select e, deselect current selection
 function sel(e) {
     _desel()
     if (selected!=e) {
@@ -112,9 +122,32 @@ function sel(e) {
     }
 }
 
+// set selected to the specified row
+function set_selected(_row) {
+    if (_row != undefined) {
+        row = document.getElementById("table").firstChild.firstChild    
+        while (row) {
+            if (_row==row.getAttribute('_row')) {
+                selected = row
+                _sel()
+                break
+            }
+            row = row.nextSibling
+        }
+    }
+}
+
 function re_number() {
+    console.log('re_number()')
     n = 0
     row = document.getElementById("table").firstChild.firstChild    
+    top.model.row_order = []
+    while (row) {
+        _row = row.getAttribute('_row')
+        if (_row)
+            top.model.row_order.push(Number(_row))
+        row = row.nextSibling
+    }
     while (row) {
         td = row.firstChild
         while (td && !td.classList.contains("row-number"))
@@ -143,12 +176,16 @@ function set_level(level) {
     }
     document.getElementById("current_level").innerHTML = String(level)
     selected = next_visible(selected)
-    model.level = level
+    top.model.level = level
 }
 
 function initialize_model() {
-    set_level(model.level)
-    add_cursors_by_time(model.cursors)
+    console.log('initializing', top.model)
+    set_level(top.model.level)
+    set_selected(top.model.selected)
+    if (top.model.scrollY != undefined)
+        window.scrollTo(0, top.model.scrollY)
+    add_cursors_by_time(top.model.cursors)
 }
 
 function next_visible(row) {
@@ -164,8 +201,11 @@ function prev_visible(row) {
 }
 
 function key() {
+
     var evt = window.event
     var c = String.fromCharCode(evt.charCode)
+
+    // compute last_selected
     first_row = document.getElementById("table").firstChild.firstChild
     while (first_row && !first_row.classList.contains('row'))
         first_row = first_row.nextSibling
@@ -179,6 +219,7 @@ function key() {
     }
     if (!last_selected)       
         last_selected = first_row
+
     if (c=='s') {
         fn = prompt('Save to file:', 'timeseries.html')
         if (fn)
@@ -197,6 +238,7 @@ function key() {
                 selected = s
             }
         }
+        _sel()
     } else if (c=='') {
         if (!selected)
             selected = last_selected
@@ -204,6 +246,7 @@ function key() {
             selected.classList.remove('selected')
             selected = prev_visible(selected.previousSibling)
         }
+        _sel()
     } else if (c=='n') {
         if (selected) {
             next = next_visible(selected.nextSibling)
@@ -214,6 +257,7 @@ function key() {
                 re_number()
             }
         }
+        _sel()
     } else if (c=='p') {
         if (selected) {
             if (selected!=first_row) {
@@ -224,6 +268,7 @@ function key() {
                 re_number()
             }
         }
+        _sel()
     } else if (c=='N') {
         if (selected) {
             s = next_visible(selected.nextSibling)
@@ -235,6 +280,7 @@ function key() {
                 re_number()
             }
         }
+        _sel()
     } else if (c=='P') {
         if (selected && selected != first_row) {
             s = prev_visible(selected.previousSibling)
@@ -244,32 +290,26 @@ function key() {
             sel(s)
             re_number()
         }
+        _sel()
     } else if ('1'<=c && c<='9') {
         set_level(Number(c))
-        do_post('model', model)
+        _sel()
     } else if (c=='o') {
-        var p = 'Open new view in current window. Use timeseries command-line syntax to specify:'
-        specs = prompt(p, model.spec_cmdline)
-        url = '/open?args=' + encodeURI(specs)
-        window.location.href = url
+        open_current(top.model.spec_cmdline)
     } else if (c=='O') {
-        var p = 'Open new view in a new window. Use timeseries command-line syntax to specify:'
-        specs = prompt(p, model.spec_cmdline)
-        url = '/open?args=' + encodeURI(specs)
-        url = absoluteURL(url)
-        window.open(url)
+        open_new(top.model.spec_cmdline)
+    } else if (c=='l') {
+        default_live = top.model.live>0? top.model.live : 10
+        live = prompt('Refresh interval in seconds; 0 to disable:', default_live)
+        if (live) {
+            top.model.live = Number(live)
+            if (top.model.live > 0)
+                load_content()
+        }
+    } else if (c=='?') {
+        info()
     }
-    _sel(selected)
 }    
-
-
-
-// hack to get absolute url from relative
-function absoluteURL(url) {
-    var a = document.createElement('a');
-    a.href = url;
-    return a.href;
-}
 
 function toggle_help() {
     e = document.getElementById('help')
@@ -280,58 +320,13 @@ function toggle_help() {
     }
 }
 
-// not used?
-function do_request(method, url, model) {
-    form = document.createElement("form");
-    form.action = url;
-    form.method = method
-    items = ['after', 'before', 'level', 'cursors']
-    function one(n, v) {
-        e = document.createElement("input");
-        e.name = n
-        e.value = v
-        form.appendChild(e)
-    }
-    for (i in items) {
-        name = items[i]
-        value = model[name]
-        if (typeof(value)=='object') {
-            for (var v in value)
-                one(name, value[v])
-        } else {
-            one(name, value)
-        }
-    }
-    form.submit()
+function loaded_content() {
+    initialize_model()
 }
 
-// post variables (e.g. model) to url, then perform a function (e.g reload)
-function do_post(url, vars, done) {
-
-    // xxx general enough?
-    url = window.location + '/' + url
-
-    // create request
-    req = new XMLHttpRequest()
-    req.open('POST', url)
-    req.setRequestHeader("Content-type", "application/json");
-
-    // execute done() when finished
-    if (done) {
-        req.onreadystatechange = function() {
-            if (req.readyState==4)
-                done()
-        }
-    }
-
-    // serialize as JSON and send
-    function replacer(key, value) {
-        return value!=null && typeof(value)=='object' && 'toJSON' in value? value.toJSON() : value
-    }
-    json = JSON.stringify(vars, replacer)
-    req.send(json)
+function do_post() {
+    console.log('not posting')
 }
-
 // x position of current event as a proportion (0-1) of the width of the containing element
 function event_x(e) {
     var evt = window.event
@@ -370,7 +365,6 @@ function add_cursor_by_event(evt) {
     var x = event_x(evt)
     _add_cursor(x)
     update_cursors()
-    do_post('model', model)
 }
 
 // add a cursor at time t
@@ -409,7 +403,6 @@ function del_cursor_event(deleter) {
         e.parentNode.removeChild(e)
     })
     update_cursors()
-    do_post('model', model)    
 }
 
 function update_cursors() {
@@ -420,7 +413,7 @@ function update_cursors() {
     cursors.sort(function(a,b) {return a.x-b.x})
     for (var i=0; i<cursors.length; i++)
         cursors[i].letter.innerHTML = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijlkmnopqrstuvwxyz'[i]
-    model.cursors = cursors
+    top.model.cursors = cursors
 }
 
 // position of an element on the graph; units are %
@@ -431,57 +424,19 @@ function pos(e) {
 // x is a relative position (0-1) within the graphing area, which includes xpad on either side
 // compute the corresponding time on the graph, given tleft and tright supplied by server
 function x2t(x) {
-    return model.tleft * (1-x) + model.tright * x
+    return top.model.tleft * (1-x) + top.model.tright * x
 }
 
 function t2x(t) {
-    return (t-model.tleft) / (model.tright-model.tleft)
+    return (t-top.model.tleft) / (top.model.tright-top.model.tleft)
 }
 
-function zoom() {
-
-    // construct default zoom range using first and last cursor
-    cs = model.cursors
-    if (cs.length==0) {
-        alert('First select a zoom range by clicking on the graph to place one or more cursors')
-        return
-    }  else if (cs.length==1) {
-        range = cs[0].letter.innerHTML + '-'
-    } else {
-        range = cs[0].letter.innerHTML + '-' + cs[cs.length-1].letter.innerHTML
-    }
-
-    // allow user to override zoom range
-    range = prompt('Zoom range:', range)
-
-    // get positions for requested zoom range
-    range = range.split(/[^A-Za-z]/, 2)
-    function get_time(spec, attr) {
-        var t = null
-        if (spec.length==1) {
-            for (var j in cs) {
-                if (cs[j].letter.innerHTML==spec) {
-                    t = cs[j].t
-                    break
-                }
-            }
-            if (t==undefined) {
-                alert('No such cursor: ' + c)
-                return
-            }
-        }
-        model[attr] = t
-    }
-    get_time(range[0], 'after')
-    get_time(range[1], 'before')
-    do_post('model', model, function(){window.location.reload(true)})
+function cursor2t(cursor) {
+    var cs = top.model.cursors
+    for (var j in cs)
+        if (cs[j].letter.innerHTML==cursor)
+            return cs[j].t
+    return undefined
 }
 
-function zoom_all() {
-    if (confirm('Zoom out to show all data?')) {
-        model.after = null
-        model.before = null
-        do_post('model', model, function(){window.location.reload(true)})
-    }
-}
-</script></head><body onkeypress="key()" onload="initialize_model()"><script>document.title="test-006.csv"</script><script>model = {"spec_cmdline": "csv:data/test-006.csv", "level": 1, "after": -Infinity, "tright": 1444111986.0, "cursors": [], "tleft": 1444111854.0, "before": Infinity}</script><div onclick="toggle_help()"><b>click here for help</b></br><div id="help" style="display:none">click on a graph to put down a cursor line<br/>click on a blue disk to delete a cursor<br/>click on a name to select a row<br/>^N select the next row <br/>^P select the previous row <br/>n move the selected row down <br/>p move the selected row up <br/>N move the selected row to the bottom <br/>P move the selected row to the top <br/>1-9 to change detail level<br/><br/></div></div>current detail level is <span id="current_level"></span> (hit 1-9 to change)<br/>start: 2015-10-06 06:11:00Z, finish: 2015-10-06 06:13:00Z, duration: 0:02:00<br/>viewing csv:data/test-006.csv (use o or O to change)<br/><br/><table id="table" style="position:relative;"><tr><td></td><td></td><td><svg height="100%" id="cursors" onclick="add_cursor_by_event(this)" onmousemove="move(this)" onmouseout="out(this)" preserveAspectRatio="none" style="position:absolute; background:none" viewBox="0 0 1 1" width="30em"><line class="cursor" id="lll" x1="-1" x2="-1" y1="0" y2="1"></line></svg><div style="position:relative; z-index:1000; background:white; margin-bottom:0.3em"><svg height="1em" id="letters" width="30em"></svg><br/><svg height="0.8em" id="deleters" viewBox="0 0 30 0.8" width="30em"></svg></div><div style="height: 2.000000em; position:relative; width:30em"><span align="center" style="left:-48.5em; position:absolute; width:100em"><div align="center" style="font-size:80%">15-10-06<br/>06:11:00</div></span><span align="center" style="left:-41.75em; position:absolute; width:100em"><div align="center" style="font-size:80%"><br/>06:11:30</div></span><span align="center" style="left:-35.0em; position:absolute; width:100em"><div align="center" style="font-size:80%"><br/>06:12:00</div></span><span align="center" style="left:-28.25em; position:absolute; width:100em"><div align="center" style="font-size:80%"><br/>06:12:30</div></span><span align="center" style="left:-21.5em; position:absolute; width:100em"><div align="center" style="font-size:80%"><br/>06:13:00</div></span></div></td></tr><tr><td class="head data">avg</td><td class="head data">max</td><td></td><td class="head desc">name</td><td class=""> </td></tr><tr _level="0" class="row" onclick="sel(this)"><td class="data">1.333</td><td class="data">3.000</td><td class="graph"><svg height="1.8em" viewBox="0 0 30 1.8" width="30em"><polygon class="shaded" points="1.5,1.62 1.5,1.62 15,1.14 28.5,0.18 28.5,1.62"></polygon><polyline class="curve" points="1.5,1.62 15,1.14 28.5,0.18" style="stroke:black"></polyline><line class="tick" x1="1.5" x2="1.5" y1="0" y2="1.8"></line><line class="tick" x1="8.25" x2="8.25" y1="0" y2="1.8"></line><line class="tick" x1="15.0" x2="15.0" y1="0" y2="1.8"></line><line class="tick" x1="21.75" x2="21.75" y1="0" y2="1.8"></line><line class="tick" x1="28.5" x2="28.5" y1="0" y2="1.8"></line></svg></td><td class="name">csv test-006: value1</td></tr><tr _level="0" class="row" onclick="sel(this)"><td class="data">5.000</td><td class="data">6.000</td><td class="graph"><svg height="1.8em" viewBox="0 0 30 1.8" width="30em"><polygon class="shaded" points="1.5,1.62 1.5,0.42 15,0.18 28.5,0.66 28.5,1.62"></polygon><polyline class="curve" points="1.5,0.42 15,0.18 28.5,0.66" style="stroke:black"></polyline><line class="tick" x1="1.5" x2="1.5" y1="0" y2="1.8"></line><line class="tick" x1="8.25" x2="8.25" y1="0" y2="1.8"></line><line class="tick" x1="15.0" x2="15.0" y1="0" y2="1.8"></line><line class="tick" x1="21.75" x2="21.75" y1="0" y2="1.8"></line><line class="tick" x1="28.5" x2="28.5" y1="0" y2="1.8"></line></svg></td><td class="name">csv test-006: value2</td></tr></table></body></html>
+</script></head><script>document.title="test-006.csv"</script><body onkeypress="key()" onload="loaded_content()"><script>top.model = {"spec_cmdline": "'csv(tz=0):data/test-006.csv'", "level": 1, "after": -Infinity, "live": 0, "tright": 1444126386.0, "cursors": [], "tleft": 1444126254.0, "before": Infinity}</script><div onclick="toggle_help()"><b>click here for help</b></br><div id="help" style="display:none">click on a graph to put down a cursor line<br/>click on a blue disk to delete a cursor<br/>click on a name to select a row<br/>^N select the next row <br/>^P select the previous row <br/>n move the selected row down <br/>p move the selected row up <br/>N move the selected row to the bottom <br/>P move the selected row to the top <br/>1-9 to change detail level<br/><br/></div></div>current detail level is <span id="current_level"></span> (hit 1-9 to change)<br/>start: 2015-10-06 10:11:00Z, finish: 2015-10-06 10:13:00Z, duration: 0:02:00<br/>viewing 'csv(tz=0):data/test-006.csv' (use o or O to change)<br/><br/><table id="table" style="position:relative;"><tr><td></td><td></td><td><svg height="100%" id="cursors" onclick="add_cursor_by_event(this)" onmousemove="move(this)" onmouseout="out(this)" preserveAspectRatio="none" style="position:absolute; background:none" viewBox="0 0 1 1" width="30em"><line class="cursor" id="lll" x1="-1" x2="-1" y1="0" y2="1"></line></svg><div style="position:relative; z-index:1000; background:white; margin-bottom:0.3em"><svg height="1em" id="letters" width="30em"></svg><br/><svg height="0.8em" id="deleters" viewBox="0 0 30 0.8" width="30em"></svg></div><div style="height: 2.000000em; position:relative; width:30em"><span align="center" style="left:-48.5em; position:absolute; width:100em"><div align="center" style="font-size:80%">15-10-06<br/>10:11:00</div></span><span align="center" style="left:-41.75em; position:absolute; width:100em"><div align="center" style="font-size:80%"><br/>10:11:30</div></span><span align="center" style="left:-35.0em; position:absolute; width:100em"><div align="center" style="font-size:80%"><br/>10:12:00</div></span><span align="center" style="left:-28.25em; position:absolute; width:100em"><div align="center" style="font-size:80%"><br/>10:12:30</div></span><span align="center" style="left:-21.5em; position:absolute; width:100em"><div align="center" style="font-size:80%"><br/>10:13:00</div></span></div></td></tr><tr><td class="head data">avg</td><td class="head data">max</td><td></td><td class="head desc">name</td><td class=""> </td></tr><tr _level="0" _row="0" class="row" onclick="sel(this)"><td class="data">1.333</td><td class="data">3.000</td><td class="graph"><svg height="1.8em" viewBox="0 0 30 1.8" width="30em"><polygon class="shaded" points="1.5,1.62 1.5,1.62 15,1.14 28.5,0.18 28.5,1.62"></polygon><polyline class="curve" points="1.5,1.62 15,1.14 28.5,0.18" style="stroke:black"></polyline><line class="tick" x1="1.5" x2="1.5" y1="0" y2="1.8"></line><line class="tick" x1="8.25" x2="8.25" y1="0" y2="1.8"></line><line class="tick" x1="15.0" x2="15.0" y1="0" y2="1.8"></line><line class="tick" x1="21.75" x2="21.75" y1="0" y2="1.8"></line><line class="tick" x1="28.5" x2="28.5" y1="0" y2="1.8"></line></svg></td><td class="name">csv test-006: value1</td></tr><tr _level="0" _row="1" class="row" onclick="sel(this)"><td class="data">5.000</td><td class="data">6.000</td><td class="graph"><svg height="1.8em" viewBox="0 0 30 1.8" width="30em"><polygon class="shaded" points="1.5,1.62 1.5,0.42 15,0.18 28.5,0.66 28.5,1.62"></polygon><polyline class="curve" points="1.5,0.42 15,0.18 28.5,0.66" style="stroke:black"></polyline><line class="tick" x1="1.5" x2="1.5" y1="0" y2="1.8"></line><line class="tick" x1="8.25" x2="8.25" y1="0" y2="1.8"></line><line class="tick" x1="15.0" x2="15.0" y1="0" y2="1.8"></line><line class="tick" x1="21.75" x2="21.75" y1="0" y2="1.8"></line><line class="tick" x1="28.5" x2="28.5" y1="0" y2="1.8"></line></svg></td><td class="name">csv test-006: value2</td></tr></table></body></html>

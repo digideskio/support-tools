@@ -43,6 +43,7 @@ o to open new view in current window
 O to open new view in new window
 z to zoom in
 Z to zoom out
+? to get detailed raw info at a selected time
 s to save
 '''.strip().replace('\n', '<br/>') + '<br/>'
 
@@ -70,22 +71,22 @@ def _get_graphs(ses):
 
     # parse specs, group them by file and parse type
     series = [] # all
-    fns = collections.defaultdict(list) # grouped by fn
+    opt.fns = collections.defaultdict(list) # grouped by fn
     for spec_ord, spec in enumerate(specs):
         try:
             for s in graphing.get_series(ses, spec, spec_ord):
-                fns[(s.fn,s.parse_type)].append(s) # xxx canonicalize filename
+                opt.fns[(s.fn,s.parse_type)].append(s) # xxx canonicalize filename
                 series.append(s)
         except Exception as e:
             # xxx should we raise exception and so abort, or carry on processing all we can?
             raise Exception('error processing %s: %s' % (spec, e))
 
     # process by file according to parse_type
-    for fn, parse_type in sorted(fns):
+    for fn, parse_type in sorted(opt.fns):
         opt.last_time = - float('inf')
         read_func = process.__dict__['series_read_' + parse_type]
         try:
-            read_func(ses, fn, fns[(fn,parse_type)], opt)
+            read_func(ses, fn, opt.fns[(fn,parse_type)], opt)
         except Exception as e:
             # xxx should we raise exception and so abort, or carry on processing all we can?
             raise Exception('error processing %s: %s' % (fn, e))
@@ -424,4 +425,18 @@ def page(ses):
     for spec in opt.specs:
         util.msg('spec', repr(spec), 'matched:', spec_matches[spec],
             'zero:', spec_zero[spec], 'empty:', spec_empty[spec])
+
+
+def info(ses, t):
+
+    _head(ses)
+    ses.elt('pre', {'class': 'info'})
+
+    for fn, parse_type in sorted(ses.opt.fns):
+        info_func = 'series_info_' + parse_type
+        if info_func in process.__dict__:
+            info_func = process.__dict__[info_func]
+            info_func(ses, fn, t)
+
+    ses.endall()
 

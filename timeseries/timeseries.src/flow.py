@@ -134,6 +134,14 @@ class Handler(BaseHTTPServer.BaseHTTPRequestHandler):
             self.prepare(ses)
             html.container(ses)
 
+        # info for a given time t
+        elif path.endswith('/info'):
+            path = path.rsplit('/', 1)[0]
+            ses = Ses.sessions[path]
+            t = float(query['t'][0])
+            self.prepare(ses)
+            html.info(ses, t)
+
         # progress phase: load the data in preparation for generating content
         # while emitting progress messages. We also accept new view parameters to open
         # new view in current window as command-line arg string in url parameter "args"

@@ -224,6 +224,8 @@ function key() {
             if (top.model.live > 0)
                 load_content()
         }
+    } else if (c=='?') {
+        info()
     }
 }    
 

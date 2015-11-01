@@ -1,6 +1,7 @@
 import collections
 import datetime as dt
 
+import ftdc
 import graphing
 import util
 
@@ -168,8 +169,8 @@ def ss(json_data, name=None, scale=1, rate=False, units=None, level=3, **kwargs)
         parse_type = 'ftdc_dict',
         name = 'ftdc ' + name,
         dict_fields = {
-            'data': 'serverStatus' + '.' + '.'.join(json_data),
-            'time': 'serverStatus.localTime'
+            'data': ftdc.join('serverStatus', *json_data),
+            'time': ftdc.join('serverStatus', 'localTime'),
         },
         scale = scale,
         rate = rate,

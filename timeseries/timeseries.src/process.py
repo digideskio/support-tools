@@ -58,6 +58,10 @@ def read_lines(ses, fn, opt):
 def read_metrics(ses, fn, opt):
     return ftdc.read(ses, fn, opt)
 
+def info_metrics(ses, fn, t):
+    def prt(*stuff):
+        ses.put(' '.join(str(s) for s in stuff) + '\n')
+    ftdc.info(ses, fn, t, prt)
 
 
 ################################################################################
@@ -424,3 +428,5 @@ def series_read_ftdc_dict(ses, fn, series, opt):
     transfer(src, dst)
     # TBD: implement rs lag computation
 
+def series_info_ftdc_dict(ses, fn, t):
+    info_metrics(ses, fn, t)

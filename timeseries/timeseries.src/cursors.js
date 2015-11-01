@@ -102,3 +102,11 @@ function t2x(t) {
     return (t-top.model.tleft) / (top.model.tright-top.model.tleft)
 }
 
+function cursor2t(cursor) {
+    var cs = top.model.cursors
+    for (var j in cs)
+        if (cs[j].letter.innerHTML==cursor)
+            return cs[j].t
+    return undefined
+}
+

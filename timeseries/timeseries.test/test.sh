@@ -50,11 +50,11 @@ function test-004a {
 }
 
 function test-005 {
-    run-timeseries 'iostat:data/test-005/iostat.log'
+    run-timeseries 'iostat(tz=0):data/test-005/iostat.log'
 }
 
 function test-006 {
-    run-timeseries 'csv:data/test-006.csv'
+    run-timeseries 'csv(tz=0):data/test-006.csv'
 }
 
 function test-007 {

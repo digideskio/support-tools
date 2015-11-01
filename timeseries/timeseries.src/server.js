@@ -137,18 +137,10 @@ function zoom() {
     // get positions for requested zoom range
     range = range.split(/[^A-Za-z]/, 2)
     function get_time(spec, attr) {
-        var t = null
-        if (spec.length==1) {
-            for (var j in cs) {
-                if (cs[j].letter.innerHTML==spec) {
-                    t = cs[j].t
-                    break
-                }
-            }
-            if (t==undefined) {
-                alert('No such cursor: ' + c)
-                return
-            }
+        var t = cursor2t(spec)
+        if (t==undefined) {
+            alert('No such cursor: ' + c)
+            return
         }
         top.model[attr] = t
     }
@@ -163,6 +155,31 @@ function zoom_all() {
         top.model.before = null
         do_post('model', top.model, load_content)
     }
+}
+
+function info() {
+
+    // construct default zoom range using first and last cursor
+    cs = top.model.cursors
+    if (cs.length==0) {
+        alert('First place a cursor by clicking on the graph')
+        return
+    }
+    cursor = cs[cs.length-1].letter.innerHTML
+
+    // allow user to override zoom range
+    cursor = prompt('Info for cursor:', cursor)
+
+    // get positions for requested zoom range
+    var t = cursor2t(cursor)
+    if (t==undefined) {
+        alert('No such cursor: ' + c)
+        return
+    }
+
+    // load info into info window
+    url = top.location + '/info?t=' + t
+    top.open(url, 'info')
 }
 
 function post_model() {

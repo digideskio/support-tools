@@ -6,7 +6,18 @@ import struct
 import time
 import zlib
 
+import ftdc
 import util
+
+#
+# for efficient processing metric names are represented as a single string
+# consisting of the BSON path elements joined by SEP
+#
+
+SEP = '/'
+
+def join(*s):
+    return ftdc.SEP.join(s)
 
 
 #
@@ -88,15 +99,13 @@ def read_bson_doc(buf, at, ftdc=False):
     assert(not 'eoo not found') # should have seen an eoo and returned
 
 
-def print_bson_doc(doc, indent=''): 
-    # pylint: disable=print-statement
+def print_bson_doc(doc, prt=util.msg, indent=''):
     for k, v in doc.items():
-        print indent + k,
         if type(v)==BSON:
-            print
-            print_bson_doc(v, indent+'    ')
+            prt(indent + k)
+            print_bson_doc(v, prt, indent+'    ')
         else:
-            print v
+            prt(indent + k, v)
         
 
 #
@@ -147,7 +156,7 @@ class Chunk:
         # traverse the reference document and extract metric names
         def extract_names(doc, n=''):
             for k, v in doc.items():
-                nn = n + '.' + k if n else k
+                nn = n + ftdc.SEP + k if n else k
                 if type(v)==BSON:
                     extract_names(v, nn)
                 else:
@@ -289,10 +298,11 @@ class File:
 # yields a sequence of metrics dictionaries
 #
 
-def read(ses, fn, opt):
+def read(ses, fn, opt, progress=True):
 
     # initial progress message
-    ses.progress('reading %s' % fn)
+    if progress:
+        ses.progress('reading %s' % fn)
 
     # metrics files start with 'metrics.'
     is_ftdc_file = lambda fn: os.path.basename(fn).startswith('metrics.')
@@ -363,7 +373,7 @@ def read(ses, fn, opt):
         read_chunks += 1
         read_bytes += len(chunk)
         read_samples += chunk.nsamples
-        if read_chunks%10==0 or read_bytes==total_bytes:
+        if progress and (read_chunks%10==0 or read_bytes==total_bytes):
             msg = '%d chunks, %d samples, %d bytes (%.0f%%), %d bytes/sample; %d samples used' % (
                 read_chunks, read_samples, read_bytes, 100.0*read_bytes/total_bytes,
                 read_bytes/read_samples, used_samples
@@ -376,6 +386,43 @@ def read(ses, fn, opt):
     else:
         ses.advise('displaying all ~%d samples in selected time range' % used_samples)
 
+#
+# get raw metrics at a specified time. bit of a hack:
+#   only includes metrics, does not include full reference doc
+#   metrics are not stored as bson document so we reconstruct one from the dotted metrics names
+#   assumes 'serverStatus/localTime' exists
+#
+def info(ses, fn, t, prt=util.msg):
+
+    class Opt:
+        def __init__(self, t):
+            self.after = t
+            self.before = float('inf')
+            self.overview = 'none'
+
+    def put_bson(bson, n, v):
+        if len(n)>1:
+            if not n[0] in bson:
+                bson[n[0]] = BSON()
+            put_bson(bson[n[0]], n[1:], v)
+        else:
+            bson[n[0]] = v
+
+    # xxx assumes this exists
+    time_metric = ftdc.join('serverStatus', 'localTime')
+
+    # find and print the first sample after t (only)
+    for metrics in read(ses, fn, Opt(t), progress=False):
+        for sample, sample_time in enumerate(metrics[time_metric]):
+            sample_time = sample_time / 1000.0
+            if sample_time >= t:
+                break
+        bson = BSON()
+        for name, value in metrics.items():
+            put_bson(bson, name.split(ftdc.SEP), value[sample])
+        prt('%s at t=%.3f' % (fn, t))
+        print_bson_doc(bson, prt, '    ')
+        break
 
 def dbg(fn, opt, show=True):
     def pt(t):

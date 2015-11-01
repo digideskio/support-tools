@@ -90,6 +90,11 @@ hit z; you will be prompted for which cursor range to zoom into.
 * z to zoom in
 * Z to zoom out
 
+You can obtain detailed info, including specific values of raw
+metrics, at a seleted time.
+
+* ? to get detailed raw info at a selected time
+
 You can open new views, either in the current window or a new window.
 
 * o to open new view in current window
