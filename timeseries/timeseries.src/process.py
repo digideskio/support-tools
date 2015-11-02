@@ -1,6 +1,7 @@
 import collections
 import json
 import re
+import traceback
 
 import ftdc
 import util
@@ -18,43 +19,47 @@ def read_csv(ses, fn, opt):
         yield [s.strip(' \n"') for s in line.split(',')]
 
 
-# handle special names inserted by javascript JSON.stringify()
-def json_fixup(j):
-    if type(j)==dict:
-        for k, v in j.items():
-            if type(v)==dict:
-                if len(v)==1:
-                    if '$date' in v:
-                        j[k] = v['$date']
-                    elif '$numberLong' in v:
-                        j[k] = int(v['$numberLong'])
-                    elif '$timestamp' in v:
-                        j[k] = v['$timestamp']
-                    elif 'floatApprox' in v:
-                        j[k] = v['floatApprox']
-                json_fixup(v)
-            elif type(v)==list:
-                json_fixup(v)
-    elif type(j)==list:
-        for jj in j:
-            json_fixup(jj)
-            
-
-
+#
+# read json files
+# yields flat dictionaries like {'json/path/key': value}
+#
 def read_json(ses, fn, opt):
+
+    ignore = set(['floatApprox', '$date', '$numberLong', '$timestamp'])
+
+    def flatten(result, j, key=None):
+        if type(j)==dict:
+            for k, v in j.items():
+                if k in ignore:
+                    flatten(result, v, key)
+                else:
+                    flatten(result, v, key + ftdc.SEP + k if key else k)
+        else:
+            result[key] = [j]
+        return result
+
     for line in util.progress(ses, fn):
-        if line.startswith('{'):
-            try:
-                jnode = json.loads(line)
-                json_fixup(jnode)
-                yield jnode
-            except Exception as e:
-                util.msg('ignoring bad line', e)
+        try:
+            yield flatten({}, json.loads(line))
+        except ValueError:
+            pass
+        except:
+            traceback.print_exc()
+            break
 
 
+#
+# read lines from a file
+# yields strings
+#
 def read_lines(ses, fn, opt):
     return util.progress(ses, fn)
 
+
+#
+# read ftdc metrics files
+# yields flat dictionaries
+#
 def read_metrics(ses, fn, opt):
     return ftdc.read(ses, fn, opt)
 
@@ -74,7 +79,7 @@ def info_metrics(ses, fn, t):
 # process metrics dictionaries, each representing e.g a single chunk from an ftdc file
 # each dictionary maps a list of metric names, e.g. paths through a json metrics sample doc,
 # to a list of metric values
-def series_process_dict(series, opt):
+def series_process_flat(series, opt):
 
     # to track metrics present in the data but not processed by any series
     unrecognized = set()
@@ -86,7 +91,7 @@ def series_process_dict(series, opt):
 
             # get our next input
             metrics = yield
-
+                    
             # we don't support these (yet) so we don't support:
             #     things that depend on set_field, like "joins per closure"
             #     auto-splits (but there are none of these currently for ftdc)
@@ -95,9 +100,13 @@ def series_process_dict(series, opt):
                 
             # send each series our data points
             for s in series:
-                data = s.dict_fields['data'] # e.g. 'serverStatus.uptime'
-                time = s.dict_fields['time'] # e.g. 'serverStatus.localTime'
-                if data in metrics:
+                data = s.flat_fields['data'] # e.g. 'serverStatus.uptime'
+                time = s.flat_fields['time'] # e.g. 'serverStatus.localTime'
+                if data in metrics and time in metrics:
+                    ts = metrics[time]
+                    if type(ts[0])==str or type(ts[0])==unicode:
+                        for i, t in enumerate(ts):
+                            ts[i] = util.t2f(util.datetime_parse(t)) * 1000
                     for t, d in zip(metrics[time], metrics[data]):
                         t = t / 1000.0 # times come to us as ms, so convert to seconds here
                         if t>=opt.after and t<=opt.before:
@@ -109,6 +118,10 @@ def series_process_dict(series, opt):
         except GeneratorExit:
             break
 
+        except:
+            traceback.print_exc()
+            break
+
     # compute and print unrecognized metrics
     ignore = re.compile(
         '^serverStatus.(repl|start|end)|'
@@ -116,99 +129,13 @@ def series_process_dict(series, opt):
         '^replSetGetStatus|slot_closure_rate'
     )
     for s in series:
-        unrecognized.discard(s.dict_fields['data'])
-        unrecognized.discard(s.dict_fields['time'])
+        unrecognized.discard(s.flat_fields['data'])
+        unrecognized.discard(s.flat_fields['time'])
     unrecognized = sorted(u for u in unrecognized if not ignore.match(u))
     if unrecognized:
         util.msg('unrecognized metrics:')
         for u in unrecognized:
             util.msg('   ', u)
-
-#
-# process a sequence of json metric documents
-#
-def series_process_json(fn, series, opt):
-
-    # interior nodes
-    interior = dict
-
-    # leaf nodes - map each field name to list of series that specifies
-    # the path terminating at that node by that field name
-    class leaf(collections.defaultdict):
-        def __init__(self):
-            collections.defaultdict.__init__(self, list)
-
-    # add a path to the path tree
-    def add_path(pnode, path, fname, s):
-        head = str(path[0])
-        if len(path)==1:
-            if not head in pnode:
-                pnode[head] = leaf()
-            pnode[head][fname].append(s)
-        else:
-            if not head in pnode:
-                pnode[head] = interior()
-            add_path(pnode[head], path[1:], fname, s)
-
-    # construct combined path tree for all paths in all series
-    ptree = interior()
-    for s in series:
-        if s.json_fields:
-            for fname, path in s.json_fields.items():
-                add_path(ptree, path, fname, s)
-
-    # for reporting unmatched json paths
-    unmatched = set()
-
-    # match a path tree with a json doc
-    pt = util.parse_time()
-    def match(pnode, jnode, result, path=()):
-        if type(pnode)==interior or type(jnode)==dict:
-            for jname in jnode:
-                pp = path + (jname,)
-                try:
-                    pnode_child = pnode[jname]
-                    jnode_child = jnode[jname]
-                    match(pnode_child, jnode_child, result, pp)
-                except (KeyError, TypeError):
-                    unmatched.add(pp)
-        elif type(pnode)==list:
-            unmatched.add(path)
-        else:
-            for fname in pnode:
-                # convert time here so we don't do it multiple times for each series that uses it
-                if fname=='time':
-                    value = pt.parse_time(jnode, opt, pnode[fname][0])
-                else:
-                    value = jnode
-                if value is not None:
-                    for s in pnode[fname]:
-                        result[s][fname] = value
-
-    # process lines
-    while True:
-        try:
-            jnode = yield
-        except GeneratorExit:
-            break
-        result = collections.defaultdict(dict)
-        match(ptree, jnode, result)
-        set_fields = {}
-        for s in sorted(result.keys(), key=lambda s: s.key):
-            fields = result[s]
-            fields.update(set_fields)
-            try:
-                getitem = fields.__getitem__
-                setitem = set_fields.__setitem__
-                s.data_point(fields['time'], fields['data'], getitem, setitem, opt)
-            except KeyError:
-                pass
-
-    # report on unmatched json paths
-    if unmatched:
-        util.msg('unmatched in', fn)
-        for t in sorted(unmatched):
-            util.msg('  ', [str(tt) for tt in t])
 
 #
 # process a series of fields such as produce by reading a csv file
@@ -390,7 +317,7 @@ def series_read_re(ses, fn, series, opt):
 # json docs
 def series_read_json(ses, fn, series, opt):
     src = read_json(ses, fn, opt)
-    dst = series_process_json(fn, series, opt)
+    dst = series_process_flat(series, opt)
     transfer(src, dst)
 
 def series_read_csv(ses, fn, series, opt):
@@ -398,35 +325,11 @@ def series_read_csv(ses, fn, series, opt):
     dst = series_process_fields(series, opt)
     transfer(src, dst)
     
-def series_read_rs(ses, fn, series, opt):
-    transfer(read_json(ses, fn, opt), series_process_rs(series, opt))
-
-
-#
-# ftdc processing
-# demultiplex the embedded streams:
-#     series_process_json processes serverStatus
-#     series_process_rs does special-case processing (e.g. replica lag) for replSetGetStatus
-#
-
-def series_read_ftdc_json(ses, fn, series, opt):
-    ss = init_dst(series_process_json(fn, series, opt))
-    rs = init_dst(series_process_rs(series, opt))
-    for jnode in read_json(ses, fn, opt):
-        if 'serverStatus' in jnode:
-            ss.send(jnode['serverStatus'])
-        if 'replSetGetStatus' in jnode:
-            rs.send(jnode['replSetGetStatus'])
-
-    #dst = [series_process_json(fn, series, opt), series_process_rs(series, opt)]
-    #transfer(read_json(fn, opt), *dst)
-
-def series_read_ftdc_dict(ses, fn, series, opt):
-    #FTDC(fn).dbg(); return # for timing
+def series_read_metrics(ses, fn, series, opt):
     src = read_metrics(ses, fn, opt)
-    dst = series_process_dict(series, opt)
+    dst = series_process_flat(series, opt)
     transfer(src, dst)
     # TBD: implement rs lag computation
 
-def series_info_ftdc_dict(ses, fn, t):
+def series_info_metrics(ses, fn, t):
     info_metrics(ses, fn, t)

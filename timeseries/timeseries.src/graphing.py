@@ -209,14 +209,11 @@ class Series:
             self.re_time = self.get('re_time', 0)
             self.re_data = self.get('re_data', 1)
 
-        # info for json-based files
-        self.json_fields = self.get('json_fields', None)
+        # info for flat dict file formats, like ftdc metrics and json
+        self.flat_fields = self.get('flat_fields', None)
 
         # info for field-based file formats, like csv and rs
         self.field_name = self.get('field_name', None)
-
-        # info for dict-based file formats, like ftdc metrics
-        self.dict_fields = self.get('dict_fields', None)
 
         # special csv header processing
         self.process_headers = self.get('process_headers', lambda series, headers: headers)

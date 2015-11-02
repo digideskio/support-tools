@@ -162,7 +162,6 @@ def progress(ses, fn, every=2.0):
             size = None
 
         # enumerate lines
-        util.msg('reading', fn)
         for n, line in enumerate(f):
             yield line
             if n>0 and n%100==0:

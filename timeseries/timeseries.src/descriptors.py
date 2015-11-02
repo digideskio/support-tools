@@ -87,30 +87,6 @@ descriptor(
 )
 
 #
-# json test
-#
-
-descriptor(
-    file_type = 'json',
-    parse_type = 'json',
-    name = 'test1',
-    json_fields = {
-        'data': ['foo', 'bar1'],
-        'time': ['jtime'],
-    },
-)
-
-descriptor(
-    file_type = 'json',
-    parse_type = 'json',
-    name = 'test2',
-    json_fields = {
-        'data': ['foo', 'bar2'],
-        'time': ['jtime'],
-    },
-)
-
-#
 # serverStatus json output, for example:
 # mongo --eval "while(true) {print(JSON.stringify(db.serverStatus())); sleep($delay*1000)}"
 #
@@ -138,9 +114,9 @@ def ss(json_data, name=None, scale=1, rate=False, units=None, level=3, **kwargs)
         file_type = 'json',
         parse_type = 'json',
         name = name,
-        json_fields = {
-            'data': json_data,
-            'time': ['localTime'],
+        flat_fields = {
+            'data': ftdc.join(*json_data),
+            'time': ftdc.join('localTime'),
         },
         scale = scale,
         rate = rate,
@@ -151,11 +127,11 @@ def ss(json_data, name=None, scale=1, rate=False, units=None, level=3, **kwargs)
     # for parsing serverStatus section of ftdc represented as json documents
     descriptor(
         file_type = 'json',
-        parse_type = 'ftdc_json',
+        parse_type = 'json',
         name = 'ftdc ' + name,
-        json_fields = {
-            'data': json_data,
-            'time': ['localTime'],
+        flat_fields = {
+            'data': ftdc.join('serverStatus', *json_data),
+            'time': ftdc.join('serverStatus', 'localTime'),
         },
         scale = scale,
         rate = rate,
@@ -166,9 +142,9 @@ def ss(json_data, name=None, scale=1, rate=False, units=None, level=3, **kwargs)
     # for parsing serverStatus section of ftdc represented as metrics dictionaries
     descriptor(
         file_type = 'metrics',
-        parse_type = 'ftdc_dict',
+        parse_type = 'metrics',
         name = 'ftdc ' + name,
-        dict_fields = {
+        flat_fields = {
             'data': ftdc.join('serverStatus', *json_data),
             'time': ftdc.join('serverStatus', 'localTime'),
         },
@@ -520,27 +496,6 @@ ss(["version"], level=99) # CHECK
 ss(["writeBacksQueued"], level=9) # CHECK
 
 
-descriptor(
-    name = 'rs: {field_name}',
-    parse_type = 'rs',
-    file_type = 'json',
-    field_name = '(?P<field_name>.*)',
-    split_field = 'field_name'
-)
-
-descriptor(
-    name = 'ftdc rs: {field_name}',
-    parse_type = 'ftdc_json',
-    file_type = 'json',
-    field_name = '(?P<field_name>.*)',
-    split_field = 'field_name'
-)
-
-#
-#
-#
-
-
 def cs(json_data, name=None, scale=1, rate=False, units=None, level=3, **kwargs):
     if not name:
         if json_data[0]=='wiredTiger':
@@ -554,9 +509,9 @@ def cs(json_data, name=None, scale=1, rate=False, units=None, level=3, **kwargs)
         file_type = 'json',
         parse_type = 'json',
         name = name,
-        json_fields = {
-            'data': json_data,
-            'time': ['time'],
+        flat_fields = {
+            'data': ftdc.join(*json_data),
+            'time': ftdc.join('time'),
         },
         scale = scale,
         rate = rate,
@@ -895,11 +850,11 @@ descriptor(
     name = 'oplog: {op} {ns}',
     file_type = 'json',
     parse_type = 'json',
-    json_fields = {
-        'time': ['ts', 't'],
-        'data': ['op'],
-        'op': ['op'],
-        'ns': ['ns'],
+    flat_fields = {
+        'time': ftdc.join('ts', 't'),
+        'data': ftdc.join('op'),
+        'op': ftdc.join('op'),
+        'ns': ftdc.join('ns'),
     },
     bucket_op = 'count',
     bucket_size = 1,

@@ -79,6 +79,7 @@ def _get_graphs(ses):
                 series.append(s)
         except Exception as e:
             # xxx should we raise exception and so abort, or carry on processing all we can?
+            traceback.print_exc()
             raise Exception('error processing %s: %s' % (spec, e))
 
     # process by file according to parse_type
@@ -89,6 +90,7 @@ def _get_graphs(ses):
             read_func(ses, fn, opt.fns[(fn,parse_type)], opt)
         except Exception as e:
             # xxx should we raise exception and so abort, or carry on processing all we can?
+            traceback.print_exc()
             raise Exception('error processing %s: %s' % (fn, e))
         
     # finish each series

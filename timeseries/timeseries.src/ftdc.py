@@ -13,6 +13,7 @@ import util
 # for efficient processing metric names are represented as a single string
 # consisting of the BSON path elements joined by SEP
 # use / instead of . because some metrics names include .
+# xxx now used elsewhere, e.g. for ordinary json, so this should move...
 #
 
 SEP = '/'
