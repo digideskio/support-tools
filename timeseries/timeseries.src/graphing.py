@@ -9,6 +9,7 @@ import string
 import time
 
 import descriptors
+import ftdc
 import util
 
 
@@ -439,14 +440,8 @@ def get_series(ses, spec, spec_ord):
         #return re.split('\W+', s.lower())
         return re.sub('[^a-zA-Z0-9]', ' ', s).lower().split()
 
-    def is_metrics(fn):
-        if os.path.isdir(fn):
-            return any(is_metrics(f) for f in os.listdir(fn))
-        else:
-            return os.path.basename(fn).startswith('metrics.')
-
     def detect(fn):
-        if is_metrics(fn):
+        if ftdc.is_metrics(fn):
             return 'metrics'
         with open(fn) as f:
             for _ in range(10):

@@ -280,6 +280,12 @@ class File(util.Cache):
 # yields a sequence of metrics dictionaries
 #
 
+def is_metrics(fn):
+    if os.path.isdir(fn):
+        return any(is_metrics(os.path.join(fn,f)) for f in os.listdir(fn))
+    else:
+        return os.path.basename(fn).startswith('metrics.')
+
 def read(ses, fn, opt, progress=True):
 
     # initial progress message
@@ -291,12 +297,13 @@ def read(ses, fn, opt, progress=True):
 
     # get concatenated list of chunks for all files
     chunks = []
-    if os.path.isdir(fn):
-        for f in sorted(os.listdir(fn)):
-            if is_ftdc_file(f):
-                chunks += File.get(os.path.join(fn,f))
-    elif is_ftdc_file(fn):
-        chunks += File.get(fn)
+    def get_chunks(fn):
+        if os.path.isdir(fn):
+            for f in sorted(os.listdir(fn)):
+                get_chunks(os.path.join(fn,f))
+        elif is_ftdc_file(fn):
+            chunks.extend(File.get(fn))
+    get_chunks(fn)
     if not chunks:
         raise Exception(fn + ' is not an ftdc file or directory')
 
