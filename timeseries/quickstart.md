@@ -2,6 +2,13 @@
 
 ### Automatic interactive browser/server mode
 
+*NOTE*: the following description is based on the new full-time data
+capture facility in mongod 3.2, which automatically collects
+serverStatus and other metrics at one-second intervals. With mongod
+3.0 and prior you can manually collect similar information, as
+described below in the section [Collecting serverStatus timeseries
+data and system information (iostat) for mongod 3.0](#mongod3.0).
+
 If you have a copy of a diagnostic.data directory from a mongod, for
 example from a customer or a test system, the simplest way to view it
 is to use browser/server mode, specifying the diagnostic.data
@@ -135,5 +142,39 @@ make this reasonably efficient. You can do this by manually refreshing
 the view using the browser refresh button, or you can enable live mode
 as described above to periodically refresh the view.
 
+### Collecting system information (iostat) for mongod 3.2
 
+It is sometimes useful to have system information such as disk and CPU
+usage, along with mongod internal data. This is not currently captured
+by the full-time data capture facility of mongod, although it may be
+in the future. For now you can capture it as follows:
+
+    delay=1 # pick a number in seconds
+    iostat -k -t -x $delay >iostat.log &
+
+Then you can visualize it along with the ftdc data by adding
+"iostat(tz=...):iostat.log" to your command line, for example:
+
+    python timeseries.py "iostat(tz=-5):iostat.log" ftdc:diagnostic.data --browser 
+
+Since iostat does not capture timezone information, you will need to
+specify it on the command line, as illustrated above for EST.
+
+### Collecting serverStatus timeseries data and system information (iostat) for mongod 3.0
+<a name="mongod3.0">
+
+The preceding description assumes the built-in diagnostic data
+collected automatically by the full-time data capture (ftdc) facility
+of mongod, new for 3.2. You can collect similar data using an external
+process in 3.0 and prior, as follows:
+
+    delay=1 # pick a number in seconds
+    mongo --eval "while(true) {print(JSON.stringify(db.serverStatus({tcmalloc:true}))); sleep(1000*$delay)}" >ss.log &
+    iostat -k -t -x $delay >iostat.log &
+
+You can then use all of the commmands and interactive capabilities
+described above, substituting "ss:ss.log" for "ftdc:diagnostic.data"
+on the command line, for example:
+
+    python timeseries.py "iostat(tz=-5):iostat.log" ftdc:diagnostic.data --browser 
 
