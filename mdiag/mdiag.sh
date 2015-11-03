@@ -193,6 +193,9 @@ msection netstat netstat -anpoe
 msection ntpd_configuration chkconfig --list ntpd
 msection ntpd_status ntpstat
 msection ntpd_timeinfo ntpq -p
+msection chronyc tracking
+msection chronyc sources
+msection chronyc sourcestats
 
 # Hardware info
 msection dmesg dmesg
