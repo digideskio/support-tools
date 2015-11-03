@@ -1,9 +1,9 @@
 import collections
-import json
 import re
 import traceback
 
 import ftdc
+import jsonx
 import util
 
 
@@ -24,29 +24,7 @@ def read_csv(ses, fn, opt):
 # yields flat dictionaries like {'json/path/key': value}
 #
 def read_json(ses, fn, opt):
-
-    ignore = set(['floatApprox', '$date', '$numberLong', '$timestamp'])
-
-    def flatten(result, j, key=None):
-        if type(j)==dict:
-            for k, v in j.items():
-                if k in ignore:
-                    flatten(result, v, key)
-                else:
-                    flatten(result, v, key + ftdc.SEP + k if key else k)
-        else:
-            result[key] = [j]
-        return result
-
-    for line in util.progress(ses, fn):
-        try:
-            yield flatten({}, json.loads(line))
-        except ValueError:
-            pass
-        except:
-            traceback.print_exc()
-            break
-
+    return jsonx.read(ses, fn, opt)
 
 #
 # read lines from a file
@@ -54,7 +32,6 @@ def read_json(ses, fn, opt):
 #
 def read_lines(ses, fn, opt):
     return util.progress(ses, fn)
-
 
 #
 # read ftdc metrics files
