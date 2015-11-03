@@ -2,7 +2,7 @@
 
 ### Automatic interactive browser/server mode
 
-*NOTE*: the following description is based on the new full-time data
+**NOTE**: the following description is based on the new full-time data
 capture facility in mongod 3.2, which automatically collects
 serverStatus and other metrics at one-second intervals. With mongod
 3.0 and prior you can manually collect similar information, as
@@ -176,5 +176,5 @@ You can then use all of the commmands and interactive capabilities
 described above, substituting "ss:ss.log" for "ftdc:diagnostic.data"
 on the command line, for example:
 
-    python timeseries.py "iostat(tz=-5):iostat.log" ftdc:diagnostic.data --browser 
+    python timeseries.py "iostat(tz=-5):iostat.log" ss:ss.log --browser 
 
