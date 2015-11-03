@@ -135,16 +135,16 @@ function zoom() {
 
     // get positions for requested zoom range
     range = range.split(/[^A-Za-z]/, 2)
-    function get_time(spec, attr) {
+    function get_time(spec, attr, optional) {
         var t = cursor2t(spec)
-        if (t==undefined) {
-            alert('No such cursor: ' + c)
+        if (t==undefined && !optional) {
+            alert('No such cursor: ' + spec)
             return
         }
         top.model[attr] = t
     }
-    get_time(range[0], 'after')
-    get_time(range[1], 'before')
+    get_time(range[0], 'after', false)
+    get_time(range[1], 'before', true)
     post_model_and_load_content()
 }
 
