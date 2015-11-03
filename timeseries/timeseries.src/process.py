@@ -15,7 +15,7 @@ import util
 #
 
 def read_csv(ses, fn, opt):
-    for line in util.progress(ses, fn):
+    for line in util.file_progress(ses, fn):
         yield [s.strip(' \n"') for s in line.split(',')]
 
 
@@ -31,7 +31,7 @@ def read_json(ses, fn, opt):
 # yields strings
 #
 def read_lines(ses, fn, opt):
-    return util.progress(ses, fn)
+    return util.file_progress(ses, fn)
 
 #
 # read ftdc metrics files
@@ -84,6 +84,8 @@ def series_process_flat(series, opt):
                     if type(ts[0])==str or type(ts[0])==unicode:
                         for i, t in enumerate(ts):
                             ts[i] = util.t2f(util.datetime_parse(t)) * 1000
+                    if ts[0]/1000.0 > opt.before or ts[-1]/1000.0 < opt.after:
+                        continue
                     for t, d in zip(metrics[time], metrics[data]):
                         t = t / 1000.0 # times come to us as ms, so convert to seconds here
                         if t>=opt.after and t<=opt.before:
@@ -108,10 +110,12 @@ def series_process_flat(series, opt):
     for s in series:
         unrecognized.discard(s.flat_fields['data'])
         unrecognized.discard(s.flat_fields['time'])
-    unrecognized = sorted(u for u in unrecognized if not ignore.match(u))
+    unrecognized = filter(lambda x: not ignore.match(x), unrecognized)
+    is_str = lambda x: type(x)==str or type(x)==unicode
+    unrecognized = filter(lambda x: x in metrics and not is_str(metrics[x][0]), unrecognized)
     if unrecognized:
         util.msg('unrecognized metrics:')
-        for u in unrecognized:
+        for u in sorted(unrecognized):
             util.msg('   ', u)
 
 #

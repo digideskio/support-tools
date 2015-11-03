@@ -1,6 +1,7 @@
 import sys
 import dateutil.parser
 import datetime as dt
+import os
 import pytz
 import re
 import time
@@ -142,7 +143,7 @@ class parse_time:
 # read lines from file, printing progress messages
 #
 
-def progress(ses, fn, every=2.0):
+def file_progress(ses, fn, every=2.0):
 
     # start time, initial progress message
     start_time = time.time()
@@ -177,4 +178,51 @@ def progress(ses, fn, every=2.0):
     t = time.time() - start_time
     util.dbg('%s: %d lines, %.3f s, %d lines/s' % (fn, n, t, n/t))
 
+
+#
+# yield a list of items, printing progress messages
+#
+
+def item_progress(ses, name, cat, items, count, every=2.0):
+
+    start_time = time.time()
+    last_report = start_time
+    ses.progress('processing %s' % name)
+
+    for n, item in enumerate(items):
+        yield item
+        if n>0 and n%10==0:
+            t = time.time()
+            if t-last_report >= every:
+                pct = 100.0 * n / count
+                ses.progress('%s: processed %d %s (%d%%)' % (name, n, cat, pct))
+                last_report = t
+
+
+
+#
+# manage a file cache
+# entries are invalidated if file mod time changes
+#
+
+class Cache:
+
+    # cache of known files
+    cache = {}
+
+    @classmethod
+    def get(cls, fn):
+        if fn in cls.cache:
+            f = cls.cache[fn]
+            if f.valid():
+                return f
+        f = cls(fn)
+        f.fn = fn
+        f.mtime = os.stat(fn).st_mtime
+        cls.cache[fn] = f
+        return f
+
+    def valid(self):
+        valid = os.stat(self.fn).st_mtime==self.mtime
+        return valid
 

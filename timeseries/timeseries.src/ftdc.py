@@ -243,20 +243,7 @@ class Chunk:
 # entries are invalidated if file mod time changes
 #
 
-class File:
-
-    # cache of known files
-    cache = {}
-
-    @staticmethod
-    def get(fn):
-        if fn in File.cache:
-            f = File.cache[fn]
-            if f.valid():
-                return f
-        f = File(fn)
-        File.cache[fn] = f
-        return f
+class File(util.Cache):
 
     # on __init__ we read the sequence of chunks in the file
     # this does minimal actual work since it mmaps the files
@@ -264,10 +251,6 @@ class File:
     # the chunk bson document, consisting largely of pointers into the file
     def __init__(self, fn):
         
-        # remember file name, and mod time for cache invalidation
-        self.fn = fn
-        self.mtime = os.stat(fn).st_mtime
-
         # open and map file
         f = open(fn)
         buf = mmap.mmap(f.fileno(), 0, mmap.MAP_PRIVATE, mmap.PROT_READ)
@@ -290,9 +273,6 @@ class File:
 
     def __iter__(self):
         return iter(self.chunks)
-
-    def valid(self):
-        return os.stat(self.fn).st_mtime==self.mtime
 
 
 #
