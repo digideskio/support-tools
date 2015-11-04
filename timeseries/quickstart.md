@@ -5,9 +5,9 @@
 **NOTE**: the following description is based on the new full-time data
 capture facility in mongod 3.2, which automatically collects
 serverStatus and other metrics at one-second intervals. With mongod
-3.0 and prior you can manually collect similar information, as
-described below in the section [Collecting serverStatus timeseries
-data and system information (iostat) for mongod 3.0](#mongod3.0).
+3.0 and prior you can manually collect and visualize similar
+information, as described below in the section [Collecting and
+visualizing timeseries data for mongod 3.0](#mongod3.0).
 
 If you have a copy of a diagnostic.data directory from a mongod, for
 example from a customer or a test system, the simplest way to view it
@@ -160,7 +160,7 @@ Then you can visualize it along with the ftdc data by adding
 Since iostat does not capture timezone information, you will need to
 specify it on the command line, as illustrated above for EST.
 
-### Collecting serverStatus timeseries data and system information (iostat) for mongod 3.0
+### Collecting and visualizing timeseries data for mongod 3.0
 <a name="mongod3.0">
 
 The preceding description assumes the built-in diagnostic data
