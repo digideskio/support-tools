@@ -7,7 +7,7 @@ capture facility in mongod 3.2, which automatically collects
 serverStatus and other metrics at one-second intervals. With mongod
 3.0 and prior you can manually collect and visualize similar
 information, as described below in the section [Collecting and
-visualizing timeseries data for mongod 3.0](#mongod3.0).
+visualizing timeseries data for mongod 3.0](#user-content-mongod3.0).
 
 If you have a copy of a diagnostic.data directory from a mongod, for
 example from a customer or a test system, the simplest way to view it
