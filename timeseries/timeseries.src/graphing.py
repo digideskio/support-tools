@@ -187,6 +187,9 @@ class Series:
         self.scale = self.get('scale', 1) # scale by this constant
         self.scale_field = self.descriptor['scale_field'] if 'scale_field' in self.descriptor else None # xxx self.get?
     
+        # how is the time field scaled? (e.g. is ms for ftdc, seconds for most others)
+        self.time_scale = self.get('time_scale', 1.0)
+
         # allows other fields to use this field value
         self.set_field =  self.get('set_field', None)
 

@@ -151,6 +151,7 @@ def ss(json_data, name=None, scale=1, rate=False, units=None, level=3, **kwargs)
         scale = scale,
         rate = rate,
         level = level,
+        time_scale = 1000.0, # times are in ms
         **kwargs
     )
 

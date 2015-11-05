@@ -193,7 +193,7 @@ function run-tests {
     run-test test-006
     run-test test-007
     run-test test-008
-    #run-test test-009 # oplog: rework for new json parsing- needs split fields
+    run-test test-009 # oplog: rework for new json parsing- needs split fields
     run-test test-010
     #run-test test-011 # rs: rework for new json parsing - needs split fields
     #run-test test-012 # rs part of ftdc/json: rework for new json parsing, also add to ftdc

@@ -69,12 +69,6 @@ def series_process_flat(series, opt):
             # get our next input
             metrics = yield
                     
-            # we don't support these (yet) so we don't support:
-            #     things that depend on set_field, like "joins per closure"
-            #     auto-splits (but there are none of these currently for ftdc)
-            getitem = None
-            setitem = None
-                
             # send each series our data points
             for s in series:
                 data = s.flat_fields['data'] # e.g. 'serverStatus.uptime'
@@ -83,13 +77,14 @@ def series_process_flat(series, opt):
                     ts = metrics[time]
                     if type(ts[0])==str or type(ts[0])==unicode:
                         for i, t in enumerate(ts):
-                            ts[i] = util.t2f(util.datetime_parse(t)) * 1000
+                            ts[i] = util.t2f(util.datetime_parse(t))
                     if ts[0]/1000.0 > opt.before or ts[-1]/1000.0 < opt.after:
                         continue
-                    for t, d in zip(metrics[time], metrics[data]):
-                        t = t / 1000.0 # times come to us as ms, so convert to seconds here
+                    for i, (t, d) in enumerate(zip(metrics[time], metrics[data])):
+                        t = t / s.time_scale
                         if t>=opt.after and t<=opt.before:
-                            s.data_point(t, d, getitem, setitem, opt)
+                            get_field = lambda name: metrics[name][i]
+                            s.data_point(t, d, get_field, None, opt)
 
             # track what we have used
             unrecognized.update(metrics.keys())
