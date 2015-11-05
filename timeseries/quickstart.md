@@ -6,7 +6,7 @@
 
 * You can install the prequisite packages using the following command:
 
-    sudo pip install argparse python-dateutil pytz
+        sudo pip install argparse python-dateutil pytz
 
 * For now, Google Chrome is required.
 
