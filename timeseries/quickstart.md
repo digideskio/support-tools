@@ -12,15 +12,25 @@
 
 * Currently OSX and Linux are supported.
 
-**NOTE**: this document assumes the new full-time data capture
+### Collecting and visualizing timeseries data for mongod 3.0
+
+The remainder of this document assumes the new full-time data capture
 facility in mongod 3.2, which automatically collects serverStatus and
-other metrics at one-second intervals. If you wish to collect similar
-data using mongod 3.0, or have data that was collected by someone else
-using mongod 3.0, read the section [Collecting and visualizing
-timeseries data for mongod 3.0](#user-content-mongod3.0) first. The
-remainder of the description in this document applies to data
-collected manually under 3.0 as well, with a small modification as
-described in that section.
+other metrics at one-second intervals. This section describes how to
+collect and visualize similar data under 3.0. Skip this section if you
+have a diagnostic.data directory from 3.2.
+
+You can collect data similar to the 3.2 ftdc data under 3.0 by using
+an external process:
+
+    delay=1 # pick a number in seconds
+    mongo --eval "while(true) {print(JSON.stringify(db.serverStatus({tcmalloc:true}))); sleep(1000*$delay)}" >ss.log &
+
+You can then use all of the commmands and interactive capabilities
+described in the remainder of the document, substituting "ss:ss.log"
+for "ftdc:diagnostic.data" on the command line, for example:
+
+    python timeseries.py ss:ss.log --browser 
 
 ### Automatic interactive browser/server mode
 
@@ -154,7 +164,7 @@ make this reasonably efficient. You can do this by manually refreshing
 the view using the browser refresh button, or you can enable live mode
 as described above to periodically refresh the view.
 
-### Collecting system information (iostat) for mongod 3.2
+### Collecting system information (iostat)
 
 It is sometimes useful to have system information such as disk and CPU
 usage, along with mongod internal data. This is not currently captured
@@ -172,21 +182,13 @@ Then you can visualize it along with the ftdc data by adding
 Since iostat does not capture timezone information, you will need to
 specify it on the command line, as illustrated above for EST.
 
-### Collecting and visualizing timeseries data for mongod 3.0
-<a name="mongod3.0">
-
-The preceding description assumes the built-in diagnostic data
-collected automatically by the full-time data capture (ftdc) facility
-of mongod, new for 3.2. You can collect similar data using an external
-process in 3.0 and prior, as follows:
+Similarly, under 3.0 you can collect iostat data alongside the
+serverStatus data:
 
     delay=1 # pick a number in seconds
     mongo --eval "while(true) {print(JSON.stringify(db.serverStatus({tcmalloc:true}))); sleep(1000*$delay)}" >ss.log &
     iostat -k -t -x $delay >iostat.log &
 
-You can then use all of the commmands and interactive capabilities
-described above, substituting "ss:ss.log" for "ftdc:diagnostic.data"
-on the command line, for example:
+And then visualize both iostat.log and ss.log together:
 
     python timeseries.py "iostat(tz=-5):iostat.log" ss:ss.log --browser 
-
