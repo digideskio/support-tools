@@ -492,18 +492,22 @@ ss(["writeBacksQueued"], level=9) # CHECK
 
 
 def cs(json_data, name=None, scale=1, rate=False, units=None, level=3, **kwargs):
-    if not name:
-        if json_data[0]=='wiredTiger':
-            name = 'cs wt: ' + ' '.join(json_data[1:])
-        else:
-            name = 'cs: ' + ' '.join(json_data)
+
     if not units: units = desc_units(scale, rate)
     if units: units = ' (' + units + ')'
-    name = name + units
+    if not name:
+        if json_data[0]=='wiredTiger':
+            json_name = 'cs wt: ' + ' '.join(json_data[1:]) + units
+            ftdc_name = 'ftdc oplog wt: ' + ' '.join(json_data[1:]) + units
+        else:
+            json_name = 'cs: ' + ' '.join(json_data) + units
+            ftdc_name = 'ftdc oplog: ' + ' '.join(json_data) + units
+
+    # bare cs
     descriptor(
         file_type = 'json',
         parse_type = 'json',
-        name = name,
+        name = json_name,
         flat_data = ftdc.join(*json_data),
         flat_time = ftdc.join('time'),
         scale = scale,
@@ -512,12 +516,29 @@ def cs(json_data, name=None, scale=1, rate=False, units=None, level=3, **kwargs)
         **kwargs
     )
 
+    # oplog stats in ftdc data
+    descriptor(
+        file_type = 'metrics',
+        parse_type = 'metrics',
+        name = ftdc_name,
+        flat_data = ftdc.join('local.oplog.rs.stats', *json_data),
+        flat_time = ftdc.join('local.oplog.rs.stats', 'start'),
+        scale = scale,
+        rate = rate,
+        level = 1 if level==1 else 5,
+        time_scale = 1000.0,
+        **kwargs
+    )
+
+
+
 cs(["capped"], level=99)
 cs(["count"], level=1)
 cs(["nindexes"], level=9)
 cs(["ns"], level=99)
 cs(["ok"], level=99)
 cs(["size"], scale=MB, level=1)
+cs(["maxSize"], scale=MB, level=1)
 cs(["storageSize"], scale=MB, level=1)
 cs(["totalIndexSize"], scale=MB, level=1)
 cs(["avgObjSize"], level=1)
