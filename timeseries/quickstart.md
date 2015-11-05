@@ -1,13 +1,28 @@
 ## Quickstart guide for using timeseries tool with ftdc
 
-### Automatic interactive browser/server mode
+### Prerequisites
 
-**NOTE**: the following description is based on the new full-time data
-capture facility in mongod 3.2, which automatically collects
-serverStatus and other metrics at one-second intervals. With mongod
-3.0 and prior you can manually collect and visualize similar
-information, as described below in the section [Collecting and
-visualizing timeseries data for mongod 3.0](#user-content-mongod3.0).
+* The timeseries tool requires Python 2.7.
+
+* You can install the prequisite packages using the following command:
+
+    sudo pip install argparse python-dateutil pytz
+
+* For now, Google Chrome is required.
+
+* Currently OSX and Linux are supported.
+
+**NOTE**: this document assumes the new full-time data capture
+facility in mongod 3.2, which automatically collects serverStatus and
+other metrics at one-second intervals. If you wish to collect similar
+data using mongod 3.0, or have data that was collected by someone else
+using mongod 3.0, read the section [Collecting and visualizing
+timeseries data for mongod 3.0](#user-content-mongod3.0) first. The
+remainder of the description in this document applies to data
+collected manually under 3.0 as well, with a small modification as
+described in that section.
+
+### Automatic interactive browser/server mode
 
 If you have a copy of a diagnostic.data directory from a mongod, for
 example from a customer or a test system, the simplest way to view it
@@ -22,9 +37,6 @@ browser window that connects to the timeseries server. Interactive
 browser/server mode supports additional interactive features such as
 zooming and opening new views that are not supported if you generate
 and view a static html file.
-
-(Note: for now, only Chrome is support for the browser, on OSX and Linux.)
-
 
 ### Manual interactive browser/server mode specifying view at the server
 
