@@ -71,8 +71,8 @@ def series_process_flat(series, opt):
                     
             # send each series our data points
             for s in series:
-                data = s.flat_fields['data'] # e.g. 'serverStatus.uptime'
-                time = s.flat_fields['time'] # e.g. 'serverStatus.localTime'
+                data = s.flat_data # e.g. 'serverStatus.uptime'
+                time = s.flat_time # e.g. 'serverStatus.localTime'
                 if data in metrics and time in metrics:
                     ts = metrics[time]
                     if type(ts[0])==str or type(ts[0])==unicode:
@@ -103,8 +103,8 @@ def series_process_flat(series, opt):
         '^replSetGetStatus|slot_closure_rate'
     )
     for s in series:
-        unrecognized.discard(s.flat_fields['data'])
-        unrecognized.discard(s.flat_fields['time'])
+        unrecognized.discard(s.flat_data)
+        unrecognized.discard(s.flat_time)
     unrecognized = filter(lambda x: not ignore.match(x), unrecognized)
     is_str = lambda x: type(x)==str or type(x)==unicode
     unrecognized = filter(lambda x: x in metrics and not is_str(metrics[x][0]), unrecognized)

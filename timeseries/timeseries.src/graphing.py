@@ -214,7 +214,8 @@ class Series:
             self.re_data = self.get('re_data', 1)
 
         # info for flat dict file formats, like ftdc metrics and json
-        self.flat_fields = self.get('flat_fields', None)
+        self.flat_data = self.get('flat_data', None)
+        self.flat_time = self.get('flat_time', None)
 
         # info for field-based file formats, like csv and rs
         self.field_name = self.get('field_name', None)
