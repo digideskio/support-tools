@@ -78,7 +78,7 @@ def series_process_flat(series, opt):
                     if type(ts[0])==str or type(ts[0])==unicode:
                         for i, t in enumerate(ts):
                             ts[i] = util.t2f(util.datetime_parse(t))
-                    if ts[0]/1000.0 > opt.before or ts[-1]/1000.0 < opt.after:
+                    if ts[0]/s.time_scale > opt.before or ts[-1]/s.time_scale < opt.after:
                         continue
                     for i, (t, d) in enumerate(zip(metrics[time], metrics[data])):
                         t = t / s.time_scale
