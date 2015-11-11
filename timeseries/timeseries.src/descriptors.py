@@ -1,5 +1,6 @@
 import collections
 import datetime as dt
+import re
 
 import ftdc
 import graphing
@@ -27,6 +28,10 @@ def descriptor(**desc):
         split_field = desc['split_field']
         if not split_field in split_ords:
             split_ords[split_field] = desc['_ord']
+    if 'split_on_key_match' in desc:
+        split_on_key_match = desc['split_on_key_match']
+        if not split_on_key_match in split_ords:
+            split_ords[split_on_key_match] = desc['_ord']
     descriptors.append(desc)
     descriptor_ord += 1
 
@@ -114,8 +119,8 @@ def ss(json_data, name=None, scale=1, rate=False, units=None, level=3, **kwargs)
         file_type = 'json',
         parse_type = 'json',
         name = name,
-        flat_data = ftdc.join(*json_data),
-        flat_time = ftdc.join('localTime'),
+        flat_data_key = ftdc.join(*json_data),
+        flat_time_key = ftdc.join('localTime'),
         scale = scale,
         rate = rate,
         level = level,
@@ -127,8 +132,8 @@ def ss(json_data, name=None, scale=1, rate=False, units=None, level=3, **kwargs)
         file_type = 'json',
         parse_type = 'json',
         name = 'ftdc ' + name,
-        flat_data = ftdc.join('serverStatus', *json_data),
-        flat_time = ftdc.join('serverStatus', 'localTime'),
+        flat_data_key = ftdc.join('serverStatus', *json_data),
+        flat_time_key = ftdc.join('serverStatus', 'localTime'),
         scale = scale,
         rate = rate,
         level = level,
@@ -140,8 +145,8 @@ def ss(json_data, name=None, scale=1, rate=False, units=None, level=3, **kwargs)
         file_type = 'metrics',
         parse_type = 'metrics',
         name = 'ftdc ' + name,
-        flat_data = ftdc.join('serverStatus', *json_data),
-        flat_time = ftdc.join('serverStatus', 'localTime'),
+        flat_data_key = ftdc.join('serverStatus', *json_data),
+        flat_time_key = ftdc.join('serverStatus', 'localTime'),
         scale = scale,
         rate = rate,
         level = level,
@@ -508,8 +513,8 @@ def cs(json_data, name=None, scale=1, rate=False, units=None, level=3, **kwargs)
         file_type = 'json',
         parse_type = 'json',
         name = json_name,
-        flat_data = ftdc.join(*json_data),
-        flat_time = ftdc.join('time'),
+        flat_data_key = ftdc.join(*json_data),
+        flat_time_key = ftdc.join('time'),
         scale = scale,
         rate = rate,
         level = level,
@@ -521,8 +526,8 @@ def cs(json_data, name=None, scale=1, rate=False, units=None, level=3, **kwargs)
         file_type = 'metrics',
         parse_type = 'metrics',
         name = ftdc_name,
-        flat_data = ftdc.join('local.oplog.rs.stats', *json_data),
-        flat_time = ftdc.join('local.oplog.rs.stats', 'start'),
+        flat_data_key = ftdc.join('local.oplog.rs.stats', *json_data),
+        flat_time_key = ftdc.join('local.oplog.rs.stats', 'start'),
         scale = scale,
         rate = rate,
         level = 1 if level==1 else 5,
@@ -641,6 +646,55 @@ cs(["wiredTiger", "type"], level=99)
 cs(["wiredTiger", "uri"], level=99)
 cs(["errmsg"], level=99)
 
+#
+# ftdc repl set stuff
+#
+
+def rs(name, **kwargs):
+
+    descriptor(
+        file_type = 'metrics',
+        parse_type = 'metrics',
+        name = 'ftdc rs: member {member} ' + name,
+        split_on_key_match = ftdc.join('replSetGetStatus', 'members', '(?P<member>[0-9])+', name),
+        flat_time_key = 'replSetGetStatus/start',
+        time_scale = 1000.0,
+        **kwargs
+    )
+
+def compute_lag(metrics):
+
+    # only do this once per chunk
+    if hasattr(metrics, 'has_lag'):
+        return
+    metrics.has_lag = True
+    
+    # compute list of members
+    members = []
+    for key in metrics:
+        m  = re.match(ftdc.join('replSetGetStatus', 'members', '([0-9])+'), key)
+        if m:
+            member = m.group(1)
+            members.append(member)
+            metrics[ftdc.join('replSetGetStatus', 'members', member, 'lag')] = []
+            
+    # xxx pretty inefficient to be doing this every time, consider lifting out of loop below
+    # but otoh we don't do this very often, only once per chunk, and timing shows little or no diff
+    def get(member, key):
+        return metrics[ftdc.join('replSetGetStatus', 'members', member, key)]
+
+    for i in range(len(get(members[0], 'state'))):
+        for member in members:
+            if get(member, 'state')[i]==1:
+                pri_optimeDate = get(member, 'optimeDate')[i]
+        for m in members:
+            lag = (pri_optimeDate - get(member, 'optimeDate')[i]) / 1000.0
+            get(member, 'lag').append(lag)
+            
+rs('state', level=1)
+rs('health', level=1)
+rs('uptime', level=3)
+rs('lag', level=1, special=compute_lag)
 
 
 #
@@ -864,8 +918,8 @@ descriptor(
     name = 'oplog: {op} {ns}',
     file_type = 'json',
     parse_type = 'json',
-    flat_time = ftdc.join('ts', 't'),
-    flat_data = ftdc.join('op'),
+    flat_time_key = ftdc.join('ts', 't'),
+    flat_data_key = ftdc.join('op'),
     bucket_op = 'count',
     bucket_size = 1,
     split_field = ('op', 'ns'),
@@ -1155,3 +1209,4 @@ wt('transaction', 'transactions rolled back', rate=True, level=2)
 wt('transaction', 'update conflicts', rate=True, level=2)
 
 ss(['wiredTiger', 'uri'], level=99)
+

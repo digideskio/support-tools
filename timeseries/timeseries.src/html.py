@@ -100,7 +100,7 @@ def _get_graphs(ses):
     # get graphs taking into account splits and merges
     graphs = collections.defaultdict(Graph)
     ygroups = collections.defaultdict(list)
-    for s in sorted(series, key=lambda s: s.key):
+    for s in sorted(series, key=lambda s: s.sort_ord):
         s.get_graphs(graphs, ygroups, opt)
 
     # compute display_ymax taking into account spec_ymax and ygroup
@@ -354,8 +354,8 @@ def page(ses):
     # determine which graphs to show, suppressing empty and uniformly zero if desired
     # emit placeholders (graph==None, generating empty tr) to facilitate maintaining order
     rows = []
-    for graph in sorted(ses.graphs, key=lambda g: g[0].key):
-        graph.sort(key=lambda s: s.key)
+    for graph in sorted(ses.graphs, key=lambda g: g[0].sort_ord):
+        graph.sort(key=lambda s: s.sort_ord)
         graph.ymin = min(s.ymin for s in graph)
         graph.ymax = max(s.ymax for s in graph)
         graph.ysum = sum(s.ysum for s in graph)

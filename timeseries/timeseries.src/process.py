@@ -69,22 +69,34 @@ def series_process_flat(series, opt):
             # get our next input
             metrics = yield
                     
-            # send each series our data points
-            for s in series:
-                data = s.flat_data # e.g. 'serverStatus.uptime'
-                time = s.flat_time # e.g. 'serverStatus.localTime'
-                if data in metrics and time in metrics:
-                    ts = metrics[time]
+            def process_series(s, data_key):
+                time_key = s.flat_time_key # e.g. 'serverStatus.localTime'
+                if data_key in metrics and time_key in metrics:
+                    ts = metrics[time_key]
                     if type(ts[0])==str or type(ts[0])==unicode:
                         for i, t in enumerate(ts):
                             ts[i] = util.t2f(util.datetime_parse(t))
                     if ts[0]/s.time_scale > opt.before or ts[-1]/s.time_scale < opt.after:
-                        continue
-                    for i, (t, d) in enumerate(zip(metrics[time], metrics[data])):
+                        return
+                    for i, (t, d) in enumerate(zip(metrics[time_key], metrics[data_key])):
                         t = t / s.time_scale
                         if t>=opt.after and t<=opt.before:
-                            get_field = lambda name: metrics[name][i]
+                            get_field = lambda key: metrics[key][i]
                             s.data_point(t, d, get_field, None, opt)
+
+            # send each series our data points
+            for s in series:
+                if s.special:
+                    s.special(metrics)
+                if s.split_on_key_match:
+                    for data_key in metrics:
+                        m = s.split_on_key_match_re.match(data_key)
+                        if m:
+                            description = m.groupdict()
+                            ss = s.get_split(data_key, description)
+                            process_series(ss, data_key)
+                else:
+                    process_series(s, s.flat_data_key)
 
             # track what we have used
             unrecognized.update(metrics.keys())
@@ -103,8 +115,8 @@ def series_process_flat(series, opt):
         '^replSetGetStatus|slot_closure_rate'
     )
     for s in series:
-        unrecognized.discard(s.flat_data)
-        unrecognized.discard(s.flat_time)
+        unrecognized.discard(s.flat_data_key)
+        unrecognized.discard(s.flat_time_key)
     unrecognized = filter(lambda x: not ignore.match(x), unrecognized)
     is_str = lambda x: type(x)==str or type(x)==unicode
     unrecognized = filter(lambda x: x in metrics and not is_str(metrics[x][0]), unrecognized)

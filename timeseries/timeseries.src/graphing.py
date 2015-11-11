@@ -152,11 +152,10 @@ class Series:
         self.spec_ord = spec_ord
         self.tag = tag
         self.opt = opt
-        self.key = (tag, descriptor['_ord'], spec_ord)
+        self.sort_ord = (tag, descriptor['_ord'], spec_ord)
         self.tmin = self.tmax = self.ymin = self.ymax = self.ysum = None
         self.ts = None
         self.name = None
-        self.split_all = None
 
         # make fn avaialbe for formatting
         self.fn = fn
@@ -214,8 +213,11 @@ class Series:
             self.re_data = self.get('re_data', 1)
 
         # info for flat dict file formats, like ftdc metrics and json
-        self.flat_data = self.get('flat_data', None)
-        self.flat_time = self.get('flat_time', None)
+        self.flat_data_key = self.get('flat_data_key', None)
+        self.flat_time_key = self.get('flat_time_key', None)
+
+        # special processing, e.g. lag computation
+        self.special = self.get('special', None)
 
         # info for field-based file formats, like csv and rs
         self.field_name = self.get('field_name', None)
@@ -244,6 +246,11 @@ class Series:
         self.split_field = self.get('split_field', None)
         self.split_series = {}
 
+        # split into multiple series based on a data key
+        self.split_on_key_match = self.get('split_on_key_match', None)
+        if self.split_on_key_match:
+            self.split_on_key_match_re = re.compile(self.split_on_key_match)
+
         # hack to account for wrapping data
         self.wrap = self.get('wrap', None)
         self.wrap_offset = 0
@@ -262,7 +269,7 @@ class Series:
         return get(self.descriptor, *args)
 
     def get_graphs(self, graphs, ygroups, opt):
-        if not self.split_field: # xxx and not self.split_all: ?
+        if not self.split_field and not self.split_on_key_match:
             if opt.merges:
                 merge = self.get('merge', None)
                 if merge: self.graph = merge
@@ -340,20 +347,26 @@ class Series:
         # tell our caller what we recorded
         return d
 
-    def get_split(self, split_key):
+    def get_split(self, split_key, description=None):
         if split_key not in self.split_series:
             new = Series(self.spec, self.descriptor, {}, self.fn, self.spec_ord, self.tag, self.opt)
-            if self.split_field: # this is getting a little creaky - generalize? move up into data_point?
+            if self.split_field: # this is getting a little creaky
                 if type(self.split_field)==str:
                     new.descriptor[self.split_field] = split_key
                 else:
                     for name, value in zip(self.split_field, split_key):
                         new.descriptor[name] = value
-                new.key = (self.tag, descriptors.split_ords[self.split_field], split_key, new.key)
-            else:
+                split_ord = descriptors.split_ords[self.split_field]
+                new.sort_ord = (self.tag, split_ord, split_key, new.sort_ord)
+            elif self.split_on_key_match:
+                split_ord = descriptors.split_ords[self.split_on_key_match]
+                new.sort_ord = (self.tag, split_ord, split_key, new.sort_ord)
+            else: # XXXXXXXX needed any more?
                 new.descriptor['field'] = split_key # xxx - ?
+            if description:
+                new.descriptor.update(description)
             new.split_field = None
-            new.split_all = None
+            new.split_on_key_match = None
             self.split_series[split_key] = new
         return self.split_series[split_key]
 
