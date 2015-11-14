@@ -683,13 +683,22 @@ def compute_lag(metrics):
     def get(member, key):
         return metrics[ftdc.join('replSetGetStatus', 'members', member, key)]
 
-    for i in range(len(get(members[0], 'state'))):
+    for i in range(len(get(next(iter(members)), 'state'))):
+        pri_optimeDate = None
         for member in members:
             if get(member, 'state')[i]==1:
                 pri_optimeDate = get(member, 'optimeDate')[i]
-        for m in members:
-            lag = (pri_optimeDate - get(member, 'optimeDate')[i]) / 1000.0
+        for member in members:
+            lag = None
+            if pri_optimeDate:
+                try:
+                    sec_optimeDate = get(member, 'optimeDate')[i]
+                    if sec_optimeDate:
+                        lag = (pri_optimeDate - sec_optimeDate) / 1000.0
+                except KeyError:
+                    pass
             get(member, 'lag').append(lag)
+
             
 rs('state', level=1)
 rs('health', level=1)
