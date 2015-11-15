@@ -28,6 +28,9 @@ def html_graph(
     bins=0
 ):
 
+    if tmax==tmin:
+        return
+
     ses.elt('svg', {
         'width':'%gem' % width,
         'height':'%gem' % height,
@@ -105,6 +108,8 @@ def html_graph(
     ses.end('svg')
 
 def get_labels(ses, tmin, tmax, width, height, ts, labels):
+    if tmax==tmin:
+        return
     ses.elt('div', {'style':'height: %fem; position:relative; width:%gem' % (height,width)})
     tspan = tmax - tmin
     gx = lambda t: (t-tmin) / tspan * (width-2*xpad) + xpad
@@ -202,19 +207,15 @@ class Series:
         self.file_type = self.get('file_type')
 
         # re, json, ...: used to route to proper parse routine
-        self.parse_type = self.get('parse_type')
-
-        # info for re-format files
-        if self.parse_type=='re':
-            self.re = self.get('re', None)
-            if self.re and re.compile(self.re).groups==0:
-                raise Exception('re ' + self.re + ' does not have any groups')
-            self.re_time = self.get('re_time', 0)
-            self.re_data = self.get('re_data', 1)
+        self.parser = self.get('parser')
 
         # info for flat dict file formats, like ftdc metrics and json
-        self.flat_data_key = self.get('flat_data_key', None)
-        self.flat_time_key = self.get('flat_time_key', None)
+        self.data_key = self.get('data_key', None)
+        self.time_key = self.get('time_key', None)
+
+        # split into multiple series based on a data value
+        self.split_key = self.get('split_key', None)
+        self.split_series = {}
 
         # special processing, e.g. lag computation
         self.special = self.get('special', None)
@@ -242,10 +243,6 @@ class Series:
         # which output graph this series will be plotted on
         self.graph = id(self) # will update with desc['merge'] later so can use split key
 
-        # split into multiple series based on a data value
-        self.split_field = self.get('split_field', None)
-        self.split_series = {}
-
         # split into multiple series based on a data key
         self.split_on_key_match = self.get('split_on_key_match', None)
         if self.split_on_key_match:
@@ -269,7 +266,7 @@ class Series:
         return get(self.descriptor, *args)
 
     def get_graphs(self, graphs, ygroups, opt):
-        if not self.split_field and not self.split_on_key_match:
+        if not self.split_key and not self.split_on_key_match:
             if opt.merges:
                 merge = self.get('merge', None)
                 if merge: self.graph = merge
@@ -347,28 +344,26 @@ class Series:
         # tell our caller what we recorded
         return d
 
-    def get_split(self, split_key, description=None):
-        if split_key not in self.split_series:
+    def get_split(self, split_value, description=None):
+        if split_value not in self.split_series:
             new = Series(self.spec, self.descriptor, {}, self.fn, self.spec_ord, self.tag, self.opt)
-            if self.split_field: # this is getting a little creaky
-                if type(self.split_field)==str:
-                    new.descriptor[self.split_field] = split_key
+            if self.split_key:
+                if type(self.split_key)==str:
+                    new.descriptor[self.split_key] = split_value
                 else:
-                    for name, value in zip(self.split_field, split_key):
+                    for name, value in zip(self.split_key, split_value):
                         new.descriptor[name] = value
-                split_ord = descriptors.split_ords[self.split_field]
-                new.sort_ord = (self.tag, split_ord, split_key, new.sort_ord)
+                split_ord = descriptors.split_ords[self.split_key]
+                new.sort_ord = (self.tag, split_ord, split_value, new.sort_ord)
             elif self.split_on_key_match:
                 split_ord = descriptors.split_ords[self.split_on_key_match]
-                new.sort_ord = (self.tag, split_ord, split_key, new.sort_ord)
-            else: # XXXXXXXX needed any more?
-                new.descriptor['field'] = split_key # xxx - ?
+                new.sort_ord = (self.tag, split_ord, split_value, new.sort_ord)
             if description:
                 new.descriptor.update(description)
-            new.split_field = None
+            new.split_key = None
             new.split_on_key_match = None
-            self.split_series[split_key] = new
-        return self.split_series[split_key]
+            self.split_series[split_value] = new
+        return self.split_series[split_value]
 
 
     def data_point(self, t, d, get_field, set_field, opt):
@@ -376,15 +371,17 @@ class Series:
             if self.t0 is None:
                 self.t0 = t
             t = util.t0 + (t - self.t0)
-        if self.split_field:
-            if type(self.split_field)==str:
-                split_key = get_field(self.split_field)
+        if self.split_key:
+            if type(self.split_key)==str:
+                split_value = get_field(self.split_key)
             else:
-                split_key = tuple(get_field(s) for s in self.split_field)
-            s = self.get_split(split_key)
+                split_value = tuple(get_field(s) for s in self.split_key)
+                if any(v==None for v in split_value):
+                    split_value = None
+            s = self.get_split(split_value) if split_value!=None else None
         else:
             s = self
-        return s.data_point_after_splits(t, d, get_field, set_field)
+        return s.data_point_after_splits(t, d, get_field, set_field) if s else None
 
 
     def finish(self):

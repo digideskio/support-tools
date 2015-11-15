@@ -1,6 +1,7 @@
 import collections
 import datetime as dt
 import re
+import process
 
 import ftdc
 import graphing
@@ -24,10 +25,10 @@ descriptor_ord = 0
 def descriptor(**desc):
     global descriptor_ord
     desc['_ord'] = descriptor_ord
-    if 'split_field' in desc:
-        split_field = desc['split_field']
-        if not split_field in split_ords:
-            split_ords[split_field] = desc['_ord']
+    if 'split_key' in desc:
+        split_key = desc['split_key']
+        if not split_key in split_ords:
+            split_ords[split_key] = desc['_ord']
     if 'split_on_key_match' in desc:
         split_on_key_match = desc['split_on_key_match']
         if not split_on_key_match in split_ords:
@@ -50,12 +51,11 @@ def list_descriptors():
 # assumes the timestamp precedes the data
 #
 
-
 descriptor(
     name = 'grep {pat}',
     re = '^.*(....-..-..T..:..:..(?:\....)?Z?|(?:... )?... .. .... ..:..:..).*{pat}',
     file_type = 'text',
-    parse_type = 're'
+    parser = 're'
 )
 
 
@@ -64,11 +64,11 @@ descriptor(
 #
 
 descriptor(
-    name = 'csv {fn}: {field_name}',
-    parse_type = 'csv',
+    name = 'csv {fn}: {key}',
     file_type = 'text',
-    field_name = '(?P<field_name>.*)',
-    split_field = 'field_name'
+    parser = process.parse_csv,
+    time_key = 'time',
+    split_on_key_match = '(?P<key>.*)',
 )
 
 #
@@ -84,11 +84,11 @@ def win_headers(series, headers):
 
 descriptor(
     name = 'win {fn}: {field_name}',
-    parse_type = 'csv',
     file_type = 'text',
-    field_name = '(?P<field_name>.*)',
-    split_field = 'field_name',
-    process_headers = win_headers
+    parser = process.parse_csv,
+    time_key = 'time',
+    process_headers = win_headers, # xxx?
+    split_on_key_match = '(?P<key>.*)',
 )
 
 #
@@ -117,10 +117,10 @@ def ss(json_data, name=None, scale=1, rate=False, units=None, level=3, **kwargs)
     # for parsing direct serverStatus command output
     descriptor(
         file_type = 'json',
-        parse_type = 'json',
+        parser = process.parse_json,
         name = name,
-        flat_data_key = ftdc.join(*json_data),
-        flat_time_key = ftdc.join('localTime'),
+        data_key = ftdc.join(*json_data),
+        time_key = ftdc.join('localTime'),
         scale = scale,
         rate = rate,
         level = level,
@@ -130,10 +130,10 @@ def ss(json_data, name=None, scale=1, rate=False, units=None, level=3, **kwargs)
     # for parsing serverStatus section of ftdc represented as json documents
     descriptor(
         file_type = 'json',
-        parse_type = 'json',
+        parser = process.parse_json,
         name = 'ftdc ' + name,
-        flat_data_key = ftdc.join('serverStatus', *json_data),
-        flat_time_key = ftdc.join('serverStatus', 'localTime'),
+        data_key = ftdc.join('serverStatus', *json_data),
+        time_key = ftdc.join('serverStatus', 'localTime'),
         scale = scale,
         rate = rate,
         level = level,
@@ -143,10 +143,10 @@ def ss(json_data, name=None, scale=1, rate=False, units=None, level=3, **kwargs)
     # for parsing serverStatus section of ftdc represented as metrics dictionaries
     descriptor(
         file_type = 'metrics',
-        parse_type = 'metrics',
+        parser = process.parse_metrics,
         name = 'ftdc ' + name,
-        flat_data_key = ftdc.join('serverStatus', *json_data),
-        flat_time_key = ftdc.join('serverStatus', 'localTime'),
+        data_key = ftdc.join('serverStatus', *json_data),
+        time_key = ftdc.join('serverStatus', 'localTime'),
         scale = scale,
         rate = rate,
         level = level,
@@ -511,10 +511,10 @@ def cs(json_data, name=None, scale=1, rate=False, units=None, level=3, **kwargs)
     # bare cs
     descriptor(
         file_type = 'json',
-        parse_type = 'json',
+        parser = process.parse_json,
         name = json_name,
-        flat_data_key = ftdc.join(*json_data),
-        flat_time_key = ftdc.join('time'),
+        data_key = ftdc.join(*json_data),
+        time_key = ftdc.join('time'),
         scale = scale,
         rate = rate,
         level = level,
@@ -524,10 +524,10 @@ def cs(json_data, name=None, scale=1, rate=False, units=None, level=3, **kwargs)
     # oplog stats in ftdc data
     descriptor(
         file_type = 'metrics',
-        parse_type = 'metrics',
+        parser = process.parse_metrics,
         name = ftdc_name,
-        flat_data_key = ftdc.join('local.oplog.rs.stats', *json_data),
-        flat_time_key = ftdc.join('local.oplog.rs.stats', 'start'),
+        data_key = ftdc.join('local.oplog.rs.stats', *json_data),
+        time_key = ftdc.join('local.oplog.rs.stats', 'start'),
         scale = scale,
         rate = rate,
         level = 1 if level==1 else 5,
@@ -654,10 +654,10 @@ def rs(name, **kwargs):
 
     descriptor(
         file_type = 'metrics',
-        parse_type = 'metrics',
+        parser = process.parse_metrics,
         name = 'ftdc rs: member {member} ' + name,
         split_on_key_match = ftdc.join('replSetGetStatus', 'members', '(?P<member>[0-9])+', name),
-        flat_time_key = 'replSetGetStatus/start',
+        time_key = 'replSetGetStatus/start',
         time_scale = 1000.0,
         **kwargs
     )
@@ -670,13 +670,14 @@ def compute_lag(metrics):
     metrics.has_lag = True
     
     # compute list of members
-    members = []
+    members = set()
     for key in metrics:
         m  = re.match(ftdc.join('replSetGetStatus', 'members', '([0-9])+'), key)
         if m:
             member = m.group(1)
-            members.append(member)
+            members.add(member)
             metrics[ftdc.join('replSetGetStatus', 'members', member, 'lag')] = []
+    members = list(sorted(members))
             
     # xxx pretty inefficient to be doing this every time, consider lifting out of loop below
     # but otoh we don't do this very often, only once per chunk, and timing shows little or no diff
@@ -713,9 +714,10 @@ rs('lag', level=1, special=compute_lag)
 def sysmon_cpu(which, **kwargs):
     descriptor(
         name = 'sysmon cpu: %s (%%)' % which,
-        parse_type = 'csv',
         file_type = 'text',
-        field_name = 'cpu_%s' % which,
+        parser = process.parse_csv,
+        time_key = 'time',
+        data_key = 'cpu_%s' % which,
         scale_field = 'cpus',
         ymax = 100,
         rate = True,
@@ -741,9 +743,10 @@ def stat(which, name=None, **kwargs):
     name = 'sysmon: %s' % (name if name else which)
     descriptor(
         name = name,
-        parse_type = 'csv',
         file_type = 'text',
-        field_name = '%s' % which,
+        parser = process.parse_csv,
+        time_key = 'time',
+        data_key = '%s' % which,
         **kwargs
     )
 
@@ -771,10 +774,10 @@ def sysmon_disk(which, desc, **kwargs):
     if not 'rate' in kwargs: kwargs['rate'] = True
     descriptor(
         name = 'sysmon disk: {disk} %s' % desc,
-        parse_type = 'csv',
         file_type = 'text',
-        field_name = '(?P<disk>.*)\.%s' % which,
-        split_field = 'disk',
+        parser = process.parse_csv,
+        time_key = 'time',
+        split_on_key_match = '(?P<disk>.*)\.%s' % which,
         **kwargs
     )
     
@@ -796,23 +799,27 @@ sysmon_disk('io_queued_ms',   'average queue length', scale_field='{disk}.io_tim
 # iostat -t -x $delay
 #
 
-iostat_time_re = '(?P<time>^../../..(?:..)? ..:..:..(?: ..)?)'
-iostat_cpu_re = '(?:^ *(?P<user>[0-9\.]+) +(?P<nice>[0-9\.]+) +(?P<system>[0-9\.]+) +(?P<iowait>[0-9\.]+) +(?P<steal>[0-9\.]+) +(?P<idle>[0-9\.]+))'
-iostat_disk_re = '(?:^(?P<iostat_disk>[a-z]+) +(?P<rrqms>[0-9\.]+) +(?P<wrqms>[0-9\.]+) +(?P<rs>[0-9\.]+) +(?P<ws>[0-9\.]+) +(?P<rkBs>[0-9\.]+) +(?P<wkBs>[0-9\.]+) +(?P<avgrqsz>[0-9\.]+) +(?P<avgqusz>[0-9\.]+) +(?P<await>[0-9\.]+) +(?P<r_await>[0-9\.]+)? +(?P<w_await>[0-9\.]+)? +(?P<svctime>[0-9\.]+) +(?P<util>[0-9\.]+))'
+parse_iostat = process.ParseRe(
+    time_key = 'time',
+    regexp = process.ParseRe.alt(
+        '(?P<time>^../../..(?:..)? ..:..:..(?: ..)?)',
+        '(?:^ *(?P<user>[0-9\.]+) +(?P<nice>[0-9\.]+) +(?P<system>[0-9\.]+) +(?P<iowait>[0-9\.]+) +(?P<steal>[0-9\.]+) +(?P<idle>[0-9\.]+))',
+        '(?:^(?P<iostat_disk>[a-z]+) +(?P<rrqms>[0-9\.]+) +(?P<wrqms>[0-9\.]+) +(?P<rs>[0-9\.]+) +(?P<ws>[0-9\.]+) +(?P<rkBs>[0-9\.]+) +(?P<wkBs>[0-9\.]+) +(?P<avgrqsz>[0-9\.]+) +(?P<avgqusz>[0-9\.]+) +(?P<await>[0-9\.]+) +(?P<r_await>[0-9\.]+)? +(?P<w_await>[0-9\.]+)? +(?P<svctime>[0-9\.]+) +(?P<util>[0-9\.]+))',
+    )
+)
 
 def iostat(**kwargs):
     descriptor(
         file_type = 'text',
-        parse_type = 're',
-        re = '|'.join([iostat_time_re, iostat_cpu_re, iostat_disk_re]),
-        re_time = 'time',
+        parser = parse_iostat,
+        time_key = 'time',
         **kwargs
     )
 
-def iostat_cpu(re_data, **kwargs):
+def iostat_cpu(data_key, **kwargs):
     iostat(
-        re_data = re_data,
-        name = 'iostat cpu: {re_data} (%)',
+        data_key = data_key,
+        name = 'iostat cpu: {data_key} (%)',
         ymax = 100,
         **kwargs
     )
@@ -824,10 +831,10 @@ iostat_cpu('nice', merge = 'iostat_cpu')
 iostat_cpu('steal', merge = 'iostat_cpu')
 iostat_cpu('idle', level = 3)
 
-def iostat_disk(re_data, name, level=3, **kwargs):
+def iostat_disk(data_key, name, level=3, **kwargs):
     iostat(
-        re_data = re_data,
-        split_field = 'iostat_disk',
+        data_key = data_key,
+        split_key = 'iostat_disk',
         name = 'iostat disk: {iostat_disk} ' + name,
         level = level,
         **kwargs
@@ -846,31 +853,46 @@ iostat_disk('util',    'average utilization (%)', ymax=100, level=1)
 
 
 #
-#
-#
-
-
-
-
-#
 # mongod log
 #
 
-def mongod(**kwargs):
-    kwargs['re'] = '^(....-..-..T..:..:..\....(?:[+-]....|Z))' + kwargs['re']
-    kwargs['file_type'] = 'text'
-    kwargs['parse_type'] = 're'
-    descriptor(**kwargs)
+#2014-11-28T06:04:22.610-0800 I QUERY    [conn3] command test.$cmd command: insert { $msg: "query not recording (too large)" } keyUpdates:0  reslen:40 195ms
 
-#mongod(
-#    name = 'mongod: connections currently open',
-#    re = '.*?([0-9]+) connections now open',
-#    level = 1
-#)
+parse_mongod = process.ParseRe(
+    time_key = 'time',
+    regexp = process.ParseRe.seq(
+        '^(?P<time>....-..-..T..:..:..\....(?:[+-]....|Z)) ',
+        process.ParseRe.alt(
+            '.* (?P<close>end connection)',
+            '.* connection (?P<open>accepted from)',
+            #'.* (?:query:|command:|getmore) .* (?P<ms>[0-9]+)ms$',
+            process.ParseRe.seq(
+                r'I (?P<cat>[A-Z]+) +\[conn[0-9]+\] ',
+                process.ParseRe.alt(
+                    process.ParseRe.seq(
+                        r'command (?P<db>[^ ]+) ', # db
+                        r'command: (?P<cmd>[^ ]+) ', # cmd
+                    ),
+                    process.ParseRe.seq(
+                        r'(?P<op>[^ ]+) ', # op
+                        r'(?P<ns>[^ ]+) ', # ns
+                    )
+                ),
+                r'.* (?P<ms>[0-9]+)ms$'
+            )
+        )
+    )
+)
+
+def mongod(**kwargs):
+    kwargs['file_type'] = 'text'
+    kwargs['parser'] = parse_mongod
+    kwargs['time_key'] = 'time'
+    descriptor(**kwargs)
 
 mongod(
     name = 'mongod connections opened per {bucket_size}s',
-    re = '.* connection (accepted from)',
+    data_key = 'open',
     bucket_op = 'count',
     bucket_size = 1,    # size of buckets in seconds
     level = 1
@@ -878,28 +900,45 @@ mongod(
 
 mongod(
     name = 'mongod connections closed per {bucket_size}s',
-    re = '.* (end connection)',
+    data_key = 'close',
     bucket_op = 'count',
     bucket_size = 1,    # size of buckets in seconds
     level = 1
 )
 
-mongod(
-    name = 'mongod: max logged op (ms) per {bucket_size}s',
-    re = '.* (?:query:|command:|getmore) .* ([0-9]+)ms$',
-    bucket_op = 'max',
-    bucket_size = 1, # size of buckets in seconds
-    level = 1
-)
+def mongod_split(split_key, split_name):
 
-mongod(
-    name = 'mongod: logged ops longer than {count_min}ms per {bucket_size}s',
-    re = '.* (?:query:|command:|getmore) .* ([0-9]+)ms$',
-    bucket_op = 'count',
-    bucket_size = 1,    # size of buckets in seconds
-    count_min = 0,      # minimum query duration to count',
-    level = 1
-)
+    mongod(
+        name = 'mongod: %s: max logged op (ms) per {bucket_size}s ' % split_name,
+        data_key = 'ms',
+        split_key = split_key,
+        bucket_op = 'max',
+        bucket_size = 1, # size of buckets in seconds
+        ygroup = 'mongod_long_max',
+        level = 1
+    )
+    
+    mongod(
+        name = 'mongod: %s: ops longer than {count_min}ms per {bucket_size}s ' % split_name,
+        data_key = 'ms',
+        split_key = split_key,
+        bucket_op = 'count',
+        bucket_size = 1,    # size of buckets in seconds
+        count_min = 0,      # minimum query duration to count',
+        ygroup = 'mongod_long_count',
+        level = 1
+    )
+
+mongod_split(None, 'total')
+mongod_split(('ns','op'), 'ns={ns}, op={op}')
+mongod_split(('db','cmd'), 'ns={db}, cmd={cmd}')
+#mongod_split(('cat','db'), '{cat} db={db}')
+#mongod_split(('cat','ns'), '{cat} ns={ns}')
+#mongod_split(('cat','op'), '{cat} op={op}')
+#mongod_split(('cat','cmd'), '{cat} cmd={cmd}')
+
+#cat=WRITE db=test cmd=insert
+
 
 # not working right it seems?
 #mongod(
@@ -926,12 +965,12 @@ mongod(
 descriptor(
     name = 'oplog: {op} {ns}',
     file_type = 'json',
-    parse_type = 'json',
-    flat_time_key = ftdc.join('ts', 't'),
-    flat_data_key = ftdc.join('op'),
+    parser = process.parse_json,
+    time_key = ftdc.join('ts', 't'),
+    data_key = ftdc.join('op'),
     bucket_op = 'count',
     bucket_size = 1,
-    split_field = ('op', 'ns'),
+    split_key = ('op', 'ns'),
     level = 1
 )
 
@@ -939,6 +978,13 @@ descriptor(
 #
 # wt
 #
+
+# regexp parsing for wtstats files
+parse_wt_alts = process.ParseRe.alt()
+parse_wt = process.ParseRe(
+    time_key = 'time',
+    regexp = process.ParseRe.seq('^(?P<time>... .. ..:..:..) ', parse_wt_alts)
+)
 
 def wt(wt_cat, wt_name, rate=False, scale=1.0, level=3, **kwargs):
 
@@ -958,13 +1004,17 @@ def wt(wt_cat, wt_name, rate=False, scale=1.0, level=3, **kwargs):
     ss(['wiredTiger', wt_cat, wt_name], 'ss ' + name, **kwargs)
 
     # for parsing wt data in wtstats files
-    descriptor(
-        file_type = 'text',
-        parse_type = 're',
-        re = '^(... .. ..:..:..) ([0-9]+) .* {}: {}'.format(wt_cat, wt_name),
-        name = name,
-        **kwargs
-    )
+    # broken for now: >100 groups
+    # data_key = 'key%d' % len(parse_wt_alts)
+    # parse_wt_alts.append('(?P<%s>[0-9]+) .* %s: %s' % (data_key, wt_cat, wt_name))
+    # descriptor(
+    #     file_type = 'text',
+    #     parser = parse_wt,
+    #     name = name,
+    #     time_key = 'time',
+    #     data_key = data_key,
+    #     **kwargs
+    # )
 
 
 ss(['wiredTiger', 'concurrentTransactions', 'read', 'available'], level=4)

@@ -317,7 +317,7 @@ def read(ses, fn, opt, progress=True):
     chunks[-1].end_time = float('inf') # don't know end time; will filter last chunk later
 
     # roughly filter by timespan using _id timestamp as extracted above
-    # fine filtering will be done in series_process_dict
+    # fine filtering will be done during processing
     in_range = lambda chunk: chunk.start_time <= opt.before and chunk.end_time >= opt.after
     filtered_chunks = [chunk for chunk in chunks if in_range(chunk)]
 

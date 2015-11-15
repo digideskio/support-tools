@@ -96,16 +96,7 @@ class parse_time:
                 time = time.replace(tzinfo=tzinfo)
         time = util.t2f(time)
     
-        # subset or range of times
-        if time < opt.after or time >= opt.before:
-            return None
-        elif s.every:
-            if time - opt.last_time < s.every:
-                return None
-            else:
-                opt.last_time = time
-    
-        # time is in range
+        # done
         return time
     
     def _parse_time_fast(self, time, opt, s):

@@ -8,7 +8,8 @@ function run-timeseries {
 }
 
 function test-001 {
-    run-timeseries 'mongod logged(count_min=3000):data/r0.log' 'mongod max logged:data/r0.log'
+    #run-timeseries 'mongod logged(count_min=3000):data/r0.log' 'mongod max logged:data/r0.log'
+    run-timeseries 'mongod:data/r0.log'
 }
 
 function test-002 {
@@ -153,7 +154,8 @@ function compare-html {
     if [[ $ref_hash != $act_hash ]]; then
 
         # hashes not equal; use Preview to do visual comparison
-        open /tmp/$o-{ref,act}-full.png
+        compare /tmp/$o-{ref,act}-full.png /tmp/$o-diff-full.png
+        open /tmp/$o-{ref,act,diff}-full.png
         ask "Looks good?"
         if [[ $? == 1 ]]; then
             return -1
@@ -182,11 +184,16 @@ function run-test {
 }
 
 function run-tests {
+    run-test test-013
+    run-test test-014
+    run-test test-015
+    run-test test-016
+    run-test test-017
     run-test test-001
     run-test test-002
-    run-test test-003
-    run-test test-003a
-    run-test test-003b
+    #run-test test-003 # restore wt stuff
+    #run-test test-003a
+    #run-test test-003b
     run-test test-004
     run-test test-004a
     run-test test-005
@@ -197,11 +204,6 @@ function run-tests {
     run-test test-010
     #run-test test-011 # rs: rework for new json parsing - needs split fields
     #run-test test-012 # rs part of ftdc/json: rework for new json parsing, also add to ftdc
-    run-test test-013
-    run-test test-014
-    run-test test-015
-    run-test test-016
-    run-test test-017
 }
 
 function zip-source {

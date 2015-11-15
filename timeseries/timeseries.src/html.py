@@ -69,29 +69,23 @@ def _get_graphs(ses):
     if type(opt.after)==dt.datetime: opt.after = util.t2f(opt.after)
     if type(opt.before)==dt.datetime: opt.before = util.t2f(opt.before)
 
-    # parse specs, group them by file and parse type
+    # parse specs, group them by file and parser
     series = [] # all
     opt.fns = collections.defaultdict(list) # grouped by fn
     for spec_ord, spec in enumerate(specs):
         try:
             for s in graphing.get_series(ses, spec, spec_ord):
-                opt.fns[(s.fn,s.parse_type)].append(s) # xxx canonicalize filename
+                opt.fns[(s.fn,s.parser)].append(s) # xxx canonicalize filename
                 series.append(s)
         except Exception as e:
             # xxx should we raise exception and so abort, or carry on processing all we can?
             traceback.print_exc()
             raise Exception('error processing %s: %s' % (spec, e))
 
-    # process by file according to parse_type
-    for fn, parse_type in sorted(opt.fns):
+    # process by file according to parser
+    for fn, parser in sorted(opt.fns):
         opt.last_time = - float('inf')
-        read_func = process.__dict__['series_read_' + parse_type]
-        try:
-            read_func(ses, fn, opt.fns[(fn,parse_type)], opt)
-        except Exception as e:
-            # xxx should we raise exception and so abort, or carry on processing all we can?
-            traceback.print_exc()
-            raise Exception('error processing %s: %s' % (fn, e))
+        process.parse_and_process(ses, fn, opt.fns[(fn,parser)], opt, parser)
         
     # finish each series
     for s in series:
@@ -434,11 +428,8 @@ def info(ses, t):
     _head(ses)
     ses.elt('pre', {'class': 'info'})
 
-    for fn, parse_type in sorted(ses.opt.fns):
-        info_func = 'series_info_' + parse_type
-        if info_func in process.__dict__:
-            info_func = process.__dict__[info_func]
-            info_func(ses, fn, t)
+    for fn, parser in sorted(ses.opt.fns):
+        parser.info(ses, fn, t)
 
     ses.endall()
 
