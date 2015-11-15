@@ -164,7 +164,24 @@ make this reasonably efficient. You can do this by manually refreshing
 the view using the browser refresh button, or you can enable live mode
 as described above to periodically refresh the view.
 
-### Collecting system information (iostat)
+### Viewing mongod log data
+
+You can view mongod log data along with other sources of timeseries
+data by adding "mongod:mongodb.log" to the command line, for example:
+
+    python timeseries.py mongod:mongodb.log ftdc:diagnostic.data --browser 
+
+This will display information about the following:
+
+* Number of logged slow operations per second
+
+* Length of longest slow operation, in ms, during each second
+
+This information is displayed both for all operations in total, and
+broken out by namespace and operation.
+
+
+### Collecting and viewing system information (iostat)
 
 It is sometimes useful to have system information such as disk and CPU
 usage, along with mongod internal data. This is not currently captured
