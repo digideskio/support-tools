@@ -684,7 +684,12 @@ def compute_lag(metrics):
     def get(member, key):
         return metrics[ftdc.join('replSetGetStatus', 'members', member, key)]
 
-    for i in range(len(get(next(iter(members)), 'state'))):
+    # no repl set status in this chunk?
+    if not members:
+        return
+
+    # compute lag
+    for i in range(len(get(members[0], 'state'))):
         pri_optimeDate = None
         for member in members:
             if get(member, 'state')[i]==1:
