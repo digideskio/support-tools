@@ -6,20 +6,7 @@ import struct
 import time
 import zlib
 
-import ftdc
 import util
-
-#
-# for efficient processing metric names are represented as a single string
-# consisting of the BSON path elements joined by SEP
-# use / instead of . because some metrics names include .
-# xxx now used elsewhere, e.g. for ordinary json, so this should move...
-#
-
-SEP = '/'
-
-def join(*s):
-    return ftdc.SEP.join(s)
 
 
 #
@@ -36,10 +23,8 @@ int64 = struct.Struct('<q')
 uint64 = struct.Struct('<Q')
 double = struct.Struct('<d')
 
-BSON = collections.OrderedDict
-
 def read_bson_doc(buf, at, ftdc=False):
-    doc = BSON()
+    doc = util.BSON()
     doc_len = int32.unpack_from(buf, at)[0]
     doc.bson_len = doc_len
     doc_end = at + doc_len
@@ -86,7 +71,7 @@ def read_bson_doc(buf, at, ftdc=False):
             if ftdc: v = int(v)
             l = 4
         elif bson_type==17: # timestamp
-            v = BSON()
+            v = util.BSON()
             v['t'] = int(uint32.unpack_from(buf, at)[0]) # seconds
             v['i'] = int(uint32.unpack_from(buf, at+4)[0]) # increment
             l = 8
@@ -100,15 +85,6 @@ def read_bson_doc(buf, at, ftdc=False):
         at += l
     assert(not 'eoo not found') # should have seen an eoo and returned
 
-
-def print_bson_doc(doc, prt=util.msg, indent=''):
-    for k, v in doc.items():
-        if type(v)==BSON:
-            prt(indent + k)
-            print_bson_doc(v, prt, indent+'    ')
-        else:
-            prt(indent + k, v)
-        
 
 #
 # manage the lazy decoding of a chunk
@@ -158,8 +134,8 @@ class Chunk:
         # traverse the reference document and extract metric names
         def extract_names(doc, n=''):
             for k, v in doc.items():
-                nn = n + ftdc.SEP + k if n else k
-                if type(v)==BSON:
+                nn = n + util.SEP + k if n else k
+                if type(v)==util.BSON:
                     extract_names(v, nn)
                 else:
                     self.metrics[nn] = [v]
@@ -243,7 +219,7 @@ class Chunk:
 # entries are invalidated if file mod time changes
 #
 
-class File(util.Cache):
+class File(util.FileCache):
 
     # on __init__ we read the sequence of chunks in the file
     # this does minimal actual work since it mmaps the files
@@ -251,6 +227,9 @@ class File(util.Cache):
     # the chunk bson document, consisting largely of pointers into the file
     def __init__(self, fn):
         
+        # super constructor
+        util.FileCache.__init__(self, fn)
+
         # open and map file
         f = open(fn)
         buf = mmap.mmap(f.fileno(), 0, mmap.MAP_PRIVATE, mmap.PROT_READ)
@@ -348,13 +327,13 @@ def read(ses, fn, opt, progress=True):
         max_samples = (read_bytes+len(chunk)) / overview_bytes - read_bytes / overview_bytes
         if max_samples <= 1:
             metrics = chunk.get_first()
-            metrics = BSON((n,[v[0]]) for (n,v) in metrics.items())
+            metrics = util.BSON((n,[v[0]]) for (n,v) in metrics.items())
             used_samples += 1
         else:
             metrics = chunk.get_all()
             every = int(math.ceil(float(chunk.nsamples)/max_samples))
             if every != 1:
-                metrics = BSON((n,v[0::every]) for (n,v) in metrics.items())
+                metrics = util.BSON((n,v[0::every]) for (n,v) in metrics.items())
             used_samples += chunk.nsamples / every
         yield metrics
 
@@ -381,7 +360,7 @@ def read(ses, fn, opt, progress=True):
 #   metrics are not stored as bson document so we reconstruct one from the SEP-joined metrics names
 #   assumes 'serverStatus/localTime' exists
 #
-def info(ses, fn, t, prt=util.msg):
+def info(ses, fn, t, prt):
 
     class Opt:
         def __init__(self, t):
@@ -389,16 +368,8 @@ def info(ses, fn, t, prt=util.msg):
             self.before = float('inf')
             self.overview = 'none'
 
-    def put_bson(bson, n, v):
-        if len(n)>1:
-            if not n[0] in bson:
-                bson[n[0]] = BSON()
-            put_bson(bson[n[0]], n[1:], v)
-        else:
-            bson[n[0]] = v
-
     # xxx assumes this exists
-    time_metric = ftdc.join('serverStatus', 'localTime')
+    time_metric = util.join('serverStatus', 'localTime')
 
     # find and print the first sample after t (only)
     for metrics in read(ses, fn, Opt(t), progress=False):
@@ -406,11 +377,8 @@ def info(ses, fn, t, prt=util.msg):
             sample_time = sample_time / 1000.0
             if sample_time >= t:
                 break
-        bson = BSON()
-        for name, value in metrics.items():
-            put_bson(bson, name.split(ftdc.SEP), value[sample])
         prt('%s at t=%.3f' % (fn, t))
-        print_bson_doc(bson, prt, '    ')
+        util.print_sample(metrics, sample, prt)
         break
 
 def dbg(fn, opt, show=True):

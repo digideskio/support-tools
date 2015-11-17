@@ -1,9 +1,10 @@
-import sys
-import dateutil.parser
+import collections
 import datetime as dt
+import dateutil.parser
 import os
 import pytz
 import re
+import sys
 import time
 
 import util
@@ -192,11 +193,13 @@ def item_progress(ses, name, cat, items, count, every=2.0):
 
 
 #
-# manage a file cache
+# each subclass manages a file cache
+# each instance represents a single file
+# subclass must supply constructor that takes a single argument that is the filename
 # entries are invalidated if file mod time changes
 #
 
-class Cache:
+class FileCache:
 
     # cache of known files
     cache = {}
@@ -208,7 +211,6 @@ class Cache:
             if f.valid():
                 return f
         f = cls(fn)
-        f.fn = fn
         f.mtime = os.stat(fn).st_mtime
         cls.cache[fn] = f
         return f
@@ -217,3 +219,48 @@ class Cache:
         valid = os.stat(self.fn).st_mtime==self.mtime
         return valid
 
+    def __init__(self, fn):
+        self.fn = fn
+
+
+#
+# for efficient processing metric names are represented as a single string
+# consisting of the BSON path elements joined by SEP
+# use / instead of . because some metrics names include .
+# xxx now used elsewhere, e.g. for ordinary json, so this should move...
+#
+
+SEP = '/'
+
+def join(*s):
+    return SEP.join(s)
+
+BSON = collections.OrderedDict
+
+
+#
+# utilities for printing chunk info
+#
+
+def print_bson_doc(doc, prt, indent=''):
+    for k, v in doc.items():
+        if type(v)==BSON:
+            prt(indent + k)
+            print_bson_doc(v, prt, indent+'    ')
+        else:
+            prt(indent + k, v)
+        
+def print_sample(chunk, sample, prt):
+
+    def put_bson(bson, n, v):
+        if len(n)>1:
+            if not n[0] in bson:
+                bson[n[0]] = BSON()
+            put_bson(bson[n[0]], n[1:], v)
+        else:
+            bson[n[0]] = v
+
+    bson = BSON()
+    for name, value in chunk.items():
+        put_bson(bson, name.split(util.SEP), value[sample])
+    print_bson_doc(bson, prt, '    ')

@@ -184,11 +184,6 @@ function run-test {
 }
 
 function run-tests {
-    run-test test-013
-    run-test test-014
-    run-test test-015
-    run-test test-016
-    run-test test-017
     run-test test-001
     run-test test-002
     #run-test test-003 # restore wt stuff
@@ -204,6 +199,11 @@ function run-tests {
     run-test test-010
     #run-test test-011 # rs: rework for new json parsing - needs split fields
     #run-test test-012 # rs part of ftdc/json: rework for new json parsing, also add to ftdc
+    run-test test-013
+    run-test test-014
+    run-test test-015
+    run-test test-016
+    run-test test-017
 }
 
 function zip-source {

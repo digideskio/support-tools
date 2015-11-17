@@ -1,9 +1,9 @@
 import collections
+import json
 import re
 import traceback
 
 import ftdc
-import jsonx
 import util
 
 #
@@ -36,6 +36,46 @@ class Chunker:
             self.chunk_init()
 
 
+#
+# manage a cache of chunks
+# each instance represents the chunks for a single file
+# files are cached by the class per the policy provided by the util.FileCach class
+# subclass must supply _parse instance method that is called to compute the chunks for the file
+# provides a parse class method that yields chunks by either
+#     calling _parse to initially compute the chunks, or
+#     returning chunks cached from a prior call to _parse
+#
+
+class ChunkCache(util.FileCache):
+
+    @classmethod
+    def parse(cls, ses, fn, opt, time_key):
+        file = cls.get(fn)
+        file.time_key = time_key
+        if hasattr(file, 'chunks'):
+            for chunk in util.item_progress(ses, file.fn, 'chunks', file.chunks, len(file.chunks)):
+                yield chunk
+        else:
+            file.chunks = []
+            for chunk in file._parse(ses, opt):
+                file.chunks.append(chunk)
+                yield chunk
+
+    @classmethod
+    def info(cls, ses, fn, t):
+        def putln(*s):
+            ses.put(' '.join(str(ss) for ss in s) + '\n')
+        file = cls.get(fn)
+        for chunk in file.chunks:
+            if t >= chunk[file.time_key][0]:
+                for sample, sample_time in enumerate(chunk[file.time_key]):
+                    if sample_time >= t:
+                        putln('%s at t=%.3f' % (fn, t))
+                        util.print_sample(chunk, sample, putln)
+                        return
+
+
+
 ################################################################################
 #
 # each parse_*.parse() generator reads and parses files of a given type,
@@ -44,14 +84,15 @@ class Chunker:
 
 #
 # read and parse csv files
+# maintains a chunk cache
 #
 
-class ParseCsv(Chunker):
+class parse_csv(Chunker, ChunkCache):
 
-    def parse(self, ses, fn, opt):
+    def _parse(self, ses, opt):
         self.chunk_init()
         keys = None
-        for line in util.file_progress(ses, fn):
+        for line in util.file_progress(ses, self.fn):
             line = line.strip()
             if not keys:
                 keys = line.split(',')
@@ -64,35 +105,60 @@ class ParseCsv(Chunker):
         for chunk in self.chunk_emit(True):
             yield chunk
 
-    def info(self, ses, fn, t):
-        ses.put('NOT IMPLEMENTED')
-
-parse_csv = ParseCsv()
 
 
 #
 # read and parse json files
+# maintains a chunk cache
 #
 
-class parse_json:
+class parse_json(ChunkCache):
 
-    @staticmethod
-    def parse(ses, fn, opt):
-        return jsonx.read(ses, fn, opt)
+    def _parse(self, ses, opt):
 
-    @staticmethod
-    def info(ses, fn, t):
-        ses.put('NOT IMPLEMENTED')
+        ignore = set(['floatApprox', '$date', '$numberLong', '$timestamp'])
+        chunk_size = 100
+    
+        def flatten(result, j, key=None):
+            if type(j)==dict:
+                for k, v in j.items():
+                    if k in ignore:
+                        flatten(result, v, key)
+                    else:
+                        flatten(result, v, key + util.SEP + k if key else k)
+            else:
+                result[key] = [j]
+            return result
+    
+        chunk = {}
+        for line in util.file_progress(ses, self.fn):
+            try:
+                j = flatten({}, json.loads(line))
+                if j.keys() != chunk.keys() or len(chunk.values()[0]) >= chunk_size:
+                    if chunk:
+                        yield chunk
+                    chunk = j
+                else:
+                    for k, v in j.items():
+                        chunk[k].extend(v)
+            except ValueError:
+                # ignore bad json
+                pass
+            except:
+                traceback.print_exc()
+                break
+        yield chunk
 
 
 #
 # read and parse ftdc metrics files
+# manages its own chunk cache in order to do lazy evaluation
 #
 
-class parse_metrics:
+class parse_ftdc:
 
     @staticmethod
-    def parse(ses, fn, opt):
+    def parse(ses, fn, opt, time_key):
         return ftdc.read(ses, fn, opt)
 
     @staticmethod
@@ -100,6 +166,75 @@ class parse_metrics:
         def prt(*stuff):
             ses.put(' '.join(str(s) for s in stuff) + '\n')
         ftdc.info(ses, fn, t, prt)
+
+
+#
+# process a series of lines using regexps
+#
+
+# helper class for constructing regexp that is a sequence of items
+class seq(list):
+    def __init__(self, *args):
+        self.extend(args)
+    def __str__(self):
+        return '(?:' + ''.join(str(x) for x in self) + ')'
+
+# helper class for constructing regexp that is a set of alternative items
+class alt(list):
+    def __init__(self, *args):
+        self.extend(args)
+    def __str__(self):
+        return '(?:' + '|'.join(str(x) for x in self) + ')'
+
+# create a class for parsing the specified regexp
+def parse_re(time_key, regexp):
+
+    # compile regexp up front
+    rec = re.compile(str(regexp))
+
+    # create a class for parsing the specified regexp
+    # maintains a separate chunk cache per regexp
+    class ParseRe(Chunker, ChunkCache):
+
+        def _parse(self, ses, opt):
+    
+            # init
+            self.chunk_init()
+            pt = util.parse_time()
+    
+            # process the file
+            for line in util.file_progress(ses, self.fn):
+    
+                # match line
+                line = line.strip()
+                m = rec.match(line)
+                if m:
+    
+                    # process time_key
+                    time = m.group(time_key)
+                    if time:
+                        for chunk in self.chunk_emit(flush=False):
+                            yield chunk
+                        self.chunk_extend()
+                        self.chunk[time_key][-1] = time
+                        self.last_time = time
+    
+                    # process each data_key
+                    for data_key in rec.groupindex:
+                        if data_key != time_key:
+                            data = m.group(data_key)
+                            if data != None:
+                                if self.chunk[data_key][-1] != None:
+                                    self.chunk_extend()
+                                    self.chunk[time_key][-1] = self.last_time
+                                self.chunk[data_key][-1] = data
+    
+            # finish up
+            for chunk in self.chunk_emit(flush=True):
+                yield chunk
+
+    # return our constructed class
+    return ParseRe
 
 
 ################################################################################
@@ -117,36 +252,36 @@ def process(series, opt):
     # xxx does time parsing belong here or in the parse routines?
     pt = util.parse_time()
 
-    # process all metrics that we are sent
+    # process all chunk that we are sent
     while True:
 
         try:
 
             # get our next input
-            metrics = yield
+            chunk = yield
                     
             def process_series(s, data_key):
                 time_key = s.time_key # e.g. 'serverStatus.localTime'
-                if data_key in metrics and time_key in metrics:
-                    ts = metrics[time_key]
+                if data_key in chunk and time_key in chunk:
+                    ts = chunk[time_key]
                     if type(ts[0])==str or type(ts[0])==unicode:
                         for i, t in enumerate(ts):
                             ts[i] = pt.parse_time(t, opt, series[0]) # xxx tz
                     if ts[0]/s.time_scale > opt.before or ts[-1]/s.time_scale < opt.after:
                         return
-                    for i, (t, d) in enumerate(zip(ts, metrics[data_key])):
+                    for i, (t, d) in enumerate(zip(ts, chunk[data_key])):
                         t = t / s.time_scale
                         if t>=opt.after and t<=opt.before:
-                            get_field = lambda key: metrics[key][i]
+                            get_field = lambda key: chunk[key][i]
                             if d != None:
                                 s.data_point(t, d, get_field, None, opt)
 
             # send each series our data points
             for s in series:
                 if s.special:
-                    s.special(metrics)
+                    s.special(chunk)
                 if s.split_on_key_match:
-                    for data_key in metrics:
+                    for data_key in chunk:
                         if data_key==s.time_key:
                             continue
                         m = s.split_on_key_match_re.match(data_key)
@@ -158,7 +293,7 @@ def process(series, opt):
                     process_series(s, s.data_key)
 
             # track what we have used
-            unrecognized.update(metrics.keys())
+            unrecognized.update(chunk.keys())
 
         except GeneratorExit:
             break
@@ -178,75 +313,13 @@ def process(series, opt):
         unrecognized.discard(s.time_key)
     unrecognized = filter(lambda x: not ignore.match(str(x)), unrecognized)
     is_str = lambda x: type(x)==str or type(x)==unicode
-    unrecognized = filter(lambda x: x in metrics and not is_str(metrics[x][0]), unrecognized)
+    unrecognized = filter(lambda x: x in chunk and not is_str(chunk[x][0]), unrecognized)
     if unrecognized:
         util.msg('unrecognized metrics:')
         for u in sorted(unrecognized):
             util.msg('   ', u)
 
 
-#
-# process a series of lines using regexps
-#
-
-class ParseRe(Chunker):
-
-    def __init__(self, time_key, regexp):
-        self.time_key = time_key
-        self.regexp = regexp
-
-    class seq(list):
-        def __init__(self, *args):
-            self.extend(args)
-        def __str__(self):
-            return '(?:' + ''.join(str(x) for x in self) + ')'
-
-    class alt(list):
-        def __init__(self, *args):
-            self.extend(args)
-        def __str__(self):
-            return '(?:' + '|'.join(str(x) for x in self) + ')'
-
-    def parse(self, ses, fn, opt):
-
-        # init
-        self.re = re.compile(str(self.regexp))
-        self.chunk_init()
-        pt = util.parse_time()
-
-        # process the file
-        for line in util.file_progress(ses, fn):
-
-            # match line
-            line = line.strip()
-            m = self.re.match(line)
-            if m:
-
-                # process time_key
-                time = m.group(self.time_key)
-                if time:
-                    for chunk in self.chunk_emit(flush=False):
-                        yield chunk
-                    self.chunk_extend()
-                    self.chunk[self.time_key][-1] = time
-                    self.last_time = time
-
-                # process each data_key
-                for data_key in self.re.groupindex:
-                    if data_key != self.time_key:
-                        data = m.group(data_key)
-                        if data != None:
-                            if self.chunk[data_key][-1] != None:
-                                self.chunk_extend()
-                                self.chunk[self.time_key][-1] = self.last_time
-                            self.chunk[data_key][-1] = data
-
-        # finish up
-        for chunk in self.chunk_emit(flush=True):
-            yield chunk
-
-    def info(self, ses, fn, t):
-        ses.put('NOT IMPLEMENTED')
 
 
 ####
@@ -326,7 +399,7 @@ def transfer(src, *dst):
 #
 
 def parse_and_process(ses, fn, series, opt, parser):
-    src = parser.parse(ses, fn, opt)
+    src = parser.parse(ses, fn, opt, series[0].time_key)
     dst = process(series, opt)    
     transfer(src, dst)
 

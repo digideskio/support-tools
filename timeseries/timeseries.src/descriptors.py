@@ -3,7 +3,6 @@ import datetime as dt
 import re
 import process
 
-import ftdc
 import graphing
 import util
 
@@ -119,8 +118,8 @@ def ss(json_data, name=None, scale=1, rate=False, units=None, level=3, **kwargs)
         file_type = 'json',
         parser = process.parse_json,
         name = name,
-        data_key = ftdc.join(*json_data),
-        time_key = ftdc.join('localTime'),
+        data_key = util.join(*json_data),
+        time_key = util.join('localTime'),
         scale = scale,
         rate = rate,
         level = level,
@@ -132,8 +131,8 @@ def ss(json_data, name=None, scale=1, rate=False, units=None, level=3, **kwargs)
         file_type = 'json',
         parser = process.parse_json,
         name = 'ftdc ' + name,
-        data_key = ftdc.join('serverStatus', *json_data),
-        time_key = ftdc.join('serverStatus', 'localTime'),
+        data_key = util.join('serverStatus', *json_data),
+        time_key = util.join('serverStatus', 'localTime'),
         scale = scale,
         rate = rate,
         level = level,
@@ -143,10 +142,10 @@ def ss(json_data, name=None, scale=1, rate=False, units=None, level=3, **kwargs)
     # for parsing serverStatus section of ftdc represented as metrics dictionaries
     descriptor(
         file_type = 'metrics',
-        parser = process.parse_metrics,
+        parser = process.parse_ftdc,
         name = 'ftdc ' + name,
-        data_key = ftdc.join('serverStatus', *json_data),
-        time_key = ftdc.join('serverStatus', 'localTime'),
+        data_key = util.join('serverStatus', *json_data),
+        time_key = util.join('serverStatus', 'localTime'),
         scale = scale,
         rate = rate,
         level = level,
@@ -513,8 +512,8 @@ def cs(json_data, name=None, scale=1, rate=False, units=None, level=3, **kwargs)
         file_type = 'json',
         parser = process.parse_json,
         name = json_name,
-        data_key = ftdc.join(*json_data),
-        time_key = ftdc.join('time'),
+        data_key = util.join(*json_data),
+        time_key = util.join('time'),
         scale = scale,
         rate = rate,
         level = level,
@@ -524,10 +523,10 @@ def cs(json_data, name=None, scale=1, rate=False, units=None, level=3, **kwargs)
     # oplog stats in ftdc data
     descriptor(
         file_type = 'metrics',
-        parser = process.parse_metrics,
+        parser = process.parse_ftdc,
         name = ftdc_name,
-        data_key = ftdc.join('local.oplog.rs.stats', *json_data),
-        time_key = ftdc.join('local.oplog.rs.stats', 'start'),
+        data_key = util.join('local.oplog.rs.stats', *json_data),
+        time_key = util.join('local.oplog.rs.stats', 'start'),
         scale = scale,
         rate = rate,
         level = 1 if level==1 else 5,
@@ -654,9 +653,9 @@ def rs(name, **kwargs):
 
     descriptor(
         file_type = 'metrics',
-        parser = process.parse_metrics,
+        parser = process.parse_ftdc,
         name = 'ftdc rs: member {member} ' + name,
-        split_on_key_match = ftdc.join('replSetGetStatus', 'members', '(?P<member>[0-9])+', name),
+        split_on_key_match = util.join('replSetGetStatus', 'members', '(?P<member>[0-9])+', name),
         time_key = 'replSetGetStatus/start',
         time_scale = 1000.0,
         **kwargs
@@ -672,17 +671,17 @@ def compute_lag(metrics):
     # compute list of members
     members = set()
     for key in metrics:
-        m  = re.match(ftdc.join('replSetGetStatus', 'members', '([0-9])+'), key)
+        m  = re.match(util.join('replSetGetStatus', 'members', '([0-9])+'), key)
         if m:
             member = m.group(1)
             members.add(member)
-            metrics[ftdc.join('replSetGetStatus', 'members', member, 'lag')] = []
+            metrics[util.join('replSetGetStatus', 'members', member, 'lag')] = []
     members = list(sorted(members))
             
     # xxx pretty inefficient to be doing this every time, consider lifting out of loop below
     # but otoh we don't do this very often, only once per chunk, and timing shows little or no diff
     def get(member, key):
-        return metrics[ftdc.join('replSetGetStatus', 'members', member, key)]
+        return metrics[util.join('replSetGetStatus', 'members', member, key)]
 
     # no repl set status in this chunk?
     if not members:
@@ -804,9 +803,9 @@ sysmon_disk('io_queued_ms',   'average queue length', scale_field='{disk}.io_tim
 # iostat -t -x $delay
 #
 
-parse_iostat = process.ParseRe(
+parse_iostat = process.parse_re(
     time_key = 'time',
-    regexp = process.ParseRe.alt(
+    regexp = process.alt(
         '(?P<time>^../../..(?:..)? ..:..:..(?: ..)?)',
         '(?:^ *(?P<user>[0-9\.]+) +(?P<nice>[0-9\.]+) +(?P<system>[0-9\.]+) +(?P<iowait>[0-9\.]+) +(?P<steal>[0-9\.]+) +(?P<idle>[0-9\.]+))',
         '(?:^(?P<iostat_disk>[a-z]+) +(?P<rrqms>[0-9\.]+) +(?P<wrqms>[0-9\.]+) +(?P<rs>[0-9\.]+) +(?P<ws>[0-9\.]+) +(?P<rkBs>[0-9\.]+) +(?P<wkBs>[0-9\.]+) +(?P<avgrqsz>[0-9\.]+) +(?P<avgqusz>[0-9\.]+) +(?P<await>[0-9\.]+) +(?P<r_await>[0-9\.]+)? +(?P<w_await>[0-9\.]+)? +(?P<svctime>[0-9\.]+) +(?P<util>[0-9\.]+))',
@@ -863,22 +862,22 @@ iostat_disk('util',    'average utilization (%)', ymax=100, level=1)
 
 #2014-11-28T06:04:22.610-0800 I QUERY    [conn3] command test.$cmd command: insert { $msg: "query not recording (too large)" } keyUpdates:0  reslen:40 195ms
 
-parse_mongod = process.ParseRe(
+parse_mongod = process.parse_re(
     time_key = 'time',
-    regexp = process.ParseRe.seq(
+    regexp = process.seq(
         '^(?P<time>....-..-..T..:..:..\....(?:[+-]....|Z)) ',
-        process.ParseRe.alt(
+        process.alt(
             '.* (?P<close>end connection)',
             '.* connection (?P<open>accepted from)',
             #'.* (?:query:|command:|getmore) .* (?P<ms>[0-9]+)ms$',
-            process.ParseRe.seq(
+            process.seq(
                 r'I (?P<cat>[A-Z]+) +\[conn[0-9]+\] ',
-                process.ParseRe.alt(
-                    process.ParseRe.seq(
+                process.alt(
+                    process.seq(
                         r'command (?P<db>[^ ]+) ', # db
                         r'command: (?P<cmd>[^ ]+) ', # cmd
                     ),
-                    process.ParseRe.seq(
+                    process.seq(
                         r'(?P<op>[^ ]+) ', # op
                         r'(?P<ns>[^ ]+) ', # ns
                     )
@@ -971,8 +970,8 @@ descriptor(
     name = 'oplog: {op} {ns}',
     file_type = 'json',
     parser = process.parse_json,
-    time_key = ftdc.join('ts', 't'),
-    data_key = ftdc.join('op'),
+    time_key = util.join('ts', 't'),
+    data_key = util.join('op'),
     bucket_op = 'count',
     bucket_size = 1,
     split_key = ('op', 'ns'),
@@ -985,10 +984,10 @@ descriptor(
 #
 
 # regexp parsing for wtstats files
-parse_wt_alts = process.ParseRe.alt()
-parse_wt = process.ParseRe(
+parse_wt_alts = process.alt()
+parse_wt = process.parse_re(
     time_key = 'time',
-    regexp = process.ParseRe.seq('^(?P<time>... .. ..:..:..) ', parse_wt_alts)
+    regexp = process.seq('^(?P<time>... .. ..:..:..) ', parse_wt_alts)
 )
 
 def wt(wt_cat, wt_name, rate=False, scale=1.0, level=3, **kwargs):
