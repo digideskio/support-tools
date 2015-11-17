@@ -9,7 +9,7 @@ function run-timeseries {
 
 function test-001 {
     #run-timeseries 'mongod logged(count_min=3000):data/r0.log' 'mongod max logged:data/r0.log'
-    run-timeseries 'mongod:data/r0.log'
+    run-timeseries 'data/r0.log' # AUTO MODE
 }
 
 function test-002 {
@@ -47,7 +47,7 @@ function test-004 {
 }
 
 function test-004a {
-    run-timeseries 'ss:data/test-004/ss.log'
+    run-timeseries 'data/test-004/ss.log' # AUTO MODE
 }
 
 function test-005 {
@@ -74,7 +74,7 @@ function test-009 {
 }
 
 function test-010 {
-    run-timeseries 'ss:data/ss-binning.log'
+    run-timeseries 'data/ss-binning.log' # AUTO MODE
 }
 
 function test-011 {
@@ -82,7 +82,7 @@ function test-011 {
 }
 
 function test-012 {
-    run-timeseries 'ftdc:data/ss-wt-repl-600.json'
+    run-timeseries 'data/ss-wt-repl-600.json' # AUTO MODE
 }
 
 
@@ -100,7 +100,7 @@ function test-014 {
 # small time range
 function test-015 {
     fn=data/diagnostic.data
-    run-timeseries --after 2015-10-02T12:33Z --before 2015-10-02T12:36Z ftdc:$fn
+    run-timeseries --after 2015-10-02T12:33Z --before 2015-10-02T12:36Z $fn # AUTO MODE
 }
 
 # interim file
@@ -112,9 +112,12 @@ function test-016 {
 # single file
 function test-017 {
     fn=data/diagnostic.data/metrics.2015-10-02T10-46-20Z-00000
-    run-timeseries ftdc:$fn
+    run-timeseries $fn # AUTO MODE
 }
 
+function test-018 {
+    run-timeseries data/test-018 # AUTO MODE
+}
 
 function compare-html {
 
@@ -154,8 +157,14 @@ function compare-html {
     if [[ $ref_hash != $act_hash ]]; then
 
         # hashes not equal; use Preview to do visual comparison
-        compare /tmp/$o-{ref,act}-full.png /tmp/$o-diff-full.png
-        open /tmp/$o-{ref,act,diff}-full.png
+        if [[ -e /tmp/$o-ref-full.png ]]; then
+            # use ImageMagick comparison tol
+            compare /tmp/$o-{ref,act}-full.png /tmp/$o-diff-full.png
+            open /tmp/$o-{ref,act,diff}-full.png
+        else
+            # no ref, must be new; just show it
+            open /tmp/$o-act-full.png
+        fi
         ask "Looks good?"
         if [[ $? == 1 ]]; then
             return -1
@@ -204,6 +213,7 @@ function run-tests {
     run-test test-015
     run-test test-016
     run-test test-017
+    run-test test-018
 }
 
 function zip-source {

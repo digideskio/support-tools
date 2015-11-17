@@ -135,12 +135,13 @@ class parse_time:
 # read lines from file, printing progress messages
 #
 
-def file_progress(ses, fn, every=2.0):
+def file_progress(ses, fn, sniff=0, every=2.0):
 
     # start time, initial progress message
     start_time = time.time()
     last_report = start_time
-    ses.progress('reading %s' % fn)
+    if not sniff:
+        ses.progress('reading %s' % fn)
 
     # enumerate lines
     with open(fn) as f:
@@ -157,6 +158,8 @@ def file_progress(ses, fn, every=2.0):
         # enumerate lines
         for n, line in enumerate(f):
             yield line
+            if sniff and n >= sniff:
+                break
             if n>0 and n%100==0:
                 t = time.time()
                 if t-last_report >= every:
@@ -264,3 +267,12 @@ def print_sample(chunk, sample, prt):
     for name, value in chunk.items():
         put_bson(bson, name.split(util.SEP), value[sample])
     print_bson_doc(bson, prt, '    ')
+
+#
+#
+#
+
+def words(s):
+    #return re.split('\W+', s.lower())
+    return re.sub('[^a-zA-Z0-9]', ' ', s).lower().split()
+

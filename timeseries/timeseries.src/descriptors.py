@@ -1,8 +1,10 @@
 import collections
 import datetime as dt
+import os
 import re
 import process
 
+import ftdc
 import graphing
 import util
 
@@ -22,8 +24,12 @@ split_ords = {}      # sort order for each split_key - first occurrence of split
 descriptor_ord = 0
 
 def descriptor(**desc):
+
+    # descriptor_ord is used for sorting series using the order they are defined
     global descriptor_ord
     desc['_ord'] = descriptor_ord
+
+    # split_ords is used for sorting split series into the right place
     if 'split_key' in desc:
         split_key = desc['split_key']
         if not split_key in split_ords:
@@ -32,6 +38,8 @@ def descriptor(**desc):
         split_on_key_match = desc['split_on_key_match']
         if not split_on_key_match in split_ords:
             split_ords[split_on_key_match] = desc['_ord']
+
+    # remember it
     descriptors.append(desc)
     descriptor_ord += 1
 
@@ -50,12 +58,12 @@ def list_descriptors():
 # assumes the timestamp precedes the data
 #
 
-descriptor(
-    name = 'grep {pat}',
-    re = '^.*(....-..-..T..:..:..(?:\....)?Z?|(?:... )?... .. .... ..:..:..).*{pat}',
-    file_type = 'text',
-    parser = 're'
-)
+#descriptor(
+#    name = 'grep {pat}',
+#    re = '^.*(....-..-..T..:..:..(?:\....)?Z?|(?:... )?... .. .... ..:..:..).*{pat}',
+#    file_type = 'text',
+#    parser = 're'
+#)
 
 
 #
@@ -141,7 +149,7 @@ def ss(json_data, name=None, scale=1, rate=False, units=None, level=3, **kwargs)
 
     # for parsing serverStatus section of ftdc represented as metrics dictionaries
     descriptor(
-        file_type = 'metrics',
+        file_type = 'ftdc',
         parser = process.parse_ftdc,
         name = 'ftdc ' + name,
         data_key = util.join('serverStatus', *json_data),
@@ -522,7 +530,7 @@ def cs(json_data, name=None, scale=1, rate=False, units=None, level=3, **kwargs)
 
     # oplog stats in ftdc data
     descriptor(
-        file_type = 'metrics',
+        file_type = 'ftdc',
         parser = process.parse_ftdc,
         name = ftdc_name,
         data_key = util.join('local.oplog.rs.stats', *json_data),
@@ -652,7 +660,7 @@ cs(["errmsg"], level=99)
 def rs(name, **kwargs):
 
     descriptor(
-        file_type = 'metrics',
+        file_type = 'ftdc',
         parser = process.parse_ftdc,
         name = 'ftdc rs: member {member} ' + name,
         split_on_key_match = util.join('replSetGetStatus', 'members', '(?P<member>[0-9])+', name),
@@ -1273,3 +1281,41 @@ wt('transaction', 'update conflicts', rate=True, level=2)
 
 ss(['wiredTiger', 'uri'], level=99)
 
+#
+# automatically detect correct content type for a file
+# attempts to read up to 100 lines of the file,
+# then makes sure resulting chunks contain an expected key for that file type
+#
+
+sniffers = {
+    ('ss', process.parse_json, util.join('localTime')),
+    ('mongod', parse_mongod, util.join('time')),
+    ('sysmon', process.parse_csv, util.join('cpu_user')),
+    ('iostat', parse_iostat, util.join('user')),
+    ('cs', process.parse_json, util.join('storageSize')),
+}
+
+def _sniff(ses, fn, want_ftdc, result):
+    if want_ftdc and ftdc.is_ftdc_file_or_dir(fn):
+        util.msg('detected content of', fn, 'as ftdc')
+        result.append('ftdc:' + fn)
+        want_ftdc = False # don't also include subdirs since ftdc recursively traverses dirs
+    if os.path.isdir(fn):
+        for f in sorted(os.listdir(fn)):
+            _sniff(ses, os.path.join(fn,f), want_ftdc, result)
+    elif not ftdc.is_ftdc_file(fn):
+        for clsname, parser, key in sniffers:
+            if any(key in chunk for chunk in parser.sniff(ses, fn, 100)):
+                util.msg('detected content of', fn, 'as', clsname)
+                result.append(clsname + ':' + fn)
+
+def sniff(ses, *fns):
+    result = []
+    for fn in fns:
+        if ':' in fn:
+            result.append(fn) # it's already a spec
+        else:
+            _sniff(ses, fn, True, result)
+    return result
+
+        

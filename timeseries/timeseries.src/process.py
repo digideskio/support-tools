@@ -74,6 +74,14 @@ class ChunkCache(util.FileCache):
                         util.print_sample(chunk, sample, putln)
                         return
 
+    def _parse(self, ses, opt, sniff):
+        assert(False) # must be overriden
+
+    @classmethod
+    def sniff(cls, ses, fn, sniff):
+        file = cls(fn) # bypass cache
+        for chunk in file._parse(ses, ses.opt, sniff):
+            yield chunk
 
 
 ################################################################################
@@ -89,16 +97,17 @@ class ChunkCache(util.FileCache):
 
 class parse_csv(Chunker, ChunkCache):
 
-    def _parse(self, ses, opt):
+    def _parse(self, ses, opt, sniff=0):
         self.chunk_init()
         keys = None
-        for line in util.file_progress(ses, self.fn):
+        for line in util.file_progress(ses, self.fn, sniff):
             line = line.strip()
             if not keys:
                 keys = line.split(',')
             else:
                 self.chunk_extend()
-                for k, v in zip(keys, line.split(',')):
+                values = line.split(',')
+                for k, v in zip(keys, values):
                     self.chunk[k][-1] = v
             for chunk in self.chunk_emit():
                 yield chunk
@@ -114,7 +123,7 @@ class parse_csv(Chunker, ChunkCache):
 
 class parse_json(ChunkCache):
 
-    def _parse(self, ses, opt):
+    def _parse(self, ses, opt, sniff=0):
 
         ignore = set(['floatApprox', '$date', '$numberLong', '$timestamp'])
         chunk_size = 100
@@ -131,7 +140,7 @@ class parse_json(ChunkCache):
             return result
     
         chunk = {}
-        for line in util.file_progress(ses, self.fn):
+        for line in util.file_progress(ses, self.fn, sniff):
             try:
                 j = flatten({}, json.loads(line))
                 if j.keys() != chunk.keys() or len(chunk.values()[0]) >= chunk_size:
@@ -196,14 +205,14 @@ def parse_re(time_key, regexp):
     # maintains a separate chunk cache per regexp
     class ParseRe(Chunker, ChunkCache):
 
-        def _parse(self, ses, opt):
+        def _parse(self, ses, opt, sniff=0):
     
             # init
             self.chunk_init()
             pt = util.parse_time()
     
             # process the file
-            for line in util.file_progress(ses, self.fn):
+            for line in util.file_progress(ses, self.fn, sniff):
     
                 # match line
                 line = line.strip()

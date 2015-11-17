@@ -449,14 +449,9 @@ def get_series(ses, spec, spec_ord):
     util.dbg(spec_name, params, fn)
     ses.add_title(fn)
 
-    # ignore punctuation, 
-    def words(s):
-        #return re.split('\W+', s.lower())
-        return re.sub('[^a-zA-Z0-9]', ' ', s).lower().split()
-
-    def detect(fn):
-        if ftdc.is_metrics(fn):
-            return 'metrics'
+    def detect_file_type(fn):
+        if ftdc.is_ftdc_file_or_dir(fn):
+            return 'ftdc'
         with open(fn) as f:
             for _ in range(10):
                 try:
@@ -466,16 +461,16 @@ def get_series(ses, spec, spec_ord):
                     util.dbg(e)
         return 'text'
 
-    file_type = detect(fn)
+    file_type = detect_file_type(fn)
     util.msg('detected type of', fn, 'as', file_type)
 
     # find matching descriptors
     scored = collections.defaultdict(list)
-    spec_name_words = words(spec_name)
+    spec_name_words = util.words(spec_name)
     for desc in descriptors.descriptors:
         if get(desc,'file_type') != file_type:
             continue
-        desc_name_words = words(desc['name'])
+        desc_name_words = util.words(desc['name'])
         last_i = -1
         beginning = matched = in_order = adjacent = 0
         for w, word in enumerate(spec_name_words):

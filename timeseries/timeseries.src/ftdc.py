@@ -259,20 +259,22 @@ class File(util.FileCache):
 # yields a sequence of metrics dictionaries
 #
 
-def is_metrics(fn):
+# metrics files start with 'metrics.'
+def is_ftdc_file(fn):
+    return os.path.basename(fn).startswith('metrics.')
+
+# metrics directories contain metrics files (recursively)
+def is_ftdc_file_or_dir(fn):
     if os.path.isdir(fn):
-        return any(is_metrics(os.path.join(fn,f)) for f in os.listdir(fn))
+        return any(is_ftdc_file_or_dir(os.path.join(fn,f)) for f in os.listdir(fn))
     else:
-        return os.path.basename(fn).startswith('metrics.')
+        return is_ftdc_file(fn)
 
 def read(ses, fn, opt, progress=True):
 
     # initial progress message
     if progress:
         ses.progress('reading %s' % fn)
-
-    # metrics files start with 'metrics.'
-    is_ftdc_file = lambda fn: os.path.basename(fn).startswith('metrics.')
 
     # get concatenated list of chunks for all files
     chunks = []

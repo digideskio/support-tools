@@ -8,6 +8,7 @@ import pipes
 import pkgutil
 import traceback
 
+import descriptors
 import graphing
 import process
 import util
@@ -59,7 +60,6 @@ class Graph(list):
 def _get_graphs(ses):
 
     opt = ses.opt
-    specs = opt.specs
 
     if not hasattr(opt, 'after') or not opt.after: opt.after = float('-inf')
     if not hasattr(opt, 'before') or not opt.before: opt.before = float('inf')
@@ -68,6 +68,9 @@ def _get_graphs(ses):
     if type(opt.before)==str: opt.before = util.datetime_parse(opt.before)
     if type(opt.after)==dt.datetime: opt.after = util.t2f(opt.after)
     if type(opt.before)==dt.datetime: opt.before = util.t2f(opt.before)
+
+    # generate descriptors by sniffing for specs that don't have it
+    specs = descriptors.sniff(ses, *opt.specs)
 
     # parse specs, group them by file and parser
     series = [] # all

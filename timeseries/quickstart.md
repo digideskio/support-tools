@@ -27,10 +27,10 @@ an external process:
     mongo --eval "while(true) {print(JSON.stringify(db.serverStatus({tcmalloc:true}))); sleep(1000*$delay)}" >ss.log &
 
 You can then use all of the commmands and interactive capabilities
-described in the remainder of the document, substituting "ss:ss.log"
-for "ftdc:diagnostic.data" on the command line, for example:
+described in the remainder of the document, substituting "ss.log"
+for "diagnostic.data" on the command line, for example:
 
-    python timeseries.py ss:ss.log --browser 
+    python timeseries.py ss.log --browser 
 
 ### Automatic interactive browser/server mode
 
@@ -39,7 +39,7 @@ example from a customer or a test system, the simplest way to view it
 is to use browser/server mode, specifying the diagnostic.data
 directory name on the command line, for example:
 
-    python timeseries.py ftdc:diagnostic.data --browser 
+    python timeseries.py diagnostic.data --browser 
 
 This starts the timeseries tool in server mode, visualizing ftdc data
 in the diagnostic.data directory, and then automatically pops open a
@@ -54,7 +54,7 @@ The preceding example is essentially equivalent to the following two
 steps, where in the second step you manually open a browser window
 rather than asking the timeseries tool to do it for you.
 
-    python timeseries.py --server ftdc:$dbpath/diagnostic.data
+    python timeseries.py --server $dbpath/diagnostic.data
     open http://localhost:8888
 
 You may find this useful under some circumstances, depending on your
@@ -68,7 +68,7 @@ name for "localhost".
 As an alternative to the above you can use the following:
 
     python timeseries.py --server
-    python timeseries.py ftdc:$dbpath/diagnostic.data --connect http://localhost:8888
+    python timeseries.py $dbpath/diagnostic.data --connect http://localhost:8888
 
 The first step starts a server, but does not specify the view. In the
 second step you specify the view and the server that you wish to
@@ -82,7 +82,7 @@ different command-line parameters.
 
 In offline mode you generate an html file and then open a browser to view it:
 
-    python timeseries.py ftdc:$dbpath/diagnostic.data >timeseries.html
+    python timeseries.py $dbpath/diagnostic.data >timeseries.html
     open timeseries.html
 
 This mode supports a limited subset of the interactive features
@@ -167,9 +167,9 @@ as described above to periodically refresh the view.
 ### Viewing mongod log data
 
 You can view mongod log data along with other sources of timeseries
-data by adding "mongod:mongodb.log" to the command line, for example:
+data by adding "mongodb.log" to the command line, for example:
 
-    python timeseries.py mongod:mongodb.log ftdc:diagnostic.data --browser 
+    python timeseries.py mongodb.log diagnostic.data --browser 
 
 This will display information about the following:
 
@@ -194,10 +194,16 @@ in the future. For now you can capture it as follows:
 Then you can visualize it along with the ftdc data by adding
 "iostat(tz=...):iostat.log" to your command line, for example:
 
-    python timeseries.py "iostat(tz=-5):iostat.log" ftdc:diagnostic.data --browser 
+    python timeseries.py "iostat(tz=-5):iostat.log" diagnostic.data --browser 
 
 Since iostat does not capture timezone information, you will need to
 specify it on the command line, as illustrated above for EST.
+
+(The part preceding the colon in "iostat(tz=-5):iostat.log" is a
+timeseries descriptor that specifies the type of the file; it has been
+omitted from the other examples in this guide because for most file
+types the timeseries tool is able to determine the file type by
+inspection.)
 
 Similarly, under 3.0 you can collect iostat data alongside the
 serverStatus data:
@@ -208,4 +214,4 @@ serverStatus data:
 
 And then visualize both iostat.log and ss.log together:
 
-    python timeseries.py "iostat(tz=-5):iostat.log" ss:ss.log --browser 
+    python timeseries.py "iostat(tz=-5):iostat.log" ss.log --browser 
