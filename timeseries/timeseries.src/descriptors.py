@@ -308,7 +308,6 @@ ss_command("insert")
 ss_command("isMaster")
 ss_command("killCursors")
 ss_command("killOp")
-ss_command("mapreduce.shardedfinish")
 ss_command("ping")
 ss_command("replSetDeclareElectionWinner")
 ss_command("replSetRequestVotes")
@@ -394,7 +393,7 @@ ss_command('listIndexes')
 ss_command('logRotate')
 ss_command('logout')
 ss_command('mapReduce')
-ss_command('mapreduce')
+ss_command(util.join('mapreduce', 'shardedfinish'))
 ss_command('medianKey')
 ss_command('mergeChunks')
 ss_command('moveChunk')
@@ -986,7 +985,6 @@ descriptor(
     level = 1
 )
 
-
 #
 # wt
 #
@@ -1126,6 +1124,8 @@ wt('cache', 'hazard pointer blocked page eviction', rate=True)
 wt('cache', 'in-memory page passed criteria to be split', rate=True)
 wt('cache', 'in-memory page splits', rate=True) # CHECK
 wt('cache', 'internal pages evicted', rate=True)
+wt('cache', 'internal pages split during eviction', rate=True)
+wt('cache', 'leaf pages split during eviction', rate=True)
 wt('cache', 'lookaside table insert calls', rate=True)
 wt('cache', 'lookaside table remove calls', rate=True)
 wt('cache', 'maximum bytes configured', scale=MB)
@@ -1190,7 +1190,8 @@ wt('cursor', 'prev calls', rate=True)
 wt('cursor', 'remove calls', rate=True, level=2)
 wt('cursor', 'reset calls', rate=True)
 wt('cursor', 'search calls', rate=True, level=2)
-wt('cursor', 'search near calls', rate=True, level=3)
+wt('cursor', 'search near calls', rate=True, level=2)
+wt('cursor', 'truncate calls', rate=True, level=2)
 wt('cursor', 'update calls', rate=True, level=2)
 wt('data-handle', 'connection candidate referenced', rate=True) # CHECK
 wt('data-handle', 'connection data handles currently active')
@@ -1214,6 +1215,7 @@ wt('log', 'failed to find a slot large enough for record', rate=True)
 wt('log', 'log buffer size increases', rate=True)
 wt('log', 'log bytes of payload data', scale=MB, rate=True)
 wt('log', 'log bytes written', scale=MB, rate=True, level=2)
+wt('log', 'log files manually zero-filled', rate=True)
 wt('log', 'log flush operations', rate=True)
 wt('log', 'log read operations', rate=True)
 wt('log', 'log records compressed', rate=True) # CHECK
@@ -1241,6 +1243,7 @@ wt('log', 'total size of compressed records', scale=MB) # CHECK
 wt('log', 'written slots coalesced', rate=True)
 wt('log', 'yields waiting for previous log file close', rate=True)
 wt('reconciliation', 'dictionary matches', rate=True)
+wt('reconciliation', 'fast-path pages deleted', rate=True)
 wt('reconciliation', 'internal page key bytes discarded using suffix compression', scale=MB)
 wt('reconciliation', 'internal page multi-block writes', rate=True)
 wt('reconciliation', 'internal-page overflow keys', rate=True)
@@ -1263,6 +1266,8 @@ wt('thread-yield', 'page acquire eviction blocked', rate=True) # CHECK
 wt('thread-yield', 'page acquire locked blocked', rate=True) # CHECK
 wt('thread-yield', 'page acquire read blocked', rate=True) # CHECK
 wt('thread-yield', 'page acquire time sleeping (usecs)', rate=True) # CHECK
+wt('transaction', 'number of named snapshots created', rate=True)
+wt('transaction', 'number of named snapshots dropped', rate=True)
 wt('transaction', 'transaction begins', rate=True, level=3)
 wt('transaction', 'transaction checkpoint currently running', level=2)
 wt('transaction', 'transaction checkpoint generation')
@@ -1272,8 +1277,9 @@ wt('transaction', 'transaction checkpoint most recent time (msecs)') # CHECK
 wt('transaction', 'transaction checkpoint total time (msecs)') # CHECK
 wt('transaction', 'transaction checkpoints', rate='delta')
 wt('transaction', 'transaction failures due to cache overflow', rate=True)
-wt('transaction', 'transaction range of IDs currently pinned by a checkpoint')
 wt('transaction', 'transaction range of IDs currently pinned')
+wt('transaction', 'transaction range of IDs currently pinned by a checkpoint')
+wt('transaction', 'transaction range of IDs currently pinned by named snapshots')
 wt('transaction', 'transaction sync calls', rate=True)
 wt('transaction', 'transactions committed', rate=True, level=2)
 wt('transaction', 'transactions rolled back', rate=True, level=2)
