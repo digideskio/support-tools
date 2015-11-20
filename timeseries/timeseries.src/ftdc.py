@@ -106,6 +106,7 @@ class Chunk:
         self.nmetrics = 0
         self.ndeltas = 0
         self.data = None
+        self.sample_number = None
 
     def __len__(self):
         return self._len
@@ -206,6 +207,11 @@ class Chunk:
                 metric_values.append(value)
         assert(at==len(data))
     
+        # add sample numbers
+        if self.sample_number != None:
+            self.metrics['sample_number'] \
+                = range(self.sample_number, self.sample_number+self.nsamples)
+
         # release the data as the info it contained is now in self.metrics
         self.data = None
 
@@ -301,6 +307,16 @@ def read(ses, fn, opt, progress=True):
     # fine filtering will be done during processing
     in_range = lambda chunk: chunk.start_time <= opt.before and chunk.end_time >= opt.after
     filtered_chunks = [chunk for chunk in chunks if in_range(chunk)]
+
+    # we need to decompress the chunks to get nsamples in order to compute sample_number, so
+    # only compute sample_number when we're going to be decompressing all the chunks anyway
+    # note that in normal use without --after and --before options we will do this first time
+    if len(filtered_chunks)==len(chunks) and chunks[0].sample_number==None:
+        sample_number = 0
+        for chunk in filtered_chunks:
+            first = chunk.get_first()
+            chunk.sample_number = sample_number
+            sample_number += chunk.nsamples
 
     # init stats for progress report
     total_bytes = sum(len(chunk) for chunk in filtered_chunks)

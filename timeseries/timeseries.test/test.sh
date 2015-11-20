@@ -119,6 +119,10 @@ function test-018 {
     run-timeseries data/test-018 # AUTO MODE
 }
 
+function test-019 {
+    run-timeseries --level 9 data/test-019 # AUTO MODE}
+}
+
 function compare-html {
 
     ref=$1
@@ -129,18 +133,18 @@ function compare-html {
         git clone https://github.com/paulhammond/webkit2png        
     fi
 
-    # new test, start with empty file
-    if [[ ! -e $ref ]]; then
-        touch $ref
-    fi
-
     # render both pages
     o=$(basename $ref)
-    webkit2png/webkit2png -W 1500 -F $ref -o /tmp/$o-ref
+    rm -f /tmp/$o-{ref,act}
+    if [[ -e $ref ]]; then
+        webkit2png/webkit2png -W 1500 -F $ref -o /tmp/$o-ref
+    fi
     webkit2png/webkit2png -W 1500 -F $act -o /tmp/$o-act
 
     # compute image hashes using ImageMagick
-    ref_hash=$(identify -format '%#\n' /tmp/$o-ref-full.png)
+    if [[ -e $ref ]]; then
+        ref_hash=$(identify -format '%#\n' /tmp/$o-ref-full.png)
+    fi
     act_hash=$(identify -format '%#\n' /tmp/$o-act-full.png)
     echo ref hash: $ref_hash
     echo act hash: $act_hash
@@ -214,6 +218,7 @@ function run-tests {
     run-test test-016
     run-test test-017
     run-test test-018
+    run-test test-019
 }
 
 function zip-source {

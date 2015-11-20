@@ -99,6 +99,21 @@ descriptor(
 )
 
 #
+# show sample rate so we know when samples are missed
+#
+
+descriptor(
+    file_type = 'ftdc',
+    parser = process.parse_ftdc,
+    name = 'ftdc samples/s',
+    data_key = 'sample_number',
+    time_key = 'start',
+    rate = True,
+    level = 2,
+    time_scale = 1000.0, # times are in ms
+)
+
+#
 # serverStatus json output, for example:
 # mongo --eval "while(true) {print(JSON.stringify(db.serverStatus())); sleep($delay*1000)}"
 #
@@ -206,7 +221,6 @@ ss(
     merge = '_ss_queue',
     level = 1
 )
-
 
 ss(
     json_data = ['globalLock', 'currentQueue', 'writers'],
