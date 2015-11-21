@@ -215,3 +215,33 @@ serverStatus data:
 And then visualize both iostat.log and ss.log together:
 
     python timeseries.py "iostat(tz=-5):iostat.log" ss.log --browser 
+
+
+### Collecting and visualizing additional user-defined timeseries data
+
+You can visualize arbitrary data stored in a csv file alongside other
+timeseries data. For example, to investigate file size growth, create
+a csv file "las.csv" recording the file size over time as follows:
+
+    fn=/ssd/db/r0/WiredTigerLAS.wt
+    (
+        echo "time,size"
+        while true; do
+            echo "$(date --rfc-3339=ns),$(stat --format '%s' $fn)"
+            sleep 1
+        done
+    ) >/ssd/db/r0/las.csv
+
+Then visualize the ftdc data alongside the file size data:
+
+    python timeseries.py /ssd/db/r0/{las.csv,diagnostic.data} --browser
+
+The csv file must have a field called "time" that contains
+timezone-aware timestamps in a format understood by Python
+dateutil.parser.parse, or Unix timestamps (which are assumed to be
+UTC). All remaining fields must be numeric, and each will be displayed
+on a separate graph.
+
+
+
+
