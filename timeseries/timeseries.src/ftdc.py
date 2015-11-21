@@ -164,7 +164,7 @@ class Chunk:
         self.state = 1
         return self.metrics
 
-    def get_all(self):
+    def _get_all(self):
         
         # did we already process the deltas?
         if self.state >= 2:
@@ -207,18 +207,22 @@ class Chunk:
                 metric_values.append(value)
         assert(at==len(data))
     
-        # add sample numbers
-        if self.sample_number != None:
-            self.metrics['sample_number'] \
-                = range(self.sample_number, self.sample_number+self.nsamples)
-
         # release the data as the info it contained is now in self.metrics
         self.data = None
 
-        # our result
+        # mark that we processed the deltas
         self.state = 2
-        return self.metrics
 
+    def get_all(self):
+
+        self._get_all()
+
+        # add sample numbers if possible and needed
+        if self.sample_number != None and 'sample_number' not in self.metrics:
+            self.metrics['sample_number'] \
+                = range(self.sample_number, self.sample_number+self.nsamples)
+
+        return self.metrics
 
 #
 # manage the file cache
@@ -308,16 +312,6 @@ def read(ses, fn, opt, progress=True):
     in_range = lambda chunk: chunk.start_time <= opt.before and chunk.end_time >= opt.after
     filtered_chunks = [chunk for chunk in chunks if in_range(chunk)]
 
-    # we need to decompress the chunks to get nsamples in order to compute sample_number, so
-    # only compute sample_number when we're going to be decompressing all the chunks anyway
-    # note that in normal use without --after and --before options we will do this first time
-    if len(filtered_chunks)==len(chunks) and chunks[0].sample_number==None:
-        sample_number = 0
-        for chunk in filtered_chunks:
-            first = chunk.get_first()
-            chunk.sample_number = sample_number
-            sample_number += chunk.nsamples
-
     # init stats for progress report
     total_bytes = sum(len(chunk) for chunk in filtered_chunks)
     read_chunks = 0
@@ -338,8 +332,15 @@ def read(ses, fn, opt, progress=True):
         overview = int(opt.overview)
     overview_bytes = int(max(total_bytes / overview, 1))
 
+    # propagate sample numbers if we can
+    sample_number = 0 if filtered_chunks[0]==chunks[0] else None
+
     # we already filtered filtered_chunk_docs by type and time range
     for chunk in filtered_chunks:
+
+        # propagate sample numbers if we can
+        if sample_number != None:
+            chunk.sample_number = sample_number
 
         # compute desired subset of metrics based on target number of samples
         max_samples = (read_bytes+len(chunk)) / overview_bytes - read_bytes / overview_bytes
@@ -354,6 +355,9 @@ def read(ses, fn, opt, progress=True):
                 metrics = util.BSON((n,v[0::every]) for (n,v) in metrics.items())
             used_samples += chunk.nsamples / every
         yield metrics
+
+        # propagate sample numbers if we can
+        sample_number = chunk.sample_number+chunk.nsamples if chunk.sample_number!=None else None
 
         # report progress
         read_chunks += 1
