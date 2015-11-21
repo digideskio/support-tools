@@ -1313,6 +1313,7 @@ sniffers = {
     ('sysmon', process.parse_csv, util.join('cpu_user')),
     ('iostat', parse_iostat, util.join('user')),
     ('cs', process.parse_json, util.join('storageSize')),
+    ('csv', process.parse_csv, 'time')
 }
 
 def _sniff(ses, fn, want_ftdc, result):
