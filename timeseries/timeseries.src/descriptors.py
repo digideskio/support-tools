@@ -1307,14 +1307,14 @@ ss(['wiredTiger', 'uri'], level=99)
 # then makes sure resulting chunks contain an expected key for that file type
 #
 
-sniffers = {
+sniffers = [
     ('ss', process.parse_json, util.join('localTime')),
     ('mongod', parse_mongod, util.join('time')),
     ('sysmon', process.parse_csv, util.join('cpu_user')),
     ('iostat', parse_iostat, util.join('user')),
     ('cs', process.parse_json, util.join('storageSize')),
     ('csv', process.parse_csv, 'time')
-}
+]
 
 def _sniff(ses, fn, want_ftdc, result):
     if want_ftdc and ftdc.is_ftdc_file_or_dir(fn):
@@ -1329,6 +1329,7 @@ def _sniff(ses, fn, want_ftdc, result):
             if any(key in chunk for chunk in parser.sniff(ses, fn, 100)):
                 util.msg('detected content of', fn, 'as', clsname)
                 result.append(clsname + ':' + fn)
+                break
 
 def sniff(ses, *fns):
     result = []
