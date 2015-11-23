@@ -413,6 +413,17 @@ class Series:
         for s in self.split_series.values():
             s.finish()
 
+    # format info for series as graphed
+    def info(self, ses, t):
+        for tt in sorted(self.ts):
+            if tt >= t:
+                yield self.name, self.ys[tt]
+                break
+        for s in self.split_series.values():
+            for name, value in s.info(ses, t):
+                yield name, value
+
+
 def get_series(ses, spec, spec_ord):
 
     # parse helper

@@ -162,7 +162,7 @@ function zoom_all() {
     }
 }
 
-function info() {
+function info(raw) {
 
     // default cursor is last one
     cs = top.model.cursors
@@ -183,7 +183,8 @@ function info() {
     }
 
     // load info for that time into info window
-    url = top.location + '/info?t=' + t
+    q = raw? 'raw' : 'info'
+    url = top.location + '/' + q + '?t=' + t
     top.open(url, 'info')
 }
 

@@ -39,6 +39,8 @@ def datetime_parse(t):
 # are already in our internal format
 t0 = dateutil.parser.parse('1970-01-01T00:00:00Z')
 
+def f2s(f):
+    return f2t(f).strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] + 'Z'
 
 def f2t(f):
     return t0 + dt.timedelta(seconds=f)

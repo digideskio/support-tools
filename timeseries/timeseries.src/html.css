@@ -28,3 +28,8 @@ body, table, frameset, pre.info {
 .selected {
     background: rgb(240,245,255)
 }
+
+.info-data {
+    padding-right: 1em;
+    text-align: right;
+}

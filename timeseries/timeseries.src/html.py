@@ -73,13 +73,13 @@ def _get_graphs(ses):
     specs = descriptors.sniff(ses, *opt.specs)
 
     # parse specs, group them by file and parser
-    series = [] # all
+    ses.series = [] # all
     opt.fns = collections.defaultdict(list) # grouped by fn
     for spec_ord, spec in enumerate(specs):
         try:
             for s in graphing.get_series(ses, spec, spec_ord):
                 opt.fns[(s.fn,s.parser)].append(s) # xxx canonicalize filename
-                series.append(s)
+                ses.series.append(s)
         except Exception as e:
             # xxx should we raise exception and so abort, or carry on processing all we can?
             traceback.print_exc()
@@ -91,13 +91,16 @@ def _get_graphs(ses):
         process.parse_and_process(ses, fn, opt.fns[(fn,parser)], opt, parser)
         
     # finish each series
-    for s in series:
+    for s in ses.series:
         s.finish()
+
+    # sort them
+    ses.series.sort(key=lambda s: s.sort_ord)
 
     # get graphs taking into account splits and merges
     graphs = collections.defaultdict(Graph)
     ygroups = collections.defaultdict(list)
-    for s in sorted(series, key=lambda s: s.sort_ord):
+    for s in ses.series:
         s.get_graphs(graphs, ygroups, opt)
 
     # compute display_ymax taking into account spec_ymax and ygroup
@@ -154,6 +157,7 @@ def _get_graphs(ses):
         t = tickmin + i * tickdelta
         if t > opt.tmax+slop: break
         opt.ticks.append(t)
+
 
 
 #
@@ -426,7 +430,7 @@ def page(ses):
             'zero:', spec_zero[spec], 'empty:', spec_empty[spec])
 
 
-def info(ses, t):
+def raw(ses, t):
 
     _head(ses)
     ses.elt('pre', {'class': 'info'})
@@ -435,4 +439,20 @@ def info(ses, t):
         parser.info(ses, fn, t)
 
     ses.endall()
+
+
+def info(ses, t):
+
+    _head(ses)
+    ses.put('data as displayed at %s<br/><br/>\n' % util.f2s(t))
+    ses.elt('table')
+
+    for s in ses.series:
+        for name, value in s.info(ses, t):
+            ses.elt('tr')
+            ses.td('info-data', '{:,.3f}'.format(value))
+            ses.td('desc', name)
+            ses.end('tr')
+
+    ses.end('table')
 

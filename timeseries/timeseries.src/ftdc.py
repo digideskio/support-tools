@@ -399,7 +399,7 @@ def info(ses, fn, t, prt):
             sample_time = sample_time / 1000.0
             if sample_time >= t:
                 break
-        prt('%s at t=%.3f' % (fn, t))
+        prt('%s at t=%.3f (%s)' % (fn, t, util.f2s(t)))
         util.print_sample(metrics, sample, prt)
         break
 

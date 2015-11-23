@@ -119,10 +119,14 @@ hit z; you will be prompted for which cursor range to zoom into.
 * z to zoom in
 * Z to zoom out
 
-You can obtain detailed info, including specific values of raw
-metrics, at a seleted time.
+You can obtain detailed info, including either the values as
+displayed, or the raw underlying metrics, at a seleted time. Typically
+the values as displayed will be more meaningful; for example,
+cumulative counts in the raw underlying metrics are differentiated to
+obtain rates for the values as displayed.
 
-* ? to get detailed raw info at a selected time
+* ? to get values as displayed
+* ! to get raw underlying metrics
 
 You can open new views, either in the current window or a new window.
 

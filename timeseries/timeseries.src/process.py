@@ -70,7 +70,7 @@ class ChunkCache(util.FileCache):
             if t >= chunk[file.time_key][0]:
                 for sample, sample_time in enumerate(chunk[file.time_key]):
                     if sample_time >= t:
-                        putln('%s at t=%.3f' % (fn, t))
+                        putln('%s at t=%.3f (%s)' % (fn, t, util.f2s(t)))
                         util.print_sample(chunk, sample, putln)
                         return
 

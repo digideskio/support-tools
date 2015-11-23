@@ -225,7 +225,9 @@ function key() {
                 post_model_and_load_content()
         }
     } else if (c=='?') {
-        info()
+        info(false)
+    } else if (c=='!') {
+        info(true)
     }
 }    
 
