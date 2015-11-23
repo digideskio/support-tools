@@ -234,6 +234,8 @@ function key() {
     } else if (c=='M') {
         top.model.merges = true
         post_model_and_load_content()
+    } else if (c=='\r') {
+        post_model_and_load_content()
     }
 }    
 
