@@ -228,6 +228,12 @@ function key() {
         info(false)
     } else if (c=='!') {
         info(true)
+    } else if (c=='m') {
+        top.model.merges = false
+        post_model_and_load_content()
+    } else if (c=='M') {
+        top.model.merges = true
+        post_model_and_load_content()
     }
 }    
 
