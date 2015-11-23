@@ -44,7 +44,12 @@ o to open new view in current window
 O to open new view in new window
 z to zoom in
 Z to zoom out
-? to get detailed raw info at a selected time
+? to get detailed displayed values at a selected time
+! to get detailed raw metrics at a selected time
+m to suppress merging groups of related metrics in single graph
+M to enable merging groups of related metrics (default)
+RETURN to refresh view
+l to enable periodic refresh of live data
 s to save
 '''.strip().replace('\n', '<br/>') + '<br/>'
 

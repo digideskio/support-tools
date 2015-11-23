@@ -128,6 +128,13 @@ obtain rates for the values as displayed.
 * ? to get values as displayed
 * ! to get raw underlying metrics
 
+Some groups of related statistics, such as operations rates, are
+normally color-coded and grouped (merged) together in a single
+graph. You can override this behavior.
+
+* m to suppress merging related statistics into a single graph
+* M to enable merging related statistics into a single graph (this is the default)
+
 You can open new views, either in the current window or a new window.
 
 * o to open new view in current window
@@ -141,10 +148,17 @@ graph, and so on.  Multiple views maintain their own state, so for
 example you can have different views on the same data zoomed in to
 different time ranges.
 
-You can enable periodic refresh for viewing live data. You will be
-prompted for a refresh interval in seconds. The default value of 10
-seconds corresponds the default mongod period for saving ftdc
-data. Specify 0 to disable live mode.
+You can view live data by pointing the timeseries tool at the
+diagnostic.data directory of a running mongod instance. Caching and
+lazy decompression will be used to make this efficient. You can
+manually referesh the view by hitting RETURN.
+
+* RETURN to refresh the view with current values of live data
+
+You can also enable automatic periodic refresh when viewing live
+data. You will be prompted for a refresh interval in seconds. The
+default value of 10 seconds corresponds the default mongod period for
+saving ftdc data. Specify 0 to disable live mode.
 
 * l to enable periodic refresh of live data
 
