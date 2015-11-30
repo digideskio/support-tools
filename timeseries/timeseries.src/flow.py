@@ -197,6 +197,10 @@ def browser(url):
         cmd = 'sleep 1; open -a "Google Chrome" "%s"' % url
     elif sys.platform=='linux2':
         cmd = 'sleep 1; google-chrome "%s" &' % url
+    elif sys.platform=='win32':
+        cmd = 'timeout 2 && start /b chrome "%s" &' % url
+    else:
+        raise Exception('unknown platform ' + sys.platform)
 
     # launch it
     if cmd:

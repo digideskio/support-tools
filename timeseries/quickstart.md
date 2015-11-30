@@ -10,7 +10,7 @@
 
 * For now, Google Chrome is required.
 
-* Currently OSX and Linux are supported.
+* Currently OSX, Linux, and Windows are supported.
 
 ### Collecting and visualizing timeseries data for mongod 3.0
 
