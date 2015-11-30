@@ -1323,7 +1323,8 @@ def _sniff(ses, fn, want_ftdc, result):
         want_ftdc = False # don't also include subdirs since ftdc recursively traverses dirs
     if os.path.isdir(fn):
         for f in sorted(os.listdir(fn)):
-            _sniff(ses, os.path.join(fn,f), want_ftdc, result)
+            if not f.startswith('.'):
+                _sniff(ses, os.path.join(fn,f), want_ftdc, result)
     elif not ftdc.is_ftdc_file(fn):
         for clsname, parser, key in sniffers:
             if any(key in chunk for chunk in parser.sniff(ses, fn, 100)):
