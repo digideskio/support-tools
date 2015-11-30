@@ -162,6 +162,16 @@ saving ftdc data. Specify 0 to disable live mode.
 
 * l to enable periodic refresh of live data
 
+In order to display large amounts of data with reasonable performance,
+the overview tool will automatically lower the effective sampling rate
+for larger data sets. This will do a good job of displaying average
+values at a lower resolution, but as a result can miss fast events. In
+order to see all data you can zoom in using "z" as described above, or
+you can use the "v" command to select the number of overview samples
+to show; specify "all" show all samples.
+
+* v to select the number of samples to display
+
 ### Opening new views
 
 As described above, there are two ways you can open new views:

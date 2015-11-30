@@ -326,7 +326,7 @@ def read(ses, fn, opt, progress=True):
     if opt.overview=='heuristic':
         overview = 1000
         util.msg('limiting output to %d samples; use --overview to override' % overview)
-    elif opt.overview=='none':
+    elif opt.overview=='none' or opt.overview=='all' or not opt.overview:
         overview = float('inf')
     else:
         overview = int(opt.overview)
