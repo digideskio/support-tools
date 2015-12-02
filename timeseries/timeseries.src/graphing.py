@@ -6,7 +6,6 @@ import math
 import os
 import re
 import string
-import time
 
 import descriptors
 import ftdc
@@ -227,11 +226,9 @@ class Series:
         self.process_headers = self.get('process_headers', lambda series, headers: headers)
 
         # timezone offset
-        tz = self.get('tz', None)
-        if tz==None:
-            self.tz = datetime.datetime(*time.gmtime()[:6])-datetime.datetime(*time.localtime()[:6])
-        else:
-            self.tz = datetime.timedelta(hours=float(tz))
+        self.tz = self.get('tz', opt.itz)
+        if self.tz != None:
+            self.tz = datetime.timedelta(hours=float(self.tz))
 
         # default datetime instance for incomplete timestamps
         default_date = self.get('default_date', None)

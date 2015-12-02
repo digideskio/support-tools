@@ -209,6 +209,20 @@ This information is displayed both for all operations in total, and
 broken out by namespace and operation.
 
 
+### About timezones
+
+Most files, including mongod logs and ftdc data, have timezone-aware
+timestamps. However some files, such as iostat logs, have
+timezone-naive timestamps that do not have timezone information, but
+rather assume an unspecified local time. When using those files it
+will be necessary to specify the timezone to assume for timezone-naive
+timestamps using the command line argument --itz TZ, where TZ is a
+floating point number representing the offset in hours from UTC. For
+example, EDT (US Eastern Daylight Time) is specified as --itz -4.
+
+Displayed timestamps are always UTC.
+
+
 ### Collecting and viewing system information (iostat)
 
 It is sometimes useful to have system information such as disk and CPU
@@ -220,18 +234,12 @@ in the future. For now you can capture it as follows:
     iostat -k -t -x $delay >iostat.log &
 
 Then you can visualize it along with the ftdc data by adding
-"iostat(tz=...):iostat.log" to your command line, for example:
+"--itz ... iostat.log" to your command line, for example:
 
-    python timeseries.py "iostat(tz=-5):iostat.log" diagnostic.data --browser 
+    python timeseries.py --itz -5 iostat.log" diagnostic.data --browser 
 
 Since iostat does not capture timezone information, you will need to
 specify it on the command line, as illustrated above for EST.
-
-(The part preceding the colon in "iostat(tz=-5):iostat.log" is a
-timeseries descriptor that specifies the type of the file; it has been
-omitted from the other examples in this guide because for most file
-types the timeseries tool is able to determine the file type by
-inspection.)
 
 Similarly, under 3.0 you can collect iostat data alongside the
 serverStatus data:
@@ -242,7 +250,7 @@ serverStatus data:
 
 And then visualize both iostat.log and ss.log together:
 
-    python timeseries.py "iostat(tz=-5):iostat.log" ss.log --browser 
+    python timeseries.py --itz -5 iostat.log" ss.log --browser 
 
 
 ### Collecting and visualizing additional user-defined timeseries data

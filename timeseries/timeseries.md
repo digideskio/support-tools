@@ -15,6 +15,7 @@
 * --duration DURATION: limit each graph to the specified duration in seconds.
 * --after AFTER: plot only data after the specified time.
 * --before BEFORE: plot only data before the specified time.
+* --itz TZ: timezone to use for input data that does not specify a timezone, as a floating point offset in hours from UTC
 * --every EVERY: interval in seconds between data points to plot.
 * --relative: show timestamps relative to start of timeline
 * --level {1-9}: initial detail level; default: 1.

@@ -92,7 +92,7 @@ class parse_time:
         # convert to internal fp repr
         if time.tzinfo==None:
             if s.tz==None:
-                msg = "no timezone for %s; specify timezone, e.g., iostat(tz=-5):iostat.log" % time
+                msg = "no timezone for %s; specify input timezone, e.g., --itz=-5" % time
                 raise Exception(msg)
             else:
                 tzinfo = dateutil.tz.tzoffset('xxx', s.tz.total_seconds())

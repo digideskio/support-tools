@@ -19,9 +19,9 @@ function test-002 {
 # tz -8 b/c the data files are in naive local time,
 # and were gathered on an ubuntu vm that had tz set to pst
 function test-003 {
-    run-timeseries --level 9 --width 25 \
-        'iostat(tz=-8):data/test-003/iostat.log' \
-        'wt(tz=-8,default_date=2014):data/test-003/wtstats.log' \
+    run-timeseries --level 9 --width 25 --itz -8 \
+        'iostat:data/test-003/iostat.log' \
+        'wt(default_date=2014):data/test-003/wtstats.log' \
         'grep(pat=insert .* ([0-9]+)$,name=app: insert /s):data/test-003/app.out' \
         'grep(pat=find .* ([0-9]+)$,name=app: find /s):data/test-003/app.out'
 }
@@ -35,7 +35,7 @@ function test-003a {
 }
 
 function test-003b {
-    run-timeseries --level 2 --width 24 \
+    run-timeseries --level 2 --width 24 --itz -5 \
         'iostat(tz=-8):data/test-003/iostat.log' \
         'wt(tz=-8,default_date=2014):data/test-003/wtstats.log' \
         'grep(pat=insert .* ([0-9]+)$,name=app: insert /s):data/test-003/app.out' \
@@ -51,11 +51,11 @@ function test-004a {
 }
 
 function test-005 {
-    run-timeseries 'iostat(tz=0):data/test-005/iostat.log'
+    run-timeseries --itz 0 'data/test-005/iostat.log' # AUTO MODE
 }
 
 function test-006 {
-    run-timeseries 'csv(tz=0):data/test-006.csv'
+    run-timeseries --itz 0 'data/test-006.csv'
 }
 
 function test-007 {

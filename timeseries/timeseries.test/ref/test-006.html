@@ -80,6 +80,11 @@ body, table, frameset, pre.info {
 .selected {
     background: rgb(240,245,255)
 }
+
+.info-data {
+    padding-right: 1em;
+    text-align: right;
+}
 </style><script>var selected = undefined
 var last_selected = undefined
 
@@ -304,10 +309,24 @@ function key() {
         if (live) {
             top.model.live = Number(live)
             if (top.model.live > 0)
-                load_content()
+                post_model_and_load_content()
         }
     } else if (c=='?') {
-        info()
+        info(false)
+    } else if (c=='!') {
+        info(true)
+    } else if (c=='m') {
+        top.model.merges = false
+        post_model_and_load_content()
+    } else if (c=='M') {
+        top.model.merges = true
+        post_model_and_load_content()
+    } else if (c=='\r') {
+        post_model_and_load_content()
+    } else if (c=='v') {
+        overview = prompt('Number of overview samples, or blank to show all samples')
+        top.model.overview = overview
+        post_model_and_load_content()
     }
 }    
 
@@ -431,6 +450,7 @@ function t2x(t) {
     return (t-top.model.tleft) / (top.model.tright-top.model.tleft)
 }
 
+// get time at cursor, specified by cursor letter
 function cursor2t(cursor) {
     var cs = top.model.cursors
     for (var j in cs)
@@ -439,4 +459,4 @@ function cursor2t(cursor) {
     return undefined
 }
 
-</script></head><script>document.title="test-006.csv"</script><body onkeypress="key()" onload="loaded_content()"><script>top.model = {"spec_cmdline": "'csv(tz=0):data/test-006.csv'", "level": 1, "after": -Infinity, "live": 0, "tright": 1444126386.0, "cursors": [], "tleft": 1444126254.0, "before": Infinity}</script><div onclick="toggle_help()"><b>click here for help</b></br><div id="help" style="display:none">click on a graph to put down a cursor line<br/>click on a blue disk to delete a cursor<br/>click on a name to select a row<br/>^N select the next row <br/>^P select the previous row <br/>n move the selected row down <br/>p move the selected row up <br/>N move the selected row to the bottom <br/>P move the selected row to the top <br/>1-9 to change detail level<br/><br/></div></div>current detail level is <span id="current_level"></span> (hit 1-9 to change)<br/>start: 2015-10-06 10:11:00Z, finish: 2015-10-06 10:13:00Z, duration: 0:02:00<br/>viewing 'csv(tz=0):data/test-006.csv' (use o or O to change)<br/><br/><table id="table" style="position:relative;"><tr><td></td><td></td><td><svg height="100%" id="cursors" onclick="add_cursor_by_event(this)" onmousemove="move(this)" onmouseout="out(this)" preserveAspectRatio="none" style="position:absolute; background:none" viewBox="0 0 1 1" width="30em"><line class="cursor" id="lll" x1="-1" x2="-1" y1="0" y2="1"></line></svg><div style="position:relative; z-index:1000; background:white; margin-bottom:0.3em"><svg height="1em" id="letters" width="30em"></svg><br/><svg height="0.8em" id="deleters" viewBox="0 0 30 0.8" width="30em"></svg></div><div style="height: 2.000000em; position:relative; width:30em"><span align="center" style="left:-48.5em; position:absolute; width:100em"><div align="center" style="font-size:80%">15-10-06<br/>10:11:00</div></span><span align="center" style="left:-41.75em; position:absolute; width:100em"><div align="center" style="font-size:80%"><br/>10:11:30</div></span><span align="center" style="left:-35.0em; position:absolute; width:100em"><div align="center" style="font-size:80%"><br/>10:12:00</div></span><span align="center" style="left:-28.25em; position:absolute; width:100em"><div align="center" style="font-size:80%"><br/>10:12:30</div></span><span align="center" style="left:-21.5em; position:absolute; width:100em"><div align="center" style="font-size:80%"><br/>10:13:00</div></span></div></td></tr><tr><td class="head data">avg</td><td class="head data">max</td><td></td><td class="head desc">name</td><td class=""> </td></tr><tr _level="0" _row="0" class="row" onclick="sel(this)"><td class="data">1.333</td><td class="data">3.000</td><td class="graph"><svg height="1.8em" viewBox="0 0 30 1.8" width="30em"><polygon class="shaded" points="1.5,1.62 1.5,1.62 15,1.14 28.5,0.18 28.5,1.62"></polygon><polyline class="curve" points="1.5,1.62 15,1.14 28.5,0.18" style="stroke:black"></polyline><line class="tick" x1="1.5" x2="1.5" y1="0" y2="1.8"></line><line class="tick" x1="8.25" x2="8.25" y1="0" y2="1.8"></line><line class="tick" x1="15.0" x2="15.0" y1="0" y2="1.8"></line><line class="tick" x1="21.75" x2="21.75" y1="0" y2="1.8"></line><line class="tick" x1="28.5" x2="28.5" y1="0" y2="1.8"></line></svg></td><td class="name">csv test-006: value1</td></tr><tr _level="0" _row="1" class="row" onclick="sel(this)"><td class="data">5.000</td><td class="data">6.000</td><td class="graph"><svg height="1.8em" viewBox="0 0 30 1.8" width="30em"><polygon class="shaded" points="1.5,1.62 1.5,0.42 15,0.18 28.5,0.66 28.5,1.62"></polygon><polyline class="curve" points="1.5,0.42 15,0.18 28.5,0.66" style="stroke:black"></polyline><line class="tick" x1="1.5" x2="1.5" y1="0" y2="1.8"></line><line class="tick" x1="8.25" x2="8.25" y1="0" y2="1.8"></line><line class="tick" x1="15.0" x2="15.0" y1="0" y2="1.8"></line><line class="tick" x1="21.75" x2="21.75" y1="0" y2="1.8"></line><line class="tick" x1="28.5" x2="28.5" y1="0" y2="1.8"></line></svg></td><td class="name">csv test-006: value2</td></tr></table></body></html>
+</script></head><script>document.title="test-006.csv"</script><body onkeypress="key()" onload="loaded_content()"><script>top.model = {"spec_cmdline": "data/test-006.csv", "level": 1, "after": -Infinity, "live": 0, "tright": 1444126386.0, "cursors": [], "tleft": 1444126254.0, "before": Infinity}</script><div onclick="toggle_help()"><b>click here for help</b></br><div id="help" style="display:none">click on a graph to put down a cursor line<br/>click on a blue disk to delete a cursor<br/>click on a name to select a row<br/>^N select the next row <br/>^P select the previous row <br/>n move the selected row down <br/>p move the selected row up <br/>N move the selected row to the bottom <br/>P move the selected row to the top <br/>1-9 to change detail level<br/><br/></div></div>current detail level is <span id="current_level"></span> (hit 1-9 to change)<br/>start: 2015-10-06 10:11:00Z, finish: 2015-10-06 10:13:00Z, duration: 0:02:00<br/>viewing data/test-006.csv (use o or O to change)<br/><br/><table id="table" style="position:relative;"><tr><td></td><td></td><td><svg height="100%" id="cursors" onclick="add_cursor_by_event(this)" onmousemove="move(this)" onmouseout="out(this)" preserveAspectRatio="none" style="position:absolute; background:none" viewBox="0 0 1 1" width="30em"><line class="cursor" id="lll" x1="-1" x2="-1" y1="0" y2="1"></line></svg><div style="position:relative; z-index:1000; background:white; margin-bottom:0.3em"><svg height="1em" id="letters" width="30em"></svg><br/><svg height="0.8em" id="deleters" viewBox="0 0 30 0.8" width="30em"></svg></div><div style="height: 2.000000em; position:relative; width:30em"><span align="center" style="left:-48.5em; position:absolute; width:100em"><div align="center" style="font-size:80%">15-10-06<br/>10:11:00</div></span><span align="center" style="left:-41.75em; position:absolute; width:100em"><div align="center" style="font-size:80%"><br/>10:11:30</div></span><span align="center" style="left:-35.0em; position:absolute; width:100em"><div align="center" style="font-size:80%"><br/>10:12:00</div></span><span align="center" style="left:-28.25em; position:absolute; width:100em"><div align="center" style="font-size:80%"><br/>10:12:30</div></span><span align="center" style="left:-21.5em; position:absolute; width:100em"><div align="center" style="font-size:80%"><br/>10:13:00</div></span></div></td></tr><tr><td class="head data">avg</td><td class="head data">max</td><td></td><td class="head desc">name</td><td class=""> </td></tr><tr _level="0" _row="0" class="row" onclick="sel(this)"><td class="data">1.333</td><td class="data">3.000</td><td class="graph"><svg height="1.8em" viewBox="0 0 30 1.8" width="30em"><polygon class="shaded" points="1.5,1.62 1.5,1.62 15,1.14 28.5,0.18 28.5,1.62"></polygon><polyline class="curve" points="1.5,1.62 15,1.14 28.5,0.18" style="stroke:black"></polyline><line class="tick" x1="1.5" x2="1.5" y1="0" y2="1.8"></line><line class="tick" x1="8.25" x2="8.25" y1="0" y2="1.8"></line><line class="tick" x1="15.0" x2="15.0" y1="0" y2="1.8"></line><line class="tick" x1="21.75" x2="21.75" y1="0" y2="1.8"></line><line class="tick" x1="28.5" x2="28.5" y1="0" y2="1.8"></line></svg></td><td class="name">csv test-006: value1</td></tr><tr _level="0" _row="1" class="row" onclick="sel(this)"><td class="data">5.000</td><td class="data">6.000</td><td class="graph"><svg height="1.8em" viewBox="0 0 30 1.8" width="30em"><polygon class="shaded" points="1.5,1.62 1.5,0.42 15,0.18 28.5,0.66 28.5,1.62"></polygon><polyline class="curve" points="1.5,0.42 15,0.18 28.5,0.66" style="stroke:black"></polyline><line class="tick" x1="1.5" x2="1.5" y1="0" y2="1.8"></line><line class="tick" x1="8.25" x2="8.25" y1="0" y2="1.8"></line><line class="tick" x1="15.0" x2="15.0" y1="0" y2="1.8"></line><line class="tick" x1="21.75" x2="21.75" y1="0" y2="1.8"></line><line class="tick" x1="28.5" x2="28.5" y1="0" y2="1.8"></line></svg></td><td class="name">csv test-006: value2</td></tr></table></body></html>
