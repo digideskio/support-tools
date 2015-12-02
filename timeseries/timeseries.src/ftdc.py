@@ -371,7 +371,7 @@ def read(ses, fn, opt, progress=True):
             ses.progress(msg)
 
     if used_samples != read_samples:
-        s = 'displaying overview of ~%d of ~%d samples in selected time range (use z to zoom in)'
+        s = 'displaying overview of ~%d of ~%d samples in selected time range (use z to zoom in or v to view all)'
         ses.advise(s % (used_samples, read_samples))
     else:
         ses.advise('displaying all ~%d samples in selected time range' % used_samples)

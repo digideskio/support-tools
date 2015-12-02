@@ -237,7 +237,7 @@ function key() {
     } else if (c=='\r') {
         post_model_and_load_content()
     } else if (c=='v') {
-        overview = prompt('Number of overview samples, or blank to show all samples')
+        overview = prompt('Number of overview samples, or "all" to show all samples', 'all')
         top.model.overview = overview
         post_model_and_load_content()
     }
