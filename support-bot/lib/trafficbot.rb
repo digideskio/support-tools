@@ -54,7 +54,7 @@ end
 @supportIRCChan = "#10gen/supportbot"
 
 @loggingQueue = Queue.new
-@dbURI = "mongodb://localhost:27017/support"
+@dbURI = "mongodb://sdash-1.10gen.cc:27017,support-db-1.vpc3.10gen.cc:27017,support-db-2.vpc3.10gen.cc:27017/support?replicaSet=sdash"
 @dbConnOpts = {:pool_size => 5}
 @silent = false
 if mode == 'api'
@@ -109,7 +109,7 @@ if mode == 'api'
   client = JIRA::Client.new(options)
   #Initialize our view of the queue, after the chat starts given a JIRA read can take time.
 else
-  client = Mongo::MongoClient.from_uri(@dbURI,@dbConnOpts).db('support')
+  client = Mongo::Client.new(@dbURI,@dbConnOpts)
 end
 
 #Fork Threads
@@ -147,7 +147,7 @@ while true
   else
     if @botReboot
       Thread.kill(jthr)
-      client = Mongo::MongoClient.from_uri(@dbURI,@dbConnOpts).db('support')
+      client = Mongo::Client.new(@dbURI,@dbConnOpts)
       jthr = Thread.new { mainJiraThread(client) }
       @botReboot = false
       logOut "Just rebooted the Jira thread at user request"

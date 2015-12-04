@@ -15,13 +15,13 @@ def escapeXML(msg)
 end
 
 def lookerChange(key, who, db, onoff)
-  obj = db.collection("reviews").find_one({:key=> key})
+  obj = db[:reviews].find({:key=> key}).limit(1).first
   msg = ""
   if obj != nil
     msg = "Issue #{key} #{(onoff ? "":"not ")}being looked at by #{who}"
     #Broadcast to IRC as well as XMPP
     @ipcqueue.push({'msg'=>msg, 'dst' => @ircRoomName}) if msg != nil
-    db.collection("reviews").update({:key=> key},{ (onoff ? "$push" : "$pull") => { :lookers => who}})
+    db[:reviews].update_one({:key=> key},{ (onoff ? "$push" : "$pull") => { :lookers => who}})
   end
   return msg
 end
@@ -196,7 +196,7 @@ end
 
 def doFTSSection(db, query, xhtml)
   msg = ""
-  db.collection("issues").find(query).each do |issue|
+  db[:issues].find(query).each do |issue|
     if xhtml
       msg += "<a href='https://jira.mongodb.org/browse/#{issue["jira"]["key"]}'>#{issue["jira"]["key"]}</a>  "
     else
@@ -211,7 +211,7 @@ def doFTSSection(db, query, xhtml)
       end
     end
 
-    commentsArr = db.collection("issues").find_one('jira.key'=>issue["jira"]["key"])["jira"]["fields"]["comment"]["comments"]
+    commentsArr = db[:issues].find('jira.key'=>issue["jira"]["key"]).limit(1).first["jira"]["fields"]["comment"]["comments"]
     lastComment = commentsArr[-1]['body']
     secondLastComment = nil
     if commentsArr[-2] != nil
@@ -267,8 +267,8 @@ def doWFCMessage(db, username)
   query = @wfcGeneral["$or"] = {"fields.assignee.name" => username, "fields.customfield_10041.name" => username}
   today = Date.new
   msg = "WFC Issues for #{username}, flagged for follow up:\n"
-  db.collection("issues").find(query).each do |issue|
-    commentsArr = db.collection("issues").find_one('jira.key'=>issue["jira"]["key"])["jira"]["fields"]["comment"]["comments"]
+  db[:issues].find(query).each do |issue|
+    commentsArr = db[:issues].find('jira.key'=>issue["jira"]["key"]).limit(1).first["jira"]["fields"]["comment"]["comments"]
       lastComment = commentsArr[-1]['body']
     dateObj = lastComment.match(/ping (on )?(\d\d\d\d[\/-])?[\d|\d\d][\/-][\d\d|\d]/i)
     if dateObj
@@ -294,8 +294,8 @@ end
 def doWFCMessageAll(db)
   today = Date.new
   msg = "WFC Issues for all users, flagged for follow up:\n"
-  db.collection("issues").find(@wfcGeneral).each do |issue|
-    commentsArr = db.collection("issues").find_one('jira.key'=>issue["jira"]["key"])["jira"]["jira"]["fields"]["comment"]["comments"]
+  db[:issues].find(@wfcGeneral).each do |issue|
+    commentsArr = db[:issues].find('jira.key'=>issue["jira"]["key"]).limit(1).first["jira"]["jira"]["fields"]["comment"]["comments"]
     lastComment = commentsArr[-1]['body']
     dateObj = lastComment.match(/ping (on )?(\d\d\d\d[\/-])?[\d|\d\d][\/-][\d\d|\d]/i)
     if dateObj
@@ -423,7 +423,7 @@ def doQueueRead(db)
             end
           end
           #Push into DB
-          db.collection("reviews").update({:key=> key},{:key=> key, :done => false, :requested_by =>who, :reviewers=>reviewers, :requested_at => Time.now},{:upsert => true} )
+          db[:reviews].update_one({:key=> key},{:key=> key, :done => false, :requested_by =>who, :reviewers=>reviewers, :requested_at => Time.now},{:upsert => true} )
           msg = "#{who} requested review of #{key}"
           unless reviewers.empty?
             msg += " from #{reviewers.join(', ')}"
@@ -436,12 +436,12 @@ def doQueueRead(db)
           if key.include? "HTTP"
             key = key.split("/")[-1]
           end
-          obj = db.collection("reviews").find_one({:key=> key})
+          obj = db[:reviews].find({:key=> key}).limit(1).first
           if obj != nil
             msg = "Review of #{key} finalized by #{who}"
             #Broadcast to IRC as well as XMPP
             @ipcqueue.push({'msg'=>msg, 'dst' => @ircRoomName}) if msg != nil
-            db.collection("reviews").update({:key=> key},{"$set"=>{"done" => true, :marked_by => who}})
+            db[:reviews].update_one({:key=> key},{"$set"=>{"done" => true, :marked_by => who}})
           end
         when 'NEEDSWORK'
           key = array.shift
@@ -449,12 +449,12 @@ def doQueueRead(db)
           if key.include? "HTTP"
             key = key.split("/")[-1]
           end
-          obj = db.collection("reviews").find_one({:key=> key})
+          obj = db[:reviews].find({:key=> key}).limit(1).first
           if obj != nil
             msg = "Review of #{key} set to 'needs work' by #{who}"
             #Broadcast to IRC as well as XMPP
             @ipcqueue.push({'msg'=>msg, 'dst' => @ircRoomName}) if msg != nil
-            db.collection("reviews").update({:key=> key},{"$set"=>{"done" => "needs work", :marked_by => who}, "$pull" => { :lookers => who}})
+            db[:reviews].update_one({:key=> key},{"$set"=>{"done" => "needs work", :marked_by => who}, "$pull" => { :lookers => who}})
           end
         when 'REFRESH'
           key = array.shift
@@ -462,12 +462,12 @@ def doQueueRead(db)
           if key.include? "HTTP"
             key = key.split("/")[-1]
           end
-          obj = db.collection("reviews").find_one({:key=> key})
+          obj = db[:reviews].find({:key=> key}).limit(1).first
           if obj != nil
             msg = "Issue #{key} Refreshed by #{who}"
             #Broadcast to IRC as well as XMPP
             @ipcqueue.push({'msg'=>msg, 'dst' => @ircRoomName}) if msg != nil
-            db.collection("reviews").update({:key=> key},{"$set" =>{ :lgtms => [], :lookers => [], :done => false, :requested_at => Time.now, :requested_by => who}})
+            db[:reviews].update_one({:key=> key},{"$set" =>{ :lgtms => [], :lookers => [], :done => false, :requested_at => Time.now, :requested_by => who}})
           end
         when 'LGTM'
           key = array.shift
@@ -475,12 +475,12 @@ def doQueueRead(db)
           if key.include? "HTTP"
             key = key.split("/")[-1]
           end
-          obj = db.collection("reviews").find_one({:key=> key})
+          obj = db[:reviews].find({:key=> key}).limit(1).first
           if obj != nil
             msg = "Issue #{key} LGTM'd by #{who}"
             #Broadcast to IRC as well as XMPP
             @ipcqueue.push({'msg'=>msg, 'dst' => @ircRoomName}) if msg != nil
-            db.collection("reviews").update({:key=> key},{"$push" => { :lgtms => who}, "$pull" => { :lookers => who}})
+            db[:reviews].update_one({:key=> key},{"$push" => { :lgtms => who}, "$pull" => { :lookers => who}})
           end
         when 'LOOKING'
           key = array.shift
@@ -510,7 +510,7 @@ def doQueueRead(db)
           if project
             query["key"] = /#{project.upcase}/
           end
-          db.collection("reviews").find(query).each do |key|
+          db[:reviews].find(query).each do |key|
             if key["done"] == false
               msg += "Review "
               if @autoCompleteFails.include? key["key"]
@@ -586,11 +586,10 @@ def doQueueRead(db)
 end
 
 def checkForFinalized(db)
-logOut "checkForFinalized run"
-  db.collection("reviews").find({"done" => { "$ne" => true}, "marked_fin" => { "$ne" => true}}).each do |issue|
+  db[:reviews].find({"done" => { "$ne" => true}, "marked_fin" => { "$ne" => true}}).each do |issue|
     begin
       unless @autoCompleteFails.include? issue["key"]
-        ir = db.collection("issues").find_one('jira.key'=>issue["key"])
+        ir = db[:issues].find('jira.key'=>issue["key"]).limit(1).first
         status = ir["jira"]["fields"]["status"]["id"]
         lastComment = ir["jira"]["fields"]["comment"]['comments'][-1]
         # Confirm that there is a comment on the issue
@@ -600,7 +599,7 @@ logOut "checkForFinalized run"
             logOut "auto finalizing #{issue["key"]}", 1
             @chatRequests.push("#{@defaultXMPPRoom} XMPP FIN #{issue["key"]} Auto:pushed")
             #@chatRequests.push("#{@supportIRCChan} IRC FIN #{issue["key"]} Auto:pushed")
-            db.collection("reviews").update({"key" => issue["key"]}, {"$set" => {"marked_fin" => true}})
+            db[:reviews].update_one({"key" => issue["key"]}, {"$set" => {"marked_fin" => true}})
           end
         end
       end
@@ -621,7 +620,7 @@ def checkNewIssues(db)
   logOut "Checking for new issues $gte #{@lastChecked}", 1
   @lastChecked = BSON::ObjectId.from_time(Time.now-1)
   #Compare the current List of issues to the old, update if needed
-  db.collection("issues").find(finalQuery).each do |issue|
+  db[:issues].find(finalQuery).each do |issue|
     if @soundOn
       begin
         soundEffect(issue["jira"]["key"], issue["jira"]["fields"]['priority']['name'].split()[0])
@@ -645,7 +644,7 @@ def checkNewProactive(db)
   time = Time.now
 
   #Compare the current List of issues to the old, update if needed
-  db.collection("issues").find({"jira.fields.issuetype.name" => "Proactive"}).each do |issue|
+  db[:issues].find({"jira.fields.issuetype.name" => "Proactive"}).each do |issue|
     begin
       unless @proactiveAlertsSent.include? issue["jira"]["key"]
         comments = issue["jira"]["fields"]["comment"]["comments"]

@@ -116,7 +116,7 @@ def respondToPartyChat(msg, room)
   return respondToChat(array.join(' '), username, 'XMPP', room)
 end
 
-def send(prot, msg, dst)
+def send_chat(prot, msg, dst)
   case prot
     when "XMPP"
       @xmppQueue.push({'dst' => dst, 'msg' => msg})
@@ -144,10 +144,10 @@ def mainChatThread()
           dst = popped["dst"]["recip"]
           prot = popped["dst"]["prot"]
           if msg.is_a? String
-            send(prot, msg, dst)
+            send_chat(prot, msg, dst)
             logOut "#{dst} say: '#{msg}'" unless msg.empty?
           elsif msg.is_a? Jabber::Message
-            send(prot, msg, dst)
+            send_chat(prot, msg, dst)
             logOut "#{dst} say: '#{msg}'"
           end
           if @ipcqueue.length > 10 || limit <= 0
