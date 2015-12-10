@@ -124,6 +124,7 @@ function test-019 {
 }
 
 function test-020 {
+    # win perf csv, and ftdc WRAPPED
     run-timeseries data/test-020 # AUTO MODE
 }
 

@@ -158,6 +158,7 @@ class Series:
         self.opt = opt
         self.sort_ord = (tag, descriptor['_ord'], spec_ord)
         self.tmin = self.tmax = self.ymin = self.ymax = self.ysum = None
+        self.wrapped = False
         self.ts = None
         self.name = None
 
@@ -308,6 +309,9 @@ class Series:
                 self.last_t = t
                 self.last_d = d
                 return
+            if d < 0:
+                self.wrapped = True
+                util.msg('possible wrap detected in', self.get('name'), 'at', util.f2s(t))
 
         # scale - xxx need general computation mechanism here instead
         if self.scale_field:

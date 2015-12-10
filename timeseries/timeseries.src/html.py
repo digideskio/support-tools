@@ -366,6 +366,7 @@ def page(ses):
         graph.ymin = min(s.ymin for s in graph)
         graph.ymax = max(s.ymax for s in graph)
         graph.ysum = sum(s.ysum for s in graph)
+        graph.wrapped = any(s.wrapped for s in graph)
         graph.ylen = sum(len(s.ys) for s in graph)
         graph.display_ymax = max(s.display_ymax for s in graph)
         if graph.ylen:
@@ -404,7 +405,8 @@ def page(ses):
                 '_level': graph[0].level,
                 '_row': row,
             })
-            ses.td('data', '{:,.3f}'.format(float(graph.ysum)/graph.ylen))
+            avg = '{:,.3f}'.format(float(graph.ysum)/graph.ylen) if not graph.wrapped else 'WRAPPED'
+            ses.td('data', avg)
             ses.td('data', '{:,.3f}'.format(graph.ymax))
             ses.td('graph')
             graph_color = lambda graph, i: color(i) if len(graph)>1 else 'black'
