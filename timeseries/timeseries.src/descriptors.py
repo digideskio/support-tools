@@ -1,5 +1,4 @@
 import collections
-import datetime as dt
 import os
 import re
 import process
@@ -82,19 +81,11 @@ descriptor(
 # windows csv - special header processing
 #
 
-def win_headers(series, headers):
-    tz = headers[0].split('(')[3].strip(')')
-    tz = dt.timedelta(hours = -float(tz)/60)
-    for s in series:
-        s.tz = tz
-    return [' '.join(h.split('\\')[3:]) for h in headers]
-
 descriptor(
-    name = 'win {fn}: {field_name}',
+    name = 'win {fn}: {key}',
     file_type = 'text',
-    parser = process.parse_csv,
+    parser = process.parse_win_csv,
     time_key = 'time',
-    process_headers = win_headers, # xxx?
     split_on_key_match = '(?P<key>.*)',
 )
 
@@ -1332,7 +1323,8 @@ sniffers = [
     ('sysmon', process.parse_csv, util.join('cpu_user')),
     ('iostat', parse_iostat, util.join('user')),
     ('cs', process.parse_json, util.join('storageSize')),
-    ('csv', process.parse_csv, 'time')
+    ('csv', process.parse_csv, 'time'),
+    ('win', process.parse_win_csv, 'time')
 ]
 
 def _sniff(ses, fn, want_ftdc, result):

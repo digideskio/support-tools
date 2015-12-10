@@ -1,4 +1,5 @@
 import collections
+import datetime as dt
 import json
 import re
 import traceback
@@ -18,11 +19,14 @@ import util
 # helper to manage accumulation of values into chunks
 #
 
+class Chunk(collections.defaultdict):
+    pass
+
 class Chunker:
 
     def chunk_init(self):
         self.chunk_len = 0
-        self.chunk = collections.defaultdict(lambda: [None for _ in range(self.chunk_len)])
+        self.chunk = Chunk(lambda: [None for _ in range(self.chunk_len)])
         self.last_time = None
 
     def chunk_extend(self):
@@ -93,6 +97,7 @@ class ChunkCache(util.FileCache):
 #
 # read and parse csv files
 # maintains a chunk cache
+# xxx fragile, consider using Python cvs module; check performance...
 #
 
 class parse_csv(Chunker, ChunkCache):
@@ -102,11 +107,14 @@ class parse_csv(Chunker, ChunkCache):
         keys = None
         for line in util.file_progress(ses, self.fn, sniff):
             line = line.strip()
+            fields = line.split(',')
+            if fields and fields[0] and fields[0][0]=='"':
+                fields = [f.strip('"') for f in fields]
             if not keys:
-                keys = line.split(',')
+                keys = fields
             else:
                 self.chunk_extend()
-                values = line.split(',')
+                values = fields
                 for k, v in zip(keys, values):
                     self.chunk[k][-1] = v
             for chunk in self.chunk_emit():
@@ -114,6 +122,19 @@ class parse_csv(Chunker, ChunkCache):
         for chunk in self.chunk_emit(True):
             yield chunk
 
+class parse_win_csv(parse_csv):
+    def _parse(self, ses, opt, sniff=0):
+        for chunk in parse_csv._parse(self, ses, opt, sniff):
+            for key in chunk.keys():
+                if 'PDH-CSV 4.0' in key:
+                    tz = key.split('(')[3].strip(')')
+                    chunk.tz = dt.timedelta(hours = -float(tz)/60)
+                    new_key = 'time'
+                else:
+                    new_key = ': '.join(key.split('\\')[3:])
+                chunk[new_key] = chunk[key]
+                del chunk[key]
+            yield chunk
 
 
 #
@@ -270,12 +291,13 @@ def process(series, opt):
             chunk = yield
                     
             def process_series(s, data_key):
+                tz = chunk.tz if hasattr(chunk, 'tz') else s.tz
                 time_key = s.time_key # e.g. 'serverStatus.localTime'
                 if data_key in chunk and time_key in chunk:
                     ts = chunk[time_key]
                     if type(ts[0])==str or type(ts[0])==unicode:
                         for i, t in enumerate(ts):
-                            ts[i] = pt.parse_time(t, opt, series[0]) # xxx tz
+                            ts[i] = pt.parse_time(t, opt, tz)
                     if ts[0]/s.time_scale > opt.before or ts[-1]/s.time_scale < opt.after:
                         return
                     for i, (t, d) in enumerate(zip(ts, chunk[data_key])):

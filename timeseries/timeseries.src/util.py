@@ -79,44 +79,44 @@ class parse_time:
             #util.msg('using slow timestamp parsing')
             self._parse_time = self._parse_time_slow
 
-    def parse_time(self, time, opt, s):
+    def parse_time(self, time, opt, tz):
         if not self._parse_time:
             self._find_time(time)
-            time = self._parse_time(time, opt, s)
+            time = self._parse_time(time, opt, tz)
             # xxx default timezone?
             #global t0
             #t0 = t0.astimezone(time.tzinfo)
         else:
-            time = self._parse_time(time, opt, s)
+            time = self._parse_time(time, opt, tz)
 
         # convert to internal fp repr
         if time.tzinfo==None:
-            if s.tz==None:
+            if tz==None:
                 msg = "no timezone for %s; specify input timezone, e.g., --itz=-5" % time
                 raise Exception(msg)
             else:
-                tzinfo = dateutil.tz.tzoffset('xxx', s.tz.total_seconds())
+                tzinfo = dateutil.tz.tzoffset('xxx', tz.total_seconds())
                 time = time.replace(tzinfo=tzinfo)
         time = util.t2f(time)
     
         # done
         return time
     
-    def _parse_time_fast(self, time, opt, s):
+    def _parse_time_fast(self, time, opt, tz):
         group = self.pat.match(time).group
         ms = group(self.gs[6])
         us = 1000*int(ms) if ms else 0
         g = lambda i: int(group(self.gs[i]))
         return dt.datetime(g(0), g(1), g(2), g(3), g(4), g(5), us, self.tzo)
 
-    def _parse_time_slow(self, time, opt, s):
+    def _parse_time_slow(self, time, opt, tz):
 
         # dateutil first, then unix timestamp
         try:
-            if s and s.default_date:
-                time = dateutil.parser.parse(time, default=s.default_date)
-            else:
-                time = dateutil.parser.parse(time)
+            #if s and s.default_date:
+            #    time = dateutil.parser.parse(time, default=s.default_date)
+            #else:
+            time = dateutil.parser.parse(time)
         except Exception as e:
             util.dbg(e)
             time = dt.datetime.fromtimestamp(int(time), pytz.utc)
