@@ -201,6 +201,13 @@ function run-test {
 }
 
 function run-tests {
+    run-test test-001
+    run-test test-002
+    #run-test test-003 # restore wt stuff
+    #run-test test-003a
+    #run-test test-003b
+    run-test test-004
+    run-test test-004a
     run-test test-005
     run-test test-006
     run-test test-007
@@ -217,13 +224,6 @@ function run-tests {
     run-test test-018
     run-test test-019
     run-test test-020
-    run-test test-001
-    run-test test-002
-    #run-test test-003 # restore wt stuff
-    #run-test test-003a
-    #run-test test-003b
-    run-test test-004
-    run-test test-004a
 }
 
 function zip-source {

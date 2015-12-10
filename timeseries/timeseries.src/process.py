@@ -274,7 +274,7 @@ def parse_re(time_key, regexp):
 #     series - list of graphing.Series objects each specifying a view on the data
 #     opt - global options that control the generation of the graphs
 # 
-def process(series, opt):
+def process(series, fn, opt):
 
     # to track metrics present in the data but not processed by any series
     unrecognized = set()
@@ -329,9 +329,10 @@ def process(series, opt):
         except GeneratorExit:
             break
 
-        except:
-            traceback.print_exc()
-            break
+        except Exception as e:
+            if opt.dbg:
+                traceback.print_exc()
+            raise Exception('error while processing ' + fn + ': ' + str(e))
 
     # compute and print unrecognized metrics
     ignore = re.compile(
@@ -431,6 +432,6 @@ def transfer(src, *dst):
 
 def parse_and_process(ses, fn, series, opt, parser):
     src = parser.parse(ses, fn, opt, series[0].time_key)
-    dst = process(series, opt)    
+    dst = process(series, fn, opt)
     transfer(src, dst)
 
