@@ -46,6 +46,7 @@ z to zoom in
 Z to zoom out
 ? to get detailed displayed values at a selected time
 ! to get detailed raw metrics at a selected time
+@ to get metadata (for example, mongod version and host info) at a selected time
 m to suppress merging groups of related metrics in single graph
 M to enable merging groups of related metrics (default)
 RETURN to refresh view
@@ -435,13 +436,13 @@ def page(ses):
             'zero:', spec_zero[spec], 'empty:', spec_empty[spec])
 
 
-def raw(ses, t):
+def raw(ses, t, kind='info'):
 
     _head(ses)
     ses.elt('pre', {'class': 'info'})
 
     for fn, parser in sorted(ses.opt.fns):
-        parser.info(ses, fn, t)
+        parser.info(ses, fn, t, kind)
 
     ses.endall()
 

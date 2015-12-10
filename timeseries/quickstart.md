@@ -123,10 +123,13 @@ You can obtain detailed info, including either the values as
 displayed, or the raw underlying metrics, at a seleted time. Typically
 the values as displayed will be more meaningful; for example,
 cumulative counts in the raw underlying metrics are differentiated to
-obtain rates for the values as displayed.
+obtain rates for the values as displayed. You can also obtain
+metadata, such as version and host information, which is also relative
+to a specific time.
 
 * ? to get values as displayed
 * ! to get raw underlying metrics
+* @ to get metadata
 
 Some groups of related statistics, such as operations rates, are
 normally color-coded and grouped (merged) together in a single

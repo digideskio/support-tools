@@ -192,10 +192,10 @@ class parse_ftdc:
         return ftdc.read(ses, fn, opt)
 
     @staticmethod
-    def info(ses, fn, t):
+    def info(ses, fn, t, kind):
         def prt(*stuff):
             ses.put(' '.join(str(s) for s in stuff) + '\n')
-        ftdc.info(ses, fn, t, prt)
+        ftdc.info(ses, fn, t, prt, kind)
 
 
 #

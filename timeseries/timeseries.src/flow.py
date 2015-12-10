@@ -148,7 +148,14 @@ class Handler(BaseHTTPServer.BaseHTTPRequestHandler):
             ses = Ses.sessions[path]
             t = float(query['t'][0])
             self.prepare(ses)
-            html.raw(ses, t)
+            html.raw(ses, t, kind='raw')
+
+        elif path.endswith('/metadata'):
+            path = path.rsplit('/', 1)[0]
+            ses = Ses.sessions[path]
+            t = float(query['t'][0])
+            self.prepare(ses)
+            html.raw(ses, t, kind='metadata')
 
         # progress phase: load the data in preparation for generating content
         # while emitting progress messages. We also accept new view parameters to open

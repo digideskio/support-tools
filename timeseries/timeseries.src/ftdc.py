@@ -96,8 +96,9 @@ def read_bson_doc(buf, at, ftdc=False):
 
 class Chunk:
 
-    def __init__(self, chunk_doc):
+    def __init__(self, chunk_doc, metadata):
         self.chunk_doc = chunk_doc
+        self.metadata = metadata
         self._id = chunk_doc['_id']
         self._len = chunk_doc.bson_len
         self.state = 0 # 0: nothing read; 1: read ref doc and metadata; 2: read all incl deltas
@@ -121,6 +122,7 @@ class Chunk:
         # map from metric names to list of values for each metric
         # metric names are paths through the sample document
         self.metrics = collections.OrderedDict()
+        self.metrics.metadata = self.metadata
         self.metrics._id = self.chunk_doc['_id']
     
         # decompress chunk data field
@@ -247,12 +249,15 @@ class File(util.FileCache):
 
         # traverse the file reading type 1 chunks
         self.chunks = []
+        metadata = None
         while at < len(buf):
             try:
                 chunk_doc = read_bson_doc(buf, at)
                 at += chunk_doc.bson_len
-                if chunk_doc['type']==1:
-                    self.chunks.append(Chunk(chunk_doc))
+                if chunk_doc['type']==0:
+                    metadata = chunk_doc
+                elif chunk_doc['type']==1:
+                    self.chunks.append(Chunk(chunk_doc, metadata))
             except Exception as e:
                 util.msg('stopping at bad bson doc (%s)' % e)
                 return
@@ -382,7 +387,7 @@ def read(ses, fn, opt, progress=True):
 #   metrics are not stored as bson document so we reconstruct one from the SEP-joined metrics names
 #   assumes 'serverStatus/localTime' exists
 #
-def info(ses, fn, t, prt):
+def info(ses, fn, t, prt, kind):
 
     class Opt:
         def __init__(self, t):
@@ -395,13 +400,21 @@ def info(ses, fn, t, prt):
 
     # find and print the first sample after t (only)
     for metrics in read(ses, fn, Opt(t), progress=False):
-        for sample, sample_time in enumerate(metrics[time_metric]):
-            sample_time = sample_time / 1000.0
-            if sample_time >= t:
-                break
-        prt('%s at t=%.3f (%s)' % (fn, t, util.f2s(t)))
-        util.print_sample(metrics, sample, prt)
-        break
+        if kind=='raw':
+            for sample, sample_time in enumerate(metrics[time_metric]):
+                sample_time = sample_time / 1000.0
+                if sample_time >= t:
+                    break
+            prt('%s at t=%.3f (%s)' % (fn, t, util.f2s(t)))
+            util.print_sample(metrics, sample, prt)
+            break
+        elif kind=='metadata':
+            prt('metadata at t=%.3f (%s)' % (t, util.f2s(t)))
+            if metrics.metadata:
+                util.print_bson_doc(metrics.metadata, prt, '    ')
+            else:
+                prt('    NOT AVAILABLE')
+            break
 
 def dbg(fn, opt, show=True):
     def pt(t):

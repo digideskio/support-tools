@@ -225,9 +225,11 @@ function key() {
                 post_model_and_load_content()
         }
     } else if (c=='?') {
-        info(false)
+        info('info')
     } else if (c=='!') {
-        info(true)
+        info('raw')
+    } else if (c=='@') {
+        info('metadata')
     } else if (c=='m') {
         top.model.merges = false
         post_model_and_load_content()
