@@ -34,11 +34,13 @@ def get_opt(args=sys.argv[1:]):
     p.add_argument('--bins', type=int, default=25)
     p.add_argument('--profile', action='store_true')
     p.add_argument('--overview', default='heuristic')
+    p.add_argument('--html', type=str)
     p.add_argument('--server', action='store_true')
     p.add_argument('--browser', action='store_true')
     p.add_argument('--port', type=int, default=8888)
     p.add_argument('--connect', type=str)
     p.add_argument('--live', type=int, default=0)
+    p.add_argument('--nofork', action='store_true')
     # might be useful: --cursors time,... 
     return p.parse_args(args)
 

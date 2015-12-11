@@ -3,6 +3,7 @@ import json
 import os
 import pipes
 import shlex
+import signal
 import subprocess
 import sys
 import urllib
@@ -174,7 +175,17 @@ class Handler(BaseHTTPServer.BaseHTTPRequestHandler):
             ses = Ses.sessions[path]
             self.prepare(ses)
             html.page(ses)
-            
+
+        # a window closed
+        elif path.endswith('/close'):
+            path = path.rsplit('/', 1)[0]
+            util.msg('closing', path)
+            if path in Ses.sessions:
+                del Ses.sessions[path]
+            if not Ses.sessions:
+                util.msg('all sessions closed, exiting')
+                os._exit(0)
+
         # otherwise not found
         else:
             self.send_response(404) # not found
@@ -197,7 +208,7 @@ class Handler(BaseHTTPServer.BaseHTTPRequestHandler):
             open(fn, 'w').write(ses.get_save())
             util.msg('saved to', fn)
 
-def browser(url):
+def browser(opt, url):
 
     # what os?
     if sys.platform=='darwin':
@@ -211,20 +222,46 @@ def browser(url):
 
     # launch it
     if cmd:
+        util.msg('opening a browser window on', url)
         rc = subprocess.call(cmd, shell=True)
         if rc != 0:
             util.msg('can\'t open browser; is Google Chrome installed?')
     else:
         util.msg('don\'t know how to open a browser on your platform')
 
+    # go into background
+    # not as robust as daemonizing, but that's not needed, and adds an external dependency
+    if not opt.nofork:
+        log_fn = 'timeseries.%d.log' % opt.port
+        util.msg('going into background; sending output to ' + log_fn)
+        util.msg('will terminate when browser window closes')
+        util.msg('use --nofork to run in foreground')
+        if os.fork():
+            os._exit(0)
+        sys.stdin.close()
+        sys.stderr = sys.stdout = open(log_fn, 'a')
+        util.msg('\n===', url)
+        signal.signal(signal.SIGHUP, signal.SIG_IGN)
+
 
 def main(opt):
 
-    if opt.browser:
-        opt.server = True
+    do_server = opt.server
+    do_html = opt.html
+    do_connect = opt.connect
+    do_browser = not opt.server and not opt.html and not opt.connect
 
-    # --server or --browser
-    if opt.server:
+    if do_browser:
+        if opt.browser:
+            util.msg('--browser flag is obsolete; browser mode is now the default')
+        else:
+            util.msg('browser mode is now the default; use --html out.html to generate static html')
+
+    if do_browser:
+        do_server = True
+
+    # --server or browser mode
+    if do_server:
         httpd = None
         for opt.port in range(opt.port, opt.port+100):
             try:
@@ -237,19 +274,20 @@ def main(opt):
         httpd.ses = Ses(opt, path='/0', server=True) # default session
         url = 'http://localhost:%d' % opt.port
         util.msg('listening for a browser request for %s' % url)
-        if opt.browser:
-            browser(url)
+        if do_browser:
+            browser(opt, url)
         httpd.serve_forever()
 
     # --connect
-    elif opt.connect:
+    elif do_connect:
         args = ' '.join(pipes.quote(s) for s in sys.argv[1:])
         args = urllib.urlencode({'args': args})
         url = opt.connect + '/open?' + args
-        browser(url)
+        browser(opt, url)
 
     # standalone static html
-    else:
+    elif do_html:
+        util.msg('generating html file', do_html)
         ses = Ses(opt, server=False)
-        ses.out = sys.stdout
+        ses.out = open(do_html, 'w')
         html.page(ses)

@@ -18,9 +18,11 @@ do_dbg = False
 def dbg(*ss):
     if __name__=='__main__' and do_dbg:
         sys.stderr.write(' '.join(str(s) for s in ss) + '\n')
+        sys.stderr.flush()
 
 def msg(*ss):
     sys.stderr.write(' '.join(str(s) for s in ss) + '\n')
+    sys.stderr.flush()
 
 
 #

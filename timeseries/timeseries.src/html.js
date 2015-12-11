@@ -261,3 +261,11 @@ function loaded_content() {
 function do_post() {
     console.log('not posting')
 }
+
+function do_unload() {
+    url = top.location + '/close'
+    req = new XMLHttpRequest()
+    req.open('GET', url)
+    req.setRequestHeader("Content-type", "application/json");
+    req.send('')
+}

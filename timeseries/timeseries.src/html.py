@@ -221,7 +221,8 @@ def container(ses):
         'id': 'frameset',
         'rows': '90%, 0%, 10%',
         'border': 0,
-        'onload': 'load_content()'
+        'onload': 'load_content()',
+        'onunload': 'do_unload()'
     })
     ses.eltend('frame', {'name': 'content', 'frameborder': 0})
     ses.eltend('frame', {'name': 'content', 'frameborder': 0})
@@ -262,7 +263,11 @@ def page(ses):
     # start page
     _head(ses)
     ses.eltend('script', {}, 'document.title="%s"' % ', '.join(ses.title))
-    ses.elt('body', {'onkeypress': 'key()', 'onload': 'loaded_content()'})
+    ses.elt('body', {
+        'onkeypress': 'key()',
+        'onload': 'loaded_content()',
+        'onunload': 'do_unload()'
+    })
     
     # no data - finish with empty page and return
     if not ses.graphs:

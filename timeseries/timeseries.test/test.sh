@@ -4,7 +4,7 @@ function @echo {
 }
 
 function run-timeseries {
-    @echo time ../timeseries.py "${@}"
+    @echo time ../timeseries.py "${@}" --html $HTML
 }
 
 function test-001 {
@@ -193,7 +193,8 @@ function run-test {
 
     echo === $test
 
-    if $test >/tmp/$test.html && compare-html ref/$test.html /tmp/$test.html; then
+    HTML=/tmp/$test.html
+    if $test >$HTML && compare-html ref/$test.html $HTML; then
         echo $test PASS
     else
         echo $test FAIL
