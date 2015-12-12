@@ -128,6 +128,18 @@ function test-020 {
     run-timeseries data/test-020 # AUTO MODE
 }
 
+# test: --identify
+function test-021 {
+    run-timeseries data/test-021 --identify
+}
+
+# test: --identify; unique part of fn at end; proper merge behvior with multiple files; 
+function test-022 {
+    cp data/diagnostic.data/metrics.interim /tmp/metrics.interim.aaa
+    cp data/diagnostic.data/metrics.interim /tmp/metrics.interim.bbb
+    run-timeseries /tmp/metrics.interim.{aaa,bbb} --identify
+}
+
 function compare-html {
 
     ref=$1
@@ -226,6 +238,8 @@ function run-tests {
     run-test test-018
     run-test test-019
     run-test test-020
+    run-test test-021
+    run-test test-022
 }
 
 function zip-source {

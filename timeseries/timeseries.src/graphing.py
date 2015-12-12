@@ -148,6 +148,11 @@ def get(descriptor, n, default=REQUIRED):
 
 class Series:
 
+    # for computing unique identifier if needed
+    all_fns = set()
+    all_fns_pfx = None
+    all_fns_sfx = None
+
     def __init__(self, spec, descriptor, params, fn, spec_ord, tag, opt=None):
 
         self.spec = spec
@@ -165,6 +170,12 @@ class Series:
         # make fn avaialbe for formatting
         self.fn = fn
         self.descriptor['fn'], _ = os.path.splitext(os.path.basename(fn))
+        Series.all_fns.add(fn)
+
+        # optionally identify based on filename if requested
+        identity = '{identity}: '
+        if opt.identify and not self.descriptor['name'].startswith(identity):
+            self.descriptor['name'] = identity + self.descriptor['name']
 
         # compute rate (/s) 
         self.rate = self.get('rate', False)
@@ -259,6 +270,16 @@ class Series:
 
         # allow for per-series every
         self.every = self.get('every', self.opt.every) if self.opt else None
+
+    @staticmethod
+    def compute_identities(series):
+        Series.all_fns_pfx = os.path.commonprefix(Series.all_fns)
+        Series.all_fns_sfx = os.path.commonprefix([fn[::-1] for fn in Series.all_fns])[::-1]
+        pfx = len(Series.all_fns_pfx)
+        sfx = len(Series.all_fns_sfx)
+        for s in series:
+            identity = s.fn[pfx:-sfx] if sfx else s.fn[pfx:]
+            s.descriptor['identity'] = identity
 
     def get(self, *args):
         return get(self.descriptor, *args)
@@ -507,4 +528,6 @@ def get_series(ses, spec, spec_ord):
 
     return series
 
+def finish(series):
+    Series.compute_identities(series)
 

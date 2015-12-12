@@ -90,6 +90,7 @@ def _get_graphs(ses):
             # xxx should we raise exception and so abort, or carry on processing all we can?
             traceback.print_exc()
             raise Exception('error processing %s: %s' % (spec, e))
+    graphing.finish(ses.series)
 
     # process by file according to parser
     for fn, parser in sorted(opt.fns):
