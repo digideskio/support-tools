@@ -267,7 +267,7 @@ class Series:
         if not self.split_key and not self.split_on_key_match:
             if opt.merges:
                 merge = self.get('merge', None)
-                if merge: self.graph = merge
+                if merge: self.graph = merge + ':' + self.fn
             self.name = self.get('name')
             if self.tag: self.name = self.tag + ': ' + self.name
             graphs[self.graph].append(self)
