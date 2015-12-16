@@ -275,8 +275,10 @@ class File(util.FileCache):
 #
 
 # metrics files start with 'metrics.'
+
+# ignore empty files here
 def is_ftdc_file(fn):
-    return os.path.basename(fn).startswith('metrics.')
+    return os.path.basename(fn).startswith('metrics.') and os.path.getsize(fn) != 0
 
 # metrics directories contain metrics files (recursively)
 def is_ftdc_file_or_dir(fn):

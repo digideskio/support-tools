@@ -160,6 +160,7 @@ def file_progress(ses, fn, sniff=0, every=2.0):
             size = None
 
         # enumerate lines
+        n = 0
         for n, line in enumerate(f):
             yield line
             if sniff and n >= sniff:
