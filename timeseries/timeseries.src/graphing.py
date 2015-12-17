@@ -149,13 +149,12 @@ def get(descriptor, n, default=REQUIRED):
 class Series:
 
     # for computing unique identifier if needed
-    all_fns = set()
-    all_fns_pfx = None
-    all_fns_sfx = None
+    all_fns = collections.defaultdict(set)
 
     def __init__(self, spec, descriptor, params, fn, spec_ord, tag, opt=None):
 
         self.spec = spec
+        self.origin = descriptor
         self.descriptor = dict(descriptor)
         self.descriptor.update(params)
         self.spec_ord = spec_ord
@@ -170,12 +169,7 @@ class Series:
         # make fn avaialbe for formatting
         self.fn = fn
         self.descriptor['fn'], _ = os.path.splitext(os.path.basename(fn))
-        Series.all_fns.add(fn)
-
-        # optionally identify based on filename if requested
-        identity = '{identity}: '
-        if opt.identify and not self.descriptor['name'].startswith(identity):
-            self.descriptor['name'] = identity + self.descriptor['name']
+        Series.all_fns[id(self.origin)].add(fn)
 
         # compute rate (/s) 
         self.rate = self.get('rate', False)
@@ -273,13 +267,16 @@ class Series:
 
     @staticmethod
     def compute_identities(series):
-        Series.all_fns_pfx = os.path.commonprefix(Series.all_fns)
-        Series.all_fns_sfx = os.path.commonprefix([fn[::-1] for fn in Series.all_fns])[::-1]
-        pfx = len(Series.all_fns_pfx)
-        sfx = len(Series.all_fns_sfx)
         for s in series:
-            identity = s.fn[pfx:-sfx] if sfx else s.fn[pfx:]
-            s.descriptor['identity'] = identity
+            fns = Series.all_fns[id(s.origin)]
+            if len(fns) > 1:
+                i = '{identity}: '
+                if not s.descriptor['name'].startswith(i):
+                    s.descriptor['name'] = i + s.descriptor['name']
+                pfx = len(os.path.commonprefix(fns))
+                sfx = len(os.path.commonprefix([fn[::-1] for fn in fns])[::-1])
+                identity = s.fn[pfx:-sfx] if sfx else s.fn[pfx:]
+                s.descriptor['identity'] = identity
 
     def get(self, *args):
         return get(self.descriptor, *args)

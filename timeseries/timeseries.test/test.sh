@@ -128,16 +128,16 @@ function test-020 {
     run-timeseries data/test-020 # AUTO MODE
 }
 
-# test: --identify
+# test: identify
 function test-021 {
-    run-timeseries data/test-021 --identify
+    run-timeseries data/test-021
 }
 
-# test: --identify; unique part of fn at end; proper merge behvior with multiple files; 
+# test: identify; unique part of fn at end; proper merge behvior with multiple files; 
 function test-022 {
     cp data/diagnostic.data/metrics.interim /tmp/metrics.interim.aaa
     cp data/diagnostic.data/metrics.interim /tmp/metrics.interim.bbb
-    run-timeseries /tmp/metrics.interim.{aaa,bbb} --identify
+    run-timeseries /tmp/metrics.interim.{aaa,bbb}
 }
 
 function compare-html {

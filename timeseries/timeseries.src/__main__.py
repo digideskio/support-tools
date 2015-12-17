@@ -27,7 +27,6 @@ def get_opt(args=sys.argv[1:]):
     p.add_argument('--after')
     p.add_argument('--before')
     p.add_argument('--itz', type=float, default=None)
-    p.add_argument('--identify', action='store_true')
     p.add_argument('--every', type=float, default=0)
     p.add_argument('--relative', action='store_true')
     p.add_argument('--list', action='store_true')
