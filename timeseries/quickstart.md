@@ -24,7 +24,7 @@ You can collect data similar to the 3.2 ftdc data under 3.0 by using
 an external process:
 
     delay=1 # pick a number in seconds
-    mongo --eval "while(true) {print(JSON.stringify(db.serverStatus({tcmalloc:true}))); sleep(1000*$delay)}" >ss.log &
+    mongo --eval "while(true) {print(JSON.stringify(db.serverStatus({tcmalloc:true}))); sleep(1000*${delay:?})}" >ss.log &
 
 You can then use all of the commmands and interactive capabilities
 described in the remainder of the document, substituting "ss.log"
@@ -234,7 +234,7 @@ by the full-time data capture facility of mongod, although it may be
 in the future. For now you can capture it as follows:
 
     delay=1 # pick a number in seconds
-    iostat -k -t -x $delay >iostat.log &
+    iostat -k -t -x ${delay:?} >iostat.log &
 
 Then you can visualize it along with the ftdc data by adding
 "--itz ... iostat.log" to your command line, for example:
@@ -248,8 +248,8 @@ Similarly, under 3.0 you can collect iostat data alongside the
 serverStatus data:
 
     delay=1 # pick a number in seconds
-    mongo --eval "while(true) {print(JSON.stringify(db.serverStatus({tcmalloc:true}))); sleep(1000*$delay)}" >ss.log &
-    iostat -k -t -x $delay >iostat.log &
+    mongo --eval "while(true) {print(JSON.stringify(db.serverStatus({tcmalloc:true}))); sleep(1000*${delay:?})}" >ss.log &
+    iostat -k -t -x ${delay:?} >iostat.log &
 
 And then visualize both iostat.log and ss.log together:
 

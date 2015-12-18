@@ -72,8 +72,8 @@ follows. Adding descriptors for each new type is relatively easy.
 Here's a simple example to get started. Collect some data as follows:
 
     delay=1 # pick a number in seconds
-    mongo --eval "while(true) {print(JSON.stringify(db.serverStatus({tcmalloc:true}))); sleep(1000*$delay)}" >ss.log &
-    iostat -k -t -x $delay >iostat.log &
+    mongo --eval "while(true) {print(JSON.stringify(db.serverStatus({tcmalloc:true}))); sleep(1000*${delay:?})}" >ss.log &
+    iostat -k -t -x ${delay:?} >iostat.log &
 
 When you have collected as much data as desired, terminate the data collection processes, for example
 
@@ -110,7 +110,7 @@ The initial view will be restricted to the most important (level 1) statisics; y
   db.serverStatus() timeseries as follows, substituting an appropriate
   value for sampling interval $delay (in floating point seconds):
 
-        mongo --eval "while(true) {print(JSON.stringify(db.serverStatus({tcmalloc:1}))); sleep($delay*1000)}" >ss.log &
+        mongo --eval "while(true) {print(JSON.stringify(db.serverStatus({tcmalloc:1}))); sleep(${delay:?}*1000)}" >ss.log &
 
   Then visualize the output ss.log as by adding the following
   timeseries.py command line argument:
@@ -125,7 +125,7 @@ The initial view will be restricted to the most important (level 1) statisics; y
   rs.status() timeseries as follows, substituting an appropriate
   value for sampling interval $delay (in floating point seconds):
 
-        mongo --eval "while(true) {print(JSON.stringify(rs.status())); sleep($delay*1000)}" >rs.log &
+        mongo --eval "while(true) {print(JSON.stringify(rs.status())); sleep(${delay:?}*1000)}" >rs.log &
 
   Then visualize the output rs.log as by adding the following
   timeseries.py command line argument:
@@ -146,7 +146,7 @@ The initial view will be restricted to the most important (level 1) statisics; y
                 s = db.$c.stats();
                 s.time = new Date();
                 print(JSON.stringify(s));
-                sleep($delay*1000)
+                sleep(${delay:?}*1000)
             }
         " >cs.log &
 
@@ -164,7 +164,7 @@ The initial view will be restricted to the most important (level 1) statisics; y
   project as follows, substituting an appropriate value for sampling
   interval $delay (in floating point seconds):
 
-        python sysmon.py $delay >sysmon.log &
+        python sysmon.py ${delay:?} >sysmon.log &
 
   Then visualize the output sysmon.log as by adding the following
   timeseries.py command line argument:
@@ -181,7 +181,7 @@ The initial view will be restricted to the most important (level 1) statisics; y
   include timestamps with the -t option, and use the -k option to
   ensure that data rates are given in kB/s:
 
-        iostat -k -t -x $delay >iostat.log &
+        iostat -k -t -x ${delay:?} >iostat.log &
 
   Since iostat timestamps don't have a timezone, you will need to supply
   that when you visualize the data, for example using the following
@@ -199,7 +199,7 @@ The initial view will be restricted to the most important (level 1) statisics; y
   substituting an appropriate value for sampling interval $delay (in
   floating point seconds):
 
-        python gdbmon.py $(pidof mongod) $delay >gdbmon.log &
+        python gdbmon.py $(pidof mongod) ${delay:?} >gdbmon.log &
 
   Then visualize the results using a separate tool found in this
   project; for example:
