@@ -20,7 +20,7 @@ require_relative 'chat-rec.rb'
 require_relative 'support-issue-functions.rb'
 
 # SGH, flag to turn on local execution of bot.
-@test = true
+@test = false
 
 # @issuesQuery = {"jira.fields.project.key" => { "$in" => ["CS", "PARTNER", "SUPPORT", "MMSSUPPORT"] }, "jira.fields.issuetype.id" => {"$ne" => "23"} }
 @issuesQuery = {:$or =>
