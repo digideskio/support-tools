@@ -386,46 +386,52 @@ def doQueueRead(client)
           end
           #Remove any trailing nasties
           key = key.chomp().chomp(',').chomp('.')
-
-          who = array.shift
-          reviewers = []
-          array.each do |entry|
-            if entry.start_with? '@'
-              entry[1..-1].split(',').each do |more|
-                if more.start_with? '@'
-                  reviewers.push more[1..-1]
-                else
-                  reviewers.push more
+          
+          # Check if issue exists
+          foundCount = client.Issue.count(key)
+          if foundCount == 0
+            msg = "#{who} requested a review of an non-existent ticket, #{key}"
+          else  
+            who = array.shift
+            reviewers = []
+            array.each do |entry|
+              if entry.start_with? '@'
+                entry[1..-1].split(',').each do |more|
+                  if more.start_with? '@'
+                    reviewers.push more[1..-1]
+                  else
+                    reviewers.push more
+                  end
                 end
               end
             end
-          end
-          if @issues.has_key? key
-            @issues[key][:rv] = 'r'
-            @issues[key][:rvt] = Time.now
-            @issues[key][:lgtms] ||= []
-            @issues[key][:reviewers] = reviewers
-          else
-            data = {
-                :id => nil,
-                :p => 3,
-                :tc => Time.now,
-                :ts => Time.now,
-                :new => false,
-                :ctr => 0,
-                :ex => true,
-                :rv => 'r',
-                :rvt => Time.now,
-                :lgtms => [],
-                :reviewers => reviewers
-            }
-            @issues[key] = data
-          end
-          msg = "#{who} requested review of #{key}"
-          unless reviewers.empty?
-            msg += " from #{reviewers.join(', ')}"
-
-          end
+            if @issues.has_key? key
+              @issues[key][:rv] = 'r'
+              @issues[key][:rvt] = Time.now
+              @issues[key][:lgtms] ||= []
+              @issues[key][:reviewers] = reviewers
+            else
+              data = {
+                  :id => nil,
+                  :p => 3,
+                  :tc => Time.now,
+                  :ts => Time.now,
+                  :new => false,
+                  :ctr => 0,
+                  :ex => true,
+                  :rv => 'r',
+                  :rvt => Time.now,
+                  :lgtms => [],
+                  :reviewers => reviewers
+              }
+              @issues[key] = data
+            end
+            msg = "#{who} requested review of #{key}"
+            unless reviewers.empty?
+              msg += " from #{reviewers.join(', ')}"
+  
+            end
+            end
         when 'FIN'
           key = array.shift
           who = array.shift
@@ -673,7 +679,7 @@ def mainJiraThread(client)
     if (counter % @jiraInterval) == 0
       doQueueRead(client)
       checkForFinalized(client)
-      readAndUpdateJiraCS(client, @jiraquery)
+      readAndUpdateJiraCS(client, @issuesQuery)
     else
       doQueueRead(client)
     end

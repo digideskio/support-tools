@@ -17,17 +17,29 @@ require_relative 'xmpp4r-simple.rb'
 require_relative 'chat-functions.rb'
 require_relative 'init-functions.rb'
 require_relative 'chat-rec.rb'
+require_relative 'support-issue-functions.rb'
 
-mode = 'mongo'
+# SGH, flag to turn on local execution of bot.
+@test = true
 
-if mode == 'api'
-  require_relative 'jira-functions.rb'
-  @jiraquery = 'filter = "Commercial Support, Unassigned, Needs 10gen Response"'
-else
-  require_relative 'support-jira-functions.rb'
-  #@jiraquery = {"jira.fields.project.key" => { "$in" => ["CS", "PARTNER", "SUPPORT", "MMSSUPPORT"] }, "jira.fields.assignee" => nil, "jira.fields.status.id" => {"$nin" => [ "5", "6", "10007", "10006" ]}, "jira.fields.issuetype.id" => {"$ne" => "23"} }
-  @jiraquery = {"jira.fields.project.key" => { "$in" => ["CS", "PARTNER", "SUPPORT", "MMSSUPPORT"] }, "jira.fields.issuetype.id" => {"$ne" => "23"} }
-end
+# @issuesQuery = {"jira.fields.project.key" => { "$in" => ["CS", "PARTNER", "SUPPORT", "MMSSUPPORT"] }, "jira.fields.issuetype.id" => {"$ne" => "23"} }
+@issuesQuery = {:$or =>
+                    [
+                        {
+                            "jira.fields.project.key" => {"$in" => ["CS", "PARTNER", "SUPPORT", "MMSSUPPORT"] },
+                            "jira.fields.issuetype.id" => {"$ne" => "23"}
+                        },
+                        {
+                            "sfdc" => {"$exists" => true},
+                            :$or =>
+                                [
+                                    {"sfdc.Jira_Number__c" => {"$exists" => false}},
+                                    {"sfdc.Jira_Number__c" => ''}
+                                ]
+                        }
+                    ]
+               }
+
 
 #Global Top Level variables
 @jirausername = nil
@@ -36,11 +48,20 @@ end
 @jabberpassword = nil
 @jabberserver = 'talk.google.com'
 @partychatdomain = '10genchat.appspotchat.com'
+
 @roomName = { 'recip' => 'support-bot@10genchat.appspotchat.com', 'prot' => 'XMPP' }
 @ircRoomName = { 'recip' => "#10gen/supportbot", 'prot' => 'IRC' }
 @defaultXMPPRoom = 'support-bot@10genchat.appspotchat.com'
+
 @roomNameNewIssue = { 'recip' => 'support-triage@10genchat.appspotchat.com', 'prot' => 'XMPP' }
-@ircNameNewIssue = { 'recip' => '#10gen/commercial-support', 'prot' => 'IRC' }
+  
+if @test
+  # SGH; change ircNameNewIssue to temporary flow
+  @ircNameNewIssue = { 'recip' => '#10gen/commercial-support-test', 'prot' => 'IRC' }
+else
+  @ircNameNewIssue = { 'recip' => '#10gen/commercial-support', 'prot' => 'IRC' }
+end
+  
 @jiraserver = 'https://jira.mongodb.org/'
 @jiraInterval = 30
 
@@ -48,25 +69,33 @@ end
 @ircPort = 6697
 @ircuser = "trafficbot@10gen.com"
 @ircpassword = "ONYjemt5MqgcpL0EnaVh"
-@ircnick = "TrafficBot"
+if @test
+  # SGH added another flow just for interacting with local supportbot
+  @ircnick = "TrafficBot-test"
+else
+  @ircnick = "TrafficBot"
+end
 @ircchan = "#10gen/supportbot"
+
 #@supportIRCChan = "#10gen/commercial-support"
 @supportIRCChan = "#10gen/supportbot"
 
 @loggingQueue = Queue.new
-@dbURI = "mongodb://sdash-1.10gen.cc:27017,support-db-1.vpc3.10gen.cc:27017,support-db-2.vpc3.10gen.cc:27017/support?replicaSet=sdash"
+
+if @test
+  # SGH; changed dbURI to local server for testing
+  @dbURI = "mongodb://localhost:27017/support"
+else # use production
+  @dbURI = "mongodb://sdash-1.10gen.cc:27017,support-db-1.vpc3.10gen.cc:27017,support-db-2.vpc3.10gen.cc:27017/support?replicaSet=sdash"
+end
+
 @dbConnOpts = {:pool_size => 5}
 @silent = false
-if mode == 'api'
-  @ftsWFC = 'filter = "Commercial Support, \"Follow the Sun\" (FS label), Waiting for Customer"'
-  @ftsActive = 'filter = "Commercial Support, \"Follow the Sun\" (FS label), Needs 10gen Response"'
-  @wfcPerson = "(Owner = \"USERNAME\" or assignee = \"USERNAME\") and (project = \"Commercial Support\" OR project = \"Community Private\") and status = \"Waiting for Customer\""
-  @wfcGeneral = "(project = \"Commercial Support\" OR project = \"Community Private\") and status = \"Waiting for Customer\""
-else
-  @ftsActive = { "jira.fields.labels" => "fs", "jira.fields.status.id" => {"$nin" => [ "5", "6", "10007", "10006" ]} }
-  @ftsWFC = { "jira.fields.labels" => "fs", "jira.fields.status.id" => {"$in" => [ "10007", "10006" ]} }
-  @wfcGeneral = { "jira.fields.project.key" => { "$in" => ["CS", "PARTNER", "SUPPORT", "MMSSUPPORT"] }, "jira.fields.status.id" => "10006" }
-end
+
+@ftsActive = { "jira.fields.labels" => "fs", "jira.fields.status.id" => {"$nin" => [ "5", "6", "10007", "10006" ]} }
+@ftsWFC = { "jira.fields.labels" => "fs", "jira.fields.status.id" => {"$in" => [ "10007", "10006" ]} }
+@wfcGeneral = { "jira.fields.project.key" => { "$in" => ["CS", "PARTNER", "SUPPORT", "MMSSUPPORT"] }, "jira.fields.status.id" => "10006" }
+
 @stateFile = 'trafficbot.sav'
 @soundOnlyMode = true
 @soundOn = true
@@ -75,7 +104,7 @@ end
 
 @logLevel = 0
 
-readSteeringFile(ARGV[1])
+readSteeringFile(ARGV[0])
 
 #Setup Jira
 options = {
@@ -104,13 +133,7 @@ options = {
 
 #Function Main
 #Start a Basic Jira connection
-
-if mode == 'api'
-  client = JIRA::Client.new(options)
-  #Initialize our view of the queue, after the chat starts given a JIRA read can take time.
-else
-  client = Mongo::Client.new(@dbURI,@dbConnOpts)
-end
+client = Mongo::Client.new(@dbURI,@dbConnOpts)
 
 #Fork Threads
 if @soundOnlyMode == false
