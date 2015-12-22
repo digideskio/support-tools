@@ -247,7 +247,7 @@ function zip-source {
     out=../timeseries.py
     zip=/tmp/temp.zip
     rm -f $zip
-    (cd $in; rm *.pyc; zip $zip *)
+    (cd $in; rm -f *.pyc *.log; zip $zip *)
     (
         echo "#!/usr/bin/env python";
         echo "# following is a zip archive generated from $in"
