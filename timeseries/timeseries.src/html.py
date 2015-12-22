@@ -154,9 +154,12 @@ def _get_graphs(ses):
     if nticks<1: nticks = 1
     tickdelta = opt.tspan / nticks
     for r in ranges:
-        if tickdelta<r:
+        if tickdelta < r:
             tickdelta = r
             break
+    # long duration (multiple days); make tickedelta an exact number of days
+    if tickdelta != r:
+        tickdelta = math.ceil(tickdelta / (24*3600)) * (24*3600)
     slop = 0.1 # gives us ticks near beginning or end if those aren't perfectly second-aligned
     tickmin = math.ceil((opt.tmin-slop)/tickdelta) * tickdelta
     opt.ticks = []
