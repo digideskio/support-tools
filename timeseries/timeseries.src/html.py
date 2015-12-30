@@ -226,7 +226,7 @@ def container(ses):
         'rows': '90%, 0%, 10%',
         'border': 0,
         'onload': 'load_content()',
-        'onunload': 'do_unload()'
+        'onunload': "do_unload('frameset')"
     })
     ses.eltend('frame', {'name': 'content', 'frameborder': 0})
     ses.eltend('frame', {'name': 'content', 'frameborder': 0})
@@ -270,7 +270,7 @@ def page(ses):
     ses.elt('body', {
         'onkeypress': 'key()',
         'onload': 'loaded_content()',
-        'onunload': 'do_unload()'
+        #'onunload': "do_unload('body')",
     })
     
     # no data - finish with empty page and return

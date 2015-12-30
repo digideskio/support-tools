@@ -177,14 +177,15 @@ class Handler(BaseHTTPServer.BaseHTTPRequestHandler):
             html.page(ses)
 
         # a window closed
-        elif path.endswith('/close'):
-            path = path.rsplit('/', 1)[0]
-            util.msg('closing', path)
-            if path in Ses.sessions:
-                del Ses.sessions[path]
-            if not Ses.sessions and Handler.exit_on_close:
-                util.msg('all sessions closed, exiting')
-                os._exit(0)
+        elif '/close/' in path:
+            if Handler.exit_on_close:
+                path, _, what = path.rsplit('/', 2)
+                util.msg('closing', path, '('+what+')')
+                if path in Ses.sessions:
+                    del Ses.sessions[path]
+                if not Ses.sessions:
+                    util.msg('all sessions closed, exiting')
+                    os._exit(0)
 
         # otherwise not found
         else:

@@ -262,10 +262,11 @@ function do_post() {
     console.log('not posting')
 }
 
-function do_unload() {
-    url = top.location + '/close'
+function do_unload(what) {
+    alert(what)
+    url = top.location + '/close/' + what
     req = new XMLHttpRequest()
-    req.open('GET', url)
+    req.open('GET', url, false) // synchronous
     req.setRequestHeader("Content-type", "application/json");
     req.send('')
 }
