@@ -303,7 +303,9 @@ def process(series, fn, opt):
                     for i, (t, d) in enumerate(zip(ts, chunk[data_key])):
                         t = t / s.time_scale
                         if t>=opt.after and t<=opt.before:
-                            get_field = lambda key: chunk[key][i]
+                            def get_field(key):
+                                try: return chunk[key][i]
+                                except IndexError: return None
                             if d != None:
                                 s.data_point(t, d, get_field, None, opt)
 
@@ -330,8 +332,7 @@ def process(series, fn, opt):
             break
 
         except Exception as e:
-            if opt.dbg:
-                traceback.print_exc()
+            traceback.print_exc()
             raise Exception('error while processing ' + fn + ': ' + str(e))
 
     # compute and print unrecognized metrics
