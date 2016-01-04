@@ -182,7 +182,7 @@ class Handler(BaseHTTPServer.BaseHTTPRequestHandler):
             util.msg('closing', path)
             if path in Ses.sessions:
                 del Ses.sessions[path]
-            if not Ses.sessions:
+            if not Ses.sessions and Handler.exit_on_close:
                 util.msg('all sessions closed, exiting')
                 os._exit(0)
 
@@ -265,6 +265,7 @@ def main(opt):
         httpd = None
         for opt.port in range(opt.port, opt.port+100):
             try:
+                Handler.exit_on_close = not opt.server
                 httpd = BaseHTTPServer.HTTPServer(('', opt.port), Handler)
                 break
             except Exception as e:
