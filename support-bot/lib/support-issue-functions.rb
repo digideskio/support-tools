@@ -652,8 +652,7 @@ def checkForFinalized(db)
             key = ir["sfdc"]["CaseNumber"]
             status = ir["sfdc"]["Status"]
             lastComment = ir["sfdc"]["comments"][-1]
-            #TODO: I'm not sure if the last comment is the one we ought to be looking for
-            if lastComment["Is_Published__c"]
+            if lastComment["Is_Published__c"] && lastComment["isPublicComment__c"]
               logOut "auto finalizing #{issue["key"]}", 1
               @chatRequests.push("#{@defaultXMPPRoom} XMPP FIN #{key} Auto:pushed")
               #@chatRequests.push("#{@supportIRCChan} IRC FIN #{issue["key"]} Auto:pushed")
