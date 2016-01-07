@@ -64,19 +64,47 @@ def respondToChat(msg, username = nil, protocol = 'XMPP', room = "nil")
       when '#!LISTIGNORED'
         @chatRequests.push("#{@defaultXMPPRoom} #{protocol} LIST IGNORED")
       when '#!REVIEW'
-        @chatRequests.push("#{@defaultXMPPRoom} #{protocol} REVIEW #{array[0].upcase} #{username} #{array[1..-1].join(' ')}")
+        if nil != array && 0 < array.length
+          @chatRequests.push("#{@defaultXMPPRoom} #{protocol} REVIEW #{array[0].upcase} #{username} #{array[1..-1].join(' ')}")
+         else
+           return "REVIEW which issue?"
+        end
       when '#!FIN'
-        @chatRequests.push("#{@defaultXMPPRoom} #{protocol} FIN #{array[0].upcase} #{username} #{array[1..-1].join(' ')}")
+        if nil != array && 0 < array.length
+          @chatRequests.push("#{@defaultXMPPRoom} #{protocol} FIN #{array[0].upcase} #{username} #{array[1..-1].join(' ')}")
+        else
+          return "#!FIN which issue?"
+        end
       when '#!LGTM'
-        @chatRequests.push("#{@defaultXMPPRoom} #{protocol} LGTM #{array[0].upcase} #{username} #{array[1..-1].join(' ')}")
+        if nil != array && 0 < array.length
+          @chatRequests.push("#{@defaultXMPPRoom} #{protocol} LGTM #{array[0].upcase} #{username} #{array[1..-1].join(' ')}")
+        else
+          return "#!LGTM which issue?"
+        end
       when '#!LOOKING'
-        @chatRequests.push("#{@defaultXMPPRoom} #{protocol} LOOKING #{array[0].upcase} #{username} #{array[1..-1].join(' ')}")
+        if nil != array && 0 < array.length
+          @chatRequests.push("#{@defaultXMPPRoom} #{protocol} LOOKING #{array[0].upcase} #{username} #{array[1..-1].join(' ')}")
+        else
+          return "#!LOOKING which issue?"
+        end
       when '#!REFRESH'
-        @chatRequests.push("#{@defaultXMPPRoom} #{protocol} REFRESH #{array[0].upcase} #{username} #{array[1..-1].join(' ')}")
+        if nil != array && 0 < array.length
+          @chatRequests.push("#{@defaultXMPPRoom} #{protocol} REFRESH #{array[0].upcase} #{username} #{array[1..-1].join(' ')}")
+        else
+          return "#!REFRESH which issue?"
+        end
       when '#!NOTLOOKING','#!UNLOOKING','#!NOT-LOOKING'
-        @chatRequests.push("#{@defaultXMPPRoom} #{protocol} NOTLOOKING #{array[0].upcase} #{username} #{array[1..-1].join(' ')}")
+        if nil != array && 0 < array.length
+          @chatRequests.push("#{@defaultXMPPRoom} #{protocol} NOTLOOKING #{array[0].upcase} #{username} #{array[1..-1].join(' ')}")
+        else
+          return "#!NOTLOOKING which issue?"
+        end
       when '#!NEEDSWORK','#!NW'
-        @chatRequests.push("#{@defaultXMPPRoom} #{protocol} NEEDSWORK #{array[0].upcase} #{username} #{array[1..-1].join(' ')}")
+        if nil != array && 0 < array.length
+          @chatRequests.push("#{@defaultXMPPRoom} #{protocol} NEEDSWORK #{array[0].upcase} #{username} #{array[1..-1].join(' ')}")
+        else
+          return "#!NEEDSWORK which issue?"
+        end
       when '#!PLAYTESTSOUND'
         @chatRequests.push('nil SOUNDCHECK')
       when '#!FTS'

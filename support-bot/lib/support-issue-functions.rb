@@ -1,6 +1,10 @@
 require 'xmpp4r'
 require 'xmpp4r/xhtml'
 
+@JiraType = "jira"
+@SfdcType = "sfdc"
+@BothType = "both"
+
 #Function escapeKey
 # Used to escape the key so that the partyChat bot wont send the URL message
 def escapeKey(key)
@@ -408,26 +412,32 @@ def doQueueRead(db)
           #Remove any trailing nasties
           key = key.chomp().chomp(',').chomp('.')
 
-          #Setup the reviewers queue
+          #Check if issue exists before adding it to reviews list
           who = array.shift
-          reviewers = []
-          array.each do |entry|
-            if entry.start_with? '@'
-              entry[1..-1].split(',').each do |more|
-                if more.start_with? '@'
-                  reviewers.push more[1..-1]
-                else
-                  reviewers.push more
+          if !checkKey(db, @BothType, key)
+            msg = "#{who} requested review of #{key} that does not exist"
+          else
+            #Setup the reviewers queue
+            reviewers = []
+            array.each do |entry|
+              if entry.start_with? '@'
+                entry[1..-1].split(',').each do |more|
+                  if more.start_with? '@'
+                    reviewers.push more[1..-1]
+                  else
+                    reviewers.push more
+                  end
                 end
               end
             end
+            #Push into DB
+            db[:reviews].update_one({:key=> key},{:key=> key, :done => false, :requested_by =>who, :reviewers=>reviewers, :requested_at => Time.now},{:upsert => true} )
+            msg = "#{who} requested review of #{key}"
+            unless reviewers.empty?
+              msg += " from #{reviewers.join(', ')}"
+            end
           end
-          #Push into DB
-          db[:reviews].update_one({:key=> key},{:key=> key, :done => false, :requested_by =>who, :reviewers=>reviewers, :requested_at => Time.now},{:upsert => true} )
-          msg = "#{who} requested review of #{key}"
-          unless reviewers.empty?
-            msg += " from #{reviewers.join(', ')}"
-          end
+
           #Broadcast to IRC as well as XMPP
           @ipcqueue.push({'msg'=>msg, 'dst' => @ircRoomName}) if msg != nil
         when 'FIN'
@@ -574,10 +584,14 @@ def doQueueRead(db)
               logOut "backtrace: #{e.backtrace}"
               response = "Error in processing WFC #{e}"
             end
-            @ipcqueue.push({'msg'=>response, 'dst' => dst}) if response != nil
+            if nil != response
+              @ipcqueue.push({'msg'=>response, 'dst' => dst})
+            end
           }
       end
-      @ipcqueue.push({'msg'=>msg, 'dst' => dst}) if msg != nil
+      if nil != msg
+        @ipcqueue.push({'msg'=>msg, 'dst' => dst})
+      end
     end
   rescue => e
     logOut "Error in processing thread: #{e}"
@@ -585,27 +599,89 @@ def doQueueRead(db)
   end
 end
 
+#Function: checkKey
+# validates that issue exists before adding to reviews
+def checkKey(db, type, key)
+  cnt = 0
+  rtn = true
+  if key == nil
+    logOut "nil key passed to checkKey"
+    rtn = false
+  end
+  case type
+    when nil
+      logOut "nil type passed to checkKey"
+      rtn = false
+    when @JiraType
+      cnt = db[:issues].find({"jira.key"=>key}).count
+    when @SfdcType
+      cnt = db[:issues].find({"sfdc.CaseNumber"=>key}).count
+    when @BothType
+      cnt = db[:issues].find({:$or => [{"jira.key"=>key},{"sfdc.CaseNumber"=>key}]}).count
+    else
+      logOut "Invalid check type passed, #{type}, to checkKey"
+      rtn = false
+  end
+  if rtn && 0 == cnt
+    logOut "(checkKey) No issues found of type #{type} and key #{key}"
+    rtn = false
+  end
+  return rtn
+end
+
 def checkForFinalized(db)
   db[:reviews].find({"done" => { "$ne" => true}, "marked_fin" => { "$ne" => true}}).each do |issue|
+    key = ''
     begin
       unless @autoCompleteFails.include? issue["key"]
-        ir = db[:issues].find('jira.key'=>issue["key"]).limit(1).first
-        status = ir["jira"]["fields"]["status"]["id"]
-        lastComment = ir["jira"]["fields"]["comment"]['comments'][-1]
-        # Confirm that there is a comment on the issue
-        unless lastComment == nil
-          #States: 1=open, 3=In Progress, 4=Reopened
-          if (!lastComment.has_key? "visibility") && (!['1','3','4'].include? status)
-            logOut "auto finalizing #{issue["key"]}", 1
-            @chatRequests.push("#{@defaultXMPPRoom} XMPP FIN #{issue["key"]} Auto:pushed")
-            #@chatRequests.push("#{@supportIRCChan} IRC FIN #{issue["key"]} Auto:pushed")
-            db[:reviews].update_one({"key" => issue["key"]}, {"$set" => {"marked_fin" => true}})
+        ir = db[:issues].find(:$or =>
+                                [
+                                    {
+                                        'jira.key'=>issue["key"]
+                                    },
+                                    {
+                                        'sfdc.CaseNumber'=>issue["key"]
+                                    }
+                                ]
+                              ).limit(1).first
+        # Check if the issue was actually in DB
+        if ir != nil # if the issue exists in our database
+          status = ''
+          lastComment = ''
+          if ir.has_key?("sfdc")
+            key = ir["sfdc"]["CaseNumber"]
+            status = ir["sfdc"]["Status"]
+            lastComment = ir["sfdc"]["comments"][-1]
+            if lastComment["Is_Published__c"] && lastComment["isPublicComment__c"]
+              logOut "auto finalizing #{issue["key"]}", 1
+              @chatRequests.push("#{@defaultXMPPRoom} XMPP FIN #{key} Auto:pushed")
+              #@chatRequests.push("#{@supportIRCChan} IRC FIN #{issue["key"]} Auto:pushed")
+              db[:reviews].update_one({"key" => key}, {"$set" => {"marked_fin" => true}})
+            end
+          else
+            key = ir["jira"]["key"]
+            status = ir["jira"]["fields"]["status"]["id"]
+            lastComment = ir["jira"]["fields"]["comment"]['comments'][-1]
+            # Confirm that there is a comment on the issue
+            if lastComment != nil
+              #States: 1=open, 3=In Progress, 4=Reopened
+              if (!lastComment.has_key? "visibility") && (!['1','3','4'].include? status)
+                logOut "auto finalizing #{issue["key"]}", 1
+                @chatRequests.push("#{@defaultXMPPRoom} XMPP FIN #{key} Auto:pushed")
+                #@chatRequests.push("#{@supportIRCChan} IRC FIN #{issue["key"]} Auto:pushed")
+                db[:reviews].update_one({"key" => key}, {"$set" => {"marked_fin" => true}})
+              end
+            else
+              logOut "#{key} does not contain a comment, but is to be finalized"
+            end
           end
+        else
+          logOut "#{key} does not exist!"
         end
       end
     rescue => e
-      @autoCompleteFails.push issue["key"]
-      logOut "Error in processing autocomplete #{issue["key"]} - #{e}"
+      @autoCompleteFails.push key
+      logOut "Error in processing autocomplete #{key} - #{e}"
       logOut "Backtrace: #{e.backtrace}"
       return
     end
@@ -614,28 +690,45 @@ end
 
 #Checks to see if we have had new issues raised
 def checkNewIssues(db)
-  time = Time.now
-  finalQuery = @jiraquery
-  finalQuery["_id"] = {"$gte"=> @lastChecked }
-  logOut "Checking for new issues $gte #{@lastChecked}", 1
-  @lastChecked = BSON::ObjectId.from_time(Time.now-1)
+  finalQuery = @issuesQuery.clone() # Can't change element in global Hash, only can add; so clone a copy
+  finalQuery[:_id] = {"$gte"=> @lastChecked }
+
   #Compare the current List of issues to the old, update if needed
   db[:issues].find(finalQuery).each do |issue|
+    priority = ''
+    key = ''
+    reporter = ''
+    project = ''
+    if issue.has_key?("sfdc")
+      priority = issue["sfdc"]["Severity__c"]
+      key = issue["sfdc"]["CaseNumber"]
+      reporter = issue["sfdc"]["CreatedByName"]
+      project = issue["sfdc"]["ProjectName"]
+      summary = issue["sfdc"]["Subject"]
+    else
+      priority = issue["jira"]["fields"]['priority']['name'].split()[0]
+      key = issue["jira"]["key"]
+      reporter = issue["jira"]["fields"]['reporter']['displayName']
+      if issue["jira"]["fields"]['customfield_10030']
+        project = issue["jira"]["fields"]['customfield_10030']['name']
+      end
+      summary = issue["jira"]['fields']['summary']
+    end
     if @soundOn
       begin
-        soundEffect(issue["jira"]["key"], issue["jira"]["fields"]['priority']['name'].split()[0])
+        soundEffect(key, priority)
       rescue => e
         logOut "Error playing soundEffect: #{e}", 1
       end
     end
-    msg = "New #{issue["jira"]["fields"]['priority']['name'].split()[0]} - #{issue["jira"]["fields"]['reporter']['displayName']}"
-    if issue["jira"]["fields"]['customfield_10030']
-      msg += " from #{issue["jira"]["fields"]['customfield_10030']['name']}"
-    end
-    msg += " created #{issue["jira"]["key"]}: #{issue["jira"]['fields']['summary']}"
+    msg = "New #{priority} - #{reporter} from #{project}"
+    msg += " created #{key}: #{summary}"
     @ipcqueue.push({'msg'=>msg, 'dst' => @roomNameNewIssue}) if msg != nil
     @ipcqueue.push({'msg'=>msg, 'dst' => @ircNameNewIssue}) if msg != nil
   end
+  # setup for the next search
+  @lastChecked = BSON::ObjectId.from_time(Time.now-1)
+
 end
 
 #Checks for and alerts when there are new proactive tickets
@@ -693,7 +786,6 @@ def mainJiraThread(db)
       doQueueRead(db)
       #Check to see if anyone has pushed comments out
       checkForFinalized(db)
-      #readAndUpdateJiraCS(db, @jiraquery)
       #Check for new issues
       checkNewIssues(db)
       #Check for new proactive issues
