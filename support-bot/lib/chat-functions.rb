@@ -66,8 +66,8 @@ def respondToChat(msg, username = nil, protocol = 'XMPP', room = "nil")
       when '#!REVIEW'
         if nil != array && 0 < array.length
           @chatRequests.push("#{@defaultXMPPRoom} #{protocol} REVIEW #{array[0].upcase} #{username} #{array[1..-1].join(' ')}")
-        # else
-        #   return "REVIEW which issue?"
+         else
+           return "REVIEW which issue?"
         end
       when '#!FIN'
         if nil != array && 0 < array.length
