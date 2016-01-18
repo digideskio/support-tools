@@ -641,12 +641,12 @@ def print_with_meta(fn, at):
     dbpath = os.path.dirname(fn)
     meta = None
     exc = None
-    while dbpath:
+    while True:
         try:
             meta = open(os.path.join(dbpath, 'WiredTiger.turtle')).read()
             dbg('meta', meta)
             if os.path.basename(fn) != 'WiredTiger.wt':
-                f = fn[len(dbpath)+1:]
+                f = fn[len(dbpath)+1 if dbpath else 0:]
                 meta = find_key(dbpath, 'WiredTiger.wt', meta, 'file:%s\x00' % f)
             dbg('meta', meta)
             break
