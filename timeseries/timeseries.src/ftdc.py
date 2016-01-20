@@ -340,7 +340,7 @@ def read(ses, fn, opt, progress=True):
     overview_bytes = int(max(total_bytes / overview, 1))
 
     # propagate sample numbers if we can
-    sample_number = 0 if filtered_chunks[0]==chunks[0] else None
+    sample_number = 0 if filtered_chunks and chunks and filtered_chunks[0]==chunks[0] else None
 
     # we already filtered filtered_chunk_docs by type and time range
     for chunk in filtered_chunks:

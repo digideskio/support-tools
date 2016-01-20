@@ -898,8 +898,15 @@ parse_mongod = process.parse_re(
     regexp = process.seq(
         '^(?P<time>....-..-..T..:..:..\....(?:[+-]....|Z)) ',
         process.alt(
-            '.* (?P<close>end connection)',
-            '.* connection (?P<open>accepted from)',
+            process.seq(
+                process.alt(
+                    '.* (?P<close>end connection)',
+                    '.* connection (?P<open>accepted from)',
+                ),
+                '.*\((?P<connections>[0-9]+) connections now open\)',
+            ),
+            '.*(?P<send_error>SEND_ERROR)',
+            '.*(?P<recv_error>RECV_ERROR)',
             #'.* (?:query:|command:|getmore) .* (?P<ms>[0-9]+)ms$',
             process.seq(
                 r'I (?P<cat>[A-Z]+) +\[conn[0-9]+\] ',
@@ -923,10 +930,11 @@ def mongod(**kwargs):
     kwargs['file_type'] = 'text'
     kwargs['parser'] = parse_mongod
     kwargs['time_key'] = 'time'
+    kwargs['name'] = 'mongod: ' + kwargs['name']
     descriptor(**kwargs)
 
 mongod(
-    name = 'mongod connections opened per {bucket_size}s',
+    name = 'connections opened per {bucket_size}s',
     data_key = 'open',
     bucket_op = 'count',
     bucket_size = 1,    # size of buckets in seconds
@@ -934,8 +942,32 @@ mongod(
 )
 
 mongod(
-    name = 'mongod connections closed per {bucket_size}s',
+    name = 'connections closed per {bucket_size}s',
     data_key = 'close',
+    bucket_op = 'count',
+    bucket_size = 1,    # size of buckets in seconds
+    level = 1
+)
+
+mongod(
+    name = 'current connections',
+    data_key = 'connections',
+    #bucket_op = 'max',
+    #bucket_size = 1,    # size of buckets in seconds
+    level = 1
+)
+
+mongod(
+    name = 'send errors per {bucket_size}s',
+    data_key = 'send_error',
+    bucket_op = 'count',
+    bucket_size = 1,    # size of buckets in seconds
+    level = 1
+)
+
+mongod(
+    name = 'recv errors per {bucket_size}s',
+    data_key = 'recv_error',
     bucket_op = 'count',
     bucket_size = 1,    # size of buckets in seconds
     level = 1
@@ -944,7 +976,7 @@ mongod(
 def mongod_split(split_key, split_name):
 
     mongod(
-        name = 'mongod: %s: max logged op (ms) per {bucket_size}s ' % split_name,
+        name = '%s: max logged op (ms) per {bucket_size}s ' % split_name,
         data_key = 'ms',
         split_key = split_key,
         bucket_op = 'max',
@@ -954,7 +986,7 @@ def mongod_split(split_key, split_name):
     )
     
     mongod(
-        name = 'mongod: %s: ops longer than {count_min}ms per {bucket_size}s ' % split_name,
+        name = '%s: ops longer than {count_min}ms per {bucket_size}s ' % split_name,
         data_key = 'ms',
         split_key = split_key,
         bucket_op = 'count',
@@ -977,7 +1009,7 @@ mongod_split(('db','cmd'), 'ns={db}, cmd={cmd}')
 
 # not working right it seems?
 #mongod(
-#    name = 'mongod queued queries longer than {queue_min_ms}ms',
+#    name = 'queued queries longer than {queue_min_ms}ms',
 #    re = '.* query: .* ([0-9]+)ms$',
 #    queue = True,
 #    queue_min_ms = 0,  # minimum op duration to count for queue',
