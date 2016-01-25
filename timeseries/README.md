@@ -1,610 +1,294 @@
-## Timeseries Visualization Tools
+## Quickstart guide for using timeseries tool with ftdc
 
-This project provides some tooling around visualizing timeseries data
-from MongoDB installations. The goal is to visualize a large number of
-different metrics from all layers of the system using "sparkline"
-graphs in a way that allows easy and accurate correlation of behaviors
-at all layers of the system.
+### Other resources
 
-For example, in the following visualization we combine information
-from the opcounters in serverStatus (first row), long queries logged
-by mongod (second row), CPU utilization information (third and fourth
-rows), and WT checkpoint information (last row):
+* [Metrics guide](metrics.md) describes the metrics that are
+  visualized using this tool.
 
-![ex-timeseries](ex-timeseries.png)
+* [Timeseries Visualization Tools](tools.md) describes additional
+  tools, for example tools related to stack trace visualization.
 
-From this we conclude that the performance problem involving "pauses",
-for example at times A and B, is associated with high system CPU and
-context switch rates, and seems more likely to occur following a WT
-checkpoint.
+### Prerequisites
 
-In addition a couple of tools are provided for collecting timeseries
-data that supplement the wide range of tools already available for
-that purpose.
+* The timeseries tool requires Python 2.7.
 
-The visualization tooling is built around a generic framework that
-parses four different classes of files, and currently has descriptors
-for parsing a number of specific types of each class, as
-follows. Adding descriptors for each new type is relatively easy.
+* You can install the prequisite packages using the following command:
 
-* json files
+        sudo pip install argparse python-dateutil pytz
 
-    * serverStatus() time series, providing generic system metrics as
-      well as metrics specific to each storage engine (such as WT)
+* For now, Google Chrome is required.
 
-    * collection.stats() time series, providing metrics for a specific
-      namespace (including WT-specific metrics).
+* Currently OSX, Linux, and Windows are supported.
 
-    * oplog, providing visualization of activity in each namespace over
-      time.
+### Collecting and visualizing timeseries data for mongod 3.0
 
-* csv files
+The remainder of this document assumes the new full-time data capture
+facility in mongod 3.2, which automatically collects serverStatus and
+other metrics at one-second intervals. This section describes how to
+collect and visualize similar data under 3.0. Skip this section if you
+have a diagnostic.data directory from 3.2.
 
-    * basic generic visualization of any timeseries csv file
-      with a header line
+You can collect data similar to the 3.2 ftdc data under 3.0 by using
+an external process:
 
-    * sysmon (iostat-like program included as part of
-      this project that collects cpu and disk utilization data but with
-      higher time resolution, more data, more readily parsed output than
-      iostat).
+    delay=1 # pick a number in seconds
+    mongo --eval "while(true) {print(JSON.stringify(db.serverStatus({tcmalloc:true}))); sleep(1000*${delay:?})}" >ss.log &
 
-* text files parsed with regexps
+You can then use all of the commmands and interactive capabilities
+described in the remainder of the document, substituting "ss.log"
+for "diagnostic.data" on the command line, for example:
 
-    * iostat output, including cpu, disk utilization
+    python timeseries.py ss.log --browser 
 
-    * wt stats log, which provides an alternative means of obtaining
-      the same data as the WT-specific section of serverStatus()
+### Automatic interactive browser/server mode
 
-    * mongod log files
+If you have a copy of a diagnostic.data directory from a mongod, for
+example from a customer or a test system, the simplest way to view it
+is to use browser/server mode, specifying the diagnostic.data
+directory name on the command line, for example:
 
-    * can be easily configured to parse any file with timestamps and
-      data, such as customer log files, on an ad-hoc basis.
+    python timeseries.py diagnostic.data --browser 
 
-* periodic stack trace samples collected by gdbmon or quickmon (both
-  provided as part of this project). Visualizes call tree with time
-  series data showing number of threads at each call site over time to
-  allow correl ating program activity with other system, mongod, and
-  app behavior.
+This starts the timeseries tool in server mode, visualizing ftdc data
+in the diagnostic.data directory, and then automatically pops open a
+browser window that connects to the timeseries server. Interactive
+browser/server mode supports additional interactive features such as
+zooming and opening new views that are not supported if you generate
+and view a static html file.
+
+### Manual interactive browser/server mode specifying view at the server
+
+The preceding example is essentially equivalent to the following two
+steps, where in the second step you manually open a browser window
+rather than asking the timeseries tool to do it for you.
+
+    python timeseries.py --server $dbpath/diagnostic.data
+    open http://localhost:8888
+
+You may find this useful under some circumstances, depending on your
+workflow. For example, you might start the server on a remote machine
+where you are running a test, and connect to it from a browser on your
+local machine; in this case you would substitute the remote machine
+name for "localhost".
+
+### Manual interactive browser/server mode specifying view at the client
+
+As an alternative to the above you can use the following:
+
+    python timeseries.py --server
+    python timeseries.py $dbpath/diagnostic.data --connect http://localhost:8888
+
+The first step starts a server, but does not specify the view. In the
+second step you specify the view and the server that you wish to
+connect to, and the timeseries tool pops open a browser window giving
+it a request based on your specified view that will connect to the
+specified server and retrieve that view. Using this approach you can
+open multiple views, for example on different data sources or with
+different command-line parameters.
+
+### Offline mode
+
+In offline mode you generate an html file and then open a browser to view it:
+
+    python timeseries.py $dbpath/diagnostic.data >timeseries.html
+    open timeseries.html
+
+This mode supports a limited subset of the interactive features
+available in browser/server mode.
+
+### Interactive features in offline and browser/server modes
+
+Cursors are useful to look for correlated events, and to label them for discussion:
+
+* click on a graph to put down a cursor line
+* click on a blue disk to delete a cursor
+
+You can rearrange the rows to bring the relevant graphs to the top for
+better viewing:
+
+* click on a name to select a row
+* ^N select the next row 
+* ^P select the previous row 
+* n move the selected row down 
+* p move the selected row up 
+* N move the selected row to the bottom 
+* P move the selected row to the top 
+
+The default detail level is the minimum, 1; detail level 4 contains
+most useful information.
+
+* 1-9 to change detail level
+
+### Interactive features in browser/server mode only
+
+To zoom in to a specific time range, place one or more cursors, then
+hit z; you will be prompted for which cursor range to zoom into.
+
+* z to zoom in
+* Z to zoom out
+
+You can obtain detailed info, including either the values as
+displayed, or the raw underlying metrics, at a seleted time. Typically
+the values as displayed will be more meaningful; for example,
+cumulative counts in the raw underlying metrics are differentiated to
+obtain rates for the values as displayed. You can also obtain
+metadata, such as version and host information, which is also relative
+to a specific time.
+
+* ? to get values as displayed
+* ! to get raw underlying metrics
+* @ to get metadata
+
+Some groups of related statistics, such as operations rates, are
+normally color-coded and grouped (merged) together in a single
+graph. You can override this behavior.
+
+* m to suppress merging related statistics into a single graph
+* M to enable merging related statistics into a single graph (this is the default)
+
+You can open new views, either in the current window or a new window.
+
+* o to open new view in current window
+* O to open new view in new window
+
+The o and O commands open a dialog where you specify the new view as
+you would on the command line, including [command-line view
+options](timeseries.md) such as graph width, graph height, show
+empty and uniformly 0 graphs, don't show multiple metrics on a single
+graph, and so on.  Multiple views maintain their own state, so for
+example you can have different views on the same data zoomed in to
+different time ranges.
+
+You can view live data by pointing the timeseries tool at the
+diagnostic.data directory of a running mongod instance. Caching and
+lazy decompression will be used to make this efficient. You can
+manually referesh the view by hitting RETURN.
+
+* RETURN to refresh the view with current values of live data
+
+You can also enable automatic periodic refresh when viewing live
+data. You will be prompted for a refresh interval in seconds. The
+default value of 10 seconds corresponds the default mongod period for
+saving ftdc data. Specify 0 to disable live mode.
+
+* l to enable periodic refresh of live data
+
+In order to display large amounts of data with reasonable performance,
+the overview tool will automatically lower the effective sampling rate
+for larger data sets. This will do a good job of displaying average
+values at a lower resolution, but as a result can miss fast events. In
+order to see all data you can zoom in using "z" as described above, or
+you can use the "v" command to select the number of overview samples
+to show; specify "all" show all samples.
+
+* v to select the number of samples to display
+
+### Opening new views
+
+As described above, there are two ways you can open new views:
+
+* Use the timeseries tool and specify the server to connect to with
+  the --connect command-line option. The view to open is specified by
+  the other command-line options. This approach can be used to open
+  new views under script control.
+
+* Use the o and O interactive commands in an existing view.
+
+### Viewing live data
+
+You can specify a $dbpath/diagnostic.data for a live mongod instance
+to see updated statistics in semi-real time. The timeseries tool uses
+a combination of caching and lazy decompression of the ftdc data to
+make this reasonably efficient. You can do this by manually refreshing
+the view using the browser refresh button, or you can enable live mode
+as described above to periodically refresh the view.
+
+### Viewing mongod log data
+
+You can view mongod log data along with other sources of timeseries
+data by adding "mongodb.log" to the command line, for example:
+
+    python timeseries.py mongodb.log diagnostic.data --browser 
+
+This will display information about the following:
+
+* Number of logged slow operations per second
+
+* Length of longest slow operation, in ms, during each second
+
+This information is displayed both for all operations in total, and
+broken out by namespace and operation.
 
 
-## Using the Timeseries Visualization Tool
+### About timezones
 
-Here's a simple example to get started. Collect some data as follows:
+Most files, including mongod logs and ftdc data, have timezone-aware
+timestamps. However some files, such as iostat logs, have
+timezone-naive timestamps that do not have timezone information, but
+rather assume an unspecified local time. When using those files it
+will be necessary to specify the timezone to assume for timezone-naive
+timestamps using the command line argument --itz TZ, where TZ is a
+floating point number representing the offset in hours from UTC. For
+example, EDT (US Eastern Daylight Time) is specified as --itz -4.
+
+Displayed timestamps are always UTC.
+
+
+### Collecting and viewing system information (iostat)
+
+It is sometimes useful to have system information such as disk and CPU
+usage, along with mongod internal data. This is not currently captured
+by the full-time data capture facility of mongod, although it may be
+in the future. For now you can capture it as follows:
+
+    delay=1 # pick a number in seconds
+    iostat -k -t -x ${delay:?} >iostat.log &
+
+Then you can visualize it along with the ftdc data by adding
+"--itz ... iostat.log" to your command line, for example:
+
+    python timeseries.py --itz -5 iostat.log" diagnostic.data --browser 
+
+Since iostat does not capture timezone information, you will need to
+specify it on the command line, as illustrated above for EST.
+
+Similarly, under 3.0 you can collect iostat data alongside the
+serverStatus data:
 
     delay=1 # pick a number in seconds
     mongo --eval "while(true) {print(JSON.stringify(db.serverStatus({tcmalloc:true}))); sleep(1000*${delay:?})}" >ss.log &
     iostat -k -t -x ${delay:?} >iostat.log &
 
-When you have collected as much data as desired, terminate the data collection processes, for example
+And then visualize both iostat.log and ss.log together:
 
-    killall mongo iostat
+    python timeseries.py --itz -5 iostat.log" ss.log --browser 
 
-Install timeseries.py pre-reqs:
 
-    sudo pip install -r requirements.txt
+### Collecting and visualizing additional user-defined timeseries data
 
-Then visualize the results as follows:
+You can visualize arbitrary data stored in a csv file alongside other
+timeseries data. For example, to investigate file size growth, create
+a csv file "las.csv" recording the file size over time as follows:
 
-    python timeseries.py ss:ss.log iostat:iostat.log mongod:mongod.log >timeseries.html
-    open timeseries.html
-
-This will select
-* all metrics whose name begins with "ss" (which stands for serverStatus) from ss.log, because by convention all metrics found in a serverStatus log have names that begin with ss; and
-* all metrics whose name begins with "iostat" from iostat.log, and
-* all metrics whose name begins with "mongod" from mongod.log.
-
-The initial view will be restricted to the most important (level 1) statisics; you can interactively request more detailed metrics, as described in the help text included with the graphs.
-
-### Recommended data collection for mongod performance issues
-
-* **MongoDB logs.** Collect mongod logs as usual, and then visualize log file db.log by
-  adding the following timeseries.py command line argument:
-
-        mongod:db.log
-
-  This will enable all metrics whose names start with "mongod" from
-  the db.log file, including for example information about long
-  queries.
-
-* **Server stats.** While running the workload, collect a
-  db.serverStatus() timeseries as follows, substituting an appropriate
-  value for sampling interval $delay (in floating point seconds):
-
-        mongo --eval "while(true) {print(JSON.stringify(db.serverStatus({tcmalloc:1}))); sleep(${delay:?}*1000)}" >ss.log &
-
-  Then visualize the output ss.log as by adding the following
-  timeseries.py command line argument:
-
-        ss:ss.log
-
-  This will enable all metrics whose names start with "ss" from the file
-  ss.log. This includes information about operation rates, locking,
-  queues, network utilization, storage entine internals, and so on.
-
-* **Replica set status.** While running the workload, collect an
-  rs.status() timeseries as follows, substituting an appropriate
-  value for sampling interval $delay (in floating point seconds):
-
-        mongo --eval "while(true) {print(JSON.stringify(rs.status())); sleep(${delay:?}*1000)}" >rs.log &
-
-  Then visualize the output rs.log as by adding the following
-  timeseries.py command line argument:
-
-        rs:rs.log
-
-  This will enable all metrics whose names start with "rs" from the file
-  rs.log. This includes information about replica state and replica lag.
-
-* **Collection stats.** If your investigation focuses around a
-  particular collection, you can collect timeseries data for that
-  collection as follows, substituting appropriate values for db $db,
-  collection $c, and sampling interval $delay (in floating point
-  seconds):
-
-        mongo $db --eval "
-            while(true) {
-                s = db.$c.stats();
-                s.time = new Date();
-                print(JSON.stringify(s));
-                sleep(${delay:?}*1000)
-            }
-        " >cs.log &
-
-  Then visualize the output cs.log as by adding the following
-  timeseries.py command line argument:
-
-        cs:cs.log
-
-  This will enable all metrics whose names start with "cs" from the
-  file cs.log, which includes information such as size and operations
-  related to the associated collection.
-
-* **System stats.** For most performance investigations CPU and disk
-  statistics are useful. You can use the sysmon.py tool from this
-  project as follows, substituting an appropriate value for sampling
-  interval $delay (in floating point seconds):
-
-        python sysmon.py ${delay:?} >sysmon.log &
-
-  Then visualize the output sysmon.log as by adding the following
-  timeseries.py command line argument:
-
-        sysmon:sysmon.log
-
-  This will enable all metrics whose names start with "sysmon" from
-  the file sysmon.log, which includes information such as CPU and disk
-  utilization statistics.
-
-
-* **Iostat.** While it has some disadvantages, it can be simpler to
-  use iostat rather than the custom script sysmon.py. Be sure to
-  include timestamps with the -t option, and use the -k option to
-  ensure that data rates are given in kB/s:
-
-        iostat -k -t -x ${delay:?} >iostat.log &
-
-  Since iostat timestamps don't have a timezone, you will need to supply
-  that when you visualize the data, for example using the following
-  timeseries.py command-line argument if the timestamps are EDT:
-
-        'iostat(tz=-4):iostat.log'
-
-
-* **Stack trace samples.** For some deeper investigations tack trace
-  sample can be useful for "advanced" analysis on in-house repros, and
-  possibly for some customers on test systems, but is *not* suitable
-  for use on customer production system because of the potential
-  performance and functional impact on monogd. Stack trace samples can
-  be collected using gdbmon.py in this project as follows,
-  substituting an appropriate value for sampling interval $delay (in
-  floating point seconds):
-
-        python gdbmon.py $(pidof mongod) ${delay:?} >gdbmon.log &
-
-  Then visualize the results using a separate tool found in this
-  project; for example:
-
-        python fold_gdb.py <gdbmon.log | \
-            python calltree.py --graph-scale log >calltree.html
-        open -a 'Google Chrome' calltree.html
-
-  See [gdbmon](gdbmon.md) and [calltree](calltree.md) documentation for
-  more information. *Important:* when using gdb profiling you should
-  use a stripped binary because gdb stops the process for several
-  seconds on each sample to obtain line numbers if the binary is not
-  stripped.
-
-  An alternative to gdbmon, quickmon, is also available. It is much
-  faster than gdb at collecting the stack traces so it has less impact
-  on the running process, but it requires that you compile mongod from
-  source with the --no-omit-frame-pointer flags.  Details are provided
-  in a [later section](#quickmon).
-
-### About the browser
-
-I use mostly Chrome, and have seen some issues on Safari. For now
-please use Chrome to view the .html file if possible.
-
-### Performance of the tool
-
-Large data sets will 1) take a long time to process and 2) generate
-html files that may overwhelm the browser. Working on improvements,
-but for now to avoid this issue try specifying (for example) --every
-300 on the command line to only look at log entries every 5 minutes,
-to get an overview; and then select a region to view in more detail
-and use --after and --before. NOTE: when you specify --every it will
-simply ignore some of the input. For cumulative counters that is ok
-because it in effect gives you an averaged view, but for events
-(e.g. long queries in mongod, or checkpoints running in ss) it may
-simply miss some events, so be careful when interpreting graphs
-generated using --every.
-
-### Timezones
-
-The iostat output uses timestamps that don't include a timezone;
-timeseries.py will assume the local timezone of the machine where
-timeseries.py is installed. If this is different from the timezone of
-the machine where iostats.log was collected, you will see that the
-iostats don't line up with the other logs, so you will need to specify
-the timezone in effect on the machine where iostats.log was
-collected. For example, if that machine is on PST, specify:
-
-    python timeseries.py "ss:ss.log" "iostat(tz=-8):iostat.log" "mongod:mongod.log" >timeseries.html
-    open timeseries.html
-
-### Selecting metrics from the command line
-
-If you are doing the same groupings over and over, e.g. want to script
-it, it becomes worthwhile to select just the stats you want on the
-command line. The "ss:", "iostat:", and "mongod:" strings above are
-actually just abbreviations that will match all metrics beginning with
-"ss", "iostat", and "mongod". To make a more specific selection you
-can say for example:
-
-    python timeseries.py "iostat cpu:iostat.log"                        # shows all iostat cpu metrics
-    python timeseries.py "iostat cpu user:iostat.log"                   # shows only user cpu time
-    python timeseries.py "cpu user:iostat.log"                          # same as above - names are matched using a fuzzy algorithm
-    python timeseries.py "cpu user:iostat.log" "cpu system:iostat.log"  # specify same file multiple times to select multiple groups
-
-
-### Collecting system performance data on Windows
-
-You can collect system performance data related to CPU, memory, and
-disk on Windows using the built-in Windows logman command. First,
-define up a data collector called "win-perf" as follows:
-
-    logman create counter win-perf --v -si 1 -f csv -o c:\tmp\win-perf.csv -cf win-perf.txt
-
-This uses a file [win-perf.txt](win-perf.txt), found in this project,
-that lists an assortment of useful Windows performance counters
-related to CPU, memory, and disk. The -si parameter controls the
-sampling frequency; a frequency of 1 second is useful for most short-
-to medium-length runs.  Output location is specified by the -o
-parameter.
-
-Then when you are ready to begin data collection, start, run your
-workload, then stop the data collection as follows:
-
-    logman start win-perf
-    ...
-    logman stop win-perf
-
-You can visualize the resulting win-perf.csv file, together with any
-other performance data you may have collected, such as serverStatus
-time series, using the [timeseries tool](timeseries.py) from this
-project:
-
-    python timeseries.py win:win-perf.csv ss:ss.log ...
-
-Here's an example, taken from
-[SERVER-18079](https://jira.mongodb.org/browse/SERVER-18079):
-
-![ex-win-perf](https://jira.mongodb.org/secure/attachment/71075/drop.png)
-
-
-## Call Tree Visualzation tool
-
-The call tree visualization tool is able to display call trees from a
-variety of sources in a browser-based interactive graphical
-form. Nodes of the call tree are annotated with information relating
-to a metric, such as number of threads of execution or number of bytes
-of allocated memory, depending on the source of the call tree
-data. The annotation includes average and maximum values, together
-with a "sparkline" graph showing the value of the metric throughout
-the course of a run.
-
-The call tree tool itself, calltree.py, accepts as input call stacks,
-one per line, in a generic form. The format of the input is described
-in detail below. A set of auxiliary tools are provided that accept
-call stack data available from a variety of sources, converting it to
-the form that is accepted by calltree.py. The following sections
-describe each of the sources currently supported.
-
-### Collecting and visualizing call trees using gdb
-
-Stack trace samples are collected using a tool, gdbmon.py, packaged
-with this project.  It is a simple gdb-based profiling tool, similar
-in spirit to [Poor Man's Profiler](http://poormansprofiler.org/), but
-a little fancier. The problem addressed is that most profiling tools
-see only CPU execution time and don't see time spent waiting for
-things like i/o and locks. This tool improves on the simple Poor Man's
-Profiler approach in two ways:
-
-* it starts up gdb only once, and then scripts it to collect the stack
-  traces, reducing overhead.
-
-* the results can be visualized using the call tree visualization tool.
-
-Here's a simple example to get started, based on
-[SERVER-16355](https://jira.mongodb.org/browse/SERVER-16355). First,
-we reproduce the issue, and then collect some profile data using
-gdbmon:
-
-    python gdbmon.py $(pidof mongod) 1 10 >example.gdbmon
-
-This fires up gdb to collect 10 stack trace samples at 1 second
-intervals. Now analyze the results, focusing only on stack traces that
-include handleIncomingMsg:
-
-    python fold_gdb.py <example.gdbmon | \
-        python calltree.py -j handleIncomingMsg --graph-scale log >example.html
-    open example.html
-
-The fold_gdb.py utility takes the samples produced by gdbmon.py and
-outputs them in the "folded" form, one stack trace per line, that is
-accepted by calltree.py.
-
-When the generated HTML is viewed in a browser the tree can be
-interactively pruned to focus on the parts of interest. Here we see a
-correlation in time between the two call sites highlighted by the
-notes (added using Preview), giving us a clue as to the source of the
-bottleneck.
-
-![ex-calltree-gdb](ex-calltree-gdb.png)
-
-
-### <a name="quickmon"></a> Collecting and visualizing call trees using quickstack
-
-
-An alternative to gdb for collecting stack traces is provided by the
-[quickstack tool](https://github.com/yoshinorim/quickstack) by
-Yoshinori Matsunobu. Quickstack is much faster than gdb at collecting
-stack traces - the process is only stopped for a few milliseconds for
-each sample. However in order to get reasonable stack traces, the
-target program (mongod for example) needs to be compiled with
---no-omit-frame-pointer (see details below); in particular it does not
-work very well with our pre-compiled binary downloads.
-
-To use it, you must download quickstack from github and compile it on
-the target machine. I have provided a script as part of this project,
-[quickmon.sh](quickmon.sh), that
-
-* downloads quickstack to the current directory if necessary
-* installs prerequisites if needed
-* compiles quickstack if it has not already been compiled
-* then runs quick stack in a loop collecting stack trace samples.
-    
-The command line arguments and output are compatible with gdbmon, so
-the example from the preceding section becomes
-
-    bash quickmon.sh $(pidof mongod) 1 10 >example.quickmon
-    python fold_gdb.py <example.quickmon | \
-        python calltree.py -j handleIncomingMsg --graph-scale log >example.html
-    open example.html
-
-Note that, unlike gdb, quickmon performs best on *unstripped*
-binaries. In addition, you will need to compile mongod from source
-specifying --no-omit-frame-pointers. You can request this when
-compiling with scons as follows:
-        
-    scons CCFLAGS=-fno-omit-frame-pointer SHCCFLAGS=-fno-omit-frame-pointer \
-        CFLAGS=-fno-omit-frame-pointer SHCFLAGS=-fno-omit-frame-pointer \
-        CXXFLAGS=-fno-omit-frame-pointer SHCXXFLAGS=-fno-omit-frame-pointer ...
-
-(I don't know if all those flags actually needed; those are just the
-occurrences of CFLAGS or CXXFLAGS that I found in the SConstruct
-file.)
-
-###Collecting stack trace time series on Windows
-
-You can collect a series of stack traces using the
-[procdump](https://technet.microsoft.com/en-us/sysinternals/dd996900.aspx)
-tool; for example, the following will collect 20 stack dumps at 10
-second intervals from mongod:
-
-    mkdir dump
-    cd dump
-    procdump -s 10 -n 20 mongod
-
-Then you can extract the stack traces from the dumps using cdb, which
-you can obtain as part of the [standalone debugging tool
-set](https://msdn.microsoft.com/en-us/library/windows/hardware/ff551063%28v=vs.85%29.aspx)
-(or bundled as part of other Windows SDKs, as detailed on that
-page). The following will extract the stack traces from the dumps
-obtained in the previous step and store them in dump.stacks:
-
-    sp_mongo="...\mongodb-win32-x86_64-2008plus-3.0.1\bin"
-    sp_system="SRV*c:\symbols*http://msdl.microsoft.com/download/symbols"
-    export _NT_SYMBOL_PATH="$sp_mongo;$sp_system"
-    for fn in dump/*; do
-        cdb -z $fn -c "~*k; q"
-    done >dump.stacks
-
-Adjust sp_mongo above to point to the path where the mongod.exe and
-mongod.pdb (symbols) files are located. The other incantation in
-_NT_SYMBOL_PATH above will direct cdb to download symbols for
-ndtdll.dll and other system libraries from Microsoft and cache them in
-c:\symbols. (Note: above uses bash syntax because I use Cygwin on
-Windows; adjust as needed for other shells).
-
-Finally fold the stacks and process them into a call tree as follows:
-
-    python fold_win.py <dump.stacks | python calltree.py --graph-scale log >dump.html
-    open dump.html        
-
-You can find an example at
-[SERVER-17907](https://jira.mongodb.org/browse/SERVER-17907?focusedCommentId=874658&page=com.atlassian.jira.plugin.system.issuetabpanels:comment-tabpanel#comment-874658).
-
-### Collecting and visualizing CPU utilization call trees using perf
-
-An alternative to gdb for collecting stack trace samples is perf. The
-primary advantage of perf is that it has much lower overhead than
-gdb. However (this form of) perf sampling only sees threads that are
-executing at the time of the sample, so it is not suitable for
-diagnosing problems related to locking or i/o, where the primary issue
-is threads that are not executing.
-
-    sudo perf record -T -F 99 -p $(pidof mongod) -g
-
-For best results, mongod should have been compiled with
--fno-omit-frame-pointers, and a non-stripped binary should be used.
-
-Then process the collected data as follows:
-
-    perf script | python fold_perf_cpu.py | python calltree.py >perf.html
-
-Since extracting the stack trace samples from the perf data can take a
-substantial amount of time, you may prefer to save the folded form as
-output by fold_perf.py in a file so that you can more readily process
-using under various parameters to calltree.py.
-
-### Collecting and visualizing memory utilization call trees using perf
-
-See [SERVER-17616](https://jira.mongodb.org/browse/SERVER-17616) and
-[SERVER-17424](https://jira.mongodb.org/browse/SERVER-17424).
-
-Install perf probe points related to tcmalloc
-
-    sudo bash -c 'echo 0 >/proc/sys/kernel/kptr_restrict'
-    sudo bash -c 'echo -1 >/proc/sys/kernel/perf_event_paranoid'
-
-    mongod=$(which mongod)
-
-    sudo perf probe -x $mongod --del '*alloc*'
-    sudo perf probe -x $mongod --del '*free*'
-        
-    # new and malloc
-    for f in tc_malloc tc_new tc_new_nothrow tc_newarray tc_newarray_nothrow do_memalign; do
-        sudo perf probe -x $mongod -f alloc=$f size
-        sudo perf probe -x $mongod -f allocRET=$f%return ptr='$retval'
-    done
-    
-    # calloc
-    sudo perf probe -x $mongod -f calloc=tc_calloc n elem_size
-    sudo perf probe -x $mongod -f allocRET=tc_calloc%return ptr='$retval'
-    
-    # realloc
-    sudo perf probe -x $mongod realloc=tc_realloc ptr=old_ptr size=new_size
-    sudo perf probe -x $mongod reallocRET=tc_realloc%return ptr='$retval'
-    
-    # free
-    for f in tc_free tc_cfree; do
-        sudo perf probe -x $mongod -f free=$f ptr
-    done
-    
-    # delete
-    for f in tc_delete tc_delete_nothrow tc_deletearray tc_deletearray_nothrow; do
-        sudo perf probe -x $mongod -f free=$f ptr=p
-    done
-
-Record perf data
-
-    sudo perf record -r 1 -m $((128*1024)) --call-graph dwarf -e 'probe_mongod:*' -- mongod ...
-
-Process
-
-    perf script -s fold_perf_malloc.py | python calltree.py
-
-![ex-calltree-perf-malloc](ex-calltree-perf-malloc.png)
-
-
-### Collecting and visualizing memory utilization call trees on OS/X
-
-    fold_osx_heap.py
-    fold_osx_malloc_history.py
-
-### Collecting and visualizing memory utilization call trees using tcmalloc HEAPPROFILE
-<a name="heapprofile"></a>
-
-There is a built-in facility in tcmalloc for tracking memory
-allocations, recording who (that is, what stack trace) did the
-allocations. It substantially slows mongod execution, but collects
-very useful information for determining who is doing the memory
-allocations.
-
-The version of tcmalloc embedded in mongod does not support
-HEAPPROFILE, so it will be necessary to arrange to use a different
-version of tcmalloc.
-
-* Install tcmalloc and Google perftools. I installed the following packages on Ubuntu:
-
-    * libgoogle-perftools4
-    * libgoogle-perftools-dev
-    * google-perftools
-
-* Build mongod to use system tcmalloc. 
-
-        scons -j 24 --use-system-tcmalloc --c++11=on mongod
-
-* Run mongod setting the HEAPPROFILE environment variable to specify a
-  file path prefix for the periodic heap profile dumps. By default it
-  will create a profile file whose name starts with $HEAPPROFILE for
-  every 1 GB of memory allocated.
-
-        HEAPPROFILE=/tmp/heaprofile mongod ...
-
-* This will create a sequence of files $HEAPPROFILE.$nnnn.heap for
-  sequentially increasing values of $nnnn. Each file contains
-  information about the state of the heap at the time it was created,
-  including currently allocated memory, along with stack traces
-  recording who allocated the memory. On the machine where the
-  profiles were collected process the *.heap files in *.raw files
-  using the google-pprof tool that was installed along with
-  tcmalloc. This step resolves the addresses in the heap profile to
-  function names; it is important that it be run on the machine where
-  the profile was collected so that the addresses can be resolved
-  correctly, and that you give it the filename of the same mongod
-  binary that you ran above.
-
-        MONGOD_BINARY=$(which mongod)       # change this if you used a different mongod
-        for fn in $HEAPPROFILE.*.heap; do   # iterate over the files created above
-            if [[ ! -e $fn.raw ]]; then
-                google-pprof --raw $MONGOD_BINARY $fn >$fn.raw
-                touch -r $fn $fn.raw        # give the .raw file the same timestamp as the .heap file
-            fi
+    fn=/ssd/db/r0/WiredTigerLAS.wt
+    (
+        echo "time,size"
+        while true; do
+            echo "$(date --rfc-3339=ns),$(stat --format '%s' $fn)"
+            sleep 1
         done
+    ) >/ssd/db/r0/las.csv
 
-* Now process the raw heap profiles generated above into "folded" form
-  for use by the calltree tool.
+Then visualize the ftdc data alongside the file size data:
 
-        python fold_heapprofile_raw.py $HEAPPROFILE.*.raw >heapprofile.folded
+    python timeseries.py /ssd/db/r0/{las.csv,diagnostic.data} --browser
 
-  This step can be done on any machine. For example, the .raw files
-  could be generated as above by a customer, who would then tar (to
-  preserve timestamps) the *.raw files and upload the archive; you
-  would then unpack it and do this and the following steps on those
-  *.raw files.
+The csv file must have a field called "time" that contains
+timezone-aware timestamps in a format understood by Python
+dateutil.parser.parse, or Unix timestamps (which are assumed to be
+UTC). All remaining fields must be numeric, and each will be displayed
+on a separate graph.
 
-* Finally visualize the folded output using the calltree tool:
-  
-        python calltree.py <heapprofile.folded >heapprofile.html && open heapprofile.html
 
-This will generate output such as the following. The sparkline graphs
-show the amount of memory allocated by each node of the calltree and
-its descendants that is still live (has not been freed), at each point
-in time, over the course of the run. You can get an idea of the
-magnitude by looking at the "max" number, which tells you the amount
-of memory that is represented by the highest point on the graph.
-
-In this example (from
-[SERVER-20248](https://jira.mongodb.org/browse/SERVER-20248)) we see
-that __checkpoint_apply and its descendants have allocated an ever
-increasing amount of memory, which reached 3029 MB at the higest
-point, which is at the end of the run in this example. Of that 2803 MB
-was allocated by __conn_dhandle_get. In other words, checkpoints were
-allocating and not freeing about 2.8 GB worth of dhandles over the
-course of the run.
-
-![ex-calltree-heapprofile](ex-calltree-heapprofile.png)
 
 
