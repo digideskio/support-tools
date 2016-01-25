@@ -1,4 +1,4 @@
-*NOTE* Please refer to the [Quickstart Guide][README.md] for
+*NOTE* Please refer to the [Quickstart Guide](README.md) for
 information relating to the timeseries tool itself. Much of the
 information on this page relating to that is outdated, and will be
 removed and/or merged into the Quickstart Guide. Use this page for
