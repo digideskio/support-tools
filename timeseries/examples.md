@@ -73,7 +73,7 @@
   stall. (Schedule for fix in 3.2.x).
 
 
-![s22199.png](examples/s22199.png)
+![s22199](examples/s22199.png)
 
 
 * A checkpoint is running from K to N, as indicated by "transaction checkpoint currently running".
@@ -96,6 +96,55 @@
   checkpoint can be blocked by the checkpoint, causing a complete
   stall. (Schedule for fix in 3.2.x).
 
+
+
+<!-------------------------------------------------------------->
+<!-- CONSIDER ADDING https://jira.mongodb.org/browse/CS-27242 -->
+<!-------------------------------------------------------------->
+
+
+![c27200-1](examples/c27200-1.png)
+
+* From time to time queues of operations are building as indicated by
+  "active write queue"
+
+* During those events we see WiredTiger "concurrentTransactions write
+  out" (aka "tickets") max out at 128, indicating that the blockage is
+  in WiredTiger. This could be contention for WiredTiger data
+  structures, or i/o contention.
+
+* During the events we also see _transferMods, _migrateClone, and
+  moveChunk commands. These indicate that that this shard was the
+  donor shard for a chunk migration during the queuing events.
+
+* We also see in the "checkpoint most recent time" and "checkpoint
+  currently running" metrics that during the events checkpoint times
+  are longer, which would be consistent with i/o
+
+<!--
+* Next step is to add iostat timeseries; see next example.
+-->
+
+<!--
+
+THIS NEEDS WORK
+
+![c27200-1](examples/c27200-1.png)
+
+* This is a follow-on from the previous example. In this example we
+  add iostat timeseries.
+
+* We can see "sdb average utilization" maxing out at 100% during the
+  chunk moves.
+
+* The disk saturation does not coincide with a checkpoint, so is
+  probably not a result of increased i/o load due to the chunk
+  migration itself. TBD: determine whether it might be due to having
+  to read the chunk.
+
+* May be due to moveParanoia.
+
+-->
 
 
 
