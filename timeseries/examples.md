@@ -73,3 +73,29 @@
   stall. (Schedule for fix in 3.2.x).
 
 
+![s22199.png](examples/s22199.png)
+
+
+* A checkpoint is running from K to N, as indicated by "transaction checkpoint currently running".
+
+* A drop command is issued at L, as indicated by "commands drop total".
+
+* This results in a complete stall from M to N. This is seen in the
+  "insert" statistics. We can also tell by the straight line between
+  the values at M and N that the ftdc thread was also stalled and
+  could not collect any data samples.
+
+* Stack traces collected during the stall show why: multiple
+  operations are all stuck in dropAllQueued which in turn is blocked
+  in __wt_session_drop. See
+  [SERVER-22199](https://jira.mongodb.org/browse/SERVER-22199) for
+  more detials, and see the [Tools](tools.md) page for details on
+  collecting stack traces.
+
+* Conclusion: drop collection during the critical phase of a
+  checkpoint can be blocked by the checkpoint, causing a complete
+  stall. (Schedule for fix in 3.2.x).
+
+
+
+
