@@ -5,6 +5,9 @@
 * [Metrics guide](metrics.md) describes the metrics that are
   visualized using this tool.
 
+* [Examples](examples.md) presents a series of examples taken from
+  actual tickets.
+
 * [Timeseries Visualization Tools](tools.md) describes additional
   tools, for example tools related to stack trace visualization.
 
