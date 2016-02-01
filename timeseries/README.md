@@ -44,16 +44,16 @@ You can then use all of the commmands and interactive capabilities
 described in the remainder of the document, substituting "ss.log"
 for "diagnostic.data" on the command line, for example:
 
-    python timeseries.py ss.log --browser 
+    python timeseries.py ss.log
 
 ### Automatic interactive browser/server mode
 
 If you have a copy of a diagnostic.data directory from a mongod, for
 example from a customer or a test system, the simplest way to view it
-is to use browser/server mode, specifying the diagnostic.data
+is to use default browser/server mode, specifying the diagnostic.data
 directory name on the command line, for example:
 
-    python timeseries.py diagnostic.data --browser 
+    python timeseries.py diagnostic.data
 
 This starts the timeseries tool in server mode, visualizing ftdc data
 in the diagnostic.data directory, and then automatically pops open a
@@ -214,7 +214,7 @@ as described above to periodically refresh the view.
 You can view mongod log data along with other sources of timeseries
 data by adding "mongodb.log" to the command line, for example:
 
-    python timeseries.py mongodb.log diagnostic.data --browser 
+    python timeseries.py mongodb.log diagnostic.data
 
 This will display information about the following:
 
@@ -253,7 +253,7 @@ in the future. For now you can capture it as follows:
 Then you can visualize it along with the ftdc data by adding
 "--itz ... iostat.log" to your command line, for example:
 
-    python timeseries.py --itz -5 iostat.log" diagnostic.data --browser 
+    python timeseries.py --itz -5 iostat.log" diagnostic.data
 
 Since iostat does not capture timezone information, you will need to
 specify it on the command line, as illustrated above for EST.
@@ -267,7 +267,7 @@ serverStatus data:
 
 And then visualize both iostat.log and ss.log together:
 
-    python timeseries.py --itz -5 iostat.log" ss.log --browser 
+    python timeseries.py --itz -5 iostat.log" ss.log
 
 
 ### Collecting and visualizing additional user-defined timeseries data
@@ -287,7 +287,7 @@ a csv file "las.csv" recording the file size over time as follows:
 
 Then visualize the ftdc data alongside the file size data:
 
-    python timeseries.py /ssd/db/r0/{las.csv,diagnostic.data} --browser
+    python timeseries.py /ssd/db/r0/{las.csv,diagnostic.data}
 
 The csv file must have a field called "time" that contains
 timezone-aware timestamps in a format understood by Python
