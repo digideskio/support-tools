@@ -8,6 +8,9 @@
 * [Examples](examples.md) presents a series of examples taken from
   actual tickets.
 
+* [Tips](tips.md) collects useful information related to obtaining and
+  analyzing timeseries data.
+
 * [Timeseries Visualization Tools](tools.md) describes additional
   tools, for example tools related to stack trace visualization.
 
@@ -292,6 +295,57 @@ dateutil.parser.parse, or Unix timestamps (which are assumed to be
 UTC). All remaining fields must be numeric, and each will be displayed
 on a separate graph.
 
+### Collecting and visualizing collection-related statistics
+
+WiredTiger maintains an extensive set of per-table statistics similar
+to the global serverStatus statistics. This data is not captured by
+FTDC (with the exception of the oplog), so must be captured manually
+both for 3.0 and 3.2. The following scripts can be used to collect
+collection and index table statistics, respectively:
+
+    #
+    # example collect statistics for the test.c collection table:
+    # cs-start test c 1 >/ssd/db/r0/coll.log &
+    #
+    function cs-start {
+        db=$1; shift
+        c=$1; shift
+        delay=$1; shift
+        mongo $db $* --eval "
+            while(true) {
+                s = db.$c.stats();
+                s.time = new Date();
+                print(JSON.stringify(s))
+                sleep(1000*$delay)
+            }
+        "
+    }
+    
+    #
+    # example: collect statistics for test.c._id_ index table:
+    # cs-inx-start test c _id_ 1 >ssd/db/r0/inx.log &
+    #
+    function cs-inx-start {
+        db=$1; shift
+        c=$1; shift
+        inx=$1; shift
+        delay=$1; shift
+        mongo $db $* --eval "
+            while(true) {
+                s = db.$c.stats({indexDetails:true});
+                s.time = new Date();
+                s.wiredTiger = s.indexDetails['$inx']
+                s.foo = s.indexDetails['$inx']
+                print(JSON.stringify(s))
+                sleep(1000*$delay)
+            }
+        "
+    }
+    
+Then to visualize the coll.log and inx.log files collected above,
+together with a diagnostic.data directory:
+
+    timeseries coll.log inx.log diagnostic.data
 
 
 
