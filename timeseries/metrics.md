@@ -732,7 +732,19 @@ and &lt;lock&gt; is one of
     ss wt cache: leaf pages split during eviction (/s)<br/>
     ss wt cache: lookaside table insert calls (/s)<br/>
     ss wt cache: lookaside table remove calls (/s)<br/>
+  </dt>
+  <dd>
+  </dd>
+
+  <dt>
     ss wt cache: maximum bytes configured (MB)<br/>
+  </dt>
+  <dd>
+      Amount of memory configured for WT cache, either by the user or
+      by the default setting.
+  </dd>
+
+  <dt>
     ss wt cache: maximum page size at eviction (MB)<br/>
     ss wt cache: modified pages evicted (/s)<br/>
     ss wt cache: overflow pages read into cache (/s)<br/>
