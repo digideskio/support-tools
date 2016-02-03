@@ -905,7 +905,18 @@ and &lt;lock&gt; is one of
     ss wt transaction: transaction checkpoint generation<br/>
     ss wt transaction: transaction checkpoint max time (msecs)<br/>
     ss wt transaction: transaction checkpoint min time (msecs)<br/>
+  </dt>
+  <dd>
+  </dd>
+  <dt>
     ss wt transaction: transaction checkpoint most recent time (msecs)<br/>
+  </dt>
+  <dd>
+    This metric can provide useful information about trends in the
+    length of checkpoints, for example whether they are getting longer
+    or shorter as the load changes.
+  </dd>
+  <dt>
     ss wt transaction: transaction checkpoint total time (msecs)<br/>
     ss wt transaction: transaction checkpoints (delta)<br/>
     ss wt transaction: transaction failures due to cache overflow (/s)<br/>
