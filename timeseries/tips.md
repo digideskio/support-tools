@@ -39,5 +39,18 @@
   have timezone "-0500", specify "--itz -5" on the timeseries command
   line.
 
-
+* Most metrics are cumulative counters of some event, and are
+  typically differentiated to get a rate for display. These metrics
+  provide accurate information even when the captured or displayed
+  sample rate is low: the displayed rate is the average over the
+  displayed sample interval. However some metrics record instantaneous
+  values; for example, the "checkpoint currently running" is 0 or 1
+  according to whether a checkpoint is running at that particular
+  sample. If the monitored event (checkpoint in this case) is short,
+  or if the sample rate is low, events can be missed by such
+  metrics. Other sampling artifacts, similar to moiré patterns or beat
+  notes in music, can result from a sampling rate that is close to the
+  rate of a periodically signal. Exercise caution when interpreting
+  any metrics that isn't based on cumulative counters, that is, which
+  is not identified as a rate ("/s") of some quantity.
 
