@@ -23,6 +23,14 @@
 * Memory issues often developing slowly, so lower sampling rates can
   generally be used for such issues.
 
+* Rule of thumb: if you are diagnosing an issue where some metric has
+  gone low, look for a correlated metric that has gone high, and that
+  could be a candidate for a culprit. Generally speaking, metrics
+  reflect consumption of some resource or resources, and if one
+  particular metric is low, it will often be because of contention for
+  some resource, and there will be other metrics that are high,
+  pointing to what is consuming that resource.
+
 
 
 
