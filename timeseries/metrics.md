@@ -918,7 +918,19 @@ and &lt;lock&gt; is one of
   </dd>
   <dt>
     ss wt transaction: transaction checkpoint total time (msecs)<br/>
+  </dt>
+  <dd>
+  </dd>
+  <dt>
     ss wt transaction: transaction checkpoints (delta)<br/>
+  </dt>
+  <dd>
+    This is a cumulative counter of all checkpoints, displayed in
+    "delta" form to show changes in value. Because it is a cumulative
+    counter it will not miss checkpoints if they are short or if the
+    sampling rate is low.
+  </dd>
+  <dt>
     ss wt transaction: transaction failures due to cache overflow (/s)<br/>
     ss wt transaction: transaction range of IDs currently pinned<br/>
     ss wt transaction: transaction range of IDs currently pinned by a checkpoint<br/>
