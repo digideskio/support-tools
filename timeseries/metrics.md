@@ -700,7 +700,19 @@ and &lt;lock&gt; is one of
     ss wt btree: pages rewritten by compaction (/s)<br/>
     ss wt btree: row-store internal pages<br/>
     ss wt btree: row-store leaf pages<br/>
+  </dt>
+  <dd>
+  </dd>
+  <dt>
     ss wt cache: bytes currently in the cache (MB)<br/>
+  </dt>
+  <dd>
+      Normally this number is kept at 80% of the configured maximum
+      ("maximum bytes configured" metric) in order to allow room for
+      growth. When the cache becomes completely full expect to see
+      write stalls.
+  </dd>
+  <dt>
     ss wt cache: bytes read into cache (MB/s)<br/>
     ss wt cache: bytes written from cache (MB/s)<br/>
     ss wt cache: checkpoint blocked page eviction (/s)<br/>
