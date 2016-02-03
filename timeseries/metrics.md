@@ -69,7 +69,12 @@
   <dd>
     High rates of scanned, scanned objects (documents), or
     scan-and-order operations indicate inefficient queries that could
-    be improved with appropriate indexes.
+    be improved with appropriate indexes. Correlate this with queries
+    in the mongod log to find the culprits; if you point the specify
+    the mongod log on the timeseries tool command line (in addition to
+    the ftdc data) it will help you find the correlated queries, which
+    will show up as spikes on the mongod graphs in length and/or
+    number of logged queries.
   </dd>
 
   <dt>
