@@ -932,8 +932,34 @@ and &lt;lock&gt; is one of
   </dd>
   <dt>
     ss wt transaction: transaction failures due to cache overflow (/s)<br/>
+  </dt>
+  <dd>
+  </dd>
+  <dt>
     ss wt transaction: transaction range of IDs currently pinned<br/>
+  </dt>
+  <dd>
+    When a transaction begins, WT must keep a "snapshot" of the state
+    of the db at that point. This requires that subsequent updates to
+    the db remain "pinned" until that transaction ends, so if a
+    transaction runs for a long time this can consume resources and
+    cause problems - for example, it can prevent pages from being
+    evicted to make room for needed data to be read into the cache. If
+    you see this number growing to a large value over an extended
+    period and that is correlated with observed problems it can signal
+    a mongod issue.
+  </dd>
+  <dt>
     ss wt transaction: transaction range of IDs currently pinned by a checkpoint<br/>
+  </dt>
+  <dd>
+    A certain phase of a checkpoint must run as a transaction in order
+    to capture a consistent state of the data for checkpointing, so it
+    also requires transactions to be pinned. It's normal to see this
+    number climb during a checkpoint, but if that phase of the
+    checkpoint lasts too long you may see an associated stall.
+  </dd>
+  <dt>
     ss wt transaction: transaction range of IDs currently pinned by named snapshots<br/>
     ss wt transaction: transaction sync calls (/s)<br/>
     ss wt transaction: transactions committed (/s)<br/>
