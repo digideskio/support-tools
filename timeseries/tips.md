@@ -31,6 +31,13 @@
   some resource, and there will be other metrics that are high,
   pointing to what is consuming that resource.
 
+* The iostat command does not include timezone information in its
+  output, so you will need to specify that on the timeseries command
+  line. If you don't have direct information from the customer about
+  the timezone, the timezone in the mongod log will generally be the
+  correct timezone for iostat. For example, if mongod log timestamps
+  have timezone "-0500", specify "--itz -5" on the timeseries command
+  line.
 
 
 
