@@ -885,7 +885,23 @@ and &lt;lock&gt; is one of
     ss wt transaction: number of named snapshots created (/s)<br/>
     ss wt transaction: number of named snapshots dropped (/s)<br/>
     ss wt transaction: transaction begins (/s)<br/>
+  </dt>
+  <dd>
+  </dd>
+  <dt>
     ss wt transaction: transaction checkpoint currently running<br/>
+  </dt>
+  <dd>
+    1 if a checkpoint is running, 0 if it is not. Note that since this
+    is a sampled value, not a cumulative counter, if a checkpoint is
+    short or the captured or displayed samples are too far apart this
+    metric may miss checkpoints. In this case the "transaction
+    checkpoints (delta)" metric may provide better information about
+    the occurrence of checkpoints, and "transaction checkpoint most
+    recent time (msecs)" may provide better information about the
+    length of checkpoints.
+  </dd>
+  <dt>
     ss wt transaction: transaction checkpoint generation<br/>
     ss wt transaction: transaction checkpoint max time (msecs)<br/>
     ss wt transaction: transaction checkpoint min time (msecs)<br/>
