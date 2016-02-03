@@ -1078,3 +1078,82 @@ Note: these also appear as oplog stats in ftdc data.
   </dt>
 </dl>
 
+### iostat
+
+<dl>
+
+  <dt>
+    iostat cpu: user (%)<br/>
+  </dt>
+  <dd>
+    User-space CPU utilization as a percentage of total CPU (including
+    all cores). Typically this will be mongod, or possibly mongos,
+    depending on the deployment. 100% CPU utilization would indicate a
+    CPU bottleneck, but that is rare. A lower CPU utilization that
+    represents 100% of a CPU core could represent a serial bottleneck,
+    that is some computation process that is single-threaded and
+    long-running.
+  </dd>
+  
+  <dt>
+    iostat cpu: system (%)<br/>
+  </dt>
+  <dd>
+    CPU time spent executing in the kernel. Typically this will be low
+    relative to user CPU. A high value typically means a high rate of
+    system call execution, and may indicate a performance issue in
+    mongod itself that should be investigated.
+  </dd>
+
+  <dt>
+    iostat cpu: iowait (%)<br/>
+  </dt>
+  <dd>
+    A high value for this means that processes, typically mongod, were
+    completely stalled waiting for i/o. This may indicate a storage
+    issue; see the disk stats for further diagnosis.
+  </dd>
+  
+  <dt>
+    iostat cpu: nice (%)<br/>
+    iostat cpu: steal (%)<br/>
+  </dt>
+  <dd>
+    Steal time is the percentage of time a virtual CPU waits for a
+    real CPU while the hypervisor is servicing another virtual
+    processor. A high value for steal time can indicate significant
+    contention from neighboring virtual machines in a virtualized
+    environment.
+  </dd>
+
+  <dt>
+    iostat disk: &lt;disk&gt; bytes read (MB/s)<br/>
+    iostat disk: &lt;disk&gt; bytes written (MB/s)<br/>
+  </dt>
+  <dd>
+    A sustained higher data rate associated with performance problems
+    could indicate a disk bottleneck. Note however that disk writes
+    are decoupled from db write ops by multiple layers of buffering:
+    dirty data must be evicted from the cache or written by a
+    checkpoint to the kernel fileystem (page) cache, and then is
+    written to the physical disk by the kernel; so the correlation
+    between db write ops and physical disk i/o is not direct on a
+    short time scale.
+  </dd>
+        
+  <dt>
+    iostat disk: &lt;disk&gt; average queue length<br/>
+    iostat disk: &lt;disk&gt; average wait time (ms)<br/>
+    iostat disk: &lt;disk&gt; average utilization (%)<br/>
+  </dt>
+  <dd>
+    Long queues, large time spent waiting in the queue, and high
+    utilization percent generally go together, and are a good direct
+    indicator of a disk bottleneck. Note however that WT i/o tends to
+    be bursty, and it's not unusual to see 100% utilization during
+    checkpoints, and this by itself does not necessarily indicate a
+    disk bottleneck.
+  </dd>
+
+</dl>
+
