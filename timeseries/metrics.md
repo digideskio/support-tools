@@ -312,6 +312,11 @@ there is a corresponding metric for failed operations.
     ss cursors: pinned<br/>
     ss cursors: timedOut<br/>
     ss cursors: totalNoTimeout<br/>
+  </dt>
+  <dd>
+  </dd>
+
+  <dt>
     ss cursors: totalOpen<br/>
   </dt>
   <dd>
@@ -409,7 +414,21 @@ and &lt;lock&gt; is one of
 <dl>
   <dt>
     ss locks: &lt;resource&gt; acquireCount &lt;lock&gt; (/s)<br/>
+  </dt>
+  <dd>
+    This is bumped every time the respective lock is
+    acquired. Normally this happens relatively frequently, but on
+    occasion an isolated bump in this metric can point to a lock
+    acquisition that has caused a stall; the stall will show up in the
+    timeAcuiringMicros metrics, as described below.
+  </dd>
+  <dt>
     ss locks: &lt;resource&gt; acquireWaitCount &lt;lock&gt; (/s)<br/>
+  </dt>
+  <dd>
+  </dd>
+
+  <dt>
     ss locks: &lt;resource&gt; deadlockCount &lt;lock&gt; (/s)<br/>
     ss locks: &lt;resource&gt; timeAcquiringMicros &lt;lock&gt; (/s)<br/>
   </dt>
