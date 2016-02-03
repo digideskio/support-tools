@@ -624,6 +624,7 @@ and &lt;lock&gt; is one of
     ss wiredTiger: concurrentTransactions write totalTickets<br/>
     ss wiredTiger: uri<br/>
     ss writeBacksQueued: <br/>
+<!--
     ss wt LSM: application work units currently queued<br/>
     ss wt LSM: bloom filter false positives (/s)<br/>
     ss wt LSM: bloom filter hits (/s)<br/>
@@ -657,6 +658,7 @@ and &lt;lock&gt; is one of
     ss wt async: total remove calls (/s)<br/>
     ss wt async: total search calls (/s)<br/>
     ss wt async: total update calls (/s)<br/>
+-->
     ss wt block-manager: allocations requiring file extension (/s)<br/>
     ss wt block-manager: blocks allocated (/s)<br/>
     ss wt block-manager: blocks freed (/s)<br/>
