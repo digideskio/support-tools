@@ -430,6 +430,12 @@ and &lt;lock&gt; is one of
 
   <dt>
     ss locks: &lt;resource&gt; deadlockCount &lt;lock&gt; (/s)<br/>
+  </dt>
+  <dd>
+    This is bad.
+  </dd>
+
+  <dt>
     ss locks: &lt;resource&gt; timeAcquiringMicros &lt;lock&gt; (/s)<br/>
   </dt>
   <dd>
