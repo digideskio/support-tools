@@ -140,6 +140,11 @@ function test-022 {
     run-timeseries /tmp/metrics.interim.{aaa,bbb}
 }
 
+# more iostat, including dm-* disk
+function test-023 {
+    run-timeseries data/test-023/iostat.log --itz -5 --level 9
+}
+
 function compare-html {
 
     ref=$1
@@ -240,6 +245,8 @@ function run-tests {
     run-test test-020
     run-test test-021
     run-test test-022
+    run-test test-023
+
 }
 
 function zip-source {
