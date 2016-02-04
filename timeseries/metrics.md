@@ -15,8 +15,8 @@
     Basic operation rates. For all but the insert counters these
     represent single client level operations; for example, a remove or
     an update that removes or updates many documents is counted as a
-    single operation. For inserts however a bulk insert of _n_
-    documents is counted as _n_ operations.
+    single operation. For inserts however a bulk insert of <i>n</i>
+    documents is counted as <i>n</i> operations.
   </dd>
 
   <dt>
