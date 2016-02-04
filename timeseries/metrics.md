@@ -12,7 +12,11 @@
     ss opcounters: update (/s)<br/>
   </dt>
   <dd>
-    Basic operation rates.
+    Basic operation rates. For all but the insert counters these
+    represent single client level operations; for example, a remove or
+    an update that removes or updates many documents is counted as a
+    single operation. For inserts however a bulk insert of _n_
+    documents is counted as _n_ operations.
   </dd>
 
   <dt>
@@ -40,7 +44,8 @@
   <dd>
     Low-level operation rates. These may be higher than the
     corresponding opcounter rates above because these counters reflect
-    individual document operations. *TBD*: clarify this.
+    individual document operations, whereas the opcounters count
+    client-level operations.
   </dd>
 
   <dt>
