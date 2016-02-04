@@ -499,19 +499,91 @@ and &lt;lock&gt; is one of
     ss mem: resident (MB)<br/>
     ss mem: supported<br/>
     ss mem: virtual (MB)<br/>
+  </dt>
+  <dd>
+  </dd>
+</dl>
 
-    ss tcmalloc: generic current_allocated_bytes (MB)<br/>
+The tcmalloc allocator maintains a set of internal statistics related
+to memory usage that can be helpful for diagnosing issues of excessive
+memory usage. Generally mongod should not use a lot more memory than
+is configured for use by the WT cache. You can find more information
+about these metrics in [the mongod source code](https://github.com/mongodb/mongo/blob/v3.2/src/third_party/gperftools-2.2/src/gperftools/malloc_extension.h#L150).
+
+<dl>
+
+  <dt>
     ss tcmalloc: generic heap_size (MB)<br/>
-    ss tcmalloc: tcmalloc aggressive_memory_decommit (MB)<br/>
-    ss tcmalloc: tcmalloc central_cache_free_bytes (MB)<br/>
-    ss tcmalloc: tcmalloc current_total_thread_cache_bytes (MB)<br/>
+  </dt>
+  <dd>
+    The "heap" is the total virtual memory that is under tcmalloc
+    control. This will include allocated memory, and free memory in
+    various categories as detailed below. This memory will represent
+    physical memory, except for the amount reported under
+    "pageheap_unmapped_bytes".
+  </dd>
+
+  <dt>
+    ss tcmalloc: generic current_allocated_bytes (MB)<br/>
+  </dt>
+  <dd>
+    This is the amount of memory in the heap that is allocated and in
+    use by the application. If this number is a lot larger than WT
+    cache then there may be a mongod memory usage issue.
+  </dd>
+
+  <dt>
     ss tcmalloc: tcmalloc max_total_thread_cache_bytes (MB)<br/>
-    ss tcmalloc: tcmalloc pageheap_free_bytes (MB)<br/>
-    ss tcmalloc: tcmalloc pageheap_unmapped_bytes (MB)<br/>
+    ss tcmalloc: tcmalloc current_total_thread_cache_bytes (MB)<br/>
+  </dt>
+  <dd>
+    The "tc" in "tcmalloc" stands for "thread cache": a cache of
+    memory is maintained for each thread so that it can quickly
+    allocate memory without contention on a separate memory pool.
+    Generally the amount of memory in the thread cache is not large.
+  </dd>
+
+  <dt>
     ss tcmalloc: tcmalloc thread_cache_free_bytes (MB)<br/>
     ss tcmalloc: tcmalloc transfer_cache_free_bytes (MB)<br/>
-
+    ss tcmalloc: tcmalloc central_cache_free_bytes (MB)<br/>
+    ss tcmalloc: tcmalloc pageheap_free_bytes (MB)<br/>
   </dt>
+  <dd>
+    Memory that is in the heap but is available to be allocated is
+    stored in one of several free areas. Generally memory moves from
+    thread cache to transfer cache to central cache to pageheap as it
+    is freed, and in the opposite direction as it is allocated. If the
+    amount of free memory is large this can be a sign of one of two
+    problems: 1) at some point in the past the amount of allocated
+    memory was large, and then it was freed, or 2) there is memory
+    fragmentation, that is, memory is divided into regions of free
+    memory that are too small to satisfy the requirements of the
+    application. To distinguish between these problems you will need
+    to look at a timeseries from the start of the mongod process and
+    see whether allocated memory was ever large.
+  </dd>
+
+  <dt>
+    ss tcmalloc: tcmalloc pageheap_unmapped_bytes (MB)<br/>
+  </dt>
+  <dd>
+    The pageheap stores large regions of memory that are always a
+    multiple of the o/s page in size. Under some circumstances
+    tcmalloc will inform the operating system that a region of virtual
+    memory is unused by the application (that is, it has been freed by
+    the application), and the o/s will unmap it so that it doesn't
+    consume physical memory.
+  </dd>
+
+<!--
+  <dt>
+    ss tcmalloc: tcmalloc aggressive_memory_decommit (MB)<br/>
+  </dt>
+  <dd>
+  </dd>
+-->
+
 
 </dl>
 
