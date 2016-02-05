@@ -255,7 +255,7 @@ ss(["dur", "timeMs", "remapPrivateView"]) # CHECK rc5
 ss(["dur", "timeMs", "writeToDataFiles"]) # CHECK rc5
 ss(["dur", "timeMs", "writeToJournal"]) # CHECK rc5
 ss(["dur", "writeToDataFilesMB"], rate=True) # CHECK rc5
-ss(["extra_info", "heap_usage_bytes"], scale=MB, wrap=2.0**31, level=9)
+ss(["extra_info", "heap_usage_bytes"], scale=MB, wrap=2.0**31, level=99)
 ss(["extra_info", "note"], level=99)
 ss(["extra_info", "page_faults"], rate=True, level=1)
 ss(['extra_info', 'availPageFileMB'], units="MB", level=1)

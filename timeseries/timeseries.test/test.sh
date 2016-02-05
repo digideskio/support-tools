@@ -155,6 +155,9 @@ function compare-html {
         git clone https://github.com/paulhammond/webkit2png        
     fi
 
+    # clean up previous images
+    rm -f /tmp/$o-*-full.png
+
     # render both pages
     o=$(basename $ref)
     rm -f /tmp/$o-{ref,act}
@@ -184,13 +187,10 @@ function compare-html {
 
         # hashes not equal; use Preview to do visual comparison
         if [[ -e /tmp/$o-ref-full.png ]]; then
-            # use ImageMagick comparison tol
+            # use ImageMagick comparison to look
             compare /tmp/$o-{ref,act}-full.png /tmp/$o-diff-full.png
-            open /tmp/$o-{ref,act,diff}-full.png
-        else
-            # no ref, must be new; just show it
-            open /tmp/$o-act-full.png
         fi
+        open /tmp/$o-*-full.png
         ask "Looks good?"
         if [[ $? == 1 ]]; then
             return -1

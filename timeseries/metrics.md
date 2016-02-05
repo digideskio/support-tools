@@ -481,7 +481,7 @@ and &lt;lock&gt; is one of
   <dt>
 
     ss extra_info: availPageFileMB (MB)<br/>
-    ss extra_info: heap_usage_bytes (MB)<br/>
+    <!--ss extra_info: heap_usage_bytes (MB)<br/>-->
     ss extra_info: note<br/>
     ss extra_info: page_faults (/s)<br/>
     ss extra_info: ramMB (MB)<br/>
