@@ -40,6 +40,9 @@ an external process:
     delay=1 # pick a number in seconds
     mongo --eval "while(true) {print(JSON.stringify(db.serverStatus({tcmalloc:true}))); sleep(1000*${delay:?})}" >ss.log &
 
+(<b>NOTE</b>: this command may need to be adjusted to do
+authentication if that is required.)
+
 You can then use all of the commmands and interactive capabilities
 described in the remainder of the document, substituting "ss.log"
 for "diagnostic.data" on the command line, for example:
@@ -265,7 +268,10 @@ serverStatus data:
     mongo --eval "while(true) {print(JSON.stringify(db.serverStatus({tcmalloc:true}))); sleep(1000*${delay:?})}" >ss.log &
     iostat -k -t -x ${delay:?} >iostat.log &
 
-And then visualize both iostat.log and ss.log together:
+(<b>NOTE</b>: the mongo command may need to be adjusted to do
+authentication if that is required.)
+
+Then you can visualize both iostat.log and ss.log together:
 
     python timeseries.py --itz -5 iostat.log" ss.log
 

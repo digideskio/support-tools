@@ -20,6 +20,9 @@
   produces manageable file sizes for up to about a day; beyond that a
   lower sampling rate can be used.
 
+* When collecting serverStatus manually for 3.0 the mongo command may
+  need to be adjusted to do authentication if that is required.
+
 * Memory issues often developing slowly, so lower sampling rates can
   generally be used for such issues.
 
