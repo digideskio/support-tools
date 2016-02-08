@@ -303,8 +303,8 @@ there is a corresponding metric for failed operations.
     timeouts occur generally the operations continue on the server, so
     when the client retries it only increases the load and makes the
     problem worse. To avoid this we
-    [recommend](http://jmikola.net/blog/mongodb-timeouts) using
-    server-side timeouts.
+    <a href="http://jmikola.net/blog/mongodb-timeouts">recommend</a>
+    using server-side timeouts.
   </dd>
 
   <dt>
