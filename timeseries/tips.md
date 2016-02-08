@@ -57,3 +57,10 @@
   any metrics that isn't based on cumulative counters, that is, which
   is not identified as a rate ("/s") of some quantity.
 
+* Connection spikes associated with performance problems are often a
+  sign of client-side timeouts and retries: when client-side timeouts
+  occur generally the operations continue on the server, so when the
+  client retries it only increases the load and makes the problem
+  worse. To avoid this we
+  [recommend](http://jmikola.net/blog/mongodb-timeouts) using
+  server-side timeouts.
