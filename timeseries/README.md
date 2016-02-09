@@ -341,7 +341,6 @@ collection and index table statistics, respectively:
                 s = db.$c.stats({indexDetails:true});
                 s.time = new Date();
                 s.wiredTiger = s.indexDetails['$inx']
-                s.foo = s.indexDetails['$inx']
                 print(JSON.stringify(s))
                 sleep(1000*$delay)
             }
