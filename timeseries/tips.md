@@ -75,9 +75,9 @@
   will give you average rates over the longer interval for such
   counters. Here's a simple perl script for taking every nth line:
 
-    # example: every 10 <ss.log >ss-every10.log
-    function every {
-        every=$1; shift
-        perl -n -e "\$. % $every == 1 && print" $*
-    }
+      # example: every 10 <ss.log >ss-every10.log
+      function every {
+          every=$1; shift
+          perl -n -e "\$. % $every == 1 && print" $*
+      }
 
