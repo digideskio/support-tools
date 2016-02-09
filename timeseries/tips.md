@@ -64,3 +64,20 @@
   worse. To avoid this we
   [recommend](http://jmikola.net/blog/mongodb-timeouts) using
   server-side timeouts.
+
+* If you have a very large serverStatus timeseries generated manually,
+  for example a length timeseries sampled at 1-second intervals, you
+  can subsample it by taking every nth line before giving it to the
+  timeseries tool. For example if you take every 10th line from a
+  timeseries at 1-second intervals this effectively gives you a
+  timeseries sampled at 10-second intervals. Most of the metrics are
+  cumulative counters from which rates are computed, and subsampling
+  will give you average rates over the longer interval for such
+  counters. Here's a simple perl script for taking every nth line:
+
+    # example: every 10 <ss.log >ss-every10.log
+    function every {
+        every=$1; shift
+        perl -n -e "\$. % $every == 1 && print" $*
+    }
+
