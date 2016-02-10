@@ -1236,7 +1236,10 @@ Note: these also appear as oplog stats in ftdc data.
     indicator of a disk bottleneck. Note however that WT i/o tends to
     be bursty, and it's not unusual to see 100% utilization during
     checkpoints, and this by itself does not necessarily indicate a
-    disk bottleneck.
+    disk bottleneck. Note that if you are looking at a graph that is
+    showing an extended period it may appear that the disk is
+    constantly 100% utilized when in fact if you zoom in you will see
+    that it is only peaking at 100% briefly during checkpoints.
   </dd>
 
 </dl>
