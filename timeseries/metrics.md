@@ -609,8 +609,23 @@ about these metrics in [the mongod source code](https://github.com/mongodb/mongo
     ss metrics: repl apply batches totalMillis (/s)<br/>
     ss metrics: repl apply ops (/s)<br/>
     ss metrics: repl buffer count<br/>
+  </dt>
+  <dd>
+  </dd>
+  <dt>
     ss metrics: repl buffer maxSizeBytes (MB)<br/>
     ss metrics: repl buffer sizeBytes (MB)<br/>
+  </dt>
+  <dd>
+    The sizeBytes metric records the amount of replicated data from
+    the primary waiting to be applied on this secondary. This number
+    is capped by maxSizeBytes. As long as sizeBytes is less than
+    maxSizeBytes, and there is not a network bottleneck causing lag,
+    you can get a rough estimate of replication lag by dividing "repl
+    buffer sizeBytes" by the rate of incoming data, given by the "repl
+    network bytes" stat.
+  </dd>
+  <dt>
     ss metrics: repl executor counters cancels (/s)<br/>
     ss metrics: repl executor counters eventCreated (/s)<br/>
     ss metrics: repl executor counters eventWait (/s)<br/>
@@ -893,6 +908,10 @@ about these metrics in [the mongod source code](https://github.com/mongodb/mongo
     ss wt cursor: search near calls (/s)<br/>
     ss wt cursor: truncate calls (/s)<br/>
     ss wt cursor: update calls (/s)<br/>
+  </dt>
+  <dd>
+  </dd>
+  <dt>
     ss wt data-handle: connection candidate referenced (/s)<br/>
     ss wt data-handle: connection data handles currently active<br/>
     ss wt data-handle: connection dhandles swept (/s)<br/>
@@ -904,6 +923,17 @@ about these metrics in [the mongod source code](https://github.com/mongodb/mongo
     ss wt data-handle: connection time-of-death sets (/s)<br/>
     ss wt data-handle: session dhandles swept (/s)<br/>
     ss wt data-handle: session sweep attempts (/s)<br/>
+  </dt>
+  <dd>
+    Data handles are used internally in WT to reference WT tables;
+    there is a WT table for each collection and for each index. A
+    large number of data handles ("data handles currently active")
+    generally indicates that the user has a large number
+    collections. The metrics relating to "sweep" have to do with to
+    the WT internal mechanism for closing unused data handles, which
+    generally is done asynchronously.
+  </dd>
+  <dt>
     ss wt log: busy returns attempting to switch slots (/s)<br/>
     ss wt log: consolidated slot closures (/s)<br/>
     ss wt log: consolidated slot join races (/s)<br/>

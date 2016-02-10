@@ -87,3 +87,12 @@
   at a graph that is showing an extended period it may appear that the
   disk is constantly 100% utilized when in fact if you zoom in you
   will see that it is only peaking at 100% briefly during checkpoints.
+
+* You can get a rough estimate of replication lag from serverStatus
+  metrics on the secondary by dividing "repl buffer sizeBytes", which
+  is the amount of replicated data buffered on the secondary awaiting
+  application, by the rate of incoming data, given by the "repl
+  network bytes" metric. Note that this is only valid if "repl buffer
+  sizeBytes" doesn't exceed the cap, "repl buffer maxSizeBytes", and
+  if there isn't a network bottleneck causing significant replication
+  lag.
