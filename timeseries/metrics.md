@@ -530,11 +530,15 @@ about these metrics in [the mongod source code](https://github.com/mongodb/mongo
 
   <dt>
     ss tcmalloc: generic current_allocated_bytes (MB)<br/>
+    ss tcmalloc: tcmalloc allocated minus wt cache (MB)<br/>
   </dt>
   <dd>
     This is the amount of memory in the heap that is allocated and in
     use by the application. If this number is a lot larger than WT
-    cache then there may be a mongod memory usage issue.
+    cache then there may be a mongod memory usage issue. The
+    "allocated minus cache" metric is allocated bytes not accounted
+    for by the WT cache; this should not be large, and if it is it may
+    indicate a problem to be investigated.
   </dd>
 
   <dt>
@@ -553,6 +557,7 @@ about these metrics in [the mongod source code](https://github.com/mongodb/mongo
     ss tcmalloc: tcmalloc transfer_cache_free_bytes (MB)<br/>
     ss tcmalloc: tcmalloc central_cache_free_bytes (MB)<br/>
     ss tcmalloc: tcmalloc pageheap_free_bytes (MB)<br/>
+    ss tcmalloc: tcmalloc total free (MB)<br/>
   </dt>
   <dd>
     Memory that is in the heap but is available to be allocated is
@@ -566,7 +571,9 @@ about these metrics in [the mongod source code](https://github.com/mongodb/mongo
     memory that are too small to satisfy the requirements of the
     application. To distinguish between these problems you will need
     to look at a timeseries from the start of the mongod process and
-    see whether allocated memory was ever large.
+    see whether allocated memory was ever large. The "total free"
+    metric is computed by adding together pageheap and central cache
+    free bytes and is useful for diagnosing fragmentation.
   </dd>
 
   <dt>

@@ -105,6 +105,48 @@ descriptor(
 )
 
 #
+# generic support for computed metrics via the "special" mechanism
+# these routines are called once per chunk in process.process
+# each specifies a result key, a function, and a list of arg keys
+# the function is called on each data point in the arg keys to produce a list of result data points
+#
+
+class metrics_special:
+    def __init__(self, result, fun, *args):
+        self.result = result
+        self.fun = fun
+        self.args = args
+    def __call__(self, metrics):
+        try:
+            if not self.result in metrics:
+                metrics[self.result] = map(self.fun, *(metrics[arg] for arg in self.args))
+        except KeyError:
+            # missing required args, so do nothing
+            pass
+
+compute_tcmalloc_allocated_minus_wt_cache = metrics_special(
+    ['tcmalloc', 'tcmalloc', 'allocated minus wt cache'],
+    lambda allocated, cache: allocated - cache,
+    ['tcmalloc', 'generic', 'current_allocated_bytes'],
+    ['wiredTiger', 'cache', 'bytes currently in the cache'],
+)
+
+compute_tcmalloc_total_free = metrics_special(
+    ['tcmalloc', 'tcmalloc', 'total free'],
+    lambda pageheap, central: pageheap + central,
+    ['tcmalloc', 'tcmalloc', 'pageheap_free_bytes'],
+    ['tcmalloc', 'tcmalloc', 'central_cache_free_bytes'],
+)
+
+# XXX not right - need to differentiate first
+#compute_compression_ratio = metrics_special(
+#    ['wiredTiger', 'block-manager', 'compression ratio'],
+#    lambda block, cache: cache / block if block and cache else None,
+#    ['wiredTiger', 'block-manager', 'bytes written'],
+#    ['wiredTiger', 'cache', 'bytes written from cache'],
+#)
+
+#
 # serverStatus json output, for example:
 # mongo --eval "while(true) {print(JSON.stringify(db.serverStatus())); sleep($delay*1000)}"
 #
@@ -118,15 +160,32 @@ def desc_units(scale, rate):
     elif rate: units += '/s'
     return units
 
-def ss(json_data, name=None, scale=1, rate=False, units=None, level=3, **kwargs):
+def ss(json_data, name=None, scale=1, rate=False, units=None, level=3, special=None, **kwargs):
 
     if not name:
         name = ' '.join(s for s in json_data[1:] if s!='floatApprox')
         name = 'ss ' + json_data[0] +  ': ' + name
+        if rate=='increase':
+            name += ' increase'
+        elif rate=='decrease':
+            name += ' decrease'
         if not units: units = desc_units(scale, rate)
         if units: units = ' (' + units + ')'
         name = name + units
 
+    # special must specify result and args as a key string (e.g. serverStatus/tcmalloc/...)
+    # but we supply it to the ss routine as a path list (e.g. ['tcmalloc', ...])
+    # here we join the list, optionally prepending a wrapper (ie 'serverStatus')
+    # depending on context, ie whether this ss data is wrapped in a 'serverStatus' section for ftdc
+    def join_special(pfx, special):
+        if special:
+            special = metrics_special(
+                util.join(*(pfx + special.result)),
+                special.fun,
+                *(util.join(*(pfx + arg)) for arg in special.args)
+            )
+        return special
+        
     # for parsing direct serverStatus command output
     descriptor(
         file_type = 'json',
@@ -137,6 +196,7 @@ def ss(json_data, name=None, scale=1, rate=False, units=None, level=3, **kwargs)
         scale = scale,
         rate = rate,
         level = level,
+        special = join_special([], special),
         **kwargs
     )
 
@@ -150,6 +210,7 @@ def ss(json_data, name=None, scale=1, rate=False, units=None, level=3, **kwargs)
         scale = scale,
         rate = rate,
         level = level,
+        special = join_special(['serverStatus'], special),
         **kwargs
     )
 
@@ -164,6 +225,7 @@ def ss(json_data, name=None, scale=1, rate=False, units=None, level=3, **kwargs)
         rate = rate,
         level = level,
         time_scale = 1000.0, # times are in ms
+        special = join_special(['serverStatus'], special),
         **kwargs
     )
 
@@ -272,6 +334,15 @@ ss(['tcmalloc', 'tcmalloc', 'central_cache_free_bytes'], scale=MB, level=4)
 ss(['tcmalloc', 'tcmalloc', 'transfer_cache_free_bytes'], scale=MB, level=4)
 ss(['tcmalloc', 'tcmalloc', 'thread_cache_free_bytes'], scale=MB, level=4)
 ss(['tcmalloc', 'tcmalloc', 'aggressive_memory_decommit'], scale=MB, level=4) # ???
+ss(['tcmalloc', 'tcmalloc', 'allocated minus wt cache'], scale=MB, level=4,
+   special=compute_tcmalloc_allocated_minus_wt_cache)
+#ss(['tcmalloc', 'tcmalloc', 'allocated minus wt cache'], scale=MB, level=9, rate='increase',
+#   special=compute_tcmalloc_allocated_minus_wt_cache)
+#ss(['tcmalloc', 'tcmalloc', 'allocated minus wt cache'], scale=MB, level=9, rate='decrease',
+#   special=compute_tcmalloc_allocated_minus_wt_cache)
+ss(['tcmalloc', 'tcmalloc', 'total free'], scale=MB, level=4,
+   special=compute_tcmalloc_total_free)
+
 ss(["host"], level=99)
 
 def ss_lock(name):
@@ -1140,6 +1211,7 @@ wt('block-manager', 'file size in bytes', scale=MB)
 wt('block-manager', 'mapped blocks read', rate=True)
 wt('block-manager', 'mapped bytes read', rate=True, scale=MB)
 wt('block-manager', 'minor version number', level=99)
+#wt('block-manager', 'compression ratio', level=9, special=compute_compression_ratio)
 wt('btree', 'column-store fixed-size leaf pages')
 wt('btree', 'column-store internal pages')
 wt('btree', 'column-store variable-size deleted values')

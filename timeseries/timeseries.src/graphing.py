@@ -329,7 +329,8 @@ class Series:
                 return
             if d < 0:
                 self.wrapped = True
-                util.msg('possible wrap detected in', self.get('name'), 'at', util.f2s(t))
+                if not self.rate: 
+                    util.msg('possible wrap detected in', self.get('name'), 'at', util.f2s(t))
 
         # scale - xxx need general computation mechanism here instead
         if self.scale_field:
