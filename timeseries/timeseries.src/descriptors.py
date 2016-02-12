@@ -256,28 +256,28 @@ ss_opcounter('command')
 
 ss(
     json_data = ['globalLock', 'activeClients', 'readers'],
-    name = 'ss global: active read queue',
+    name = 'ss global: active readers',
     merge = '_ss_active_queue',
     level = 1
 )
 
 ss(
     json_data = ['globalLock', 'activeClients', 'writers'],
-    name = 'ss global: active write queue',
+    name = 'ss global: active writers',
     merge = '_ss_active_queue',
     level = 1
 )
 
 ss(
     json_data = ['globalLock', 'currentQueue', 'readers'],
-    name = 'ss global: read queue',
+    name = 'ss global: queued readers',
     merge = '_ss_queue',
     level = 1
 )
 
 ss(
     json_data = ['globalLock', 'currentQueue', 'writers'],
-    name = 'ss global: write queue',
+    name = 'ss global: queued writers',
     merge = '_ss_queue',
     level = 1
 )

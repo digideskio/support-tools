@@ -246,7 +246,6 @@ function run-tests {
     run-test test-021
     run-test test-022
     run-test test-023
-
 }
 
 function zip-source {

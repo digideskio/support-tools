@@ -3,7 +3,6 @@ import collections
 import datetime as dt
 import json
 import math
-import os
 import pipes
 import pkgutil
 import traceback
@@ -354,11 +353,22 @@ def page(ses):
     def color(i):
         return colors[i] if i <len(colors) else 'black'
 
+    # word-by-word common prefix
+    # used to factor out common prefix and suffix in merged graph names
+    def commonprefix(names):
+        pfx = []
+        for words in zip(*[n.split() for n in names]):
+            if all(w==words[0] for w in words):
+                pfx.append(words[0])
+            else:
+                break
+        return ' '.join(pfx)
+
     # format graph name, factoring out common prefixes and common suffixes for merged graphs
     def name_td(g):
         ses.td('name')
-        pfx = os.path.commonprefix([s.name for s in g])
-        sfx = os.path.commonprefix([s.name[::-1] for s in g])[::-1]
+        pfx = commonprefix([s.name for s in g])
+        sfx = commonprefix([s.name[::-1] for s in g])[::-1]
         ses.put(pfx)
         if sfx != pfx:
             for i,s in enumerate(g):
