@@ -602,6 +602,7 @@ def print_file(fn, at, meta, find=None):
     # get root and avail if possible from meta string xxx check this
     root = None
     avail = {}
+    compressor = default_compressor # default in case metadata not available
     if meta:
         try:
             r, u, a, compressor = parse_meta(meta)
@@ -644,11 +645,9 @@ def print_with_meta(fn, at):
     while True:
         try:
             meta = open(os.path.join(dbpath, 'WiredTiger.turtle')).read()
-            dbg('meta', meta)
             if os.path.basename(fn) != 'WiredTiger.wt':
-                f = fn[len(dbpath)+1 if dbpath else 0:]
+                f = fn[len(dbpath)+1 if dbpath else 0 : ]
                 meta = find_key(dbpath, 'WiredTiger.wt', meta, 'file:%s\x00' % f)
-            dbg('meta', meta)
             break
         except Exception as e:
             exc = e
@@ -690,4 +689,5 @@ if do_extract:
 if do_page:
     fn = sys.argv[2]
     at = int(sys.argv[3], 0) if len(sys.argv)>3 else 0
+    default_compressor = sys.argv[4] if len(sys.argv)>4 else 'snappy'
     print_with_meta(fn, at)

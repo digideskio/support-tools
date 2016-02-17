@@ -2,7 +2,7 @@ NAME
     mdb-wt - simple tool to dump parts of mongo+wt databases
 
 SYNOPSIS
-    python mdb-wt.py -p[e[bB]] file [offset]
+    python mdb-wt.py -p[e[bB]] file [offset [compressor]]
 
 DESCRIPTION
 
@@ -46,3 +46,7 @@ INSTALLING SNAPPY
 
     Snappy support is not needed to view page headers and block
     manager pages as these are not compressed.
+
+    The compressor to use is obtained from the WT metadata files; if
+    metadata is not available the compressor can be specified on the
+    command line.
