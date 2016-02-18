@@ -1,5 +1,14 @@
 ## Tips
 
+* The diagnostic.data directory that contains the FTDC data in 3.2 and
+  later can be safely copied off of a running instance. It is already
+  compressed so additional compression is not beneficial (but is also
+  harmless). The size is capped at 100 MB so it can be directly
+  attached to a JIRA ticket. This is sufficient to capture 4-7 days
+  worth of data for a busy instance, significantly longer if it is
+  idle.  Suggested wording: "Please archive (tar or zip) the
+  $dbpath/diagnostic.data directory and attach it to this ticket."
+
 * When collecting timeseries data manually to analyze a reproducible
   problem it is best to start the data collection before the onset of
   the problem and to continue to collect data after the end of the
