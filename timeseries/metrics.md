@@ -623,7 +623,12 @@ about these metrics in [the mongod source code](https://github.com/mongodb/mongo
     maxSizeBytes, and there is not a network bottleneck causing lag,
     you can get a rough estimate of replication lag by dividing "repl
     buffer sizeBytes" by the rate of incoming data, given by the "repl
-    network bytes" stat.
+    network bytes" stat. If sizeBytes is consistently at maxSizeBytes,
+    that means that the secondary is having no problem fetching
+    replication data from the primary and buffering it, but is having
+    trouble applying it. In other words, we know that the bottleneck
+    is not fetching the ops on the primary nor the network, but is on
+    the secondary.
   </dd>
   <dt>
     ss metrics: repl executor counters cancels (/s)<br/>
