@@ -62,10 +62,15 @@
     ss metrics: operation writeConflicts (/s)<br/>
   </dt>
   <dd>
-    A high rate of write conflicts indicates document-level write
-    contention in WiredTiger.
+    A write conflict occurs when two or more operations try to
+    simultaneously update the same document. The optimistic
+    concurrency control approach of WT does not lock individual
+    documents, but rather allows each write to proceed independently;
+    if the writes collide, one of them is rolled back and then
+    retried.  Therefore a high rate of write conflicts indicates
+    document-level write contention in WiredTiger. See also the "wt
+    transaction: transactions rolled back" metric.
   </dd>
-
   <dt>
     ss metrics: operation scanAndOrder (/s)<br/>
     ss metrics: queryExecutor scanned (/s)<br/>
@@ -1016,9 +1021,24 @@ about these metrics in [the mongod source code](https://github.com/mongodb/mongo
     ss wt thread-yield: page acquire time sleeping (usecs) (/s)<br/>
     ss wt transaction: number of named snapshots created (/s)<br/>
     ss wt transaction: number of named snapshots dropped (/s)<br/>
-    ss wt transaction: transaction begins (/s)<br/>
   </dt>
   <dd>
+  </dd>
+  <dt>
+    ss wt transaction: transaction begins (/s)<br/>
+    ss wt transaction: transactions committed (/s)<br/>
+    ss wt transaction: transactions rolled back (/s)<br/>
+  </dt>
+  <dd>
+    Typical mongod operations are performed in a single WT
+    transaction, so generally the rate of transaction begins follows
+    the rate of mongod operations. Read-only transactions are rolled
+    back at their conclusion because there are no changes to commit;
+    write transactions are committed if successful, or rolled back if
+    not successful, typically because of a write conflict. Thus write
+    conflicts cause rollbacks, but read-only transactions also cause
+    rollbacks; to determine the rate of write conflicts, see the
+    "metrics: operation writeConflicts" metric.
   </dd>
   <dt>
     ss wt transaction: transaction checkpoint currently running<br/>
@@ -1094,10 +1114,7 @@ about these metrics in [the mongod source code](https://github.com/mongodb/mongo
   <dt>
     ss wt transaction: transaction range of IDs currently pinned by named snapshots<br/>
     ss wt transaction: transaction sync calls (/s)<br/>
-    ss wt transaction: transactions committed (/s)<br/>
-    ss wt transaction: transactions rolled back (/s)<br/>
     ss wt transaction: update conflicts (/s)<br/>
-
   </dt>
 
 </dl>
