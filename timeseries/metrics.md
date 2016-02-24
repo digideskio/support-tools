@@ -426,6 +426,19 @@ and &lt;lock&gt; is one of
     occasion an isolated bump in this metric can point to a lock
     acquisition that has caused a stall; the stall will show up in the
     timeAcuiringMicros metrics, as described below.
+
+    Note in particular that the lock acquireCount metric is not in
+    itself indicative of locking issues: every operation acquires
+    intent locks (lower case w or r) at global, db, and collection
+    level to signal their intent to do a write or read on that entity,
+    so these metrics generally follow operation rates. Locking issues
+    only occur if operations have to wait to acquire these intent
+    locks, so evidence of locking issues is found in the
+    timeAcquiringMicros metric (described below). Locking issues will
+    in turn be caused not by operations acquiring intent locks
+    (lowercase w or r), but rather by operations acquiring read or
+    write locks (uppercase W or R), which will block other operations
+    trying to acquire locks or intent locks.
   </dd>
   <dt>
     ss locks: &lt;resource&gt; acquireWaitCount &lt;lock&gt; (/s)<br/>
