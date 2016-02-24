@@ -338,7 +338,6 @@ def process(series, fn, opt):
     # compute and print unrecognized metrics
     ignore = re.compile(
         '^serverStatus.(repl|start|end)|'
-        '^local.oplog.rs|'
         '^replSetGetStatus|slot_closure_rate'
     )
     for s in series:
