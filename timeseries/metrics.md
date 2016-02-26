@@ -737,14 +737,6 @@ about these metrics in [the mongod source code](https://github.com/mongodb/mongo
 <dl>
 
   <dt>
-
-    ss wiredTiger: concurrentTransactions read available<br/>
-    ss wiredTiger: concurrentTransactions read out<br/>
-    ss wiredTiger: concurrentTransactions read totalTickets<br/>
-    ss wiredTiger: concurrentTransactions write available<br/>
-    ss wiredTiger: concurrentTransactions write out<br/>
-    ss wiredTiger: concurrentTransactions write totalTickets<br/>
-    ss wiredTiger: uri<br/>
     ss writeBacksQueued: <br/>
 <!--
     ss wt LSM: application work units currently queued<br/>
