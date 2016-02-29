@@ -497,16 +497,27 @@ and &lt;lock&gt; is one of
 <dl>
 
   <dt>
-
     ss extra_info: availPageFileMB (MB)<br/>
     <!--ss extra_info: heap_usage_bytes (MB)<br/>-->
     ss extra_info: note<br/>
-    ss extra_info: page_faults (/s)<br/>
     ss extra_info: ramMB (MB)<br/>
     ss extra_info: totalPageFileMB (MB)<br/>
     ss extra_info: usagePageFileMB (MB)<br/>
-
   </dt>
+  <dd>
+  </dd>
+
+  <dt>
+    ss extra_info: page_faults (/s)<br/>
+  </dt>
+  <dd>
+    On Linux this metric reports the number of major page faults; a
+    correlated increse in memory, increase and page faults, and
+    decrease in performance indicates that performance is likely
+    suffering from excessive memory usage causing paging. Consult the
+    tcmalloc memory metrics for confirmation and to begin diagnosis.
+  </dd>
+
 
 </dl>
 
