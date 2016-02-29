@@ -512,7 +512,7 @@ and &lt;lock&gt; is one of
   </dt>
   <dd>
     On Linux this metric reports the number of major page faults; a
-    correlated increse in memory, increase and page faults, and
+    correlated increase in memory, increase and page faults, and
     decrease in performance indicates that performance is likely
     suffering from excessive memory usage causing paging. Consult the
     tcmalloc memory metrics for confirmation and to begin diagnosis.
