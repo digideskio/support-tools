@@ -262,9 +262,19 @@ function zip-source {
     chmod +x $out
 }    
 
+function check {
+    url=https://raw.githubusercontent.com/wiredtiger/wiredtiger/develop/dist/stat_data.py
+    dn=/tmp/stat_data
+    rm -rf $dn
+    mkdir -p $dn
+    (cd $dn; wget --no-check-certificate $url)
+    PYTHONPATH=$dn python ../timeseries.py --check-wt-stat-data
+}
+
 function main {
     pylint --output-format=parseable --disable=all --enable=E,F --reports=n ../timeseries.src/*.py || exit -1
     zip-source
+    check
     run-tests
 }
 

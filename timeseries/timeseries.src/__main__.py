@@ -41,6 +41,7 @@ def get_opt(args=sys.argv[1:]):
     p.add_argument('--connect', type=str)
     p.add_argument('--live', type=int, default=0)
     p.add_argument('--nofork', action='store_true')
+    p.add_argument('--check-wt-stat-data', action='store_true', help=argparse.SUPPRESS)
     # might be useful: --cursors time,... 
     return p.parse_args(args)
 
@@ -54,6 +55,11 @@ def main():
     # just list?
     if opt.list:
         descriptors.list_descriptors()
+        return
+
+    # just check stat_data.py?
+    if opt.check_wt_stat_data:
+        descriptors.check_wt_stat_data()
         return
 
     if opt.profile:
