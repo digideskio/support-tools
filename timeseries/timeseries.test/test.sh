@@ -159,18 +159,24 @@ function compare-html {
     rm -f /tmp/$o-*-full.png
 
     # render both pages
+    width=1500
+    zoom=0.5
     o=$(basename $ref)
     rm -f /tmp/$o-{ref,act}
     if [[ -e $ref ]]; then
-        webkit2png/webkit2png -W 1500 -F $ref -o /tmp/$o-ref
+        @echo webkit2png/webkit2png -W $width -z $zoom -F $ref -o /tmp/$o-ref
     fi
-    webkit2png/webkit2png -W 1500 -F $act -o /tmp/$o-act
+    @echo webkit2png/webkit2png -W $width -z $zoom -F $act -o /tmp/$o-act
+
+    width=$(identify -format "%[fx:w]" /tmp/$o-ref-full.png)
+    height=$(identify -format "%[fx:h]" /tmp/$o-ref-full.png)
+    @echo convert /tmp/$o-act-full.png -extent ${width}x${height} /tmp/$o-act-clipped.png
 
     # compute image hashes using ImageMagick
     if [[ -e $ref ]]; then
         ref_hash=$(identify -format '%#\n' /tmp/$o-ref-full.png)
     fi
-    act_hash=$(identify -format '%#\n' /tmp/$o-act-full.png)
+    act_hash=$(identify -format '%#\n' /tmp/$o-act-clipped.png)
     echo ref hash: $ref_hash
     echo act hash: $act_hash
 
@@ -188,7 +194,8 @@ function compare-html {
         # hashes not equal; use Preview to do visual comparison
         if [[ -e /tmp/$o-ref-full.png ]]; then
             # use ImageMagick comparison to look
-            compare /tmp/$o-{ref,act}-full.png /tmp/$o-diff-full.png
+            file /tmp/$o-ref-full.png /tmp/$o-act-full.png /tmp/$o-act-clipped.png 
+            compare /tmp/$o-ref-full.png /tmp/$o-act-clipped.png /tmp/$o-diff-full.png
         fi
         open /tmp/$o-*-full.png
         ask "Looks good?"
