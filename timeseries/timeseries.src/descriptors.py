@@ -192,6 +192,13 @@ compute_tcmalloc_total_free = metrics_special(
     ['tcmalloc', 'tcmalloc', 'central_cache_free_bytes'],
 )
 
+compute_tcmalloc_utilization = metrics_special(
+    ['tcmalloc', 'generic', 'heap utilization (current_allocated_bytes / heap_size)'],
+    lambda allocated_bytes, heap_size: float(allocated_bytes) / float(heap_size),
+    ['tcmalloc', 'generic', 'current_allocated_bytes'],
+    ['tcmalloc', 'generic', 'heap_size'],
+)
+
 # XXX not right - need to differentiate first
 #compute_compression_ratio = metrics_special(
 #    ['wiredTiger', 'block-manager', 'compression ratio'],
@@ -380,6 +387,8 @@ ss(['extra_info', 'totalPageFileMB'], units='MB', level=1)
 ss(['extra_info', 'usagePageFileMB'], units='MB', level=1)
 ss(['tcmalloc', 'generic', 'current_allocated_bytes'], scale=MB, level=1)
 ss(['tcmalloc', 'generic', 'heap_size'], scale=MB, level=1)
+ss(['tcmalloc', 'generic', 'heap utilization (current_allocated_bytes / heap_size)'], level=4,
+   special=compute_tcmalloc_utilization)
 ss(['tcmalloc', 'tcmalloc', 'pageheap_free_bytes'], scale=MB, level=4)
 ss(['tcmalloc', 'tcmalloc', 'pageheap_unmapped_bytes'], scale=MB, level=4)
 ss(['tcmalloc', 'tcmalloc', 'max_total_thread_cache_bytes'], scale=MB, level=4)
