@@ -80,11 +80,11 @@ def check_wt_stat_data():
             ref_scale = 'MB' if 'size' in flags else 1
             if match:
                 act_rate = act[desc]['rate'] != False # rate=='delta' counts as a "rate"
-                act_scale = 'MB' if act[desc]['scale']==MB else act[desc]['scale']
+                act_scale = act[desc]['scale']
                 mismatch = ''
                 if ref_rate != act_rate:
                     mismatch += ' RATE'
-                if ref_scale != act_scale:
+                if ref_scale=='MB' and not (act_scale==kB or act_scale==MB):
                     mismatch += ' SCALE'
                 if mismatch:
                     util.msg('%s(\'%s\', \'%s\', rate=%s, scale=%s, level=...) # %s' %
@@ -213,10 +213,12 @@ compute_tcmalloc_utilization = metrics_special(
 #
 
 MB = 1024*1024
+kB = 1024
 
 def desc_units(scale, rate):
     units = ''
     if scale==MB: units = 'MB'
+    elif scale==kB: units = 'kB'
     if rate=='delta': units += 'delta'
     elif rate: units += '/s'
     return units
@@ -735,7 +737,7 @@ cs_wt('block-manager', 'allocations requiring file extension', rate=True)
 cs_wt('block-manager', 'blocks allocated', rate=True)
 cs_wt('block-manager', 'blocks freed', rate=True)
 cs_wt('block-manager', 'checkpoint size', scale=MB)
-cs_wt('block-manager', 'file allocation unit size', scale=MB, level=99) # XXX scale=kB?
+cs_wt('block-manager', 'file allocation unit size', scale=kB, level=99)
 cs_wt('block-manager', 'file bytes available for reuse', scale=MB)
 cs_wt('block-manager', 'file magic number', level=99)
 cs_wt('block-manager', 'file major version number', level=99)
@@ -747,12 +749,12 @@ cs_wt('btree', 'column-store internal pages', level=99)
 cs_wt('btree', 'column-store variable-size deleted values', level=99)
 cs_wt('btree', 'column-store variable-size leaf pages', level=99)
 cs_wt('btree', 'column-store variable-size RLE encoded values')
-cs_wt('btree', 'fixed-record size', scale=MB) # XXX scale=kB?
-cs_wt('btree', 'maximum internal page key size', scale=MB) # XXX scale=kB?
-cs_wt('btree', 'maximum internal page size', scale=MB) # XXX scale=kB?
-cs_wt('btree', 'maximum leaf page key size', scale=MB) # XXX scale=kB
-cs_wt('btree', 'maximum leaf page size', scale=MB) # XXX scale=kB
-cs_wt('btree', 'maximum leaf page value size', scale=MB) # XXX scale=kB?
+cs_wt('btree', 'fixed-record size', scale=kB)
+cs_wt('btree', 'maximum internal page key size', scale=kB)
+cs_wt('btree', 'maximum internal page size', scale=kB)
+cs_wt('btree', 'maximum leaf page key size', scale=kB)
+cs_wt('btree', 'maximum leaf page size', scale=kB)
+cs_wt('btree', 'maximum leaf page value size', scale=kB)
 cs_wt('btree', 'maximum tree depth')
 cs_wt('btree', 'number of key/value pairs')
 cs_wt('btree', 'overflow pages')
