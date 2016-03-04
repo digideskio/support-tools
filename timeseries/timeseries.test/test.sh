@@ -197,6 +197,7 @@ function compare-html {
             file /tmp/$o-ref-full.png /tmp/$o-act-full.png /tmp/$o-act-clipped.png 
             compare /tmp/$o-ref-full.png /tmp/$o-act-clipped.png /tmp/$o-diff-full.png
         fi
+        open $ref $act
         open /tmp/$o-*-full.png
         ask "Looks good?"
         if [[ $? == 1 ]]; then
@@ -227,6 +228,11 @@ function run-test {
 }
 
 function run-tests {
+    run-test test-019
+    run-test test-020
+    run-test test-021
+    run-test test-022
+    run-test test-023
     run-test test-001
     run-test test-002
     #run-test test-003 # restore wt stuff
@@ -248,11 +254,6 @@ function run-tests {
     run-test test-016
     run-test test-017
     run-test test-018
-    run-test test-019
-    run-test test-020
-    run-test test-021
-    run-test test-022
-    run-test test-023
 }
 
 function zip-source {

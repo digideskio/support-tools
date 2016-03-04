@@ -59,7 +59,7 @@ def check_wt_stat_data():
 
     import stat_data
 
-    def check(src, src_name, fun):
+    def check0(src, src_name, fun):
         actual = set(x['wt_desc'] for x in descriptors if 'wt_src' in x and x['wt_src']==src_name)
         reference = set(x.desc for x in src)
         flags = dict((x.desc, x.flags) for x in src)
@@ -69,9 +69,37 @@ def check_wt_stat_data():
             util.msg('%s(\'%s\', \'%s\', rate=%s, scale=..., level=...)' %
                      (fun, wt_cat, wt_desc, rate))
 
+    def check(src, src_name, fun, match):
+        act = dict((x['wt_desc'],x) for x in descriptors if 'wt_src' in x and x['wt_src']==src_name)
+        ref = dict((x.desc,x) for x in src)
+        what = set(ref.keys()) & set(act.keys()) if match else set(ref.keys()) - set(act.keys())
+        for desc in sorted(what):
+            wt_cat, wt_desc = desc.split(': ', 1)
+            flags = ref[desc].flags.split(',')
+            ref_rate = 'no_scale' not in flags
+            ref_scale = 'MB' if 'size' in flags else 1
+            if match:
+                act_rate = act[desc]['rate'] != False # rate=='delta' counts as a "rate"
+                act_scale = 'MB' if act[desc]['scale']==MB else act[desc]['scale']
+                mismatch = ''
+                if ref_rate != act_rate:
+                    mismatch += ' RATE'
+                if ref_scale != act_scale:
+                    mismatch += ' SCALE'
+                if mismatch:
+                    util.msg('%s(\'%s\', \'%s\', rate=%s, scale=%s, level=...) # %s' %
+                             (fun, wt_cat, wt_desc, ref_rate, ref_scale, mismatch))
+            else:
+                util.msg('%s(\'%s\', \'%s\', rate=%s, scale=%s, level=...)' %
+                         (fun, wt_cat, wt_desc, ref_rate, ref_scale))
+
     util.msg('=== following metrics are in stat_data.py but not in descriptors.py:')
-    check(stat_data.connection_stats, 'ss', 'wt') # serverStatus metrics
-    check(stat_data.dsrc_stats, 'cs', 'cs_wt') # collStats metrics
+    check(stat_data.connection_stats, 'ss', 'wt', match=False) # serverStatus metrics
+    check(stat_data.dsrc_stats, 'cs', 'cs_wt', match=False) # collStats metrics
+
+    util.msg('=== following metrics in descriptors.py do not match stat_data.py')
+    check(stat_data.connection_stats, 'ss', 'wt', match=True) # serverStatus metrics
+    check(stat_data.dsrc_stats, 'cs', 'cs_wt', match=True) # collStats metrics
 
 
 #
@@ -682,23 +710,23 @@ def cs_wt(wt_cat, wt_name, **kwargs):
     kwargs['wt_desc'] = wt_cat + ': ' + wt_name # for check_stat_data
     cs(['wiredTiger', wt_cat, wt_name], **kwargs)
 
-cs_wt('LSM', 'bloom filter false positives', level=99)
-cs_wt('LSM', 'bloom filter hits', level=99)
-cs_wt('LSM', 'bloom filter misses', level=99)
-cs_wt('LSM', 'bloom filter pages evicted from cache', level=99)
-cs_wt('LSM', 'bloom filter pages read into cache', level=99)
+cs_wt('LSM', 'bloom filter false positives', rate=True, level=99)
+cs_wt('LSM', 'bloom filter hits', rate=True, level=99)
+cs_wt('LSM', 'bloom filter misses', rate=True, level=99)
+cs_wt('LSM', 'bloom filter pages evicted from cache', rate=True, level=99)
+cs_wt('LSM', 'bloom filter pages read into cache', rate=True, level=99)
 cs_wt('LSM', 'bloom filters in the LSM tree', level=99)
 cs_wt('LSM', 'chunks in the LSM tree', level=99)
 cs_wt('LSM', 'highest merge generation in the LSM tree', level=99)
-cs_wt('LSM', 'queries that could have benefited from a Bloom filter that did not exist', level=99)
-cs_wt('LSM', 'sleep for LSM checkpoint throttle', level=99)
-cs_wt('LSM', 'sleep for LSM merge throttle', level=99)
-cs_wt('LSM', 'total size of bloom filters', level=99)
+cs_wt('LSM', 'queries that could have benefited from a Bloom filter that did not exist', rate=True, level=99)
+cs_wt('LSM', 'sleep for LSM checkpoint throttle', rate=True, level=99)
+cs_wt('LSM', 'sleep for LSM merge throttle', rate=True, level=99)
+cs_wt('LSM', 'total size of bloom filters', scale=MB, level=99)
 cs_wt('block-manager', 'allocations requiring file extension', rate=True)
 cs_wt('block-manager', 'blocks allocated', rate=True)
 cs_wt('block-manager', 'blocks freed', rate=True)
 cs_wt('block-manager', 'checkpoint size', scale=MB)
-cs_wt('block-manager', 'file allocation unit size', level=99)
+cs_wt('block-manager', 'file allocation unit size', scale=MB, level=99) # XXX scale=kB?
 cs_wt('block-manager', 'file bytes available for reuse', scale=MB)
 cs_wt('block-manager', 'file magic number', level=99)
 cs_wt('block-manager', 'file major version number', level=99)
@@ -710,12 +738,12 @@ cs_wt('btree', 'column-store internal pages', level=99)
 cs_wt('btree', 'column-store variable-size deleted values', level=99)
 cs_wt('btree', 'column-store variable-size leaf pages', level=99)
 cs_wt('btree', 'column-store variable-size RLE encoded values')
-cs_wt('btree', 'fixed-record size')
-cs_wt('btree', 'maximum internal page key size')
-cs_wt('btree', 'maximum internal page size')
-cs_wt('btree', 'maximum leaf page key size')
-cs_wt('btree', 'maximum leaf page size')
-cs_wt('btree', 'maximum leaf page value size')
+cs_wt('btree', 'fixed-record size', scale=MB) # XXX scale=kB?
+cs_wt('btree', 'maximum internal page key size', scale=MB) # XXX scale=kB?
+cs_wt('btree', 'maximum internal page size', scale=MB) # XXX scale=kB?
+cs_wt('btree', 'maximum leaf page key size', scale=MB) # XXX scale=kB
+cs_wt('btree', 'maximum leaf page size', scale=MB) # XXX scale=kB
+cs_wt('btree', 'maximum leaf page value size', scale=MB) # XXX scale=kB?
 cs_wt('btree', 'maximum tree depth')
 cs_wt('btree', 'number of key/value pairs')
 cs_wt('btree', 'overflow pages')
@@ -724,7 +752,7 @@ cs_wt('btree', 'row-store internal pages')
 cs_wt('btree', 'row-store leaf pages')
 cs_wt('cache', 'bytes read into cache', rate=True, scale=MB)
 cs_wt('cache', 'bytes written from cache', rate=True, scale=MB)
-cs_wt('cache', 'checkpoint blocked page eviction')
+cs_wt('cache', 'checkpoint blocked page eviction', rate=True)
 cs_wt('cache', 'data source pages selected for eviction unable to be evicted', rate=True)
 cs_wt('cache', 'hazard pointer blocked page eviction', rate=True)
 cs_wt('cache', 'in-memory page passed criteria to be split', rate=True)
@@ -757,9 +785,9 @@ cs_wt('compression', 'raw compression call succeeded', rate=True)
 #cs_wt('creationString', level=99)
 cs_wt('cursor', 'bulk-loaded cursor-insert calls', rate=True)
 cs_wt('cursor', 'create calls', rate=True)
-cs_wt('cursor', 'cursor-insert key and value bytes inserted', rate=True)
-cs_wt('cursor', 'cursor-remove key bytes removed', rate=True)
-cs_wt('cursor', 'cursor-update value bytes updated', rate=True)
+cs_wt('cursor', 'cursor-insert key and value bytes inserted', rate=True, scale=MB)
+cs_wt('cursor', 'cursor-remove key bytes removed', rate=True, scale=MB)
+cs_wt('cursor', 'cursor-update value bytes updated', rate=True, scale=MB)
 cs_wt('cursor', 'insert calls', rate=True)
 cs_wt('cursor', 'next calls', rate=True)
 cs_wt('cursor', 'prev calls', rate=True)
@@ -772,19 +800,19 @@ cs_wt('metadata', 'formatVersion', level=99)
 cs_wt('metadata', 'oplogKeyExtractionVersion', level=99)
 cs_wt('reconciliation', 'dictionary matches', rate=True)
 cs_wt('reconciliation', 'fast-path pages deleted', rate=True)
-cs_wt('reconciliation', 'internal page key bytes discarded using suffix compression', rate=True)
+cs_wt('reconciliation', 'internal page key bytes discarded using suffix compression', scale=MB, rate=True)
 cs_wt('reconciliation', 'internal page multi-block writes', rate=True)
-cs_wt('reconciliation', 'internal-page overflow keys')
-cs_wt('reconciliation', 'leaf page key bytes discarded using prefix compression', rate=True)
+cs_wt('reconciliation', 'internal-page overflow keys', rate=True)
+cs_wt('reconciliation', 'leaf page key bytes discarded using prefix compression', scale=MB, rate=True)
 cs_wt('reconciliation', 'leaf page multi-block writes', rate=True)
-cs_wt('reconciliation', 'leaf-page overflow keys')
+cs_wt('reconciliation', 'leaf-page overflow keys', rate=True)
 cs_wt('reconciliation', 'maximum blocks required for a page')
 cs_wt('reconciliation', 'overflow values written', rate=True)
 cs_wt('reconciliation', 'page checksum matches', rate=True)
 cs_wt('reconciliation', 'page reconciliation calls', rate=True)
 cs_wt('reconciliation', 'page reconciliation calls for eviction', rate=True)
 cs_wt('reconciliation', 'pages deleted', rate=True)
-cs_wt('session', 'object compaction')
+cs_wt('session', 'object compaction', rate=True)
 cs_wt('session', 'open cursor count')
 cs_wt('transaction', 'update conflicts', rate=True)
 #cs_wt('type', level=99)
@@ -1227,7 +1255,7 @@ wt('LSM', 'total size of bloom filters')
 wt('LSM', 'tree maintenance operations discarded', rate=True)
 wt('LSM', 'tree maintenance operations executed', rate=True)
 wt('LSM', 'tree maintenance operations scheduled', rate=True)
-wt('LSM', 'tree queue hit maximum')
+wt('LSM', 'tree queue hit maximum', rate=True)
 wt('async', 'current work queue length', level=2)
 wt('async', 'maximum work queue length')
 wt('async', 'number of allocation state races', rate=True)
@@ -1372,7 +1400,7 @@ wt('cursor', 'update calls', rate=True, level=2)
 wt('data-handle', 'connection candidate referenced', rate=True) # CHECK
 wt('data-handle', 'connection data handles currently active')
 wt('data-handle', 'connection dhandles swept', rate=True) # CHECK
-wt('data-handle', 'connection sweep candidate became referenced')
+wt('data-handle', 'connection sweep candidate became referenced', rate=True)
 wt('data-handle', 'connection sweep dhandles closed', rate=True)
 wt('data-handle', 'connection sweep dhandles removed from hash list', rate=True)
 wt('data-handle', 'connection sweep time-of-death sets',rate=True)
@@ -1413,9 +1441,9 @@ wt('log', 'pre-allocated log files used', rate=True) # CHECK
 wt('log', 'record size exceeded maximum', rate=True)
 wt('log', 'records processed by log scan', rate=True)
 wt('log', 'slots selected for switching that were unavailable', rate=True)
-wt('log', 'total in-memory size of compressed records', scale=MB) # CHECK
+wt('log', 'total in-memory size of compressed records', scale=MB, rate=True) # CHECK
 wt('log', 'total log buffer size', scale=MB)
-wt('log', 'total size of compressed records', scale=MB) # CHECK
+wt('log', 'total size of compressed records', scale=MB, rate=True) # CHECK
 wt('log', 'written slots coalesced', rate=True)
 wt('log', 'yields waiting for previous log file close', rate=True)
 wt('reconciliation', 'dictionary matches', rate=True)
