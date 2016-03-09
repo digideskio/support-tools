@@ -1,3 +1,0 @@
-log             karakurid.log
-log-level       INFO
-pid             /tmp/karakurid.pid
