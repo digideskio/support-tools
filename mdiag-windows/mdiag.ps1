@@ -518,9 +518,9 @@ $probes +=, @{ name = "environment";
 	cmd = "Get-Childitem env: | ForEach-Object {`$j=@{}} {`$j.Add(`$_.Name,`$_.Value)} {`$j}";
 }
 
-$probes +=, @{ name = "user-list-local";
-	cmd = "Get-WMIObject Win32_UserAccount | Where-Object {`$_.LocalAccount -eq `$true} | Select Caption,Name,Domain,Description,AccountType,Disabled,Lockout,SID,Status";
-}
+#$probes +=, @{ name = "user-list-local";
+#	cmd = "Get-WMIObject Win32_UserAccount | Where-Object {`$_.LocalAccount -eq `$true} | Select Caption,Name,Domain,Description,AccountType,Disabled,Lockout,SID,Status";
+#}
 $probes +=, @{ name = "user-current";
 	cmd = "[System.Security.Principal.WindowsIdentity]::GetCurrent()";
 	alt = "whoami";
