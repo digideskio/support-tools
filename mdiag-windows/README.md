@@ -69,7 +69,7 @@ The JSON output is an array of documents. The first character in the file will a
     "ref":  "CS-XXXX",
     "section":  "section-title",
     "ts":  { "$date":  "2014-11-03T16:34:53.123+10:00" },
-    "run":  { "$date":  "2014-11-03T16:34:53.123+10:00" },
+    "tag":  { "$date":  "2014-11-03T16:34:53.123+10:00" },
     "output":  <output-document>,
     "ok":  true,
     "command":  <system-command-that-was-run>
@@ -85,7 +85,7 @@ member | description
 `ref` | The argument passed to the script from the command-line. It is suggested to be the case number for identification purposes, however, it may take any string value.
 `section` | Descriptive name of the system probe being run, should be unique within any single file. See below for a list of all values that appear in this field, and a definition of the system probe that each represents.
 `ts` | Contains the timestamp that bounded the command being performed. In this revision it is 1 second accurate. In a later revision, when longer running statistical collection is performed, this field will contain a sub-document with two fields containing the starting and ending timestamps for those probes.
-`run` | The system timestamp at the beginning of the script. This remains constant for the duration of the run and can be used (in conjunction with 'ref') as a (probably) unique identifier given a larger set of probe documents. The combination of 'section' and 'run' should be unique per host (across time).
+`tag` | The system timestamp at the beginning of the script. This remains constant for the duration of the run and can be used (in conjunction with 'ref') as a (probably) unique identifier given a larger set of probe documents. The combination of 'section' and 'tag' should be unique per host (across time).
 `ok` | Boolean indicating if the script believes the system probe completed without error.
 `command` | A short-form of the system probe that was attempted. May be the actual command-line that was run or a short version of it. The "fingerprint" document is unique in that it sets this value to false.
 `output` | Free format value chosen by the command being run.
@@ -131,10 +131,7 @@ section | content type | description
 
 ## 1.6.0
 
- - Changed "services" section to reduce the spam:
-   + Fixed ServicesDependedOn to show the names of services rather than a description of the object involved (because that was seriously useless)
-   + Removed RequiredServices because it is an alias of ServicesDependedOn
-   + Removed DependentServices because it is the converse of ServicesDependedOn (so it can be resurrected from existing fields if really wanted)
+ - Changed 'run' parameter in output document to 'tag' (TSPROJ-640)
  - Changed console output to use Write-Progress instead of Write-Host, old messages are deprecated to Write-Verbose (use -Verbose option to bring these back)
  - Added "memory-virtual" probe to describe current virtual memory conditions of the OS
  - Added "memory-physical" probe to describe the memory hardware in the host (or virtual devices that are simulating hardware)
@@ -146,6 +143,15 @@ section | content type | description
  - Added "performance-counters" probe for testing, accessible by the command-line option -Experimental, is the first time-series probe, 60 samples @ 1 second intervals
 
 
+## 1.5.3
+
+ - Fixed boolean capitalization to use JSON symbols true/false, previously output the literals True/False
+ - Fixed "services" section to contain all useful information (and reduce the spam):
+   + Fixed ServicesDependedOn to show the names of services rather than a description of the object involved (because that was seriously useless)
+   + Removed RequiredServices because it is an alias of ServicesDependedOn
+   + Removed DependentServices because it is the converse of ServicesDependedOn (so it can be resurrected from existing fields if really wanted)
+
+ 
 ## 1.5.2
 
  - Fixed crash caused by dependency on .NET 3.5 for time zone information (TSPROJ-386), script should be compliant back to .NET 2.0 again
