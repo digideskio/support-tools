@@ -109,6 +109,8 @@ section | content type | description
 `fingerprint` | Document | A static fingerprint of the `mdiag` script used to create the output. This permits the unique identification of the script (and version) which produced the remainder of the output.
 `sysinfo` | Document | Key/value pairs describing the host system. The operating system and all applied patches are contained. A rough hardware overview, like CPU and memory are here also. This is a good section for getting an overall impression of a system without going into obscene detail (that comes later).
 `is_admin` | Boolean | Indicates if the execution context is an administrator. Note that a human administrator who launches the script from a Run dialog or by a regular shell will launch the script into a limited user environment (because Microsoft have painfully learned that people can't be trusted with matches). See instructions above for how to instruct Windows to execute the script in an elevated environment (which will trigger a UAC dialog).
+`memory-virtual` | Document | Snapshot of global memory statistics.
+`memory-physical` | Array of Document | List of descriptors of physical RAM banks.
 `tasklist` | Array of Document | Currently running processes. Basic information about each process is contained, including the executable that started it, the total CPU time it has consumed, memory statistics and many others.
 `network-adapter` | Array of Document | Physical network adapters (or virtual devices that look the same) with information about the status and abilities of the supported physical layers.
 `network-interface` | Array of Document | Protocol interface and associated status.
@@ -117,9 +119,10 @@ section | content type | description
 `services` | Array of Document | System services which contain the wildcard "mongo" somewhere in the name.
 `firewall` | Array of Document | Firewall rules that contain the wildcard "mongo" somewhere in the policy.
 `storage-disk` | Array of Document | Physical storage systems (or virtual devices that look the same) with information about the characteristics.
-`storage-volume` | Array of Document | Information about all partitions (mounted or not, simulated or physical) with information about the characteristics.
+`storage-partition` | Array of Document | Information about all storage partitions with information about the characteristics.
+`storage-volume` | Array of Document | Information about all disk volumes (mounted or not, simulated or physical) with information about the characteristics.
 `environment` | Array of Document | Literal dump of the key/value pairs from the execution environment, containing all system variables.
-`user-list-local` | Array of Document | System descriptions of all local user accounts.
+`user-list-local` | Array of Document | DISABLED. System descriptions of all local user accounts.
 `user-current` | Document | Detailed system descriptor of the current user.
 `drivers` | Array of Document | Short description of each active driver. Note that de-activated (but otherwise loaded) drivers are not listed.
 `time-change` | Array of Document | The last 10 messages in the system event-log regarding system time changes. The message text should contain details that permit determining the clock before and after the event.
@@ -140,7 +143,8 @@ section | content type | description
  - Added "storage-partition" probe, contains the same output that "storage-volume" previously contained that is actually about partitions
  - Fixed "storage-partition" (previously "storage-volume") occasionally had a nul byte embedded in the DriveLetter string, now correctly uses a null JSON field as needed
  - Output should now be verbatim mongoimport'able using -jsonArray
- - Added "performance-counters" probe for testing, accessible by the command-line option -Experimental, is the first time-series probe, 60 samples @ 1 second intervals
+ - Added "performance-counters" probe for testing, accessible by the command-line option -Experimental, is the first time-series probe, 30 samples @ 2 second intervals
+ - Disabled 'user-list-local' probe for now (TSPROJ-685)
 
 
 ## 1.5.3
