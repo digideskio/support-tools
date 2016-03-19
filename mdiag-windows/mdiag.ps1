@@ -17,7 +17,7 @@ Set-Variable FingerprintOutputDocument -option Constant @{
 	shell = "powershell";
 	script = "mdiag";
 	version = "1.6.0";
-	revdate = "2015-09-19";
+	revdate = "2016-03-19";
 }
 
 # 
@@ -314,7 +314,7 @@ Function _tojson( $obj ) {
 #
 Function _emitdocument( $section, $startts, $cmdobj ) {
 	$cmdobj.ref = $JiraTicketNumber;
-	$cmdobj.run = $script:rundate;
+	$cmdobj.tag = $script:rundate;
 	$cmdobj.section = $section;
 
 	if( $startts -Eq $null ) {
