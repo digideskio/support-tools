@@ -244,7 +244,7 @@ class File(util.FileCache):
 
         # open and map file
         f = open(fn)
-        buf = mmap.mmap(f.fileno(), 0, mmap.MAP_PRIVATE, mmap.PROT_READ)
+        buf = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
         at = 0
 
         # traverse the file reading type 1 chunks
