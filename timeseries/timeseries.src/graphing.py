@@ -24,7 +24,7 @@ def html_graph(
     tmin=None, tmax=None, width=None,
     ymin=None, ymax=None, height=None,
     ticks=None, line_width=0.1, shaded=True,
-    bins=0
+    bins=0, sparse=False
 ):
 
     if tmax==tmin:
@@ -77,25 +77,46 @@ def html_graph(
         else:
 
             # bin the data for graphing to bound graph complexity
+            # add an extra bin at the end which is always empty to terminate the last run
             tbin = (dtmax-dtmin+1e-9) / nbins # time per bin
-            ymins = [float('inf')] * nbins    # upper y for each bin
-            ymaxs = [-float('inf')] * nbins   # lower y for each bin
+            ymins = [float('inf')] * (nbins+1)   # upper y for each bin
+            ymaxs = [-float('inf')] * (nbins+1)  # lower y for each bin
             for t in ts:
                 bi = int((dt(t) - dtmin) / tbin)
                 ymins[bi] = min(ymins[bi], ys[t])
                 ymaxs[bi] = max(ymaxs[bi], ys[t])
-            bis = [i for i in range(nbins) if ymins[i]!=float('inf')]
-            bt = lambda i: dtmin + (i+0.5)*tbin
-            line = ' '.join(r'%g,%g' % (gx(bt(i)), gy(ymins[i])) for i in reversed(bis))
-            if shaded:
-                left = '%g,%g' % (xmin, gy(0))
-                right = '%g,%g' % (xmax, gy(0))
-                points = right + ' ' + line + ' ' + left
-                ses.eltend('polygon', {'points':points, 'class':'shaded'})
-            line += ' ' + ' '.join(r'%g,%g' % (gx(bt(i)), gy(ymaxs[i])) for i in bis)
-            style = 'stroke:%s; fill:%s; stroke-width:0.7' % (color, color)
-            ses.eltend('polyline', {'points':line, 'class':'curve', 'style':style})
 
+            # graph a segment of bins that all have data
+            def emit_run(bis):
+                bt = lambda i: dtmin + (i+0.5)*tbin
+                line = ' '.join(r'%g,%g' % (gx(bt(i)), gy(ymins[i])) for i in reversed(bis))
+                if shaded:
+                    #left = '%g,%g' % (xmin, gy(0))
+                    #right = '%g,%g' % (xmax, gy(0))
+                    left = '%g,%g' % (gx(bt(bis[0])), gy(0))
+                    right = '%g,%g' % (gx(bt(bis[-1])), gy(0))
+                    points = right + ' ' + line + ' ' + left
+                    ses.eltend('polygon', {'points':points, 'class':'shaded'})
+                line += ' ' + ' '.join(r'%g,%g' % (gx(bt(i)), gy(ymaxs[i])) for i in bis)
+                style = 'stroke:%s; fill:%s; stroke-width:0.7; stroke-linecap:square' % \
+                        (color, color)
+                ses.eltend('polyline', {'points':line, 'class':'curve', 'style':style})
+
+            if sparse:
+
+                # graph only the points that are present, filling in between them
+                bis = [i for i in range(nbins) if ymins[i]!=float('inf')]
+                emit_run(bis)
+
+            else:
+
+                # find and graph the maximal runs of bins that all have data
+                lo = 0
+                for i in range(nbins+1):
+                    if ymins[i]==float('inf'):
+                        if lo != i:
+                            emit_run(range(lo, i))
+                        lo = i+1
 
     if data and ticks:
         if type(ticks)==int:
@@ -265,6 +286,9 @@ class Series:
         # allow for per-series every
         self.every = self.get('every', self.opt.every) if self.opt else None
 
+        # show sparse data by filling in gaps
+        self.sparse = self.get('sparse', False)
+
     @staticmethod
     def compute_identities(series):
         for s in series:
@@ -289,6 +313,8 @@ class Series:
             self.name = self.get('name')
             if self.tag: self.name = self.tag + ': ' + self.name
             graphs[self.graph].append(self)
+            if self.sparse:
+                graphs[self.graph].sparse = True
             ygroups[self.ygroup].append(self)
         for s in self.split_series.values():
             s.get_graphs(graphs, ygroups, opt)

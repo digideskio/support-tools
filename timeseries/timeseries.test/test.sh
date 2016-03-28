@@ -145,6 +145,12 @@ function test-023 {
     run-timeseries data/test-023/iostat.log --itz -5 --level 9
 }
 
+# like ss-binning, but with a gap
+function test-024 {
+    run-timeseries --level 9 'data/ss-gap.log' # AUTO MODE
+}
+
+
 function compare-html {
 
     ref=$1
@@ -228,11 +234,6 @@ function run-test {
 }
 
 function run-tests {
-    run-test test-019
-    run-test test-020
-    run-test test-021
-    run-test test-022
-    run-test test-023
     run-test test-001
     run-test test-002
     #run-test test-003 # restore wt stuff
@@ -254,6 +255,12 @@ function run-tests {
     run-test test-016
     run-test test-017
     run-test test-018
+    run-test test-019
+    run-test test-020
+    run-test test-021
+    run-test test-022
+    run-test test-023
+    run-test test-024
 }
 
 function zip-source {

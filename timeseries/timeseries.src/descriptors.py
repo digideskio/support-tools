@@ -1107,6 +1107,7 @@ mongod(
 mongod(
     name = 'current connections',
     data_key = 'connections',
+    sparse = True,
     #bucket_op = 'max',
     #bucket_size = 1,    # size of buckets in seconds
     level = 1

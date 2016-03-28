@@ -60,7 +60,8 @@ s to save
 
 # a graph is a list of series
 class Graph(list):
-    pass
+    def __init__(self):
+        self.sparse = False
 
 def _get_graphs(ses):
 
@@ -338,13 +339,14 @@ def page(ses):
     ses.end('tr')
 
     # function to emit a graph
-    def emit_graph(data, ymax=None):
+    def emit_graph(data, ymax=None, sparse=False):
         graphing.html_graph(
             ses, data=data,
             tmin=opt.tmin, tmax=opt.tmax, width=opt.width,
             ymin=0, ymax=ymax, height=opt.height,
             #ticks=ticks, shaded=not opt.no_shade and len(data)==1)
-            ticks=opt.ticks, shaded=len(data)==1, bins=opt.bins
+            ticks=opt.ticks, shaded=len(data)==1, bins=opt.bins,
+            sparse=sparse
         )
 
     # colors for merged graphs
@@ -430,7 +432,7 @@ def page(ses):
             ses.td('graph')
             graph_color = lambda graph, i: color(i) if len(graph)>1 else 'black'
             data = [(s.ts, s.ys, graph_color(graph,i)) for i,s in enumerate(graph)]
-            emit_graph(data, graph.display_ymax)
+            emit_graph(data, graph.display_ymax, graph.sparse)
             ses.end('td')
             if opt.number_rows:
                 ses.td('row-number', str(row))
