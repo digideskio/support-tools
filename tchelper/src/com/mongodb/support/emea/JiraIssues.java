@@ -42,6 +42,11 @@ public class JiraIssues {
     private static Map<String, Integer> issuesP2DaysWithoutUpdate;
     private static Map<String, Integer> issuesOtherDaysWithoutUpdate;
 
+    /**
+     * Days without an update per type
+     */
+    private static Map<String, Integer> longWaitingActiveTickets;
+
     static {
         issuesFTS = new HashMap<String, Integer>();
         issuesP1 = new HashMap<String, Integer>();
@@ -52,6 +57,7 @@ public class JiraIssues {
         issuesP2DaysWithoutUpdate = new HashMap<String, Integer>();
         issuesOtherDaysWithoutUpdate = new HashMap<String, Integer>();
         teamMembers = new ArrayList<String>();
+        longWaitingActiveTickets = new HashMap<>();
     }
 
     private static synchronized void increaseMemberValue(Map<String, Integer> map, String member, Integer value) {
@@ -95,6 +101,10 @@ public class JiraIssues {
         }
         Integer days = Double.valueOf(Math.floor((new DateTime().getMillis() - lastDate.getMillis())
                 / HOURS_PER_DAY)).intValue();
+
+        if(days > 3) {
+            longWaitingActiveTickets.put(issue.getKey(), days);
+        }
 
         issue.getLabels().stream().filter(label -> label.equals(ftsLabel)).forEach(label -> {
             checkFTSLabel(issue, days, FTS);
@@ -173,61 +183,10 @@ public class JiraIssues {
         System.out.println(" done");
 
         printStats();
-        printRecommendations();
+        printLongWaiting();
     }
 
     private static void printStats() {
-        Integer FIRST_COLUMN_LENGTH = 30;
-        System.out.println();
-        System.out.print("Member");
-        System.out.format("%" + (FIRST_COLUMN_LENGTH - "Member".length()) + "s", "\t");
-        System.out.print("FTS");
-        System.out.format("%7s", "\t");
-        System.out.print("P1");
-        System.out.format("%7s", "\t");
-        System.out.print("P2");
-        System.out.format("%7s", "\t");
-        System.out.print("P3/P4");
-        System.out.println();
-        teamMembers.stream().forEach(member -> {
-            Integer padding = FIRST_COLUMN_LENGTH - member.length();
-            if(padding < 0) {
-                member = member.substring(0, FIRST_COLUMN_LENGTH);
-            }
-            System.out.print(member);
-            System.out.format("%" + padding + "s", "\t");
-            System.out.print(getMapValue(issuesFTS, member));
-            System.out.format("(");
-            System.out.print(getMapValue(issuesFTSDaysWithoutUpdate, member));
-            System.out.format(")");
-            System.out.format("%5s", "\t");
-            System.out.print(getMapValue(issuesP1, member));
-            System.out.format("(");
-            System.out.print(getMapValue(issuesP1DaysWithoutUpdate, member));
-            System.out.format(")");
-            System.out.format("%5s", "\t");
-            System.out.print(getMapValue(issuesP2, member));
-            System.out.format("(");
-            System.out.print(getMapValue(issuesP2DaysWithoutUpdate, member));
-            System.out.format(")");
-            System.out.format("%5s", "\t");
-            System.out.print(getMapValue(issuesOther, member));
-            System.out.format("(");
-            System.out.print(getMapValue(issuesOtherDaysWithoutUpdate, member));
-            System.out.format(")");
-            System.out.println();
-        });
-    }
-
-    private static Integer getMapValue(Map<String, Integer> map, String member) {
-        if(map.containsKey(member)) {
-            return map.get(member);
-        } else {
-            return 0;
-        }
-    }
-
-    private static void printRecommendations() {
         final Long multiplier = 1000L;
         Map<String, Long> teamMemberLevels = new HashMap<>();
         teamMembers.stream().forEach(member -> {
@@ -244,13 +203,70 @@ public class JiraIssues {
             }
         });
 
-        order = 1;
+        final Integer FIRST_COLUMN_LENGTH = 34;
         System.out.println();
-        System.out.println("Recommended order: ");
+        System.out.print("Member");
+        System.out.format("%" + (FIRST_COLUMN_LENGTH - "Member".length()) + "s", "\t");
+        System.out.print("    FTS");
+        System.out.format("%7s", "\t");
+        System.out.print("P1");
+        System.out.format("%7s", "\t");
+        System.out.print("P2");
+        System.out.format("%7s", "\t");
+        System.out.print("P3/P4");
+        System.out.println();
+
+        order = 1;
         entriesSortedByValues(teamMemberLevels).stream().forEach(member -> {
-            System.out.println(order + ". " + member.getKey());
+            String username = member.getKey();
+            Integer padding = FIRST_COLUMN_LENGTH - username.length();
+            if(padding < 0) {
+                username = username.substring(0, FIRST_COLUMN_LENGTH);
+            }
+            System.out.print(order + ". " + username);
+            System.out.format("%" + padding + "s", "\t");
+            System.out.print(getMapValue(issuesFTS, username));
+            System.out.format("(");
+            System.out.print(getMapValue(issuesFTSDaysWithoutUpdate, username));
+            System.out.format(")");
+            System.out.format("%5s", "\t");
+            System.out.print(getMapValue(issuesP1, username));
+            System.out.format("(");
+            System.out.print(getMapValue(issuesP1DaysWithoutUpdate, username));
+            System.out.format(")");
+            System.out.format("%5s", "\t");
+            System.out.print(getMapValue(issuesP2, username));
+            System.out.format("(");
+            System.out.print(getMapValue(issuesP2DaysWithoutUpdate, username));
+            System.out.format(")");
+            System.out.format("%5s", "\t");
+            System.out.print(getMapValue(issuesOther, username));
+            System.out.format("(");
+            System.out.print(getMapValue(issuesOtherDaysWithoutUpdate, username));
+            System.out.format(")");
+            System.out.println();
             order++;
         });
+    }
+
+    private static void printLongWaiting() {
+        System.out.println();
+        System.out.println("Long waiting active tickets:");
+        entriesSortedByValues(longWaitingActiveTickets).forEach(ticket -> {
+            System.out.print(ticket.getKey());
+            System.out.print(" (");
+            System.out.print(ticket.getValue());
+            System.out.print(")");
+            System.out.println();
+        });
+    }
+
+    private static Integer getMapValue(Map<String, Integer> map, String member) {
+        if(map.containsKey(member)) {
+            return map.get(member);
+        } else {
+            return 0;
+        }
     }
 
     private static <K,V extends Comparable<? super V>> List<Map.Entry<K, V>> entriesSortedByValues(Map<K,V> map) {
