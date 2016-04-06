@@ -1,5 +1,9 @@
 ## Tips
 
+* You can use the "@" command to view FTDC metadata, including for
+  example host name, amount of memory, MongoDB version, command line
+  options, O/S information, and so on.
+
 * The diagnostic.data directory that contains the FTDC data in 3.2 and
   later can be safely copied off of a running instance. It is already
   compressed so additional compression is not beneficial (but is also
