@@ -7,7 +7,6 @@ support-tools
 
 - [[Jira Compact Dashboard](./scripts/tampermonkey/jira_compact_dashboard.js)](#jira-compact-dashboardscriptstampermonkeyjira_compact_dashboardjs)
 - [[mdb](./mdb)](#mdbmdb)
-- [[mdiag](./mdiag)](#mdiagmdiag)
 - [[mongo-docker](./mongo-docker)](#mongo-dockermongo-docker)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -30,13 +29,6 @@ Reclaims some Jira whitespace (65px height, 158px width) by resizing the header 
 Simple tool to dump parts of mongo databases to debug corruption issues
 
 - Owner: [Bruce Lucas](mailto:bruce.lucas@@mongodb.com)
-
-[mdiag](./mdiag)
---
-Script to give to users/customers, to gather a wide variety of Linux system-level diagnostic information.
-[More information](./mdiag#readme)
-
-- Owner: [Kevin Pulo](mailto:kevin.pulo@mongodb.com)
 
 [mongo-docker](./mongo-docker)
 --
