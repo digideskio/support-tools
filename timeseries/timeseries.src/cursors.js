@@ -1,7 +1,8 @@
 // x position of current event as a proportion (0-1) of the width of the containing element
 function event_x(e) {
     var evt = window.event
-    return (evt.pageX - e.offsetLeft - e.offsetParent.offsetLeft) / e.offsetWidth
+    r = e.getBoundingClientRect()
+    return (evt.pageX - r.left) / r.width
 }
 
 var svg_ns = "http://www.w3.org/2000/svg"
