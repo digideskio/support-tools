@@ -1,6 +1,6 @@
 ## Tips
 
-* Customer some customers may be reluctant to upload the binary
+* Some customers may be reluctant to upload the binary
   diagnostic.data without knowing what's in it. Here is some suggested
   wording, taken from [this
   comment](https://jira.mongodb.org/browse/SERVER-22000?focusedCommentId=1121384&page=com.atlassian.jira.plugin.system.issuetabpanels:comment-tabpanel#comment-1121384):
