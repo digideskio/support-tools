@@ -1,5 +1,24 @@
 ## Tips
 
+* Customer some customers may be reluctant to upload the binary
+  diagnostic.data without knowing what's in it. Here is some suggested
+  wording, taken from [this
+  comment](https://jira.mongodb.org/browse/SERVER-22000?focusedCommentId=1121384&page=com.atlassian.jira.plugin.system.issuetabpanels:comment-tabpanel#comment-1121384):
+  
+  I understand your concern. We don't at the moment have a viewer for
+  the data that is ready for external use. However you can see the
+  data that it collects
+  [here](https://github.com/mongodb/mongo/blob/master/src/mongo/db/ftdc/ftdc_mongod.cpp#L314),
+  consisting of the following, with the commands you can run from the
+  mongo shell to see what data is collected:
+
+        serverStatus: db.serverStatus({tcmalloc: true})
+        replSetGetStatus: rs.status()
+        collStats for local.oplog.rs: db.getSiblingDB('local').oplog.rs.stats()
+        getCmdLineOpts: db.adminCommand({getCmdLineOpts: true})
+        buildInfo: db.adminCommand({buildInfo: true})
+        hostInfo: db.adminCommand({hostInfo: true})
+
 * You can use the "@" command to view FTDC metadata, including for
   example host name, amount of memory, MongoDB version, command line
   options, O/S information, and so on.
