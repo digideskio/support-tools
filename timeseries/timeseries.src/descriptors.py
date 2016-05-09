@@ -223,7 +223,7 @@ def desc_units(scale, rate):
     elif rate: units += '/s'
     return units
 
-def ss(json_data, name=None, scale=1, rate=False, units=None, level=3, special=None, **kwargs):
+def ss(json_data, name=None, scale=1, rate=False, units=None, level=3, special=None, split_on_key_match=None, **kwargs):
 
     if not name:
         name = ' '.join(s for s in json_data[1:] if s!='floatApprox')
@@ -249,6 +249,10 @@ def ss(json_data, name=None, scale=1, rate=False, units=None, level=3, special=N
             )
         return special
         
+    # add a prefix if needed
+    def join_if(pfx, other):
+        return util.join(*(pfx + other)) if other else None
+
     # for parsing direct serverStatus command output
     descriptor(
         file_type = 'json',
@@ -260,6 +264,7 @@ def ss(json_data, name=None, scale=1, rate=False, units=None, level=3, special=N
         rate = rate,
         level = level,
         special = join_special([], special),
+        split_on_key_match = join_if([], split_on_key_match),
         **kwargs
     )
 
@@ -274,6 +279,7 @@ def ss(json_data, name=None, scale=1, rate=False, units=None, level=3, special=N
         rate = rate,
         level = level,
         special = join_special(['serverStatus'], special),
+        split_on_key_match = join_if(['serverStatus'], split_on_key_match),
         **kwargs
     )
 
@@ -289,6 +295,7 @@ def ss(json_data, name=None, scale=1, rate=False, units=None, level=3, special=N
         level = level,
         time_scale = 1000.0, # times are in ms
         special = join_special(['serverStatus'], special),
+        split_on_key_match = join_if(['serverStatus'], split_on_key_match),
         **kwargs
     )
 
@@ -407,6 +414,17 @@ ss(['tcmalloc', 'tcmalloc', 'allocated minus wt cache'], scale=MB, level=4,
 #   special=compute_tcmalloc_allocated_minus_wt_cache)
 ss(['tcmalloc', 'tcmalloc', 'total free'], scale=MB, level=4,
    special=compute_tcmalloc_total_free)
+
+# tcmalloc per size-class statistics
+def tcmalloc_size_class_metric(metric_name, **kwargs):
+    data_key = ['tcmalloc', 'tcmalloc', 'size_classes']
+    sokm = ['tcmalloc', 'tcmalloc', 'size_classes', '(?P<size_class>[0-9]+)', metric_name]
+    name = 'tcmalloc: size_class {size_class:0>2} ' + metric_name
+    if 'scale' in kwargs and kwargs['scale']==MB:
+        name += ' (MB)'
+    ss(data_key, name=name, split_on_key_match=sokm, level=4, **kwargs)
+tcmalloc_size_class_metric('free_bytes', scale=MB, ygroup='tcmalloc_size_class_bytes')
+tcmalloc_size_class_metric('allocated_bytes', scale=MB, ygroup='tcmalloc_size_class_bytes')
 
 ss(['host'], level=99)
 

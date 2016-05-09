@@ -150,6 +150,11 @@ function test-024 {
     run-timeseries --level 9 'data/ss-gap.log' # AUTO MODE
 }
 
+# tcmalloc detailed size class stats
+function test-025 {
+    run-timeseries --level 9 'data/test-025' # AUTO MODE
+}
+
 
 function compare-html {
 
@@ -234,6 +239,7 @@ function run-test {
 }
 
 function run-tests {
+    run-test test-025
     run-test test-001
     run-test test-002
     #run-test test-003 # restore wt stuff
