@@ -66,7 +66,9 @@ class ChunkCache(util.FileCache):
                 yield chunk
 
     @classmethod
-    def info(cls, ses, fn, t):
+    def info(cls, ses, fn, t, kind):
+        if kind != 'raw':
+            return
         def putln(*s):
             ses.put(' '.join(str(ss) for ss in s) + '\n')
         file = cls.get(fn)
