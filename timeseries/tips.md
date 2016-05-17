@@ -1,5 +1,21 @@
 ## Tips
 
+* You can easily check using the timeseries tool whether the cause of
+  a crash was likely OOM from the FTDC data as follows:
+
+  * put down a cursor just before the crash. If you don't have an
+    exact timestamp from the customer, you may be able to tell when
+    the crash was by looking at the "uptime" metric to see when a
+    restart occurred.
+
+  * use the "@" command to get the metadata that is recorded in the
+    ftdc data. Search for the "hostInfo" section, where you will find
+    system memory size.
+
+  * look at the "mem: resident" and "mem: virtual" stats to see how
+    much memory mongod was using. You can use the "?" command to get
+    the exact numbers.
+
 * Some customers may be reluctant to upload the binary
   diagnostic.data without knowing what's in it. Here is some suggested
   wording, taken from [this
