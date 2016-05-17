@@ -238,7 +238,7 @@ class FileCache:
 # xxx now used elsewhere, e.g. for ordinary json, so this should move...
 #
 
-SEP = '/'
+SEP = ';'
 
 def join(*s):
     return SEP.join(s)

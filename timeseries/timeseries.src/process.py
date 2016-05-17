@@ -158,6 +158,9 @@ class parse_json(ChunkCache):
                         flatten(result, v, key)
                     else:
                         flatten(result, v, key + util.SEP + k if key else k)
+            elif type(j)==list:
+                for i, v in enumerate(j):
+                    flatten(result, v, key + util.SEP + str(i) if key else str(i))
             else:
                 result[key] = [j]
             return result

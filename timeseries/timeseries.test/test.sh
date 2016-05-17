@@ -239,6 +239,18 @@ function run-test {
 }
 
 function run-tests {
+    run-test test-013
+    run-test test-014
+    run-test test-015
+    run-test test-016
+    run-test test-017
+    run-test test-018
+    run-test test-019
+    run-test test-020
+    run-test test-021
+    run-test test-022
+    run-test test-023
+    run-test test-024
     run-test test-025
     run-test test-001
     run-test test-002
@@ -255,18 +267,6 @@ function run-tests {
     run-test test-010
     #run-test test-011 # rs: rework for new json parsing - needs split fields
     #run-test test-012 # rs part of ftdc/json: rework for new json parsing, also add to ftdc
-    run-test test-013
-    run-test test-014
-    run-test test-015
-    run-test test-016
-    run-test test-017
-    run-test test-018
-    run-test test-019
-    run-test test-020
-    run-test test-021
-    run-test test-022
-    run-test test-023
-    run-test test-024
 }
 
 function zip-source {

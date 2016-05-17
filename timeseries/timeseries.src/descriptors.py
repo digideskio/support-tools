@@ -419,12 +419,23 @@ ss(['tcmalloc', 'tcmalloc', 'total free'], scale=MB, level=4,
 def tcmalloc_size_class_metric(metric_name, **kwargs):
     data_key = ['tcmalloc', 'tcmalloc', 'size_classes']
     sokm = ['tcmalloc', 'tcmalloc', 'size_classes', '(?P<size_class>[0-9]+)', metric_name]
-    name = 'tcmalloc: size_class {size_class:0>2} ' + metric_name
+    name = 'ss tcmalloc: size_class {size_class} ' + metric_name
     if 'scale' in kwargs and kwargs['scale']==MB:
         name += ' (MB)'
     ss(data_key, name=name, split_on_key_match=sokm, level=4, **kwargs)
 tcmalloc_size_class_metric('free_bytes', scale=MB, ygroup='tcmalloc_size_class_bytes')
 tcmalloc_size_class_metric('allocated_bytes', scale=MB, ygroup='tcmalloc_size_class_bytes')
+
+def tcmalloc_site_metric(metric_name, **kwargs):
+    data_key = ['tcmalloc', 'tcmalloc', 'size_classes']
+    sokm = ['tcmalloc', 'tcmalloc', 'size_classes', '(?P<size_class>[0-9]+)',
+            'sites', '(?P<site>.*)', metric_name]
+    name = 'ss tcmalloc: size_class {size_class} site {site} ' + metric_name
+    if 'scale' in kwargs and kwargs['scale']==MB:
+        name += ' (MB)'
+    ss(data_key, name=name, split_on_key_match=sokm, level=4, **kwargs)
+tcmalloc_site_metric('allocated_bytes', scale=MB, ygroup='tcmalloc_size_class_bytes')
+tcmalloc_site_metric('heap_bytes', scale=MB, ygroup='tcmalloc_size_class_bytes')
 
 ss(['host'], level=99)
 
@@ -861,7 +872,7 @@ def rs(name, **kwargs):
         parser = process.parse_ftdc,
         name = 'ftdc rs: member {member} ' + name,
         split_on_key_match = util.join('replSetGetStatus', 'members', '(?P<member>[0-9])+', name),
-        time_key = 'replSetGetStatus/start',
+        time_key = util.join('replSetGetStatus', 'start'),
         time_scale = 1000.0,
         **kwargs
     )
