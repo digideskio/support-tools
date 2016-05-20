@@ -722,7 +722,7 @@ def checkNewIssues(db)
       end
     end
     msg = "New #{priority} - #{reporter} from #{project}"
-    msg += " created #{key}: #{summary}"
+    msg += " created [#{key}](https://support-hub.corp.mongodb.com/redirect/#{key}): #{summary}"
     @ipcqueue.push({'msg'=>msg, 'dst' => @roomNameNewIssue}) if msg != nil
     @ipcqueue.push({'msg'=>msg, 'dst' => @ircNameNewIssue}) if msg != nil
   end
