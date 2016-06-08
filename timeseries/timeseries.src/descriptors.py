@@ -437,6 +437,14 @@ def tcmalloc_site_metric(metric_name, **kwargs):
 tcmalloc_site_metric('allocated_bytes', scale=MB, ygroup='tcmalloc_size_class_bytes')
 tcmalloc_site_metric('heap_bytes', scale=MB, ygroup='tcmalloc_size_class_bytes')
 
+# built-in heap profiler
+ss(
+    ['heapProfile', 'stacks', 'stack186', 'activeBytes'],
+    split_on_key_match = ['heapProfile', 'stacks', '(?P<stack>stack[0-9]+)', 'activeBytes'],
+    name = 'ss heap profile: {stack} active bytes (MB)',
+    ygroup='heap_profile_active_bytes', level=4, scale=MB
+)
+
 ss(['host'], level=99)
 
 def ss_lock(name):
