@@ -1,0 +1,1 @@
+bin/hubot -a flowdock -n glados | tee -a glados.log 2>&1

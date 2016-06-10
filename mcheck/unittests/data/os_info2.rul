@@ -1,0 +1,10 @@
+[
+	{
+		"id": "os-0003",
+		"desc": "Red Hat is at least version 5.7",
+		"log": "mdiag",
+		"section": "distro",
+		"match": "Red Hat.+\\s(\\d+\\.\\d+)\\s",
+		"check": { "$1": { "$gte": 5.7 } }
+	}
+]

@@ -1,0 +1,352 @@
+=== repair via symbolic links
+checking repair.linked/d1/admin.ns
+000148b8: namespace name=admin.system.profile  OK
+00044d74: namespace name=admin.system.indexes  OK
+0006509c: namespace name=admin.system.new_users.$user_1_db_1  OK
+00094dfc: namespace name=admin.system.namespaces  OK
+000c57a0: namespace name=admin.system.roles.$_id_  OK
+001bb670: namespace name=admin.mms.backup.$_id_  OK
+00316368: namespace name=admin.system.users.$user_1_userSource_1  OK
+0035625c: namespace name=admin.system.version  OK
+003f5240: namespace name=admin.system.new_users  OK
+004d0b20: namespace name=admin.system.roles.$role_1_db_1  OK
+00771ecc: namespace name=admin.system.roles  OK
+008f50f0: namespace name=admin.mms.backup  OK
+00952958: namespace name=admin.system.backup_users.$_id_  OK
+009f87a0: namespace name=admin.system.users.$user_1_db_1  OK
+00bd8374: namespace name=admin.system.users.$_id_  OK
+00e9098c: namespace name=admin.system.new_users.$_id_  OK
+00ef9020: namespace name=admin.system.version.$_id_  OK
+00efa14c: namespace name=\x05`&N\x10  BAD NAME - REPAIRED
+00efa3c0: namespace name=\x0cBZ\xaa  BAD NAME - REPAIRED
+00efa634: namespace name=\x80\x05\x10&`\x0b  BAD NAME - REPAIRED
+00efa8a8: namespace name="\xee\x1d  BAD NAME - REPAIRED
+00efab1c: namespace name=\x05`\xb9E  BAD NAME - REPAIRED
+00efad90: namespace name=\xf0\x05\x80\x04\xfa\x17\x0e\xf1\x08\x04 $\xe9\xec\x0eE\x18\x189952332\x12\x9f%\x16\x1f\x18  BAD NAME - REPAIRED
+00efb004: namespace name=\xe8\x05\x10yz\x04\xcc\xa3!\xb0&\x14\x0b\x04\x10\xa4\x01\x10&\xc4\x0b  BAD NAME - REPAIRED
+00efb278: namespace name=\xd9\xf9  BAD NAME - REPAIRED
+00efb4ec: namespace name=\x10\x99\xb9\x04L'A\x10\x99\xb9\x04`=\x01\x10\x99\xb9\x04\x8cu\x010\x99\xb9\x04\x8c\xb7\x01\x10\x99\xb9  BAD NAME - REPAIRED
+00efb760: namespace name=D\x14d  BAD NAME - REPAIRED
+00efb9d4: namespace name= &\x96\x0b  BAD NAME - REPAIRED
+00efbc48: namespace name=\xd0_/\x97  BAD NAME - REPAIRED
+00efbebc: namespace name=\x04t(A\xc0&D\x0b\x10x\xe2|\xab  BAD NAME - REPAIRED
+00efc130: namespace name=\x81\xd0y`\x04\x84\xaf\x01\x10y`\x08p\xfb\x19\x0e\xc4\x16u@\x04\xcc\xfc\x01\x10y`\x0c`\x9c%o.D\r\x04x\x9e\x01\x10y`\x0c\x9c,;o.D\r  BAD NAME - REPAIRED
+00efc3a4: namespace name=\xe8\xe0\xe1@  BAD NAME - REPAIRED
+00efc618: namespace name=>\x10  BAD NAME - REPAIRED
+00efc88c: namespace name=z\x15\x10\x04\xe0"\x01\x10  BAD NAME - REPAIRED
+00efcb00: namespace name=\x10  BAD NAME - REPAIRED
+00efcd74: namespace name=|_\x0c\xaa.b\n\x04\xe4a\x01\x10&b\n  BAD NAME - REPAIRED
+00efcfe8: namespace name=\xbc\xf5\x01\x10\xd9 \x04\x1c\xf4\x01\x10\xd9   BAD NAME - REPAIRED
+00efd25c: namespace name=\x01F\x10\x046\x10\x01F \x046`\x05  BAD NAME - REPAIRED
+00efd4d0: namespace name=?\x01\xe0.\x9a'\x01P&8\x1d  BAD NAME - REPAIRED
+00efd744: namespace name=f  BAD NAME - REPAIRED
+00efd9b8: namespace name=\x15\xfc  BAD NAME - REPAIRED
+00efdc2c: namespace name=\xd4  BAD NAME - REPAIRED
+00efdea0: namespace name=\xfef\x1a\xfef\x1a\xfef\x1a\xfef\x1a\xfef\x1a\xfef\x1a\xfef\x1a\xfef\x1a\xfef\x1a\xfef\x1a\xfef\x1a\xfef\x1a\xfef\x1a\xfef\x1a\xfef\x1a^f\x1a  BAD NAME - REPAIRED
+00efe114: namespace name=\x10  BAD NAME - REPAIRED
+00efe388: namespace name=  BAD NAME - REPAIRED
+00efe5fc: namespace name="(;\x04 U\x01\x10&(;\x04\xcc[\x01\xb0&\x08;\x04\xd8b\x01\x10&\x08;\x0c<v \x86.\x9a\x07  BAD NAME - REPAIRED
+00efe870: namespace name=\x01\x10\xd9   BAD NAME - REPAIRED
+00efeae4: namespace name=  BAD NAME - REPAIRED
+00efed58: namespace name=\x01\xe0\xf9\xa6\x04\xc8\x12\x010\xf9\xa6\x04\xac\x14\x01\x10\xf9\xa6\x0c\xc8N\x076.v\r\x04  BAD NAME - REPAIRED
+00efefcc: namespace name=pd\x010  BAD NAME - REPAIRED
+00eff240: namespace name=*\x15\x10\x04\xe4\x10\x81@  BAD NAME - REPAIRED
+00eff4b4: namespace name=  BAD NAME - REPAIRED
+00eff728: namespace name=\xec)\xa0\x15\x10  BAD NAME - REPAIRED
+00eff99c: namespace name=\x15`\x04\xb8\x81\x01`  BAD NAME - REPAIRED
+00effc10: namespace name=  BAD NAME - REPAIRED
+00effe84: namespace name=\x01\x10  BAD NAME - REPAIRED
+00f005e0: namespace name=admin.system.users  OK
+00f490a8: namespace name=admin.system.backup_users  OK
+39 errors were detected and repaired
+repair.linked/d1/admin.ns has been repaired; old file has been saved as repair.linked/d1/admin.ns.backup
+
+checking repair.linked/d1/stg_mig.ns
+000666b0: namespace name=stg_mig.my_output.$_id_  OK
+00076844: namespace name=stg_mig.migration_dup  OK
+0013d384: namespace name=stg_mig.migration_dup.$_id_  OK
+0013e23c: namespace name=UPDATED\x06\x02HR\xfe\r  BAD NAME - REPAIRED
+0013e4b0: namespace name=\t"\x1c\x1d  BAD NAME - REPAIRED
+0013e724: namespace name=\xe0\x15\x10  BAD NAME - REPAIRED
+0013e998: namespace name=\x0b  BAD NAME - REPAIRED
+0013ec0c: namespace name=  BAD NAME - REPAIRED
+0013ee80: namespace name=\x05\x10  BAD NAME - REPAIRED
+0013f0f4: namespace name=\x05\x10&0\t  BAD NAME - REPAIRED
+0013f368: namespace name=  BAD NAME - REPAIRED
+0013f5dc: namespace name=|\x13\x1a,#\x15\x10  BAD NAME - REPAIRED
+0013f850: namespace name=\xfe\x10  BAD NAME - REPAIRED
+0013fac4: namespace name=gU.\r  BAD NAME - REPAIRED
+0013fd38: namespace name=\x06\x04f+.\x1a  BAD NAME - REPAIRED
+0013ffac: namespace name=\x90\x05   BAD NAME - REPAIRED
+001ac120: namespace name=stg_mig.myDupesCollection  OK
+00241404: namespace name=stg_mig.system.namespaces  OK
+00340d60: namespace name=stg_mig.$freelist  OK
+004f0960: namespace name=stg_mig.system.users.$_id_  OK
+005605b4: namespace name=stg_mig.my_output  OK
+005aadec: namespace name=stg_mig.my_distinct.$_id_  OK
+005e5490: namespace name=stg_mig.system.users  OK
+005efdd4: namespace name=stg_mig.system.indexes  OK
+00659f64: namespace name=stg_mig.migration.$_id_  OK
+0068b064: namespace name=stg_mig.system.users.$user_1_userSource_1  OK
+006b9054: namespace name=stg_mig.system.profile  OK
+00790210: namespace name=stg_mig.migration.$migStatus_1_type_1_1  OK
+007a19b8: namespace name=stg_mig.people.$_id_  OK
+008208e8: namespace name=stg_mig.my_distinct  OK
+00a7c2dc: namespace name=stg_mig.migration  OK
+00b9d08c: namespace name=  BAD NAME - REPAIRED
+00b9d300: namespace name=\x05\x10&\xc5\x11  BAD NAME - REPAIRED
+00b9d574: namespace name=  BAD NAME - REPAIRED
+00b9d7e8: namespace name=\x0e  BAD NAME - REPAIRED
+00b9da5c: namespace name=  BAD NAME - REPAIRED
+00b9dcd0: namespace name=\x10  BAD NAME - REPAIRED
+00b9df44: namespace name=\xfe\x0b  BAD NAME - REPAIRED
+00b9e1b8: namespace name=created  BAD NAME - REPAIRED
+00b9e42c: namespace name=\t  BAD NAME - REPAIRED
+00b9e6a0: namespace name=X\ty(\x1042777\xfe(\x03\x86(\x03\x0e<\ta\x18a(\x01\x0ca(\x0c 4\\\x19a<\xc14a\x18  BAD NAME - REPAIRED
+00b9e914: namespace name=  BAD NAME - REPAIRED
+00b9eb88: namespace name=\x0e\xa9\x0c\x01\x04\x04\x84RiA\x01\x0c\xc1\x82  BAD NAME - REPAIRED
+00b9edfc: namespace name=iA\x01\x0c\xc1\x82  BAD NAME - REPAIRED
+00b9f070: namespace name=  BAD NAME - REPAIRED
+00b9f2e4: namespace name=\x03\x0c\xfc\x89\\\x19aUa1\x01\x04\x04\xe4\x866A\x03\x0e\xcf\tmA\x1c\xe5\xb7\xad\x07\x93n\xe2\x8f\xfeA\x03:A\x03  BAD NAME - REPAIRED
+00b9f558: namespace name=gO \xd7\xcd\xa7\xea'\x03N\xa9\t  BAD NAME - REPAIRED
+00b9f7cc: namespace name=7u\xc0.d\x05f\x0c  BAD NAME - REPAIRED
+00b9fa40: namespace name=0\x04\x1ck\x01\x10\x14\xdd\x13  BAD NAME - REPAIRED
+00b9fcb4: namespace name=\xa4\x1b  BAD NAME - REPAIRED
+00b9ff28: namespace name=q\x01\x10\x10\xe3\x11  BAD NAME - REPAIRED
+00ba0410: namespace name=stg_mig.migration.$migStatus_1_type_1  OK
+00bb9178: namespace name=stg_mig.people  OK
+00c9e270: namespace name=stg_mig.migration.$migStatus_1  OK
+00e67d04: namespace name=stg_mig.migration.$migStatus_1_type_-1  OK
+00fbcf38: namespace name=stg_mig.myDupesCollection.$_id_  OK
+33 errors were detected and repaired
+repair.linked/d1/stg_mig.ns has been repaired; old file has been saved as repair.linked/d1/stg_mig.ns.backup
+
+checking repair.linked/d2/admin.ns
+000148b8: namespace name=admin.system.profile  OK
+00044d74: namespace name=admin.system.indexes  OK
+0006509c: namespace name=admin.system.new_users.$user_1_db_1  OK
+00094dfc: namespace name=admin.system.namespaces  OK
+000c57a0: namespace name=admin.system.roles.$_id_  OK
+001bb670: namespace name=admin.mms.backup.$_id_  OK
+00316368: namespace name=admin.system.users.$user_1_userSource_1  OK
+0035625c: namespace name=admin.system.version  OK
+003f5240: namespace name=admin.system.new_users  OK
+004d0b20: namespace name=admin.system.roles.$role_1_db_1  OK
+00771ecc: namespace name=admin.system.roles  OK
+008f50f0: namespace name=admin.mms.backup  OK
+00952958: namespace name=admin.system.backup_users.$_id_  OK
+009f87a0: namespace name=admin.system.users.$user_1_db_1  OK
+00bd8374: namespace name=admin.system.users.$_id_  OK
+00e9098c: namespace name=admin.system.new_users.$_id_  OK
+00ef9020: namespace name=admin.system.version.$_id_  OK
+00efa8a8: namespace name=\x06\x02HRF\n3966556999\x06\x02HRF\n3966556999\x06\x02HRF\n3966556998\x06\x02HRF\n3966556998\x06\x02HRF\n3966556997\x06\x02HRF\n3966556997\x06\x02HRF\n3966556997\x06\x02HRF\n3966556997  BAD NAME - REPAIRED
+00efab1c: namespace name=F\n3966556932\x06\x02HRF\n3966556932\x06\x02HRF\n3966556929\x06\x02HRF\n3966556929\x06\x02HRF\n3966556928\x06\x02HRF\n3966556928\x06\x02HRF\n3966556928\x06\x02HRF\n3966556928\x06\x02HR  BAD NAME - REPAIRED
+00efad90: namespace name=66556876\x06\x02HRF\n3966556874\x06\x02HRF\n3966556874\x06\x02HRF\n3966556873\x06\x02HRF\n3966556873\x06\x02HRF\n3966556872\x06\x02HRF\n3966556872\x06\x02HRF\n3966556848\x06\x02HRF\n39  BAD NAME - REPAIRED
+00efb004: namespace name=  BAD NAME - REPAIRED
+00efb278: namespace name=  BAD NAME - REPAIRED
+00efb4ec: namespace name=6U  BAD NAME - REPAIRED
+00efb760: namespace name=*\x19\xfe\xff\xff\xff  BAD NAME - REPAIRED
+00efc88c: namespace name=F\n3602805850\x06\x02HRF\n3602805843\x06\x02HRF\n3602805843\x06\x02HRF\n3602805843\x06\x02HRF\n3602805843\x06\x02HRF\n3602805843\x06\x02HRF\n3602805843\x06\x02HRF\n3602805832\x06\x02HR  BAD NAME - REPAIRED
+00efcb00: namespace name=02789842\x06\x02HRF\n3602789842\x06\x02HRF\n3602789842\x06\x02HRF\n3602789841\x06\x02HRF\n3602789841\x06\x02HRF\n3602789840\x06\x02HRF\n3602789840\x06\x02HRF\n3602789840\x06\x02HRF\n36  BAD NAME - REPAIRED
+00efcd74: namespace name=7531\x06\x02HRF\n3602727524\x06\x02HRF\n3602727524\x06\x02HRF\n3602727524\x06\x02HRF\n3602727524\x06\x02HRF\n3602727493\x06\x02HRF\n3602727493\x06\x02HRF\n3602727493\x06\x02HRF\n360272  BAD NAME - REPAIRED
+00efcfe8: namespace name=\x06\x02HRF\n3602727301\x06\x02HR  BAD NAME - REPAIRED
+00efd25c: namespace name=V~  BAD NAME - REPAIRED
+00efd4d0: namespace name=\xca\x1b\xfe\xff\xff\xff  BAD NAME - REPAIRED
+00efd744: namespace name=\xff\xff  BAD NAME - REPAIRED
+00efe870: namespace name=66562076\x06\x02HRF\n3966562076\x06\x02HRF\n3966562075\x06\x02HRF\n3966562075\x06\x02HRF\n3966562073\x06\x02HRF\n3966562073\x06\x02HRF\n3966562073\x06\x02HRF\n3966562073\x06\x02HRF\n39  BAD NAME - REPAIRED
+00efeae4: namespace name=2003\x06\x02HRF\n3966562001\x06\x02HRF\n3966562001\x06\x02HRF\n3966561999\x06\x02HRF\n3966561999\x06\x02HRF\n3966561997\x06\x02HRF\n3966561997\x06\x02HRF\n3966561994\x06\x02HRF\n396656  BAD NAME - REPAIRED
+00efed58: namespace name=\x06\x02HRF\n3966561976\x06\x02HRF\n3966561975\x06\x02HRF\n3966561975\x06\x02HRF\n3966561975\x06\x02HRF\n3966561975\x06\x02HRF\n3966561974\x06\x02HRF\n3966561974\x06\x02HRF\n3966561974  BAD NAME - REPAIRED
+00efefcc: namespace name=F\n3966561962\x06\x02HRF\n3966561962\x06\x02HRF\n3966561962\x06\x02HR  BAD NAME - REPAIRED
+00eff240: namespace name=\xba\x1d\xfe\xff\xff\xff  BAD NAME - REPAIRED
+00eff4b4: namespace name=\xff\xff  BAD NAME - REPAIRED
+00eff728: namespace name=  BAD NAME - REPAIRED
+00f005e0: namespace name=admin.system.users  OK
+00f490a8: namespace name=admin.system.backup_users  OK
+21 errors were detected and repaired
+repair.linked/d2/admin.ns has been repaired; old file has been saved as repair.linked/d2/admin.ns.backup
+
+checking repair.linked/d2/stg_mig.ns
+000666b0: namespace name=stg_mig.my_output.$_id_  OK
+00076844: namespace name=stg_mig.migration_dup  OK
+0013c258: namespace name=\x044A\x01\x10\x10\x14\x1f  BAD NAME - REPAIRED
+0013c4cc: namespace name=\x10\xf9\x1c  BAD NAME - REPAIRED
+0013c740: namespace name=\x10\x10\xd3\x1a  BAD NAME - REPAIRED
+0013c9b4: namespace name=\x17  BAD NAME - REPAIRED
+0013cc28: namespace name=\x01\x10\x10\xd2\x13  BAD NAME - REPAIRED
+0013ce9c: namespace name=\x04\xfe\x1e10  BAD NAME - REPAIRED
+0013d110: namespace name=\x10  BAD NAME - REPAIRED
+0013d384: namespace name=P\x05\x10  BAD NAME - REPAIRED
+0013d5f8: namespace name=  BAD NAME - REPAIRED
+0013d86c: namespace name=  BAD NAME - REPAIRED
+0013dae0: namespace name=\x0c\x05\x10  BAD NAME - REPAIRED
+0013dd54: namespace name=\xe0\x15\x10\x04l\r\x0e\xd5\x0b&\xe0\n  BAD NAME - REPAIRED
+0013dfc8: namespace name=  BAD NAME - REPAIRED
+0013e23c: namespace name= \x04  BAD NAME - REPAIRED
+0013e4b0: namespace name=\x05\x10&\xac\x16  BAD NAME - REPAIRED
+0013e724: namespace name=\x10\x04\x08|A\x10  BAD NAME - REPAIRED
+0013e998: namespace name=\x05\x10&p\t  BAD NAME - REPAIRED
+0013ec0c: namespace name=\xd0\x05\x10  BAD NAME - REPAIRED
+0013ee80: namespace name=\x15\x10  BAD NAME - REPAIRED
+0013f0f4: namespace name=h\x05\x10  BAD NAME - REPAIRED
+0013f368: namespace name=\x08@\x04\xa0Z\x01@&\x08@  BAD NAME - REPAIRED
+0013f5dc: namespace name=\x90\x05\x10  BAD NAME - REPAIRED
+0013f850: namespace name=  BAD NAME - REPAIRED
+0013fac4: namespace name=\x10  BAD NAME - REPAIRED
+0013fd38: namespace name=\x10  BAD NAME - REPAIRED
+0013ffac: namespace name=\x10&p\n  BAD NAME - REPAIRED
+00140220: namespace name=stg_mig.migration_dup.$_id_  OK
+001ac120: namespace name=stg_mig.myDupesCollection  OK
+00241404: namespace name=stg_mig.system.namespaces  OK
+004f0960: namespace name=stg_mig.system.users.$_id_  OK
+005605b4: namespace name=stg_mig.my_output  OK
+005aadec: namespace name=stg_mig.my_distinct.$_id_  OK
+005e5490: namespace name=stg_mig.system.users  OK
+005efdd4: namespace name=stg_mig.system.indexes  OK
+00659f64: namespace name=stg_mig.migration.$_id_  OK
+0068b064: namespace name=stg_mig.system.users.$user_1_userSource_1  OK
+006b9054: namespace name=stg_mig.system.profile  OK
+00790210: namespace name=stg_mig.migration.$migStatus_1_type_1_1  OK
+007a19b8: namespace name=stg_mig.people.$_id_  OK
+008208e8: namespace name=stg_mig.my_distinct  OK
+00a7c2dc: namespace name=stg_mig.migration  OK
+00b9d08c: namespace name=\x10  BAD NAME - REPAIRED
+00b9d300: namespace name=\x10&\xdc\x1d  BAD NAME - REPAIRED
+00b9d574: namespace name=9\x0bq\x0c\x83\x11\x0f\x1c\xb0\x94C8\t  BAD NAME - REPAIRED
+00b9d7e8: namespace name=\x15\x10  BAD NAME - REPAIRED
+00b9da5c: namespace name=\x80\x05\x10  BAD NAME - REPAIRED
+00b9dcd0: namespace name=\x10  BAD NAME - REPAIRED
+00b9df44: namespace name=\x89\x15\x10  BAD NAME - REPAIRED
+00b9e1b8: namespace name=\x04\xfd\x1110  BAD NAME - REPAIRED
+00b9e42c: namespace name=.\r  BAD NAME - REPAIRED
+00b9e6a0: namespace name=w\x07  BAD NAME - REPAIRED
+00b9e914: namespace name=\x1c\x1c\x16\xbc\x15&\x1c\x1c\x16\xac\x15&\x0c\x1c\x16\xac\x15&\x0c\x1c\x16\x8c\x15&\xec\x1b\x16\x8c\x15&\xec\x1b\x16L\x15&\xac\x1b\x16<\x15&\x9c\x1b  BAD NAME - REPAIRED
+00b9eb88: namespace name=\xff  BAD NAME - REPAIRED
+00b9edfc: namespace name=  BAD NAME - REPAIRED
+00b9f070: namespace name=.\r  BAD NAME - REPAIRED
+00b9f2e4: namespace name=.\r  BAD NAME - REPAIRED
+00b9f558: namespace name=  BAD NAME - REPAIRED
+00b9f7cc: namespace name=\x10  BAD NAME - REPAIRED
+00b9fa40: namespace name=\x10&\xac"  BAD NAME - REPAIRED
+00b9fcb4: namespace name=\x8e.\r  BAD NAME - REPAIRED
+00b9ff28: namespace name=\r\x12\xc4\n\x11\r\x12\xc4\n\x11\r\x12\xc4\n\x11\r\x12\xc4\n\x11\r\x12\xc4\n\x11\r\x12\xc4\n\x11\r\x12\xc4\n\x11\r\x12\xc4\n\x11\r\x12\xc4\n\x11\r\x12\xc4\n\x11\r\x12\xc4\n\x11\r\x12\xc4\n\x11\r\x12\xc4\n\x11\r\x12\xc4\n\x11\r\x12\xc4\n\x11\r\x12\xc4\n\x11\r\x12\xc4\n\r\r  BAD NAME - REPAIRED
+00ba0410: namespace name=stg_mig.migration.$migStatus_1_type_1  OK
+00bb9178: namespace name=stg_mig.people  OK
+00c9e270: namespace name=stg_mig.migration.$migStatus_1  OK
+00e67d04: namespace name=stg_mig.migration.$migStatus_1_type_-1  OK
+00fbcf38: namespace name=stg_mig.myDupesCollection.$_id_  OK
+46 errors were detected and repaired
+repair.linked/d2/stg_mig.ns has been repaired; old file has been saved as repair.linked/d2/stg_mig.ns.backup
+
+
+=== .ns and .backup files should exist
+ 
+ 
+16777216 admin.ns
+16777216 admin.ns.backup
+16777216 stg_mig.ns
+16777216 stg_mig.ns.backup
+ 
+ 
+ 
+16777216 admin.ns
+16777216 admin.ns.backup
+16777216 stg_mig.ns
+16777216 stg_mig.ns.backup
+
+=== files should be repaired
+checking repair/d1/admin.ns
+000148b8: namespace name=admin.system.profile  OK
+00044d74: namespace name=admin.system.indexes  OK
+0006509c: namespace name=admin.system.new_users.$user_1_db_1  OK
+00094dfc: namespace name=admin.system.namespaces  OK
+000c57a0: namespace name=admin.system.roles.$_id_  OK
+001bb670: namespace name=admin.mms.backup.$_id_  OK
+00316368: namespace name=admin.system.users.$user_1_userSource_1  OK
+0035625c: namespace name=admin.system.version  OK
+003f5240: namespace name=admin.system.new_users  OK
+004d0b20: namespace name=admin.system.roles.$role_1_db_1  OK
+00771ecc: namespace name=admin.system.roles  OK
+008f50f0: namespace name=admin.mms.backup  OK
+00952958: namespace name=admin.system.backup_users.$_id_  OK
+009f87a0: namespace name=admin.system.users.$user_1_db_1  OK
+00bd8374: namespace name=admin.system.users.$_id_  OK
+00e9098c: namespace name=admin.system.new_users.$_id_  OK
+00ef9020: namespace name=admin.system.version.$_id_  OK
+00f005e0: namespace name=admin.system.users  OK
+00f490a8: namespace name=admin.system.backup_users  OK
+0 detected errors need repair
+
+checking repair/d1/stg_mig.ns
+000666b0: namespace name=stg_mig.my_output.$_id_  OK
+00076844: namespace name=stg_mig.migration_dup  OK
+0013d384: namespace name=stg_mig.migration_dup.$_id_  OK
+001ac120: namespace name=stg_mig.myDupesCollection  OK
+00241404: namespace name=stg_mig.system.namespaces  OK
+00340d60: namespace name=stg_mig.$freelist  OK
+004f0960: namespace name=stg_mig.system.users.$_id_  OK
+005605b4: namespace name=stg_mig.my_output  OK
+005aadec: namespace name=stg_mig.my_distinct.$_id_  OK
+005e5490: namespace name=stg_mig.system.users  OK
+005efdd4: namespace name=stg_mig.system.indexes  OK
+00659f64: namespace name=stg_mig.migration.$_id_  OK
+0068b064: namespace name=stg_mig.system.users.$user_1_userSource_1  OK
+006b9054: namespace name=stg_mig.system.profile  OK
+00790210: namespace name=stg_mig.migration.$migStatus_1_type_1_1  OK
+007a19b8: namespace name=stg_mig.people.$_id_  OK
+008208e8: namespace name=stg_mig.my_distinct  OK
+00a7c2dc: namespace name=stg_mig.migration  OK
+00ba0410: namespace name=stg_mig.migration.$migStatus_1_type_1  OK
+00bb9178: namespace name=stg_mig.people  OK
+00c9e270: namespace name=stg_mig.migration.$migStatus_1  OK
+00e67d04: namespace name=stg_mig.migration.$migStatus_1_type_-1  OK
+00fbcf38: namespace name=stg_mig.myDupesCollection.$_id_  OK
+0 detected errors need repair
+
+checking repair/d2/admin.ns
+000148b8: namespace name=admin.system.profile  OK
+00044d74: namespace name=admin.system.indexes  OK
+0006509c: namespace name=admin.system.new_users.$user_1_db_1  OK
+00094dfc: namespace name=admin.system.namespaces  OK
+000c57a0: namespace name=admin.system.roles.$_id_  OK
+001bb670: namespace name=admin.mms.backup.$_id_  OK
+00316368: namespace name=admin.system.users.$user_1_userSource_1  OK
+0035625c: namespace name=admin.system.version  OK
+003f5240: namespace name=admin.system.new_users  OK
+004d0b20: namespace name=admin.system.roles.$role_1_db_1  OK
+00771ecc: namespace name=admin.system.roles  OK
+008f50f0: namespace name=admin.mms.backup  OK
+00952958: namespace name=admin.system.backup_users.$_id_  OK
+009f87a0: namespace name=admin.system.users.$user_1_db_1  OK
+00bd8374: namespace name=admin.system.users.$_id_  OK
+00e9098c: namespace name=admin.system.new_users.$_id_  OK
+00ef9020: namespace name=admin.system.version.$_id_  OK
+00f005e0: namespace name=admin.system.users  OK
+00f490a8: namespace name=admin.system.backup_users  OK
+0 detected errors need repair
+
+checking repair/d2/stg_mig.ns
+000666b0: namespace name=stg_mig.my_output.$_id_  OK
+00076844: namespace name=stg_mig.migration_dup  OK
+00140220: namespace name=stg_mig.migration_dup.$_id_  OK
+001ac120: namespace name=stg_mig.myDupesCollection  OK
+00241404: namespace name=stg_mig.system.namespaces  OK
+004f0960: namespace name=stg_mig.system.users.$_id_  OK
+005605b4: namespace name=stg_mig.my_output  OK
+005aadec: namespace name=stg_mig.my_distinct.$_id_  OK
+005e5490: namespace name=stg_mig.system.users  OK
+005efdd4: namespace name=stg_mig.system.indexes  OK
+00659f64: namespace name=stg_mig.migration.$_id_  OK
+0068b064: namespace name=stg_mig.system.users.$user_1_userSource_1  OK
+006b9054: namespace name=stg_mig.system.profile  OK
+00790210: namespace name=stg_mig.migration.$migStatus_1_type_1_1  OK
+007a19b8: namespace name=stg_mig.people.$_id_  OK
+008208e8: namespace name=stg_mig.my_distinct  OK
+00a7c2dc: namespace name=stg_mig.migration  OK
+00ba0410: namespace name=stg_mig.migration.$migStatus_1_type_1  OK
+00bb9178: namespace name=stg_mig.people  OK
+00c9e270: namespace name=stg_mig.migration.$migStatus_1  OK
+00e67d04: namespace name=stg_mig.migration.$migStatus_1_type_-1  OK
+00fbcf38: namespace name=stg_mig.myDupesCollection.$_id_  OK
+0 detected errors need repair
+
+

@@ -1,0 +1,52 @@
+NAME
+    mdb-wt - simple tool to dump parts of mongo+wt databases
+
+SYNOPSIS
+    python mdb-wt.py -p[e[bB]] file [offset [compressor]]
+
+DESCRIPTION
+
+    mdb-wt prints a low-level dump of MongoDB databases using the
+    WiredTiger storage engine.
+    
+    Operation is controlled by a set of flags specified in the first
+    argument, as follows:
+
+    p Print the pages of the spedified file if no offset is
+      specified. If an offset is specified print only that page.
+
+    f When used with the p flag, the content of avaiable (freed) pages
+      is also printed.
+
+    e When used with the p flag, page entries are printed.
+
+    b When used with the e flag, BSON values (for collection files)
+      and BSON keys (for index files) are printed.
+
+    B Like the b flag, except that field values for all types is
+      printed.
+
+INSTALLING SNAPPY
+
+    To examine page contents (keys and values) for pages compressed
+    using Snappy you will need the snappy library and Python snappy
+    module. To install:
+
+    On Ubuntu:
+    sudo apt-get install python-pip
+    sudo apt-get install python-dev
+    sudo apt-get install libsnappy-dev
+    sudo pip install python-snappy
+
+    On EL:
+    sudo easy_install pip
+    sudo yum install snappy-devel
+    sudo yum install gcc-c++
+    sudo pip install python-snappy
+
+    Snappy support is not needed to view page headers and block
+    manager pages as these are not compressed.
+
+    The compressor to use is obtained from the WT metadata files; if
+    metadata is not available the compressor can be specified on the
+    command line.

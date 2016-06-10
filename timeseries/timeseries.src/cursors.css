@@ -1,0 +1,17 @@
+.cursor {
+    stroke: rgba(0,0,255,.4);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+}
+
+.deleter {
+    fill: blue;
+}
+
+.letter {
+    font-size: 85%
+}
+
+.data {
+    padding-left: 0.5em
+}

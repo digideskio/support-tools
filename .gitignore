@@ -1,0 +1,58 @@
+# Compiled source #
+###################
+*.com
+*.class
+*.dll
+*.exe
+*.o
+*.so
+*.pyc
+
+# Packages #
+############
+# it's better to unpack these files and commit the raw source
+# git has its own built in compression methods
+*.7z
+*.dmg
+*.gz
+*.iso
+*.rar
+*.tar
+*.zip
+
+# Logs and databases #
+######################
+*.log
+*.sql
+*.sqlite
+
+# Ide files
+######################
+*/.idea/*
+
+# OS generated files #
+######################
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Icon?
+ehthumbs.db
+Thumbs.db
+
+driver-samples/java/*.jar
+
+*/.idea/*
+
+/support-bot/conf/trafficbot.conf
+/support-bot/dump/
+/support-bot/sounds/*.wav
+/support-bot/nohup.out
+/support-bot/test/sounds/
+
+*/projectFilesBackup/*
+
+# Config failes #
+#################
+*.cfg

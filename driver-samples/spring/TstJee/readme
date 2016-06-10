@@ -1,0 +1,30 @@
+This is a sample MongoDB MVC web app that uses Spring framework
+
+Workflow:
+
+1) Client issues HTTP GET request to http://localhost:8080/dedu/
+2) Web container dispatches request to the HomeController.class (see @RequestMapping annotation)
+3) Controller fills the Model using data from MongoDB
+4) Controller points out to the correct JSP (home.jsp)
+5) JSP renders a view using the Model
+
+Files modified for MongoDB integration:
+ pom.xml - maven configuration file (dependencies)
+ root-context.xml - mongo beans (read more at http://static.springsource.org/spring-data/data-document/docs/current/reference/html/)
+ Maycat.java - database object
+ HomeController.java - controller class
+
+
+## Instructions to open the project:
+
+- Open Spring Tool Suite (STS)
+- From top menu, click `File`, `Import`
+- Select `Maven`, `Existing Maven Projects`
+- Select the folder of the Project, this case `TsJee`
+- Change the `mongo.host` in `src/main/java/edu/babe/dedu/mongo.properites`
+
+## To Run the app:
+
+- Click the green play button to Run the _HomeController_
+- When the browser window opens inside STS
+	- Navigate to `http://localhost:8080/dedu/`

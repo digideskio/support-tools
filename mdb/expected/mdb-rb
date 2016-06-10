@@ -1,0 +1,19 @@
+=== mdb.py -rb testdb/test.0 0x110b0
+110b0: record rlen=1e00(7680) end=12eb0 ext=2000 next=12eb0 prev=f2b0 blen=1de0(7648)
+110c4: _id: objectid 53 c3 d0 99 01 79 ab 0d 6c 5e 95 4f =2014-07-14T12:44:09Z
+110d5: number: double 33 33 33 33 33 33 fb 3f =1.7
+110e5: hello: string len=6 strlen=5
+110f6: empty: DOC len=5(5) EOO=11101
+11101: EOO
+11102: false: boolean 00
+1110a: array: DOC len=1d80(7552) EOO=12e90
+11115: 0: bindata len=7500 sub=0
+12e69: 1: undefined
+12e6c: 2: boolean 01
+12e70: 3: DOC len=b(11) EOO=12e7d
+12e77: nada: null
+12e7d: EOO
+12e7e: 4: regexp len(e)=13 len(o)=0
+12e90: EOO
+12e91: date: datetime 00 00 00 00 00 00 00 00 =1970-01-01T00:00:00Z
+12e9f: EOO

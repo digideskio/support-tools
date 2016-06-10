@@ -1,0 +1,12 @@
+[
+	{
+		"id": "os-0021",
+		"desc": "Kernel max open files",
+		"log": "mdiag",
+		"section": "sysctl",
+		"example": "fs.file-max = 131000",
+		"match": "^fs\\.file-max\\s*=\\s*(\\d+)",
+		"check": { "$1": { "$gte": 98000 } },
+		"occurence": "always"
+	}
+]

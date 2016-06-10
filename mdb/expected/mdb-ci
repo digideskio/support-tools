@@ -1,0 +1,15 @@
+=== mdb.py -ci testdb test
+001d5290: namespace name=test.small.$_id_ first=0:22000 last=0:22000, ce=0:22000, cfn=-2:0
+nIndexes=0 extra=0 inProgress=0 mk=0
+00797cb8: namespace name=test.small first=0:2000 last=0:2000, ce=0:2000, cfn=-2:0
+nIndexes=1 extra=0 inProgress=0 mk=0
+797dfc: index 0: btree 0:23000 info 0:200b0 mk 0
+00829c18: namespace name=test.big.$_id_ first=0:49000 last=0:a2a000, ce=0:49000, cfn=-2:0
+nIndexes=0 extra=0 inProgress=0 mk=0
+00b8e024: namespace name=test.system.indexes first=0:20000 last=0:20000, ce=0:20000, cfn=-2:0
+nIndexes=0 extra=0 inProgress=0 mk=0
+00c8888c: namespace name=test.system.namespaces first=0:21000 last=0:21000, ce=0:21000, cfn=-2:0
+nIndexes=0 extra=0 inProgress=0 mk=0
+00fcd5b4: namespace name=test.big first=0:2b000 last=2:2000, ce=0:2b000, cfn=-2:0
+nIndexes=1 extra=0 inProgress=0 mk=0
+fcd6f8: index 0: btree 0:4e000 info 0:20108 mk 0

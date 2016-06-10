@@ -1,0 +1,473 @@
+<html><head><meta charset="utf-8"></meta><link href="data:image/png;base64,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" rel="icon" type="image/png"></link><style>table, tr, td {
+    padding: 0;
+    margin: 0;
+    border-spacing:0;
+}
+
+.curve {
+    fill: none;
+    stroke: black;
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+}
+
+.shaded {
+    fill: rgb(230,230,230);
+    stroke: rgb(230,230,230);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+}
+
+.shaded-hot {
+    fill: rgb(250,220,220);
+    stroke: rgb(240,220,220);
+}
+
+.shaded-cold {
+    fill: rgb(200,220,240);
+    stroke: rgb(230,230,230);
+}
+
+.tick {
+    stroke: rgba(0,0,0,0.08);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+}
+.cursor {
+    stroke: rgba(0,0,255,.4);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+}
+
+.deleter {
+    fill: blue;
+}
+
+.letter {
+    font-size: 85%
+}
+
+.data {
+    padding-left: 0.5em
+}
+body, table, frameset, pre.info {
+    font-family: sans-serif;
+    font-size: 10pt;
+}
+
+.data {
+    text-align: right;
+}
+
+.row-number {
+    padding-right: 2em;
+    text-align: right;
+}
+
+.name {
+    text-align: left;
+}
+
+.graph {
+    padding-left: 0em;
+    padding-right: 0em;
+}
+
+.head {
+    font-weight: bold;
+}
+
+.selected {
+    background: rgb(240,245,255)
+}
+
+.info-data {
+    padding-right: 1em;
+    text-align: right;
+}
+</style><script>var selected = undefined
+var last_selected = undefined
+
+function _desel() {
+    if (selected)
+        selected.classList.remove('selected')
+}
+
+// process change to selected
+function _sel() {
+
+    if (selected) {
+
+        // record selected row
+        _row = selected.getAttribute('_row')
+        if (_row)
+            top.model.selected = Number(_row)
+
+        // compute last_selected
+        last_selected = selected
+        selected.classList.add('selected')
+        for (var p=selected, y=0; p && p.tagName!='BODY'; p=p.offsetParent)
+            y += p.offsetTop
+        var h = selected.offsetHeight
+        if (window.pageYOffset + window.innerHeight < y + h)
+            selected.scrollIntoView(false)
+        else if (y < window.pageYOffset)
+            selected.scrollIntoView(true)
+    }
+}
+
+// select e, deselect current selection
+function sel(e) {
+    _desel()
+    if (selected!=e) {
+        selected = e
+        _sel()
+    } else {
+        selected = undefined
+    }
+}
+
+// set selected to the specified row
+function set_selected(_row) {
+    if (_row != undefined) {
+        row = document.getElementById("table").firstChild.firstChild    
+        while (row) {
+            if (_row==row.getAttribute('_row')) {
+                selected = row
+                _sel()
+                break
+            }
+            row = row.nextSibling
+        }
+    }
+}
+
+function re_number() {
+    console.log('re_number()')
+    n = 0
+    row = document.getElementById("table").firstChild.firstChild    
+    top.model.row_order = []
+    while (row) {
+        _row = row.getAttribute('_row')
+        if (_row)
+            top.model.row_order.push(Number(_row))
+        row = row.nextSibling
+    }
+    while (row) {
+        td = row.firstChild
+        while (td && !td.classList.contains("row-number"))
+            td = td.nextSibling            
+        if (!td)
+            return
+        if (!td.classList.contains("head")) {
+            td.innerHTML = n
+            n += 1
+        }
+        row = row.nextSibling
+    }
+}
+
+function set_level(level) {
+    _desel()
+    row = document.getElementById("table").firstChild.firstChild    
+    while (row) {
+        row_level = Number(row.getAttribute('_level'))
+        if (row_level <= level) {
+            row.style.display = ''
+        } else {
+            row.style.display = 'none'
+        }
+        row = row.nextSibling
+    }
+    document.getElementById("current_level").innerHTML = String(level)
+    selected = next_visible(selected)
+    top.model.level = level
+}
+
+function initialize_model() {
+    console.log('initializing', top.model)
+    set_level(top.model.level)
+    set_selected(top.model.selected)
+    if (top.model.scrollY != undefined)
+        window.scrollTo(0, top.model.scrollY)
+    add_cursors_by_time(top.model.cursors)
+}
+
+function next_visible(row) {
+    while (row && row.style.display=='none')
+        row = row.nextSibling
+    return row            
+}
+
+function prev_visible(row) {
+    while (row!=first_row && row.style.display=='none')
+        row = row.previousSibling
+    return row            
+}
+
+function key() {
+
+    var evt = window.event
+    var c = String.fromCharCode(evt.charCode)
+
+    // compute last_selected
+    first_row = document.getElementById("table").firstChild.firstChild
+    while (first_row && !first_row.classList.contains('row'))
+        first_row = first_row.nextSibling
+    first_row = next_visible(first_row)
+    if (!last_selected) {
+        for (var r = first_row; r && !selected; r = r.nextSibling) {
+            if (r.classList.contains('selected'))
+                selected = r
+        }
+        last_selected = selected
+    }
+    if (!last_selected)       
+        last_selected = first_row
+
+    if (c=='s') {
+        fn = prompt('Save to file:', 'timeseries.html')
+        if (fn)
+            do_post('save', {fn: fn})
+    } else if (c=='z') {
+        zoom()
+    } else if (c=='Z') {
+        zoom_all()
+    } else if (c=='') {
+        if (!selected)
+            selected = last_selected
+        else {
+            var s = next_visible(selected.nextSibling)
+            if (s) {
+                _desel()
+                selected = s
+            }
+        }
+        _sel()
+    } else if (c=='') {
+        if (!selected)
+            selected = last_selected
+        else if (selected != first_row) {
+            selected.classList.remove('selected')
+            selected = prev_visible(selected.previousSibling)
+        }
+        _sel()
+    } else if (c=='n') {
+        if (selected) {
+            next = next_visible(selected.nextSibling)
+            if (next) {
+                parent = selected.parentNode
+                parent.removeChild(selected)
+                parent.insertBefore(selected, next.nextSibling)
+                re_number()
+            }
+        }
+        _sel()
+    } else if (c=='p') {
+        if (selected) {
+            if (selected!=first_row) {
+                prev = prev_visible(selected.previousSibling)
+                parent = selected.parentNode
+                parent.removeChild(selected)
+                parent.insertBefore(selected, prev)
+                re_number()
+            }
+        }
+        _sel()
+    } else if (c=='N') {
+        if (selected) {
+            s = next_visible(selected.nextSibling)
+            if (s) {
+                parent = selected.parentNode
+                parent.removeChild(selected)
+                parent.insertBefore(selected, null)
+                sel(s)
+                re_number()
+            }
+        }
+        _sel()
+    } else if (c=='P') {
+        if (selected && selected != first_row) {
+            s = prev_visible(selected.previousSibling)
+            parent = selected.parentNode
+            parent.removeChild(selected)
+            parent.insertBefore(selected, first_row)
+            sel(s)
+            re_number()
+        }
+        _sel()
+    } else if ('1'<=c && c<='9') {
+        set_level(Number(c))
+        _sel()
+    } else if (c=='o') {
+        open_current(top.model.spec_cmdline)
+    } else if (c=='O') {
+        open_new(top.model.spec_cmdline)
+    } else if (c=='l') {
+        default_live = top.model.live>0? top.model.live : 10
+        live = prompt('Refresh interval in seconds; 0 to disable:', default_live)
+        if (live) {
+            top.model.live = Number(live)
+            if (top.model.live > 0)
+                post_model_and_load_content()
+        }
+    } else if (c=='?') {
+        info('info')
+    } else if (c=='!') {
+        info('raw')
+    } else if (c=='@') {
+        info('metadata')
+    } else if (c=='m') {
+        top.model.merges = false
+        post_model_and_load_content()
+    } else if (c=='M') {
+        top.model.merges = true
+        post_model_and_load_content()
+    } else if (c=='\r') {
+        post_model_and_load_content()
+    } else if (c=='v') {
+        overview = prompt('Number of overview samples, or "all" to show all samples', 'all')
+        top.model.overview = overview
+        post_model_and_load_content()
+    }
+}    
+
+function toggle_help() {
+    e = document.getElementById('help')
+    if (e.style.display == 'none') {
+        e.style.display = 'block'
+    } else {
+        e.style.display = 'none'
+    }
+}
+
+function loaded_content() {
+    initialize_model()
+}
+
+function do_post() {
+    console.log('not posting')
+}
+
+function do_unload(what) {
+    alert(what)
+    url = top.location + '/close/' + what
+    req = new XMLHttpRequest()
+    req.open('GET', url, false) // synchronous
+    req.setRequestHeader("Content-type", "application/json");
+    req.send('')
+}
+// x position of current event as a proportion (0-1) of the width of the containing element
+function event_x(e) {
+    var evt = window.event
+    return (evt.pageX - e.offsetLeft - e.offsetParent.offsetLeft) / e.offsetWidth
+}
+
+var svg_ns = "http://www.w3.org/2000/svg"
+
+function set_attrs(e, attrs) {
+    for (a in attrs)
+        e.setAttribute(a, attrs[a])
+}
+
+function elt(ns, name, attrs) {
+    var e = document.createElementNS(ns, name)
+    set_attrs(e, attrs)
+    return e
+}
+
+function del_id(id) {
+    var e = document.getElementById(id)
+}
+
+function move(e) {
+    var x = event_x(e)
+    set_attrs(document.getElementById('lll'), {x1:x, x2:x})
+}
+
+function out(e) {
+    set_attrs(document.getElementById('lll'), {x1:-1, x2:-1})
+}
+
+// add a cursor at the position where mouse event e occurred
+// all position computations are done relative to the width of the graphs
+function add_cursor_by_event(evt) {
+    var x = event_x(evt)
+    _add_cursor(x)
+    update_cursors()
+}
+
+// add a cursor at time t
+// all position computations are done relative to the width of the graphs
+function add_cursors_by_time(ts) {
+    for (var i in ts)
+        _add_cursor(t2x(ts[i]))
+    update_cursors()
+}
+
+function _add_cursor(x) {
+    var line = elt(svg_ns, "line", {
+        x1:x, x2:x, y1:0, y2:1, class:"cursor"
+    })
+    var deleter = elt(svg_ns, "circle", {
+        cx:(x*100)+'%', cy:'50%', r:0.3, class:"deleter", onclick:"del_cursor_event(this)"
+    })
+    var letter = elt(svg_ns, "text", {
+        x:(x*100)+'%', y:'80%', 'text-anchor':'middle', 'class':'letter'
+    })
+    cursor = {line: line, deleter: deleter, letter: letter, t: x2t(x), x: x}
+    cursor.toJSON = function() {return this.t} // serialize for sending to server
+    line.cursor = cursor
+    deleter.cursor = cursor
+    letter.cursor = cursor
+    document.getElementById("cursors").appendChild(line)
+    document.getElementById("deleters").appendChild(deleter)
+    document.getElementById("letters").appendChild(letter)
+    update_cursors()
+}
+
+function del_cursor_event(deleter) {
+    cursor = deleter.cursor;
+    ['line', 'deleter', 'letter'].forEach(function(n){
+        e = cursor[n]
+        e.parentNode.removeChild(e)
+    })
+    update_cursors()
+}
+
+function update_cursors() {
+    cursors = []
+    deleters = document.getElementById("deleters")
+    for (var i=0; i<deleters.children.length; i++)
+        cursors.push(deleters.children[i].cursor)
+    cursors.sort(function(a,b) {return a.x-b.x})
+    for (var i=0; i<cursors.length; i++)
+        cursors[i].letter.innerHTML = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijlkmnopqrstuvwxyz'[i]
+    top.model.cursors = cursors
+}
+
+// position of an element on the graph; units are %
+function pos(e) {
+    return Number(e.getAttribute('x').replace('%',''))
+}
+
+// x is a relative position (0-1) within the graphing area, which includes xpad on either side
+// compute the corresponding time on the graph, given tleft and tright supplied by server
+function x2t(x) {
+    return top.model.tleft * (1-x) + top.model.tright * x
+}
+
+function t2x(t) {
+    return (t-top.model.tleft) / (top.model.tright-top.model.tleft)
+}
+
+// get time at cursor, specified by cursor letter
+function cursor2t(cursor) {
+    var cs = top.model.cursors
+    for (var j in cs)
+        if (cs[j].letter.innerHTML==cursor)
+            return cs[j].t
+    return undefined
+}
+
+</script></head><script>document.title="r0.log"</script><body onkeypress="key()" onload="loaded_content()"><script>top.model = {"spec_cmdline": "data/r0.log", "level": 1, "after": -Infinity, "live": 0, "tright": 1417183608.0434499, "cursors": [], "tleft": 1417183455.04555, "before": Infinity}</script><div onclick="toggle_help()"><b>click here for help</b></br><div id="help" style="display:none">click on a graph to put down a cursor line<br/>click on a blue disk to delete a cursor<br/>click on a name to select a row<br/>^N select the next row <br/>^P select the previous row <br/>n move the selected row down <br/>p move the selected row up <br/>N move the selected row to the bottom <br/>P move the selected row to the top <br/>1-9 to change detail level<br/><br/></div></div>current detail level is <span id="current_level"></span> (hit 1-9 to change)<br/>start: 2014-11-28 14:04:22Z, finish: 2014-11-28 14:06:41Z, duration: 0:02:19.089000<br/>viewing data/r0.log (use o or O to change)<br/><br/><table id="table" style="position:relative;"><tr><td></td><td></td><td><svg height="100%" id="cursors" onclick="add_cursor_by_event(this)" onmousemove="move(this)" onmouseout="out(this)" preserveAspectRatio="none" style="position:absolute; background:none" viewBox="0 0 1 1" width="30em"><line class="cursor" id="lll" x1="-1" x2="-1" y1="0" y2="1"></line></svg><div style="position:relative; z-index:1000; background:white; margin-bottom:0.3em"><svg height="1em" id="letters" width="30em"></svg><br/><svg height="0.8em" id="deleters" viewBox="0 0 30 0.8" width="30em"></svg></div><div style="height: 2.000000em; position:relative; width:30em"><span align="center" style="left:-46.9470375082em; position:absolute; width:100em"><div align="center" style="font-size:80%">14-11-28<br/>14:04:30</div></span><span align="center" style="left:-41.123428164em; position:absolute; width:100em"><div align="center" style="font-size:80%"><br/>14:05:00</div></span><span align="center" style="left:-35.2998188198em; position:absolute; width:100em"><div align="center" style="font-size:80%"><br/>14:05:30</div></span><span align="center" style="left:-29.4762094756em; position:absolute; width:100em"><div align="center" style="font-size:80%"><br/>14:06:00</div></span><span align="center" style="left:-23.6526001313em; position:absolute; width:100em"><div align="center" style="font-size:80%"><br/>14:06:30</div></span></div></td></tr><tr><td class="head data">avg</td><td class="head data">max</td><td></td><td class="head desc">name</td><td class=""> </td></tr><tr _level="1" _row="0" class="row" onclick="sel(this)"><td class="data">16.833</td><td class="data">25.000</td><td class="graph"><svg height="1.8em" viewBox="0 0 30 1.8" width="30em"><polygon class="shaded" points="1.5,1.62 1.5,0.4104 1.69412,0.18 1.88824,0.6984 2.08236,0.6984 2.27648,0.468 2.4706,1.4472 2.4706,1.62"></polygon><polyline class="curve" points="1.5,0.4104 1.69412,0.18 1.88824,0.6984 2.08236,0.6984 2.27648,0.468 2.4706,1.4472" style="stroke:black"></polyline><line class="tick" x1="3.05296249179" x2="3.05296249179" y1="0" y2="1.8"></line><line class="tick" x1="8.87657183601" x2="8.87657183601" y1="0" y2="1.8"></line><line class="tick" x1="14.7001811802" x2="14.7001811802" y1="0" y2="1.8"></line><line class="tick" x1="20.5237905244" x2="20.5237905244" y1="0" y2="1.8"></line><line class="tick" x1="26.3473998687" x2="26.3473998687" y1="0" y2="1.8"></line></svg></td><td class="name">mongod: connections opened per 1s</td></tr><tr _level="1" _row="1" class="row" onclick="sel(this)"><td class="data">25.250</td><td class="data">66.000</td><td class="graph"><svg height="1.8em" viewBox="0 0 30 1.8" width="30em"><polygon class="shaded" points="2.4706,1.62 2.4706,1.59818 2.66472,1.62 2.85884,1.62 3.05296,1.62 3.24708,1.62 3.4412,1.62 3.63532,1.62 3.82944,1.62 4.02356,1.62 4.21768,1.62 4.4118,1.62 4.60592,1.62 4.80005,1.62 4.99417,1.62 5.18829,1.62 5.38241,1.62 5.57653,1.62 5.77065,1.62 5.96477,1.62 6.15889,1.62 6.35301,1.62 6.54713,1.62 6.74125,1.62 6.93537,1.62 7.12949,1.62 7.32361,1.62 7.51773,1.62 7.71185,1.62 7.90597,1.62 8.10009,1.62 8.29421,1.62 8.48833,1.62 8.68245,1.62 8.87657,1.62 9.07069,1.62 9.26481,1.62 9.45893,1.62 9.65305,1.62 9.84717,1.62 10.0413,1.62 10.2354,1.62 10.4295,1.62 10.6237,1.62 10.8178,1.62 11.0119,1.62 11.206,1.62 11.4001,1.62 11.5943,1.62 11.7884,1.62 11.9825,1.62 12.1766,1.62 12.3707,1.62 12.5649,1.62 12.759,1.62 12.9531,1.62 13.1472,1.62 13.3413,1.62 13.5355,1.62 13.7296,1.62 13.9237,1.62 14.1178,1.62 14.3119,1.62 14.5061,1.62 14.7002,1.62 14.8943,1.62 15.0884,1.62 15.2825,1.62 15.4767,1.62 15.6708,1.62 15.8649,1.62 16.059,1.62 16.2531,1.62 16.4473,1.62 16.6414,1.62 16.8355,1.62 17.0296,1.62 17.2237,1.62 17.4179,1.62 17.612,1.62 17.8061,1.62 18.0002,1.62 18.1943,1.62 18.3885,1.62 18.5826,1.62 18.7767,1.62 18.9708,1.62 19.1649,1.62 19.3591,1.62 19.5532,1.62 19.7473,1.62 19.9414,1.62 20.1355,1.62 20.3297,1.62 20.5238,1.62 20.7179,1.62 20.912,1.62 21.1062,1.62 21.3003,1.62 21.4944,1.62 21.6885,1.62 21.8826,1.62 22.0768,1.62 22.2709,1.62 22.465,1.62 22.6591,1.62 22.8532,1.62 23.0474,1.62 23.2415,1.62 23.4356,1.62 23.6297,1.62 23.8238,1.62 24.018,1.62 24.2121,1.62 24.4062,1.62 24.6003,1.62 24.7944,1.62 24.9886,1.62 25.1827,1.62 25.3768,1.62 25.5709,1.62 25.765,1.62 25.9592,1.62 26.1533,1.62 26.3474,1.62 26.5415,1.62 26.7356,1.62 26.9298,1.62 27.1239,1.62 27.318,1.62 27.5121,1.62 27.7062,1.62 27.9004,1.35818 28.0945,1.62 28.2886,0.18 28.4827,1.14 28.4827,1.62"></polygon><polyline class="curve" points="2.4706,1.59818 2.66472,1.62 2.85884,1.62 3.05296,1.62 3.24708,1.62 3.4412,1.62 3.63532,1.62 3.82944,1.62 4.02356,1.62 4.21768,1.62 4.4118,1.62 4.60592,1.62 4.80005,1.62 4.99417,1.62 5.18829,1.62 5.38241,1.62 5.57653,1.62 5.77065,1.62 5.96477,1.62 6.15889,1.62 6.35301,1.62 6.54713,1.62 6.74125,1.62 6.93537,1.62 7.12949,1.62 7.32361,1.62 7.51773,1.62 7.71185,1.62 7.90597,1.62 8.10009,1.62 8.29421,1.62 8.48833,1.62 8.68245,1.62 8.87657,1.62 9.07069,1.62 9.26481,1.62 9.45893,1.62 9.65305,1.62 9.84717,1.62 10.0413,1.62 10.2354,1.62 10.4295,1.62 10.6237,1.62 10.8178,1.62 11.0119,1.62 11.206,1.62 11.4001,1.62 11.5943,1.62 11.7884,1.62 11.9825,1.62 12.1766,1.62 12.3707,1.62 12.5649,1.62 12.759,1.62 12.9531,1.62 13.1472,1.62 13.3413,1.62 13.5355,1.62 13.7296,1.62 13.9237,1.62 14.1178,1.62 14.3119,1.62 14.5061,1.62 14.7002,1.62 14.8943,1.62 15.0884,1.62 15.2825,1.62 15.4767,1.62 15.6708,1.62 15.8649,1.62 16.059,1.62 16.2531,1.62 16.4473,1.62 16.6414,1.62 16.8355,1.62 17.0296,1.62 17.2237,1.62 17.4179,1.62 17.612,1.62 17.8061,1.62 18.0002,1.62 18.1943,1.62 18.3885,1.62 18.5826,1.62 18.7767,1.62 18.9708,1.62 19.1649,1.62 19.3591,1.62 19.5532,1.62 19.7473,1.62 19.9414,1.62 20.1355,1.62 20.3297,1.62 20.5238,1.62 20.7179,1.62 20.912,1.62 21.1062,1.62 21.3003,1.62 21.4944,1.62 21.6885,1.62 21.8826,1.62 22.0768,1.62 22.2709,1.62 22.465,1.62 22.6591,1.62 22.8532,1.62 23.0474,1.62 23.2415,1.62 23.4356,1.62 23.6297,1.62 23.8238,1.62 24.018,1.62 24.2121,1.62 24.4062,1.62 24.6003,1.62 24.7944,1.62 24.9886,1.62 25.1827,1.62 25.3768,1.62 25.5709,1.62 25.765,1.62 25.9592,1.62 26.1533,1.62 26.3474,1.62 26.5415,1.62 26.7356,1.62 26.9298,1.62 27.1239,1.62 27.318,1.62 27.5121,1.62 27.7062,1.62 27.9004,1.35818 28.0945,1.62 28.2886,0.18 28.4827,1.14" style="stroke:black"></polyline><line class="tick" x1="3.05296249179" x2="3.05296249179" y1="0" y2="1.8"></line><line class="tick" x1="8.87657183601" x2="8.87657183601" y1="0" y2="1.8"></line><line class="tick" x1="14.7001811802" x2="14.7001811802" y1="0" y2="1.8"></line><line class="tick" x1="20.5237905244" x2="20.5237905244" y1="0" y2="1.8"></line><line class="tick" x1="26.3473998687" x2="26.3473998687" y1="0" y2="1.8"></line></svg></td><td class="name">mongod: connections closed per 1s</td></tr><tr _level="1" _row="2" class="row" onclick="sel(this)"><td class="data">51.231</td><td class="data">101.000</td><td class="graph"><svg height="1.8em" viewBox="0 0 30 1.8" width="30em"><polygon class="shaded" points="1.57474,1.62 1.57474,1.59149 1.57668,1.57723 1.57823,1.56297 1.58367,1.54871 1.58464,1.53446 1.5924,1.5202 1.59473,1.50594 1.6058,1.49168 1.60754,1.47743 1.61375,1.46317 1.61667,1.44891 1.62618,1.43465 1.63239,1.4204 1.63899,1.40614 1.65297,1.39188 1.65568,1.37762 1.65763,1.36337 1.66403,1.34911 1.66772,1.33485 1.67626,1.32059 1.69315,1.30634 1.69529,1.29208 1.70169,1.27782 1.7145,1.26356 1.72324,1.24931 1.73217,1.23505 1.7343,1.22079 1.74401,1.20653 1.74614,1.19228 1.75702,1.17802 1.75799,1.16376 1.76167,1.1495 1.76323,1.13525 1.77157,1.12099 1.78905,1.10673 1.79778,1.09248 1.80244,1.07822 1.81855,1.06396 1.82845,1.0497 1.82865,1.03545 1.83156,1.02119 1.84379,1.00693 1.84961,0.992673 1.86417,0.978416 1.88009,0.964158 1.88183,0.949901 1.89038,0.935644 1.89057,0.921386 1.90008,0.907129 1.92027,0.892871 1.93386,0.878614 1.94803,0.864356 1.95521,0.850099 2.00238,0.835842 2.00374,0.821584 2.00685,0.807327 2.01267,0.793069 2.02742,0.778812 2.04315,0.764554 2.05693,0.750297 2.06916,0.73604 2.07751,0.721782 2.10216,0.707525 2.10818,0.693267 2.11536,0.67901 2.12235,0.664752 2.14856,0.650495 2.16253,0.636238 2.17379,0.62198 2.18622,0.607723 2.20466,0.593465 2.20737,0.579208 2.21126,0.56495 2.2262,0.550693 2.23572,0.536436 2.23766,0.522178 2.27279,0.507921 2.27299,0.493663 2.29182,0.479406 2.29978,0.465149 2.3056,0.436634 2.30987,0.422376 2.32948,0.408119 2.35277,0.393861 2.36015,0.379604 2.36209,0.365347 2.36772,0.351089 2.37956,0.336832 2.37975,0.322574 2.38907,0.308317 2.39587,0.294059 2.40615,0.279802 2.41042,0.265545 2.41547,0.251287 2.41625,0.23703 2.42382,0.222772 2.46769,0.208515 2.47507,0.222772 2.47759,0.208515 2.49331,0.194257 2.53078,0.18 27.9879,0.194257 28.0172,0.208515 28.0213,0.222772 28.0267,0.23703 28.0279,0.265545 28.0281,0.279802 28.0314,0.294059 28.0329,0.308317 28.0454,0.322574 28.0539,0.336832 28.0611,0.351089 28.3829,0.365347 28.3833,0.379604 28.3835,0.393861 28.3843,0.393861 28.3855,0.422376 28.388,0.436634 28.3888,0.450891 28.3894,0.465149 28.3901,0.479406 28.3907,0.493663 28.3915,0.507921 28.3923,0.522178 28.3928,0.536436 28.4057,0.550693 28.4062,0.56495 28.4064,0.593465 28.4111,0.607723 28.4117,0.62198 28.4163,0.636238 28.4218,0.650495 28.4243,0.664752 28.4293,0.67901 28.4321,0.693267 28.4328,0.707525 28.4375,0.73604 28.4381,0.750297 28.4387,0.764554 28.4389,0.778812 28.4398,0.793069 28.4451,0.807327 28.4474,0.821584 28.448,0.835842 28.4491,0.850099 28.4501,0.864356 28.4534,0.892871 28.4548,0.907129 28.461,0.921386 28.4612,0.921386 28.4625,0.949901 28.4629,0.964158 28.4643,0.978416 28.4656,0.992673 28.4662,1.00693 28.467,1.02119 28.4676,1.03545 28.4678,1.0497 28.4686,1.07822 28.4705,1.09248 28.4713,1.10673 28.4722,1.12099 28.4736,1.13525 28.474,1.1495 28.4744,1.16376 28.4748,1.17802 28.475,1.19228 28.4763,1.20653 28.4769,1.22079 28.4773,1.23505 28.4775,1.24931 28.479,1.26356 28.4796,1.27782 28.4825,1.29208 28.4831,1.30634 28.4833,1.32059 28.4837,1.33485 28.4856,1.34911 28.486,1.36337 28.4893,1.37762 28.4917,1.39188 28.492,1.40614 28.493,1.4204 28.4936,1.43465 28.4938,1.44891 28.4944,1.46317 28.495,1.47743 28.4953,1.49168 28.4959,1.50594 28.4965,1.5202 28.4967,1.53446 28.4971,1.54871 28.4973,1.56297 28.4977,1.59149 28.5,1.62 28.5,1.62"></polygon><polyline class="curve" points="1.57474,1.59149 1.57668,1.57723 1.57823,1.56297 1.58367,1.54871 1.58464,1.53446 1.5924,1.5202 1.59473,1.50594 1.6058,1.49168 1.60754,1.47743 1.61375,1.46317 1.61667,1.44891 1.62618,1.43465 1.63239,1.4204 1.63899,1.40614 1.65297,1.39188 1.65568,1.37762 1.65763,1.36337 1.66403,1.34911 1.66772,1.33485 1.67626,1.32059 1.69315,1.30634 1.69529,1.29208 1.70169,1.27782 1.7145,1.26356 1.72324,1.24931 1.73217,1.23505 1.7343,1.22079 1.74401,1.20653 1.74614,1.19228 1.75702,1.17802 1.75799,1.16376 1.76167,1.1495 1.76323,1.13525 1.77157,1.12099 1.78905,1.10673 1.79778,1.09248 1.80244,1.07822 1.81855,1.06396 1.82845,1.0497 1.82865,1.03545 1.83156,1.02119 1.84379,1.00693 1.84961,0.992673 1.86417,0.978416 1.88009,0.964158 1.88183,0.949901 1.89038,0.935644 1.89057,0.921386 1.90008,0.907129 1.92027,0.892871 1.93386,0.878614 1.94803,0.864356 1.95521,0.850099 2.00238,0.835842 2.00374,0.821584 2.00685,0.807327 2.01267,0.793069 2.02742,0.778812 2.04315,0.764554 2.05693,0.750297 2.06916,0.73604 2.07751,0.721782 2.10216,0.707525 2.10818,0.693267 2.11536,0.67901 2.12235,0.664752 2.14856,0.650495 2.16253,0.636238 2.17379,0.62198 2.18622,0.607723 2.20466,0.593465 2.20737,0.579208 2.21126,0.56495 2.2262,0.550693 2.23572,0.536436 2.23766,0.522178 2.27279,0.507921 2.27299,0.493663 2.29182,0.479406 2.29978,0.465149 2.3056,0.436634 2.30987,0.422376 2.32948,0.408119 2.35277,0.393861 2.36015,0.379604 2.36209,0.365347 2.36772,0.351089 2.37956,0.336832 2.37975,0.322574 2.38907,0.308317 2.39587,0.294059 2.40615,0.279802 2.41042,0.265545 2.41547,0.251287 2.41625,0.23703 2.42382,0.222772 2.46769,0.208515 2.47507,0.222772 2.47759,0.208515 2.49331,0.194257 2.53078,0.18 27.9879,0.194257 28.0172,0.208515 28.0213,0.222772 28.0267,0.23703 28.0279,0.265545 28.0281,0.279802 28.0314,0.294059 28.0329,0.308317 28.0454,0.322574 28.0539,0.336832 28.0611,0.351089 28.3829,0.365347 28.3833,0.379604 28.3835,0.393861 28.3843,0.393861 28.3855,0.422376 28.388,0.436634 28.3888,0.450891 28.3894,0.465149 28.3901,0.479406 28.3907,0.493663 28.3915,0.507921 28.3923,0.522178 28.3928,0.536436 28.4057,0.550693 28.4062,0.56495 28.4064,0.593465 28.4111,0.607723 28.4117,0.62198 28.4163,0.636238 28.4218,0.650495 28.4243,0.664752 28.4293,0.67901 28.4321,0.693267 28.4328,0.707525 28.4375,0.73604 28.4381,0.750297 28.4387,0.764554 28.4389,0.778812 28.4398,0.793069 28.4451,0.807327 28.4474,0.821584 28.448,0.835842 28.4491,0.850099 28.4501,0.864356 28.4534,0.892871 28.4548,0.907129 28.461,0.921386 28.4612,0.921386 28.4625,0.949901 28.4629,0.964158 28.4643,0.978416 28.4656,0.992673 28.4662,1.00693 28.467,1.02119 28.4676,1.03545 28.4678,1.0497 28.4686,1.07822 28.4705,1.09248 28.4713,1.10673 28.4722,1.12099 28.4736,1.13525 28.474,1.1495 28.4744,1.16376 28.4748,1.17802 28.475,1.19228 28.4763,1.20653 28.4769,1.22079 28.4773,1.23505 28.4775,1.24931 28.479,1.26356 28.4796,1.27782 28.4825,1.29208 28.4831,1.30634 28.4833,1.32059 28.4837,1.33485 28.4856,1.34911 28.486,1.36337 28.4893,1.37762 28.4917,1.39188 28.492,1.40614 28.493,1.4204 28.4936,1.43465 28.4938,1.44891 28.4944,1.46317 28.495,1.47743 28.4953,1.49168 28.4959,1.50594 28.4965,1.5202 28.4967,1.53446 28.4971,1.54871 28.4973,1.56297 28.4977,1.59149 28.5,1.62" style="stroke:black"></polyline><line class="tick" x1="3.05296249179" x2="3.05296249179" y1="0" y2="1.8"></line><line class="tick" x1="8.87657183601" x2="8.87657183601" y1="0" y2="1.8"></line><line class="tick" x1="14.7001811802" x2="14.7001811802" y1="0" y2="1.8"></line><line class="tick" x1="20.5237905244" x2="20.5237905244" y1="0" y2="1.8"></line><line class="tick" x1="26.3473998687" x2="26.3473998687" y1="0" y2="1.8"></line></svg></td><td class="name">mongod: current connections</td></tr><tr _level="1000" _row="3" class="row"></tr><tr _level="1000" _row="4" class="row"></tr><tr _level="1" _row="5" class="row" onclick="sel(this)"><td class="data">4,215.746</td><td class="data">18,155.000</td><td class="graph"><svg height="1.8em" viewBox="0 0 30 1.8" width="30em"><polygon class="shaded" points="1.5,1.62 1.5,1.5832 1.69412,1.5429 1.88824,1.53339 2.08236,1.52252 2.27648,1.49587 2.4706,1.4785 2.66472,1.4735 2.85884,1.47564 3.05296,1.45827 3.24708,1.42012 3.4412,1.35064 3.63532,1.33993 3.82944,1.36 4.02356,1.45653 4.21768,1.4371 4.4118,1.44614 4.60592,1.44503 4.80005,1.43963 4.99417,1.45383 5.18829,1.45859 5.38241,1.46097 5.57653,1.44955 5.77065,1.62 5.96477,1.62 6.15889,1.62 6.35301,1.62 6.54713,1.62 6.74125,1.02853 6.93537,0.984195 7.12949,0.970077 7.32361,1.41552 7.51773,1.41243 7.71185,1.35913 7.90597,0.561594 8.10009,1.28734 8.29421,1.31891 8.48833,1.37174 8.68245,1.44439 8.87657,1.45462 9.07069,1.44003 9.26481,1.43797 9.45893,1.44677 9.65305,1.42948 9.84717,1.44772 10.0413,1.45692 10.2354,1.42766 10.4295,1.43646 10.6237,1.44638 10.8178,1.4662 11.0119,1.49262 11.206,1.62 11.4001,1.62 11.5943,1.62 11.7884,1.62 11.9825,1.62 12.1766,1.01465 12.3707,0.959289 12.5649,0.953658 12.759,1.43083 12.9531,1.42401 13.1472,1.40402 13.3413,1.41933 13.5355,1.41957 13.7296,0.493461 13.9237,0.411685 14.1178,1.32383 14.3119,1.33168 14.5061,1.42528 14.7002,1.23555 14.8943,1.40212 15.0884,1.38078 15.2825,1.43099 15.4767,1.4367 15.6708,1.46279 15.8649,1.44201 16.059,1.42234 16.2531,1.43702 16.4473,1.44883 16.6414,1.4689 16.8355,1.36285 17.0296,1.32201 17.2237,1.28036 17.4179,1.24094 17.612,1.34659 17.8061,1.30947 18.0002,1.30281 18.1943,1.55734 18.3885,1.52696 18.5826,1.62 18.7767,1.62 18.9708,1.62 19.1649,1.62 19.3591,0.784871 19.5532,0.805335 19.7473,0.867599 19.9414,1.434 20.1355,1.40188 20.3297,1.37269 20.5238,1.40925 20.7179,1.40814 20.912,0.448329 21.1062,0.265345 21.3003,1.42678 21.4944,1.62 21.6885,1.62 21.8826,1.32383 22.0768,1.62 22.2709,1.00593 22.465,1.03345 22.6591,0.90115 22.8532,0.95691 23.0474,1.32391 23.2415,1.34683 23.4356,1.45621 23.6297,1.45153 23.8238,1.45518 24.018,1.46398 24.2121,1.44558 24.4062,1.42631 24.6003,1.44701 24.7944,1.62 24.9886,1.62 25.1827,1.62 25.3768,1.62 25.5709,1.62 25.765,1.62 25.9592,1.62 26.1533,0.824609 26.3474,0.830003 26.5415,1.62 26.7356,0.720942 26.9298,0.725225 27.1239,1.30987 27.318,1.40957 27.5121,1.41877 27.7062,1.383 27.9004,0.18 28.0945,1.62 28.2886,1.26498 28.4827,1.38443 28.4827,1.62"></polygon><polyline class="curve" points="1.5,1.5832 1.69412,1.5429 1.88824,1.53339 2.08236,1.52252 2.27648,1.49587 2.4706,1.4785 2.66472,1.4735 2.85884,1.47564 3.05296,1.45827 3.24708,1.42012 3.4412,1.35064 3.63532,1.33993 3.82944,1.36 4.02356,1.45653 4.21768,1.4371 4.4118,1.44614 4.60592,1.44503 4.80005,1.43963 4.99417,1.45383 5.18829,1.45859 5.38241,1.46097 5.57653,1.44955 5.77065,1.62 5.96477,1.62 6.15889,1.62 6.35301,1.62 6.54713,1.62 6.74125,1.02853 6.93537,0.984195 7.12949,0.970077 7.32361,1.41552 7.51773,1.41243 7.71185,1.35913 7.90597,0.561594 8.10009,1.28734 8.29421,1.31891 8.48833,1.37174 8.68245,1.44439 8.87657,1.45462 9.07069,1.44003 9.26481,1.43797 9.45893,1.44677 9.65305,1.42948 9.84717,1.44772 10.0413,1.45692 10.2354,1.42766 10.4295,1.43646 10.6237,1.44638 10.8178,1.4662 11.0119,1.49262 11.206,1.62 11.4001,1.62 11.5943,1.62 11.7884,1.62 11.9825,1.62 12.1766,1.01465 12.3707,0.959289 12.5649,0.953658 12.759,1.43083 12.9531,1.42401 13.1472,1.40402 13.3413,1.41933 13.5355,1.41957 13.7296,0.493461 13.9237,0.411685 14.1178,1.32383 14.3119,1.33168 14.5061,1.42528 14.7002,1.23555 14.8943,1.40212 15.0884,1.38078 15.2825,1.43099 15.4767,1.4367 15.6708,1.46279 15.8649,1.44201 16.059,1.42234 16.2531,1.43702 16.4473,1.44883 16.6414,1.4689 16.8355,1.36285 17.0296,1.32201 17.2237,1.28036 17.4179,1.24094 17.612,1.34659 17.8061,1.30947 18.0002,1.30281 18.1943,1.55734 18.3885,1.52696 18.5826,1.62 18.7767,1.62 18.9708,1.62 19.1649,1.62 19.3591,0.784871 19.5532,0.805335 19.7473,0.867599 19.9414,1.434 20.1355,1.40188 20.3297,1.37269 20.5238,1.40925 20.7179,1.40814 20.912,0.448329 21.1062,0.265345 21.3003,1.42678 21.4944,1.62 21.6885,1.62 21.8826,1.32383 22.0768,1.62 22.2709,1.00593 22.465,1.03345 22.6591,0.90115 22.8532,0.95691 23.0474,1.32391 23.2415,1.34683 23.4356,1.45621 23.6297,1.45153 23.8238,1.45518 24.018,1.46398 24.2121,1.44558 24.4062,1.42631 24.6003,1.44701 24.7944,1.62 24.9886,1.62 25.1827,1.62 25.3768,1.62 25.5709,1.62 25.765,1.62 25.9592,1.62 26.1533,0.824609 26.3474,0.830003 26.5415,1.62 26.7356,0.720942 26.9298,0.725225 27.1239,1.30987 27.318,1.40957 27.5121,1.41877 27.7062,1.383 27.9004,0.18 28.0945,1.62 28.2886,1.26498 28.4827,1.38443" style="stroke:black"></polyline><line class="tick" x1="3.05296249179" x2="3.05296249179" y1="0" y2="1.8"></line><line class="tick" x1="8.87657183601" x2="8.87657183601" y1="0" y2="1.8"></line><line class="tick" x1="14.7001811802" x2="14.7001811802" y1="0" y2="1.8"></line><line class="tick" x1="20.5237905244" x2="20.5237905244" y1="0" y2="1.8"></line><line class="tick" x1="26.3473998687" x2="26.3473998687" y1="0" y2="1.8"></line></svg></td><td class="name">mongod: total: max logged op (ms) per 1s </td></tr><tr _level="1" _row="6" class="row" onclick="sel(this)"><td class="data">134.570</td><td class="data">327.000</td><td class="graph"><svg height="1.8em" viewBox="0 0 30 1.8" width="30em"><polygon class="shaded" points="1.5,1.62 1.5,1.60239 1.69412,1.52312 1.88824,1.42624 2.08236,1.39982 2.27648,1.39541 2.4706,0.985872 2.66472,0.902202 2.85884,1.36018 3.05296,1.0211 3.24708,1.0167 3.4412,1.14881 3.63532,0.999083 3.82944,0.888991 4.02356,0.655596 4.21768,0.963853 4.4118,1.01229 4.60592,0.866972 4.80005,1.00349 4.99417,0.946239 5.18829,1.01229 5.38241,0.871376 5.57653,1.1356 5.77065,1.62 5.96477,1.62 6.15889,1.62 6.35301,1.62 6.54713,1.62 6.74125,0.18 6.93537,0.624771 7.12949,0.682018 7.32361,1.07835 7.51773,0.990275 7.71185,0.937431 7.90597,1.09596 8.10009,0.593945 8.29421,1.0255 8.48833,0.92422 8.68245,0.963853 8.87657,0.642385 9.07069,1.06514 9.26481,0.558716 9.45893,1.37339 9.65305,0.620367 9.84717,0.977064 10.0413,1.09596 10.2354,1.26771 10.4295,0.580734 10.6237,1.0255 10.8178,0.963853 11.0119,1.54954 11.206,1.62 11.4001,1.62 11.5943,1.62 11.7884,1.62 11.9825,1.62 12.1766,1.11798 12.3707,0.849358 12.5649,1.08275 12.759,1.01229 12.9531,1.03431 13.1472,1.36899 13.3413,0.968257 13.5355,1.05193 13.7296,1.09156 13.9237,0.726055 14.1178,1.15321 14.3119,1.00349 14.5061,0.633578 14.7002,0.756881 14.8943,0.61156 15.0884,1.2633 15.2825,0.624771 15.4767,0.972661 15.6708,1.01229 15.8649,0.580734 16.059,1.2633 16.2531,1.08275 16.4473,0.968257 16.6414,1.58477 16.8355,1.14 17.0296,0.999083 17.2237,1.0167 17.4179,1.08275 17.612,1.12679 17.8061,1.36459 18.0002,1.07394 18.1943,1.60239 18.3885,1.6156 18.5826,1.62 18.7767,1.62 18.9708,1.62 19.1649,1.62 19.3591,1.1444 19.5532,1.0167 19.7473,1.40862 19.9414,0.994679 20.1355,1.00789 20.3297,1.0211 20.5238,1.00789 20.7179,1.43064 20.912,0.941835 21.1062,0.928624 21.3003,1.59798 21.4944,1.62 21.6885,1.62 21.8826,1.17523 22.0768,1.62 22.2709,0.532294 22.465,1.34257 22.6591,0.686422 22.8532,0.880183 23.0474,0.968257 23.2415,0.941835 23.4356,0.999083 23.6297,0.677615 23.8238,1.0211 24.018,0.615963 24.2121,1.02991 24.4062,0.968257 24.6003,1.02991 24.7944,1.62 24.9886,1.62 25.1827,1.62 25.3768,1.62 25.5709,1.62 25.765,1.62 25.9592,1.62 26.1533,1.03872 26.3474,1.0167 26.5415,1.62 26.7356,0.633578 26.9298,1.42183 27.1239,0.955046 27.318,1.04312 27.5121,0.994679 27.7062,1.0167 27.9004,1.38661 28.0945,1.62 28.2886,0.941835 28.4827,1.51431 28.4827,1.62"></polygon><polyline class="curve" points="1.5,1.60239 1.69412,1.52312 1.88824,1.42624 2.08236,1.39982 2.27648,1.39541 2.4706,0.985872 2.66472,0.902202 2.85884,1.36018 3.05296,1.0211 3.24708,1.0167 3.4412,1.14881 3.63532,0.999083 3.82944,0.888991 4.02356,0.655596 4.21768,0.963853 4.4118,1.01229 4.60592,0.866972 4.80005,1.00349 4.99417,0.946239 5.18829,1.01229 5.38241,0.871376 5.57653,1.1356 5.77065,1.62 5.96477,1.62 6.15889,1.62 6.35301,1.62 6.54713,1.62 6.74125,0.18 6.93537,0.624771 7.12949,0.682018 7.32361,1.07835 7.51773,0.990275 7.71185,0.937431 7.90597,1.09596 8.10009,0.593945 8.29421,1.0255 8.48833,0.92422 8.68245,0.963853 8.87657,0.642385 9.07069,1.06514 9.26481,0.558716 9.45893,1.37339 9.65305,0.620367 9.84717,0.977064 10.0413,1.09596 10.2354,1.26771 10.4295,0.580734 10.6237,1.0255 10.8178,0.963853 11.0119,1.54954 11.206,1.62 11.4001,1.62 11.5943,1.62 11.7884,1.62 11.9825,1.62 12.1766,1.11798 12.3707,0.849358 12.5649,1.08275 12.759,1.01229 12.9531,1.03431 13.1472,1.36899 13.3413,0.968257 13.5355,1.05193 13.7296,1.09156 13.9237,0.726055 14.1178,1.15321 14.3119,1.00349 14.5061,0.633578 14.7002,0.756881 14.8943,0.61156 15.0884,1.2633 15.2825,0.624771 15.4767,0.972661 15.6708,1.01229 15.8649,0.580734 16.059,1.2633 16.2531,1.08275 16.4473,0.968257 16.6414,1.58477 16.8355,1.14 17.0296,0.999083 17.2237,1.0167 17.4179,1.08275 17.612,1.12679 17.8061,1.36459 18.0002,1.07394 18.1943,1.60239 18.3885,1.6156 18.5826,1.62 18.7767,1.62 18.9708,1.62 19.1649,1.62 19.3591,1.1444 19.5532,1.0167 19.7473,1.40862 19.9414,0.994679 20.1355,1.00789 20.3297,1.0211 20.5238,1.00789 20.7179,1.43064 20.912,0.941835 21.1062,0.928624 21.3003,1.59798 21.4944,1.62 21.6885,1.62 21.8826,1.17523 22.0768,1.62 22.2709,0.532294 22.465,1.34257 22.6591,0.686422 22.8532,0.880183 23.0474,0.968257 23.2415,0.941835 23.4356,0.999083 23.6297,0.677615 23.8238,1.0211 24.018,0.615963 24.2121,1.02991 24.4062,0.968257 24.6003,1.02991 24.7944,1.62 24.9886,1.62 25.1827,1.62 25.3768,1.62 25.5709,1.62 25.765,1.62 25.9592,1.62 26.1533,1.03872 26.3474,1.0167 26.5415,1.62 26.7356,0.633578 26.9298,1.42183 27.1239,0.955046 27.318,1.04312 27.5121,0.994679 27.7062,1.0167 27.9004,1.38661 28.0945,1.62 28.2886,0.941835 28.4827,1.51431" style="stroke:black"></polyline><line class="tick" x1="3.05296249179" x2="3.05296249179" y1="0" y2="1.8"></line><line class="tick" x1="8.87657183601" x2="8.87657183601" y1="0" y2="1.8"></line><line class="tick" x1="14.7001811802" x2="14.7001811802" y1="0" y2="1.8"></line><line class="tick" x1="20.5237905244" x2="20.5237905244" y1="0" y2="1.8"></line><line class="tick" x1="26.3473998687" x2="26.3473998687" y1="0" y2="1.8"></line></svg></td><td class="name">mongod: total: ops longer than 0ms per 1s </td></tr><tr _level="1" _row="7" class="row" onclick="sel(this)"><td class="data">1,328.314</td><td class="data">16,983.000</td><td class="graph"><svg height="1.8em" viewBox="0 0 30 1.8" width="30em"><polygon class="shaded" points="2.08236,1.62 2.08236,1.6058 2.27648,1.61191 2.4706,1.60311 2.66472,1.59034 2.85884,1.62 3.05296,1.59279 3.24708,1.59787 3.4412,1.53577 3.63532,1.59264 3.82944,1.59676 4.02356,1.5993 4.21768,1.58835 4.4118,1.59684 4.60592,1.59438 4.80005,1.59232 4.99417,1.59359 5.18829,1.59557 5.38241,1.60128 5.57653,1.59303 5.77065,1.62 5.96477,1.62 6.15889,1.62 6.35301,1.62 6.54713,1.62 6.74125,1.18328 6.93537,1.59747 7.12949,1.59628 7.32361,1.592 7.51773,1.60247 7.71185,1.59311 7.90597,0.680094 8.10009,1.55266 8.29421,1.49333 8.48833,1.5855 8.68245,1.597 8.87657,1.59129 9.07069,1.58986 9.26481,1.60311 9.45893,1.57281 9.65305,1.59668 9.84717,1.59279 10.0413,1.59034 10.2354,1.59327 10.4295,1.58581 10.6237,1.597 10.8178,1.59803 11.0119,1.62 11.206,1.62 11.4001,1.62 11.5943,1.62 11.7884,1.62 11.9825,1.62 12.1766,1.14806 12.3707,1.55409 12.5649,1.59668 12.759,1.59636 12.9531,1.60009 13.1472,1.61024 13.3413,1.59898 13.5355,1.59858 13.7296,0.493461 13.9237,1.54973 14.1178,1.60469 14.3119,1.41092 14.5061,1.56543 14.7002,1.59644 14.8943,1.59779 15.0884,1.56178 15.2825,1.58891 15.4767,1.60239 15.6708,1.59843 15.8649,1.57527 16.059,1.62 16.2531,1.59914 16.4473,1.59232 16.6414,1.62 16.8355,1.49769 17.0296,1.58716 17.2237,1.59319 17.4179,1.58804 17.612,1.6016 17.8061,1.59874 18.0002,1.60168 18.1943,1.55734 18.3885,1.52696 18.5826,1.62 18.7767,1.62 18.9708,1.62 19.1649,1.62 19.3591,1.06772 19.5532,1.59732 19.7473,1.62 19.9414,1.57534 20.1355,1.5878 20.3297,1.60025 20.5238,1.59827 20.7179,1.62 20.912,0.448329 21.1062,1.59787 21.3003,1.62 21.4944,1.62 21.6885,1.62 21.8826,1.32383 22.0768,1.62 22.2709,1.52093 22.465,1.62 22.6591,1.35024 22.8532,1.5686 23.0474,1.59089 23.2415,1.5901 23.4356,1.60033 23.6297,1.59486 23.8238,1.5878 24.018,1.60176 24.2121,1.56924 24.4062,1.60255 24.6003,1.59509 24.7944,1.62 24.9886,1.62 25.1827,1.62 25.3768,1.62 25.5709,1.62 25.765,1.62 25.9592,1.62 26.1533,1.0064 26.3474,1.59652 26.5415,1.62 26.7356,1.48619 26.9298,1.62 27.1239,1.60088 27.318,1.59605 27.5121,1.59208 27.7062,1.5855 27.9004,0.27296 28.0945,1.62 28.2886,1.48746 28.4827,1.44233 28.4827,1.62"></polygon><polyline class="curve" points="2.08236,1.6058 2.27648,1.61191 2.4706,1.60311 2.66472,1.59034 2.85884,1.62 3.05296,1.59279 3.24708,1.59787 3.4412,1.53577 3.63532,1.59264 3.82944,1.59676 4.02356,1.5993 4.21768,1.58835 4.4118,1.59684 4.60592,1.59438 4.80005,1.59232 4.99417,1.59359 5.18829,1.59557 5.38241,1.60128 5.57653,1.59303 5.77065,1.62 5.96477,1.62 6.15889,1.62 6.35301,1.62 6.54713,1.62 6.74125,1.18328 6.93537,1.59747 7.12949,1.59628 7.32361,1.592 7.51773,1.60247 7.71185,1.59311 7.90597,0.680094 8.10009,1.55266 8.29421,1.49333 8.48833,1.5855 8.68245,1.597 8.87657,1.59129 9.07069,1.58986 9.26481,1.60311 9.45893,1.57281 9.65305,1.59668 9.84717,1.59279 10.0413,1.59034 10.2354,1.59327 10.4295,1.58581 10.6237,1.597 10.8178,1.59803 11.0119,1.62 11.206,1.62 11.4001,1.62 11.5943,1.62 11.7884,1.62 11.9825,1.62 12.1766,1.14806 12.3707,1.55409 12.5649,1.59668 12.759,1.59636 12.9531,1.60009 13.1472,1.61024 13.3413,1.59898 13.5355,1.59858 13.7296,0.493461 13.9237,1.54973 14.1178,1.60469 14.3119,1.41092 14.5061,1.56543 14.7002,1.59644 14.8943,1.59779 15.0884,1.56178 15.2825,1.58891 15.4767,1.60239 15.6708,1.59843 15.8649,1.57527 16.059,1.62 16.2531,1.59914 16.4473,1.59232 16.6414,1.62 16.8355,1.49769 17.0296,1.58716 17.2237,1.59319 17.4179,1.58804 17.612,1.6016 17.8061,1.59874 18.0002,1.60168 18.1943,1.55734 18.3885,1.52696 18.5826,1.62 18.7767,1.62 18.9708,1.62 19.1649,1.62 19.3591,1.06772 19.5532,1.59732 19.7473,1.62 19.9414,1.57534 20.1355,1.5878 20.3297,1.60025 20.5238,1.59827 20.7179,1.62 20.912,0.448329 21.1062,1.59787 21.3003,1.62 21.4944,1.62 21.6885,1.62 21.8826,1.32383 22.0768,1.62 22.2709,1.52093 22.465,1.62 22.6591,1.35024 22.8532,1.5686 23.0474,1.59089 23.2415,1.5901 23.4356,1.60033 23.6297,1.59486 23.8238,1.5878 24.018,1.60176 24.2121,1.56924 24.4062,1.60255 24.6003,1.59509 24.7944,1.62 24.9886,1.62 25.1827,1.62 25.3768,1.62 25.5709,1.62 25.765,1.62 25.9592,1.62 26.1533,1.0064 26.3474,1.59652 26.5415,1.62 26.7356,1.48619 26.9298,1.62 27.1239,1.60088 27.318,1.59605 27.5121,1.59208 27.7062,1.5855 27.9004,0.27296 28.0945,1.62 28.2886,1.48746 28.4827,1.44233" style="stroke:black"></polyline><line class="tick" x1="3.05296249179" x2="3.05296249179" y1="0" y2="1.8"></line><line class="tick" x1="8.87657183601" x2="8.87657183601" y1="0" y2="1.8"></line><line class="tick" x1="14.7001811802" x2="14.7001811802" y1="0" y2="1.8"></line><line class="tick" x1="20.5237905244" x2="20.5237905244" y1="0" y2="1.8"></line><line class="tick" x1="26.3473998687" x2="26.3473998687" y1="0" y2="1.8"></line></svg></td><td class="name">mongod: ns=test.c, op=insert: max logged op (ms) per 1s </td></tr><tr _level="1" _row="8" class="row" onclick="sel(this)"><td class="data">105.608</td><td class="data">302.000</td><td class="graph"><svg height="1.8em" viewBox="0 0 30 1.8" width="30em"><polygon class="shaded" points="2.08236,1.62 2.08236,1.61119 2.27648,1.56716 2.4706,1.20606 2.66472,1.1444 2.85884,1.62 3.05296,1.14881 3.24708,1.19725 3.4412,1.17523 3.63532,1.18404 3.82944,1.21486 4.02356,0.800917 4.21768,1.19284 4.4118,1.22807 4.60592,1.1444 4.80005,1.18404 4.99417,1.21046 5.18829,1.20165 5.38241,1.16202 5.57653,1.30294 5.77065,1.62 5.96477,1.62 6.15889,1.62 6.35301,1.62 6.54713,1.62 6.74125,0.290092 6.93537,0.814128 7.12949,0.836147 7.32361,1.21927 7.51773,1.22807 7.71185,1.05633 7.90597,1.20165 8.10009,0.748073 8.29421,1.18844 8.48833,1.21486 8.68245,1.24569 8.87657,0.787706 9.07069,1.22367 9.26481,0.800917 9.45893,1.6156 9.65305,0.822936 9.84717,1.21046 10.0413,1.30734 10.2354,1.42624 10.4295,0.87578 10.6237,1.19284 10.8178,1.2589 11.0119,1.62 11.206,1.62 11.4001,1.62 11.5943,1.62 11.7884,1.62 11.9825,1.62 12.1766,1.17963 12.3707,1.12239 12.5649,1.2633 12.759,1.13119 12.9531,1.23688 13.1472,1.57156 13.3413,1.20165 13.5355,1.22807 13.7296,1.20165 13.9237,0.752477 14.1178,1.41303 14.3119,1.17083 14.5061,0.796514 14.7002,0.897798 14.8943,0.783303 15.0884,1.54514 15.2825,0.818532 15.4767,1.19284 15.6708,1.22367 15.8649,0.668807 16.059,1.62 16.2531,1.22807 16.4473,1.2545 16.6414,1.62 16.8355,1.17523 17.0296,1.19284 17.2237,1.15761 17.4179,1.18844 17.612,1.21927 17.8061,1.58037 18.0002,1.19284 18.1943,1.60239 18.3885,1.6156 18.5826,1.62 18.7767,1.62 18.9708,1.62 19.1649,1.62 19.3591,1.17963 19.5532,1.22807 19.7473,1.62 19.9414,1.17963 20.1355,1.19725 20.3297,1.17963 20.5238,1.25009 20.7179,1.62 20.912,1.18404 21.1062,1.04752 21.3003,1.62 21.4944,1.62 21.6885,1.62 21.8826,1.17523 22.0768,1.62 22.2709,0.695229 22.465,1.62 22.6591,0.74367 22.8532,0.968257 23.0474,1.22367 23.2415,1.19284 23.4356,1.23688 23.6297,0.87578 23.8238,1.26771 24.018,0.831743 24.2121,1.27651 24.4062,1.18404 24.6003,1.15321 24.7944,1.62 24.9886,1.62 25.1827,1.62 25.3768,1.62 25.5709,1.62 25.765,1.62 25.9592,1.62 26.1533,1.17963 26.3474,1.19284 26.5415,1.62 26.7356,0.752477 26.9298,1.62 27.1239,1.19725 27.318,1.21486 27.5121,1.1444 27.7062,1.19284 27.9004,1.56275 28.0945,1.62 28.2886,1.23248 28.4827,1.6156 28.4827,1.62"></polygon><polyline class="curve" points="2.08236,1.61119 2.27648,1.56716 2.4706,1.20606 2.66472,1.1444 2.85884,1.62 3.05296,1.14881 3.24708,1.19725 3.4412,1.17523 3.63532,1.18404 3.82944,1.21486 4.02356,0.800917 4.21768,1.19284 4.4118,1.22807 4.60592,1.1444 4.80005,1.18404 4.99417,1.21046 5.18829,1.20165 5.38241,1.16202 5.57653,1.30294 5.77065,1.62 5.96477,1.62 6.15889,1.62 6.35301,1.62 6.54713,1.62 6.74125,0.290092 6.93537,0.814128 7.12949,0.836147 7.32361,1.21927 7.51773,1.22807 7.71185,1.05633 7.90597,1.20165 8.10009,0.748073 8.29421,1.18844 8.48833,1.21486 8.68245,1.24569 8.87657,0.787706 9.07069,1.22367 9.26481,0.800917 9.45893,1.6156 9.65305,0.822936 9.84717,1.21046 10.0413,1.30734 10.2354,1.42624 10.4295,0.87578 10.6237,1.19284 10.8178,1.2589 11.0119,1.62 11.206,1.62 11.4001,1.62 11.5943,1.62 11.7884,1.62 11.9825,1.62 12.1766,1.17963 12.3707,1.12239 12.5649,1.2633 12.759,1.13119 12.9531,1.23688 13.1472,1.57156 13.3413,1.20165 13.5355,1.22807 13.7296,1.20165 13.9237,0.752477 14.1178,1.41303 14.3119,1.17083 14.5061,0.796514 14.7002,0.897798 14.8943,0.783303 15.0884,1.54514 15.2825,0.818532 15.4767,1.19284 15.6708,1.22367 15.8649,0.668807 16.059,1.62 16.2531,1.22807 16.4473,1.2545 16.6414,1.62 16.8355,1.17523 17.0296,1.19284 17.2237,1.15761 17.4179,1.18844 17.612,1.21927 17.8061,1.58037 18.0002,1.19284 18.1943,1.60239 18.3885,1.6156 18.5826,1.62 18.7767,1.62 18.9708,1.62 19.1649,1.62 19.3591,1.17963 19.5532,1.22807 19.7473,1.62 19.9414,1.17963 20.1355,1.19725 20.3297,1.17963 20.5238,1.25009 20.7179,1.62 20.912,1.18404 21.1062,1.04752 21.3003,1.62 21.4944,1.62 21.6885,1.62 21.8826,1.17523 22.0768,1.62 22.2709,0.695229 22.465,1.62 22.6591,0.74367 22.8532,0.968257 23.0474,1.22367 23.2415,1.19284 23.4356,1.23688 23.6297,0.87578 23.8238,1.26771 24.018,0.831743 24.2121,1.27651 24.4062,1.18404 24.6003,1.15321 24.7944,1.62 24.9886,1.62 25.1827,1.62 25.3768,1.62 25.5709,1.62 25.765,1.62 25.9592,1.62 26.1533,1.17963 26.3474,1.19284 26.5415,1.62 26.7356,0.752477 26.9298,1.62 27.1239,1.19725 27.318,1.21486 27.5121,1.1444 27.7062,1.19284 27.9004,1.56275 28.0945,1.62 28.2886,1.23248 28.4827,1.6156" style="stroke:black"></polyline><line class="tick" x1="3.05296249179" x2="3.05296249179" y1="0" y2="1.8"></line><line class="tick" x1="8.87657183601" x2="8.87657183601" y1="0" y2="1.8"></line><line class="tick" x1="14.7001811802" x2="14.7001811802" y1="0" y2="1.8"></line><line class="tick" x1="20.5237905244" x2="20.5237905244" y1="0" y2="1.8"></line><line class="tick" x1="26.3473998687" x2="26.3473998687" y1="0" y2="1.8"></line></svg></td><td class="name">mongod: ns=test.c, op=insert: ops longer than 0ms per 1s </td></tr><tr _level="1" _row="9" class="row" onclick="sel(this)"><td class="data">4,062.739</td><td class="data">18,155.000</td><td class="graph"><svg height="1.8em" viewBox="0 0 30 1.8" width="30em"><polygon class="shaded" points="1.5,1.62 1.5,1.5832 1.69412,1.5429 1.88824,1.53339 2.08236,1.52252 2.27648,1.49587 2.4706,1.4785 2.66472,1.4735 2.85884,1.47564 3.05296,1.45827 3.24708,1.42012 3.4412,1.35064 3.63532,1.33993 3.82944,1.36 4.02356,1.45653 4.21768,1.4371 4.4118,1.44614 4.60592,1.44503 4.80005,1.43963 4.99417,1.45383 5.18829,1.45859 5.38241,1.46097 5.57653,1.44955 5.77065,1.62 5.96477,1.62 6.15889,1.62 6.35301,1.62 6.54713,1.62 6.74125,1.02853 6.93537,0.984195 7.12949,0.970077 7.32361,1.41552 7.51773,1.41243 7.71185,1.35913 7.90597,0.561594 8.10009,1.28734 8.29421,1.31891 8.48833,1.37174 8.68245,1.44439 8.87657,1.45462 9.07069,1.44003 9.26481,1.43797 9.45893,1.44677 9.65305,1.42948 9.84717,1.44772 10.0413,1.45692 10.2354,1.42766 10.4295,1.43646 10.6237,1.44638 10.8178,1.4662 11.0119,1.49262 11.206,1.62 11.4001,1.62 11.5943,1.62 11.7884,1.62 11.9825,1.62 12.1766,1.01465 12.3707,0.959289 12.5649,0.953658 12.759,1.43083 12.9531,1.42401 13.1472,1.40402 13.3413,1.41933 13.5355,1.41957 13.7296,1.42187 13.9237,0.411685 14.1178,1.32383 14.3119,1.33168 14.5061,1.42528 14.7002,1.23555 14.8943,1.40212 15.0884,1.38078 15.2825,1.43099 15.4767,1.4367 15.6708,1.46279 15.8649,1.44201 16.059,1.42234 16.2531,1.43702 16.4473,1.44883 16.6414,1.4689 16.8355,1.36285 17.0296,1.32201 17.2237,1.28036 17.4179,1.24094 17.612,1.34659 17.8061,1.30947 18.0002,1.30281 18.1943,1.62 18.3885,1.62 18.5826,1.62 18.7767,1.62 18.9708,1.62 19.1649,1.62 19.3591,0.784871 19.5532,0.805335 19.7473,0.867599 19.9414,1.434 20.1355,1.40188 20.3297,1.37269 20.5238,1.40925 20.7179,1.40814 20.912,1.4183 21.1062,0.265345 21.3003,1.42678 21.4944,1.62 21.6885,1.62 21.8826,1.62 22.0768,1.62 22.2709,1.00593 22.465,1.03345 22.6591,0.90115 22.8532,0.95691 23.0474,1.32391 23.2415,1.34683 23.4356,1.45621 23.6297,1.45153 23.8238,1.45518 24.018,1.46398 24.2121,1.44558 24.4062,1.42631 24.6003,1.44701 24.7944,1.62 24.9886,1.62 25.1827,1.62 25.3768,1.62 25.5709,1.62 25.765,1.62 25.9592,1.62 26.1533,0.824609 26.3474,0.830003 26.5415,1.62 26.7356,0.720942 26.9298,0.725225 27.1239,1.30987 27.318,1.40957 27.5121,1.41877 27.7062,1.383 27.9004,0.18 28.0945,1.62 28.2886,1.26498 28.4827,1.38443 28.4827,1.62"></polygon><polyline class="curve" points="1.5,1.5832 1.69412,1.5429 1.88824,1.53339 2.08236,1.52252 2.27648,1.49587 2.4706,1.4785 2.66472,1.4735 2.85884,1.47564 3.05296,1.45827 3.24708,1.42012 3.4412,1.35064 3.63532,1.33993 3.82944,1.36 4.02356,1.45653 4.21768,1.4371 4.4118,1.44614 4.60592,1.44503 4.80005,1.43963 4.99417,1.45383 5.18829,1.45859 5.38241,1.46097 5.57653,1.44955 5.77065,1.62 5.96477,1.62 6.15889,1.62 6.35301,1.62 6.54713,1.62 6.74125,1.02853 6.93537,0.984195 7.12949,0.970077 7.32361,1.41552 7.51773,1.41243 7.71185,1.35913 7.90597,0.561594 8.10009,1.28734 8.29421,1.31891 8.48833,1.37174 8.68245,1.44439 8.87657,1.45462 9.07069,1.44003 9.26481,1.43797 9.45893,1.44677 9.65305,1.42948 9.84717,1.44772 10.0413,1.45692 10.2354,1.42766 10.4295,1.43646 10.6237,1.44638 10.8178,1.4662 11.0119,1.49262 11.206,1.62 11.4001,1.62 11.5943,1.62 11.7884,1.62 11.9825,1.62 12.1766,1.01465 12.3707,0.959289 12.5649,0.953658 12.759,1.43083 12.9531,1.42401 13.1472,1.40402 13.3413,1.41933 13.5355,1.41957 13.7296,1.42187 13.9237,0.411685 14.1178,1.32383 14.3119,1.33168 14.5061,1.42528 14.7002,1.23555 14.8943,1.40212 15.0884,1.38078 15.2825,1.43099 15.4767,1.4367 15.6708,1.46279 15.8649,1.44201 16.059,1.42234 16.2531,1.43702 16.4473,1.44883 16.6414,1.4689 16.8355,1.36285 17.0296,1.32201 17.2237,1.28036 17.4179,1.24094 17.612,1.34659 17.8061,1.30947 18.0002,1.30281 18.1943,1.62 18.3885,1.62 18.5826,1.62 18.7767,1.62 18.9708,1.62 19.1649,1.62 19.3591,0.784871 19.5532,0.805335 19.7473,0.867599 19.9414,1.434 20.1355,1.40188 20.3297,1.37269 20.5238,1.40925 20.7179,1.40814 20.912,1.4183 21.1062,0.265345 21.3003,1.42678 21.4944,1.62 21.6885,1.62 21.8826,1.62 22.0768,1.62 22.2709,1.00593 22.465,1.03345 22.6591,0.90115 22.8532,0.95691 23.0474,1.32391 23.2415,1.34683 23.4356,1.45621 23.6297,1.45153 23.8238,1.45518 24.018,1.46398 24.2121,1.44558 24.4062,1.42631 24.6003,1.44701 24.7944,1.62 24.9886,1.62 25.1827,1.62 25.3768,1.62 25.5709,1.62 25.765,1.62 25.9592,1.62 26.1533,0.824609 26.3474,0.830003 26.5415,1.62 26.7356,0.720942 26.9298,0.725225 27.1239,1.30987 27.318,1.40957 27.5121,1.41877 27.7062,1.383 27.9004,0.18 28.0945,1.62 28.2886,1.26498 28.4827,1.38443" style="stroke:black"></polyline><line class="tick" x1="3.05296249179" x2="3.05296249179" y1="0" y2="1.8"></line><line class="tick" x1="8.87657183601" x2="8.87657183601" y1="0" y2="1.8"></line><line class="tick" x1="14.7001811802" x2="14.7001811802" y1="0" y2="1.8"></line><line class="tick" x1="20.5237905244" x2="20.5237905244" y1="0" y2="1.8"></line><line class="tick" x1="26.3473998687" x2="26.3473998687" y1="0" y2="1.8"></line></svg></td><td class="name">mongod: ns=test.$cmd, cmd=insert: max logged op (ms) per 1s </td></tr><tr _level="1" _row="10" class="row" onclick="sel(this)"><td class="data">41.162</td><td class="data">81.000</td><td class="graph"><svg height="1.8em" viewBox="0 0 30 1.8" width="30em"><polygon class="shaded" points="1.5,1.62 1.5,1.60239 1.69412,1.52312 1.88824,1.42624 2.08236,1.40862 2.27648,1.44826 2.4706,1.39982 2.66472,1.3778 2.85884,1.36018 3.05296,1.49229 3.24708,1.43945 3.4412,1.59358 3.63532,1.43505 3.82944,1.29413 4.02356,1.47468 4.21768,1.39101 4.4118,1.40422 4.60592,1.34257 4.80005,1.43945 4.99417,1.35578 5.18829,1.43064 5.38241,1.32936 5.57653,1.45266 5.77065,1.62 5.96477,1.62 6.15889,1.62 6.35301,1.62 6.54713,1.62 6.74125,1.50991 6.93537,1.43064 7.12949,1.46587 7.32361,1.47908 7.51773,1.3822 7.71185,1.5011 7.90597,1.51431 8.10009,1.46587 8.29421,1.45706 8.48833,1.32936 8.68245,1.33817 8.87657,1.47468 9.07069,1.46147 9.26481,1.3778 9.45893,1.3778 9.65305,1.41743 9.84717,1.38661 10.0413,1.40862 10.2354,1.46147 10.4295,1.32495 10.6237,1.45266 10.8178,1.32495 11.0119,1.54954 11.206,1.62 11.4001,1.62 11.5943,1.62 11.7884,1.62 11.9825,1.62 12.1766,1.55835 12.3707,1.34697 12.5649,1.43945 12.759,1.5011 12.9531,1.41743 13.1472,1.41743 13.3413,1.38661 13.5355,1.44385 13.7296,1.50991 13.9237,1.59358 14.1178,1.36018 14.3119,1.45266 14.5061,1.45706 14.7002,1.47908 14.8943,1.44826 15.0884,1.33817 15.2825,1.42624 15.4767,1.39982 15.6708,1.40862 15.8649,1.53193 16.059,1.2633 16.2531,1.47468 16.4473,1.33376 16.6414,1.58477 16.8355,1.58477 17.0296,1.42624 17.2237,1.47908 17.4179,1.51431 17.612,1.52752 17.8061,1.40422 18.0002,1.5011 18.1943,1.62 18.3885,1.62 18.5826,1.62 18.7767,1.62 18.9708,1.62 19.1649,1.62 19.3591,1.58477 19.5532,1.40862 19.7473,1.40862 19.9414,1.43505 20.1355,1.43064 20.3297,1.46147 20.5238,1.3778 20.7179,1.43064 20.912,1.3778 21.1062,1.5011 21.3003,1.59798 21.4944,1.62 21.6885,1.62 21.8826,1.62 22.0768,1.62 22.2709,1.45706 22.465,1.34257 22.6591,1.56275 22.8532,1.53193 23.0474,1.36459 23.2415,1.36899 23.4356,1.3822 23.6297,1.42183 23.8238,1.37339 24.018,1.40422 24.2121,1.37339 24.4062,1.40422 24.6003,1.4967 24.7944,1.62 24.9886,1.62 25.1827,1.62 25.3768,1.62 25.5709,1.62 25.765,1.62 25.9592,1.62 26.1533,1.47908 26.3474,1.44385 26.5415,1.62 26.7356,1.5011 26.9298,1.42183 27.1239,1.3778 27.318,1.44826 27.5121,1.47028 27.7062,1.44385 27.9004,1.44385 28.0945,1.62 28.2886,1.32936 28.4827,1.51872 28.4827,1.62"></polygon><polyline class="curve" points="1.5,1.60239 1.69412,1.52312 1.88824,1.42624 2.08236,1.40862 2.27648,1.44826 2.4706,1.39982 2.66472,1.3778 2.85884,1.36018 3.05296,1.49229 3.24708,1.43945 3.4412,1.59358 3.63532,1.43505 3.82944,1.29413 4.02356,1.47468 4.21768,1.39101 4.4118,1.40422 4.60592,1.34257 4.80005,1.43945 4.99417,1.35578 5.18829,1.43064 5.38241,1.32936 5.57653,1.45266 5.77065,1.62 5.96477,1.62 6.15889,1.62 6.35301,1.62 6.54713,1.62 6.74125,1.50991 6.93537,1.43064 7.12949,1.46587 7.32361,1.47908 7.51773,1.3822 7.71185,1.5011 7.90597,1.51431 8.10009,1.46587 8.29421,1.45706 8.48833,1.32936 8.68245,1.33817 8.87657,1.47468 9.07069,1.46147 9.26481,1.3778 9.45893,1.3778 9.65305,1.41743 9.84717,1.38661 10.0413,1.40862 10.2354,1.46147 10.4295,1.32495 10.6237,1.45266 10.8178,1.32495 11.0119,1.54954 11.206,1.62 11.4001,1.62 11.5943,1.62 11.7884,1.62 11.9825,1.62 12.1766,1.55835 12.3707,1.34697 12.5649,1.43945 12.759,1.5011 12.9531,1.41743 13.1472,1.41743 13.3413,1.38661 13.5355,1.44385 13.7296,1.50991 13.9237,1.59358 14.1178,1.36018 14.3119,1.45266 14.5061,1.45706 14.7002,1.47908 14.8943,1.44826 15.0884,1.33817 15.2825,1.42624 15.4767,1.39982 15.6708,1.40862 15.8649,1.53193 16.059,1.2633 16.2531,1.47468 16.4473,1.33376 16.6414,1.58477 16.8355,1.58477 17.0296,1.42624 17.2237,1.47908 17.4179,1.51431 17.612,1.52752 17.8061,1.40422 18.0002,1.5011 18.1943,1.62 18.3885,1.62 18.5826,1.62 18.7767,1.62 18.9708,1.62 19.1649,1.62 19.3591,1.58477 19.5532,1.40862 19.7473,1.40862 19.9414,1.43505 20.1355,1.43064 20.3297,1.46147 20.5238,1.3778 20.7179,1.43064 20.912,1.3778 21.1062,1.5011 21.3003,1.59798 21.4944,1.62 21.6885,1.62 21.8826,1.62 22.0768,1.62 22.2709,1.45706 22.465,1.34257 22.6591,1.56275 22.8532,1.53193 23.0474,1.36459 23.2415,1.36899 23.4356,1.3822 23.6297,1.42183 23.8238,1.37339 24.018,1.40422 24.2121,1.37339 24.4062,1.40422 24.6003,1.4967 24.7944,1.62 24.9886,1.62 25.1827,1.62 25.3768,1.62 25.5709,1.62 25.765,1.62 25.9592,1.62 26.1533,1.47908 26.3474,1.44385 26.5415,1.62 26.7356,1.5011 26.9298,1.42183 27.1239,1.3778 27.318,1.44826 27.5121,1.47028 27.7062,1.44385 27.9004,1.44385 28.0945,1.62 28.2886,1.32936 28.4827,1.51872" style="stroke:black"></polyline><line class="tick" x1="3.05296249179" x2="3.05296249179" y1="0" y2="1.8"></line><line class="tick" x1="8.87657183601" x2="8.87657183601" y1="0" y2="1.8"></line><line class="tick" x1="14.7001811802" x2="14.7001811802" y1="0" y2="1.8"></line><line class="tick" x1="20.5237905244" x2="20.5237905244" y1="0" y2="1.8"></line><line class="tick" x1="26.3473998687" x2="26.3473998687" y1="0" y2="1.8"></line></svg></td><td class="name">mongod: ns=test.$cmd, cmd=insert: ops longer than 0ms per 1s </td></tr></table></body></html>

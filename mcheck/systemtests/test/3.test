@@ -1,0 +1,6 @@
+{
+	"desc": "Test of mdiags, using the 2014-Q1 format, also testing a higher verbosity",
+	"args": "--verbosity 5 --rules a.rul",
+	"infile": "2.mdiags",
+	"resfile": "3.res"
+}

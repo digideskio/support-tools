@@ -1,0 +1,35 @@
+body, table, frameset, pre.info {
+    font-family: sans-serif;
+    font-size: 10pt;
+}
+
+.data {
+    text-align: right;
+}
+
+.row-number {
+    padding-right: 2em;
+    text-align: right;
+}
+
+.name {
+    text-align: left;
+}
+
+.graph {
+    padding-left: 0em;
+    padding-right: 0em;
+}
+
+.head {
+    font-weight: bold;
+}
+
+.selected {
+    background: rgb(240,245,255)
+}
+
+.info-data {
+    padding-right: 1em;
+    text-align: right;
+}

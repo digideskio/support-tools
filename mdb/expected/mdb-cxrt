@@ -1,0 +1,27 @@
+=== mdb.py -cxrt testdb test.small.$_id_
+001d5290: namespace name=test.small.$_id_ first=0:22000 last=0:22000, ce=0:22000, cfn=-2:0
+0:22000: extent sig=41424344 loc=0:22000 next=-1:0 prev=-1:0 ns=test.small.$_id_ len=9000(36864) first=0:23000 last=0:23000
+0:23000: record rlen=2000(8192) end=25000 ext=22000 next=-1 prev=-1 blen=fffffffe(4294967294)
+23010: btree parent=0:-2 next=0:-2 flags=1 empty=1eb8(7864) top=82(130) n=a(10)
+23026: key child=0:-2 loc=0:20b0 kdo=1fcd kd=24ff3
+23036: key child=0:-2 loc=0:3eb0 kdo=1fc0 kd=24fe6
+23046: key child=0:-2 loc=0:5cb0 kdo=1fb3 kd=24fd9
+23056: key child=0:-2 loc=0:7ab0 kdo=1fa6 kd=24fcc
+23066: key child=0:-2 loc=0:98b0 kdo=1f99 kd=24fbf
+23076: key child=0:-2 loc=0:b6b0 kdo=1f8c kd=24fb2
+23086: key child=0:-2 loc=0:d4b0 kdo=1f7f kd=24fa5
+23096: key child=0:-2 loc=0:f2b0 kdo=1f72 kd=24f98
+230a6: key child=0:-2 loc=0:110b0 kdo=1f65 kd=24f8b
+230b6: key child=0:-2 loc=0:12eb0 kdo=1f58 kd=24f7e
+24f7e: kd len=d(13) 08 53 c3 d0 99 01 79 ab 0d 6c 5e 95 50
+24f8b: kd len=d(13) 08 53 c3 d0 99 01 79 ab 0d 6c 5e 95 4f
+24f98: kd len=d(13) 08 53 c3 d0 99 01 79 ab 0d 6c 5e 95 4e
+24fa5: kd len=d(13) 08 53 c3 d0 99 01 79 ab 0d 6c 5e 95 4d
+24fb2: kd len=d(13) 08 53 c3 d0 99 01 79 ab 0d 6c 5e 95 4c
+24fbf: kd len=d(13) 08 53 c3 d0 99 01 79 ab 0d 6c 5e 95 4b
+24fcc: kd len=d(13) 08 53 c3 d0 99 01 79 ab 0d 6c 5e 95 4a
+24fd9: kd len=d(13) 08 53 c3 d0 99 01 79 ab 0d 6c 5e 95 49
+24fe6: kd len=d(13) 08 53 c3 d0 99 01 79 ab 0d 6c 5e 95 48
+24ff3: kd len=d(13) 08 53 c3 d0 99 01 79 ab 0d 6c 5e 95 47
+0:25000: record rlen=6000(24576) end=2b000 ext=22000 next=-1 prev=0 blen=eeeeeeee(4008636142)
+25010: btree parent=0:-11111112 next=0:0 flags=0 empty=0(0) top=0(0) n=0(0)

@@ -1,0 +1,352 @@
+MongoDB shell version: 2.8.0-rc4
+connecting to: test
+{
+	"host" : "ubuntu",
+	"version" : "2.8.0-rc2",
+	"process" : "mongod",
+	"pid" : NumberLong(30538),
+	"uptime" : 22,
+	"uptimeMillis" : NumberLong(22494),
+	"uptimeEstimate" : 19,
+	"localTime" : ISODate("2015-01-04T19:20:53.501Z"),
+	"asserts" : {
+		"regular" : 0,
+		"warning" : 0,
+		"msg" : 0,
+		"user" : 0,
+		"rollovers" : 0
+	},
+	"backgroundFlushing" : {
+		"flushes" : 0,
+		"total_ms" : 0,
+		"average_ms" : 0,
+		"last_ms" : 0,
+		"last_finished" : ISODate("1970-01-01T00:00:00Z")
+	},
+	"connections" : {
+		"current" : 12,
+		"available" : 807,
+		"totalCreated" : NumberLong(15)
+	},
+	"cursors" : {
+		"note" : "deprecated, use server status metrics",
+		"clientCursors_size" : 0,
+		"totalOpen" : 0,
+		"pinned" : 0,
+		"totalNoTimeout" : 0,
+		"timedOut" : 0
+	},
+	"dur" : {
+		"commits" : 0,
+		"journaledMB" : 0,
+		"writeToDataFilesMB" : 0,
+		"compression" : 0,
+		"commitsInWriteLock" : 0,
+		"earlyCommits" : 0,
+		"timeMs" : {
+			"dt" : 0,
+			"prepLogBuffer" : 0,
+			"writeToJournal" : 0,
+			"writeToDataFiles" : 0,
+			"remapPrivateView" : 0
+		}
+	},
+	"extra_info" : {
+		"note" : "fields vary by platform",
+		"heap_usage_bytes" : 557701872,
+		"page_faults" : 0
+	},
+	"globalLock" : {
+		"totalTime" : NumberLong(22497000),
+		"currentQueue" : {
+			"total" : 0,
+			"readers" : 0,
+			"writers" : 0
+		},
+		"activeClients" : {
+			"total" : 17,
+			"readers" : 3,
+			"writers" : 0
+		}
+	},
+	"network" : {
+		"bytesIn" : 660744343,
+		"bytesOut" : 672390,
+		"numRequests" : 710
+	},
+	"opcounters" : {
+		"insert" : 636000,
+		"query" : 1,
+		"update" : 0,
+		"delete" : 0,
+		"getmore" : 0,
+		"command" : 75
+	},
+	"opcountersRepl" : {
+		"insert" : 0,
+		"query" : 0,
+		"update" : 0,
+		"delete" : 0,
+		"getmore" : 0,
+		"command" : 0
+	},
+	"storageEngine" : {
+		"name" : "wiredTiger"
+	},
+	"wiredTiger" : {
+		"uri" : "statistics:",
+		"LSM" : {
+			"sleep for LSM checkpoint throttle" : 0,
+			"sleep for LSM merge throttle" : 0,
+			"rows merged in an LSM tree" : 0,
+			"application work units currently queued" : 0,
+			"merge work units currently queued" : 0,
+			"tree queue hit maximum" : 0,
+			"switch work units currently queued" : 0,
+			"tree maintenance operations scheduled" : 0,
+			"tree maintenance operations discarded" : 0,
+			"tree maintenance operations executed" : 0
+		},
+		"async" : {
+			"number of allocation state races" : 0,
+			"number of operation slots viewed for allocation" : 0,
+			"current work queue length" : 0,
+			"number of flush calls" : 0,
+			"number of times operation allocation failed" : 0,
+			"maximum work queue length" : 0,
+			"number of times worker found no work" : 0,
+			"total allocations" : 0,
+			"total compact calls" : 0,
+			"total insert calls" : 0,
+			"total remove calls" : 0,
+			"total search calls" : 0,
+			"total update calls" : 0
+		},
+		"block-manager" : {
+			"mapped bytes read" : 0,
+			"bytes read" : 135192576,
+			"bytes written" : 461963264,
+			"mapped blocks read" : 0,
+			"blocks pre-loaded" : 0,
+			"blocks read" : 9793,
+			"blocks written" : 25784
+		},
+		"cache" : {
+			"tracked dirty bytes in the cache" : 493801086,
+			"bytes currently in the cache" : 493801303,
+			"maximum bytes configured" : 524288000,
+			"bytes read into cache" : 120125293,
+			"bytes written from cache" : 439793145,
+			"pages evicted by application threads" : 0,
+			"checkpoint blocked page eviction" : 0,
+			"unmodified pages evicted" : 0,
+			"page split during eviction deepened the tree" : 1,
+			"modified pages evicted" : 4339,
+			"pages selected for eviction unable to be evicted" : 3,
+			"pages evicted because they exceeded the in-memory maximum" : 8,
+			"failed eviction of pages that exceeded the in-memory maximum" : 0,
+			"hazard pointer blocked page eviction" : 1,
+			"internal pages evicted" : 0,
+			"eviction server candidate queue empty when topping up" : 1,
+			"eviction server candidate queue not empty when topping up" : 57,
+			"eviction server evicting pages" : 58,
+			"eviction server populating queue, but not evicting pages" : 0,
+			"eviction server unable to reach eviction goal" : 0,
+			"pages split during eviction" : 285,
+			"pages walked for eviction" : 6369,
+			"in-memory page splits" : 7,
+			"tracked dirty pages in the cache" : 5645,
+			"pages currently held in the cache" : 5646,
+			"pages read into cache" : 9786,
+			"pages written from cache" : 25784
+		},
+		"connection" : {
+			"pthread mutex condition wait calls" : 170,
+			"files currently open" : 8,
+			"memory allocations" : 2912802,
+			"memory frees" : 2021935,
+			"memory re-allocations" : 3455,
+			"total read I/Os" : 9802,
+			"pthread mutex shared lock read-lock calls" : 135,
+			"pthread mutex shared lock write-lock calls" : 30,
+			"total write I/Os" : 302689
+		},
+		"cursor" : {
+			"cursor create calls" : 118,
+			"cursor insert calls" : 1244814,
+			"cursor next calls" : 7,
+			"cursor prev calls" : 3,
+			"cursor remove calls" : 0,
+			"cursor reset calls" : 1264058,
+			"cursor search calls" : 109,
+			"cursor search near calls" : 0,
+			"cursor update calls" : 4
+		},
+		"data-handle" : {
+			"session dhandles swept" : 0,
+			"session sweep attempts" : 5
+		},
+		"log" : {
+			"log buffer size increases" : 0,
+			"total log buffer size" : 1048576,
+			"log bytes of payload data" : 744324565,
+			"log bytes written" : 804802560,
+			"yields waiting for previous log file close" : 0,
+			"maximum log file size" : 104857600,
+			"log read operations" : 0,
+			"records processed by log scan" : 0,
+			"log scan records requiring two reads" : 0,
+			"log scan operations" : 0,
+			"consolidated slot closures" : 275704,
+			"logging bytes consolidated" : 812417280,
+			"consolidated slot joins" : 634658,
+			"consolidated slot join races" : 11461,
+			"slots selected for switching that were unavailable" : 1,
+			"record size exceeded maximum" : 0,
+			"failed to find a slot large enough for record" : 0,
+			"consolidated slot join transitions" : 432,
+			"log sync operations" : 0,
+			"log write operations" : 627132
+		},
+		"reconciliation" : {
+			"page reconciliation calls" : 4342,
+			"page reconciliation calls for eviction" : 4342,
+			"split bytes currently awaiting free" : 88986,
+			"split objects currently awaiting free" : 4
+		},
+		"session" : {
+			"open cursor count" : 25,
+			"open session count" : 16
+		},
+		"transaction" : {
+			"transaction begins" : 633135,
+			"transaction checkpoints" : 1,
+			"transaction checkpoint currently running" : 0,
+			"transaction checkpoint max time (msecs)" : 2,
+			"transaction checkpoint min time (msecs)" : 2,
+			"transaction checkpoint most recent time (msecs)" : 2,
+			"transaction checkpoint total time (msecs)" : 2,
+			"transactions committed" : 635289,
+			"transaction failures due to cache overflow" : 0,
+			"transaction range of IDs currently pinned" : 29394,
+			"transactions rolled back" : 47
+		}
+	},
+	"writeBacksQueued" : false,
+	"mem" : {
+		"bits" : 64,
+		"resident" : 648,
+		"virtual" : 788,
+		"supported" : true,
+		"mapped" : 0,
+		"mappedWithJournal" : 0
+	},
+	"metrics" : {
+		"commands" : {
+			"getLog" : {
+				"failed" : NumberLong(0),
+				"total" : NumberLong(1)
+			},
+			"insert" : {
+				"failed" : NumberLong(0),
+				"total" : NumberLong(637)
+			},
+			"isMaster" : {
+				"failed" : NumberLong(0),
+				"total" : NumberLong(11)
+			},
+			"replSetGetStatus" : {
+				"failed" : NumberLong(1),
+				"total" : NumberLong(1)
+			},
+			"serverStatus" : {
+				"failed" : NumberLong(0),
+				"total" : NumberLong(47)
+			},
+			"whatsmyuri" : {
+				"failed" : NumberLong(0),
+				"total" : NumberLong(15)
+			}
+		},
+		"cursor" : {
+			"timedOut" : NumberLong(0),
+			"open" : {
+				"noTimeout" : NumberLong(0),
+				"pinned" : NumberLong(0),
+				"total" : NumberLong(0)
+			}
+		},
+		"document" : {
+			"deleted" : NumberLong(0),
+			"inserted" : NumberLong(636000),
+			"returned" : NumberLong(0),
+			"updated" : NumberLong(0)
+		},
+		"getLastError" : {
+			"wtime" : {
+				"num" : 0,
+				"totalMillis" : 0
+			},
+			"wtimeouts" : NumberLong(0)
+		},
+		"operation" : {
+			"fastmod" : NumberLong(0),
+			"idhack" : NumberLong(0),
+			"scanAndOrder" : NumberLong(0)
+		},
+		"queryExecutor" : {
+			"scanned" : NumberLong(0),
+			"scannedObjects" : NumberLong(0)
+		},
+		"record" : {
+			"moves" : NumberLong(0)
+		},
+		"repl" : {
+			"apply" : {
+				"batches" : {
+					"num" : 0,
+					"totalMillis" : 0
+				},
+				"ops" : NumberLong(0)
+			},
+			"buffer" : {
+				"count" : NumberLong(0),
+				"maxSizeBytes" : 268435456,
+				"sizeBytes" : NumberLong(0)
+			},
+			"network" : {
+				"bytes" : NumberLong(0),
+				"getmores" : {
+					"num" : 0,
+					"totalMillis" : 0
+				},
+				"ops" : NumberLong(0),
+				"readersCreated" : NumberLong(0)
+			},
+			"preload" : {
+				"docs" : {
+					"num" : 0,
+					"totalMillis" : 0
+				},
+				"indexes" : {
+					"num" : 0,
+					"totalMillis" : 0
+				}
+			}
+		},
+		"storage" : {
+			"freelist" : {
+				"search" : {
+					"bucketExhausted" : NumberLong(0),
+					"requests" : NumberLong(0),
+					"scanned" : NumberLong(0)
+				}
+			}
+		},
+		"ttl" : {
+			"deletedDocuments" : NumberLong(0),
+			"passes" : NumberLong(0)
+		}
+	},
+	"ok" : 1
+}

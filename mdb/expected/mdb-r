@@ -1,0 +1,2 @@
+=== mdb.py -r testdb/test.0 0x20b0
+20b0: record rlen=1e00(7680) end=3eb0 ext=2000 next=3eb0 prev=-1 blen=1de0(7648)

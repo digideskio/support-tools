@@ -1,0 +1,45 @@
+=========== start fstab ===========
+
+-rw-r--r-- 1 root root 1614 Aug 15 21:45 /etc/fstab
+--> start /etc/fstab <--
+
+#
+# /etc/fstab
+# Created by anaconda on Fri Aug 15 19:58:49 2014
+#
+# Accessible filesystems, by reference, are maintained under '/dev/disk'
+# See man pages fstab(5), findfs(8), mount(8) and/or blkid(8) for more info
+#
+/dev/mapper/Sys-root    /                       ext3    defaults        1 1
+UUID=061e2272-27c1-4cc4-acf3-692b149173cb /boot                   ext2    defaults        1 2
+/dev/mapper/Sys-home    /home                   ext3    defaults        1 2
+/dev/mapper/Sys-opt     /opt                    ext3    defaults        1 2
+/dev/mapper/Sys-tmp     /tmp                    ext3    defaults        1 2
+/dev/mapper/Sys-usr     /usr                    ext3    defaults        1 2
+/dev/mapper/Sys-var     /var                    ext3    defaults        1 2
+/dev/mapper/Sys-log     /var/log                ext3    defaults        1 2
+/dev/mapper/Sys-audit   /var/log/audit          ext3    defaults        1 2
+/dev/mapper/Sys-vtmp    /var/tmp                ext3    defaults        1 2
+/dev/mapper/Sys-baseswap swap                    swap    defaults        0 0
+tmpfs                   /dev/shm                tmpfs   defaults        0 0
+devpts                  /dev/pts                devpts  gid=5,mode=620  0 0
+sysfs                   /sys                    sysfs   defaults        0 0
+proc                    /proc                   proc    defaults        0 0
+/dev/mapper/Sys-lv_mongobase       /opt/mongobase      ext4    noatime        1 2
+/dev/mapper/Sys-lv_mongolog       /mongolog      ext4    noatime        1 2
+/dev/mapper/Sys-lv_mongodata       /mongodata      ext4    noatime        1 2
+--> end /etc/fstab <--
+============ end fstab ============
+
+
+=========== start procinfo ===========
+
+lrwxrwxrwx 1 root root 11 Aug 19 22:01 /proc/mounts -> self/mounts
+
+-r--r--r-- 1 root root 0 Aug 19 22:01 /proc/swaps
+--> start /proc/swaps <--
+Filename				Type		Size	Used	Priority
+/dev/dm-1                               partition	16777208	0	-1
+--> end /proc/swaps <--
+
+============ end procinfo ============

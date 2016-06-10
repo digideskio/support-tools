@@ -1,0 +1,18 @@
+=========== start distro ===========
+
+-rw-r--r-- 1 root root 27 Feb 25  2013 /etc/centos-release
+--> start /etc/centos-release <--
+CentOS release 6.4 (Final)
+--> end /etc/centos-release <--
+
+lrwxrwxrwx 1 root root 14 Aug 15 20:58 /etc/redhat-release -> centos-release
+--> start /etc/redhat-release <--
+CentOS release 6.4 (Final)
+--> end /etc/redhat-release <--
+
+lrwxrwxrwx 1 root root 14 Aug 15 20:58 /etc/system-release -> centos-release
+--> start /etc/system-release <--
+CentOS release 6.4 (Final)
+--> end /etc/system-release <--
+============ end distro ============
+

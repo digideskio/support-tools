@@ -1,0 +1,51 @@
+NAME
+    dups.py - tool for detecting duplicate blocks in a file
+
+SYNPOSIS
+    python dups.py filename blocksize
+
+DESCRIPTION
+
+    This tool aids in detecting a particular kind of database file
+    corruption consisting of incorrectly duplicated block(s). It was
+    created to scan database files for additional instances of a
+    particular kind of corruption that we have seen with one customer
+    (in two separate files) consisting of a duplicated 4KB page
+    (i.e. 4KB on a 4KB boundary).  See HELP-220 and SUPPORT-681 for
+    details.
+
+    With the particular db files examined in SUPPORT-681:
+
+    * With a block size of 4096, which was the observed corrupted
+      block size, it reported only the block that was known to be
+      corrupted using other tools (mongodump --validate and mdb).
+
+    * With a block size of 1024 it reported a few false positives
+      consisting of a couple of non-zero bytes at the beginning of the
+      block followed by all 0s. The program reports the number of
+      non-zero bytes so we can filter out these false positives
+      manually.
+
+    * With a block size of 512 it produced a lot of false
+      positives. That particular customer's data seems to have a lot
+      of repetition; unknown how common that is.
+
+    It shouldn't be necessary to stop mongod to get a guaranteed
+    consistent file view before scanning the file because we are
+    looking for corruption that happened sometime in the past and
+    is therefore static.
+
+    It should be safe to run against production data, but out of an
+    abundance of caution we might suggest the customer copy the data
+    off to another location, and maybe another server, before running
+    the program.
+
+    The program could be run against all db files, or you could
+    identify the db file with corruption by using validate and only
+    scan the corrupted file.
+
+    Blocks consisting of all 0s are ignored.
+
+
+
+

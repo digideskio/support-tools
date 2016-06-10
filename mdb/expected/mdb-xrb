@@ -1,0 +1,183 @@
+=== mdb.py -xrb testdb/test.0 0x2000
+0:2000: extent sig=41424344 loc=0:2000 next=-1:0 prev=-1:0 ns=test.small len=1e000(122880) first=0:20b0 last=0:12eb0
+20b0: record rlen=1e00(7680) end=3eb0 ext=2000 next=3eb0 prev=-1 blen=1de0(7648)
+20c4: _id: objectid 53 c3 d0 99 01 79 ab 0d 6c 5e 95 47 =2014-07-14T12:44:09Z
+20d5: number: double 33 33 33 33 33 33 fb 3f =1.7
+20e5: hello: string len=6 strlen=5
+20f6: empty: DOC len=5(5) EOO=2101
+2101: EOO
+2102: false: boolean 00
+210a: array: DOC len=1d80(7552) EOO=3e90
+2115: 0: bindata len=7500 sub=0
+3e69: 1: undefined
+3e6c: 2: boolean 01
+3e70: 3: DOC len=b(11) EOO=3e7d
+3e77: nada: null
+3e7d: EOO
+3e7e: 4: regexp len(e)=13 len(o)=0
+3e90: EOO
+3e91: date: datetime 00 00 00 00 00 00 00 00 =1970-01-01T00:00:00Z
+3e9f: EOO
+3eb0: record rlen=1e00(7680) end=5cb0 ext=2000 next=5cb0 prev=20b0 blen=1de0(7648)
+3ec4: _id: objectid 53 c3 d0 99 01 79 ab 0d 6c 5e 95 48 =2014-07-14T12:44:09Z
+3ed5: number: double 33 33 33 33 33 33 fb 3f =1.7
+3ee5: hello: string len=6 strlen=5
+3ef6: empty: DOC len=5(5) EOO=3f01
+3f01: EOO
+3f02: false: boolean 00
+3f0a: array: DOC len=1d80(7552) EOO=5c90
+3f15: 0: bindata len=7500 sub=0
+5c69: 1: undefined
+5c6c: 2: boolean 01
+5c70: 3: DOC len=b(11) EOO=5c7d
+5c77: nada: null
+5c7d: EOO
+5c7e: 4: regexp len(e)=13 len(o)=0
+5c90: EOO
+5c91: date: datetime 00 00 00 00 00 00 00 00 =1970-01-01T00:00:00Z
+5c9f: EOO
+5cb0: record rlen=1e00(7680) end=7ab0 ext=2000 next=7ab0 prev=3eb0 blen=1de0(7648)
+5cc4: _id: objectid 53 c3 d0 99 01 79 ab 0d 6c 5e 95 49 =2014-07-14T12:44:09Z
+5cd5: number: double 33 33 33 33 33 33 fb 3f =1.7
+5ce5: hello: string len=6 strlen=5
+5cf6: empty: DOC len=5(5) EOO=5d01
+5d01: EOO
+5d02: false: boolean 00
+5d0a: array: DOC len=1d80(7552) EOO=7a90
+5d15: 0: bindata len=7500 sub=0
+7a69: 1: undefined
+7a6c: 2: boolean 01
+7a70: 3: DOC len=b(11) EOO=7a7d
+7a77: nada: null
+7a7d: EOO
+7a7e: 4: regexp len(e)=13 len(o)=0
+7a90: EOO
+7a91: date: datetime 00 00 00 00 00 00 00 00 =1970-01-01T00:00:00Z
+7a9f: EOO
+7ab0: record rlen=1e00(7680) end=98b0 ext=2000 next=98b0 prev=5cb0 blen=1de0(7648)
+7ac4: _id: objectid 53 c3 d0 99 01 79 ab 0d 6c 5e 95 4a =2014-07-14T12:44:09Z
+7ad5: number: double 33 33 33 33 33 33 fb 3f =1.7
+7ae5: hello: string len=6 strlen=5
+7af6: empty: DOC len=5(5) EOO=7b01
+7b01: EOO
+7b02: false: boolean 00
+7b0a: array: DOC len=1d80(7552) EOO=9890
+7b15: 0: bindata len=7500 sub=0
+9869: 1: undefined
+986c: 2: boolean 01
+9870: 3: DOC len=b(11) EOO=987d
+9877: nada: null
+987d: EOO
+987e: 4: regexp len(e)=13 len(o)=0
+9890: EOO
+9891: date: datetime 00 00 00 00 00 00 00 00 =1970-01-01T00:00:00Z
+989f: EOO
+98b0: record rlen=1e00(7680) end=b6b0 ext=2000 next=b6b0 prev=7ab0 blen=1de0(7648)
+98c4: _id: objectid 53 c3 d0 99 01 79 ab 0d 6c 5e 95 4b =2014-07-14T12:44:09Z
+98d5: number: double 33 33 33 33 33 33 fb 3f =1.7
+98e5: hello: string len=6 strlen=5
+98f6: empty: DOC len=5(5) EOO=9901
+9901: EOO
+9902: false: boolean 00
+990a: array: DOC len=1d80(7552) EOO=b690
+9915: 0: bindata len=7500 sub=0
+b669: 1: undefined
+b66c: 2: boolean 01
+b670: 3: DOC len=b(11) EOO=b67d
+b677: nada: null
+b67d: EOO
+b67e: 4: regexp len(e)=13 len(o)=0
+b690: EOO
+b691: date: datetime 00 00 00 00 00 00 00 00 =1970-01-01T00:00:00Z
+b69f: EOO
+b6b0: record rlen=1e00(7680) end=d4b0 ext=2000 next=d4b0 prev=98b0 blen=1de0(7648)
+b6c4: _id: objectid 53 c3 d0 99 01 79 ab 0d 6c 5e 95 4c =2014-07-14T12:44:09Z
+b6d5: number: double 33 33 33 33 33 33 fb 3f =1.7
+b6e5: hello: string len=6 strlen=5
+b6f6: empty: DOC len=5(5) EOO=b701
+b701: EOO
+b702: false: boolean 00
+b70a: array: DOC len=1d80(7552) EOO=d490
+b715: 0: bindata len=7500 sub=0
+d469: 1: undefined
+d46c: 2: boolean 01
+d470: 3: DOC len=b(11) EOO=d47d
+d477: nada: null
+d47d: EOO
+d47e: 4: regexp len(e)=13 len(o)=0
+d490: EOO
+d491: date: datetime 00 00 00 00 00 00 00 00 =1970-01-01T00:00:00Z
+d49f: EOO
+d4b0: record rlen=1e00(7680) end=f2b0 ext=2000 next=f2b0 prev=b6b0 blen=1de0(7648)
+d4c4: _id: objectid 53 c3 d0 99 01 79 ab 0d 6c 5e 95 4d =2014-07-14T12:44:09Z
+d4d5: number: double 33 33 33 33 33 33 fb 3f =1.7
+d4e5: hello: string len=6 strlen=5
+d4f6: empty: DOC len=5(5) EOO=d501
+d501: EOO
+d502: false: boolean 00
+d50a: array: DOC len=1d80(7552) EOO=f290
+d515: 0: bindata len=7500 sub=0
+f269: 1: undefined
+f26c: 2: boolean 01
+f270: 3: DOC len=b(11) EOO=f27d
+f277: nada: null
+f27d: EOO
+f27e: 4: regexp len(e)=13 len(o)=0
+f290: EOO
+f291: date: datetime 00 00 00 00 00 00 00 00 =1970-01-01T00:00:00Z
+f29f: EOO
+f2b0: record rlen=1e00(7680) end=110b0 ext=2000 next=110b0 prev=d4b0 blen=1de0(7648)
+f2c4: _id: objectid 53 c3 d0 99 01 79 ab 0d 6c 5e 95 4e =2014-07-14T12:44:09Z
+f2d5: number: double 33 33 33 33 33 33 fb 3f =1.7
+f2e5: hello: string len=6 strlen=5
+f2f6: empty: DOC len=5(5) EOO=f301
+f301: EOO
+f302: false: boolean 00
+f30a: array: DOC len=1d80(7552) EOO=11090
+f315: 0: bindata len=7500 sub=0
+11069: 1: undefined
+1106c: 2: boolean 01
+11070: 3: DOC len=b(11) EOO=1107d
+11077: nada: null
+1107d: EOO
+1107e: 4: regexp len(e)=13 len(o)=0
+11090: EOO
+11091: date: datetime 00 00 00 00 00 00 00 00 =1970-01-01T00:00:00Z
+1109f: EOO
+110b0: record rlen=1e00(7680) end=12eb0 ext=2000 next=12eb0 prev=f2b0 blen=1de0(7648)
+110c4: _id: objectid 53 c3 d0 99 01 79 ab 0d 6c 5e 95 4f =2014-07-14T12:44:09Z
+110d5: number: double 33 33 33 33 33 33 fb 3f =1.7
+110e5: hello: string len=6 strlen=5
+110f6: empty: DOC len=5(5) EOO=11101
+11101: EOO
+11102: false: boolean 00
+1110a: array: DOC len=1d80(7552) EOO=12e90
+11115: 0: bindata len=7500 sub=0
+12e69: 1: undefined
+12e6c: 2: boolean 01
+12e70: 3: DOC len=b(11) EOO=12e7d
+12e77: nada: null
+12e7d: EOO
+12e7e: 4: regexp len(e)=13 len(o)=0
+12e90: EOO
+12e91: date: datetime 00 00 00 00 00 00 00 00 =1970-01-01T00:00:00Z
+12e9f: EOO
+12eb0: record rlen=1e00(7680) end=14cb0 ext=2000 next=-1 prev=110b0 blen=1de0(7648)
+12ec4: _id: objectid 53 c3 d0 99 01 79 ab 0d 6c 5e 95 50 =2014-07-14T12:44:09Z
+12ed5: number: double 33 33 33 33 33 33 fb 3f =1.7
+12ee5: hello: string len=6 strlen=5
+12ef6: empty: DOC len=5(5) EOO=12f01
+12f01: EOO
+12f02: false: boolean 00
+12f0a: array: DOC len=1d80(7552) EOO=14c90
+12f15: 0: bindata len=7500 sub=0
+14c69: 1: undefined
+14c6c: 2: boolean 01
+14c70: 3: DOC len=b(11) EOO=14c7d
+14c77: nada: null
+14c7d: EOO
+14c7e: 4: regexp len(e)=13 len(o)=0
+14c90: EOO
+14c91: date: datetime 00 00 00 00 00 00 00 00 =1970-01-01T00:00:00Z
+14c9f: EOO
+14cb0: record rlen=b350(45904) end=20000 ext=2000 next=-1 prev=0 blen=eeeeeeee(4008636142)
